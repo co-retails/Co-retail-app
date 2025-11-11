@@ -1,0 +1,481 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  /* Typography scale variables */
+  --text-h1: 32px;
+  --text-h2: 28px;
+  --text-h3: 24px;
+  --text-h4: 18px;
+  --text-base: 16px;
+  --text-label: 14px;
+  /* The default background color for the application. */
+  --background: rgba(255, 255, 255, 1);
+  /* The default color for elements or text that appears on top of the background. */
+  --foreground: rgba(44, 44, 36, 1);
+  /* The background color for cards, modals, and other containers. */
+  --card: rgba(255, 255, 255, 1);
+  /* The default color for text or elements that appear on top of cards, modals and other background containers. */
+  --card-foreground: rgba(44, 44, 36, 1);
+  /* The background color for dropdowns and tooltips. */
+  --popover: rgba(255, 255, 255, 1);
+  /* The default color for text or elements that appear on top of dropdowns and tooltips. */
+  --popover-foreground: rgba(44, 44, 36, 1);
+  /* The primary color used for buttons, links, and other interactive elements. */
+  --primary: rgba(44, 44, 36, 1);
+  /* The default color for text or elements that appear on top of primary colored elements. */
+  --primary-foreground: rgba(255, 255, 255, 1);
+  /* The primary container color for secondary buttons and containers. */
+  --primary-container: rgba(240, 240, 235, 1);
+  /* The default color for text or elements on top of primary containers. */
+  --on-primary-container: rgba(44, 44, 36, 1);
+  /* The secondary color used for secondary(but NOT-DESTRUCTIVE) buttons and interactive elements. */
+  --secondary: rgba(240, 240, 235, 1);
+  /* The default color for text or elements that appear on top of secondary colored elements. */
+  --secondary-foreground: rgba(44, 44, 36, 1);
+  /* The secondary container color. */
+  --secondary-container: rgba(240, 240, 235, 1);
+  /* The default color for text or elements on top of secondary containers. */
+  --on-secondary-container: rgba(44, 44, 36, 1);
+  /* The muted color used for less prominent elements, such as disabled buttons or disabled text. */
+  --muted: rgba(240, 240, 235, 1);
+  /* The default color for text or elements that appear on top of muted colored elements. */
+  --muted-foreground: rgba(44, 44, 36, 1);
+  /* The accent color used for highlights, links, and other interactive elements. */
+  --accent: rgba(56, 115, 202, 1);
+  /* The default color for text or elements that appear on top of accent colored elements. */
+  --accent-foreground: rgba(255, 255, 255, 1);
+  /* The color used for background in destructive actions, such as delete buttons or error messages. */
+  --destructive: rgba(229, 0, 16, 1);
+  /* The default color for text or elements that appear on top of destructive colored elements. */
+  --destructive-foreground: rgba(255, 255, 255, 1);
+  /* Error color for validation and error states. */
+  --error: rgba(229, 0, 16, 1);
+  /* The default color for text or elements on error backgrounds. */
+  --on-error: rgba(255, 255, 255, 1);
+  /* The default border color for elements such as inputs, buttons, and other containers. */
+  --border: rgba(190, 190, 182, 1);
+  /* The default background color for input fields once the text has been filled. Should be either transparent or match the input-background. */
+  --input: rgba(255, 255, 255, 1);
+  /* The default background color for input fields, text areas, and other input elements. */
+  --input-background: rgba(255, 255, 255, 1);
+  /* The default font weight for medium text. */
+  --font-weight-medium: 500;
+  /* The default font weight for normal text. */
+  --font-weight-normal: 400;
+  /* The color for focus rings, outlines, and other focus indicators. */
+  --ring: rgba(56, 115, 202, 1);
+  /* Shadow for small elevations, such as cards or modals. */
+  --elevation-sm: 0px 6px 10px 4px rgba(0,0,0,0.15), 0px 2px 3px 0px rgba(0,0,0,0.3);
+  /* The color for chart elements, such as a bar or line in a chart. */
+  --chart-1: rgba(56, 115, 202, 1);
+  /* The color for another chart element, such as a bar or line in a chart. */
+  --chart-2: rgba(102, 159, 42, 1);
+  /* The color for another chart element, such as a bar or line in a chart. */
+  --chart-3: rgba(229, 0, 16, 1);
+  /* The color for another chart element, such as a bar or line in a chart. */
+  --chart-4: rgba(114, 114, 108, 1);
+  /* The color for another chart element, such as a bar or line in a chart. */
+  --chart-5: rgba(164, 164, 156, 1);
+  /* The default border radius for elements such as buttons, tooltip, and other containers. */
+  --radius: 8px;
+  /* The border radius for card elements. */
+  --radius-card: 8px;
+  /* The border radius for dialog elements. */
+  --radius-dialog: 16px;
+  /* The background color for sidebars, navigation menus, and other persistent elements. */
+  --sidebar: rgba(255, 255, 255, 1);
+  /* The default color for text or elements that appear on top of sidebars, navigation menus, and other persistent elements. */
+  --sidebar-foreground: rgba(44, 44, 36, 1);
+  /* The primary color used for buttons, links, and other interactive elements in sidebars and navigation menus. */
+  --sidebar-primary: rgba(44, 44, 36, 1);
+  /* The default color for text or elements that appear on top of primary colored elements in sidebars and navigation menus. */
+  --sidebar-primary-foreground: rgba(255, 255, 255, 1);
+  /* The accent color used for highlights, links, and other interactive elements in sidebars and navigation menus. */
+  --sidebar-accent: rgba(56, 115, 202, 1);
+  /* The default color for text or elements that appear on top of accent colored elements in sidebars and navigation menus. */
+  --sidebar-accent-foreground: rgba(255, 255, 255, 1);
+  /* The default border color for elements in sidebars and navigation menus. */
+  --sidebar-border: rgba(190, 190, 182, 1);
+  /* The default color for focus rings, outlines, and other focus indicators in sidebars and navigation menus. */
+  --sidebar-ring: rgba(56, 115, 202, 1);
+  /* Material 3 tertiary colors */
+  --tertiary: rgba(102, 159, 42, 1);
+  --on-tertiary: rgba(255, 255, 255, 1);
+  --tertiary-container: rgba(229, 241, 214, 1);
+  --on-tertiary-container: rgba(29, 46, 11, 1);
+  /* Material 3 error container colors */
+  --error-container: rgba(255, 218, 214, 1);
+  --on-error-container: rgba(65, 0, 2, 1);
+  /* Material 3 warning container colors */
+  --warning-container: rgba(255, 243, 224, 1);
+  --on-warning-container: rgba(69, 39, 0, 1);
+  /* Material 3 success container colors */
+  --success-container: rgba(198, 230, 179, 1);
+  --on-success-container: rgba(29, 53, 13, 1);
+  /* Material 3 surface colors for layering and depth */
+  --surface: rgba(255, 255, 255, 1);
+  --on-surface: rgba(44, 44, 36, 1);
+  --surface-variant: rgba(240, 240, 235, 1);
+  --on-surface-variant: rgba(114, 114, 108, 1);
+  --surface-container: rgba(250, 250, 247, 1);
+  --surface-container-low: rgba(252, 252, 250, 1);
+  --surface-container-high: rgba(245, 245, 241, 1);
+  --surface-container-highest: rgba(240, 240, 235, 1);
+  /* Material 3 outline colors for borders */
+  --outline: rgba(190, 190, 182, 1);
+  --outline-variant: rgba(220, 220, 215, 1);
+}
+
+.dark {
+  --background: rgba(44, 44, 36, 1);
+  --foreground: rgba(255, 255, 255, 1);
+  --card: rgba(44, 44, 36, 1);
+  --card-foreground: rgba(255, 255, 255, 1);
+  --popover: rgba(44, 44, 36, 1);
+  --popover-foreground: rgba(255, 255, 255, 1);
+  --primary: rgba(255, 255, 255, 1);
+  --primary-foreground: rgba(44, 44, 36, 1);
+  --primary-container: rgba(114, 114, 108, 1);
+  --on-primary-container: rgba(255, 255, 255, 1);
+  --secondary: rgba(114, 114, 108, 1);
+  --secondary-foreground: rgba(255, 255, 255, 1);
+  --secondary-container: rgba(114, 114, 108, 1);
+  --on-secondary-container: rgba(255, 255, 255, 1);
+  --muted: rgba(114, 114, 108, 1);
+  --muted-foreground: rgba(255, 255, 255, 1);
+  --accent: rgba(56, 115, 202, 1);
+  --accent-foreground: rgba(255, 255, 255, 1);
+  --destructive: rgba(229, 0, 16, 1);
+  --destructive-foreground: rgba(255, 255, 255, 1);
+  --error: rgba(229, 0, 16, 1);
+  --on-error: rgba(255, 255, 255, 1);
+  --warning-container: rgba(114, 82, 46, 1);
+  --on-warning-container: rgba(255, 243, 224, 1);
+  --success-container: rgba(74, 102, 58, 1);
+  --on-success-container: rgba(198, 230, 179, 1);
+  --border: rgba(164, 164, 156, 1);
+  --input: rgba(114, 114, 108, 1);
+  --ring: rgba(56, 115, 202, 1);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: rgba(56, 115, 202, 1);
+  --chart-2: rgba(102, 159, 42, 1);
+  --chart-3: rgba(229, 0, 16, 1);
+  --chart-4: rgba(164, 164, 156, 1);
+  --chart-5: rgba(190, 190, 182, 1);
+  --sidebar: rgba(44, 44, 36, 1);
+  --sidebar-foreground: rgba(255, 255, 255, 1);
+  --sidebar-primary: rgba(56, 115, 202, 1);
+  --sidebar-primary-foreground: rgba(255, 255, 255, 1);
+  --sidebar-accent: rgba(114, 114, 108, 1);
+  --sidebar-accent-foreground: rgba(255, 255, 255, 1);
+  --sidebar-border: rgba(164, 164, 156, 1);
+  --sidebar-ring: rgba(56, 115, 202, 1);
+  --tertiary: rgba(102, 159, 42, 1);
+  --on-tertiary: rgba(255, 255, 255, 1);
+  --tertiary-container: rgba(51, 80, 21, 1);
+  --on-tertiary-container: rgba(229, 241, 214, 1);
+  --error-container: rgba(147, 0, 10, 1);
+  --on-error-container: rgba(255, 218, 214, 1);
+  --surface: rgba(44, 44, 36, 1);
+  --on-surface: rgba(255, 255, 255, 1);
+  --surface-variant: rgba(64, 64, 56, 1);
+  --on-surface-variant: rgba(190, 190, 182, 1);
+  --surface-container: rgba(54, 54, 46, 1);
+  --surface-container-low: rgba(50, 50, 42, 1);
+  --surface-container-high: rgba(64, 64, 56, 1);
+  --surface-container-highest: rgba(74, 74, 66, 1);
+  --outline: rgba(164, 164, 156, 1);
+  --outline-variant: rgba(114, 114, 108, 1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-on-primary: var(--primary-foreground);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-on-secondary: var(--secondary-foreground);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-on-accent: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-warning-container: var(--warning-container);
+  --color-on-warning-container: var(--on-warning-container);
+  --color-success-container: var(--success-container);
+  --color-on-success-container: var(--on-success-container);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-card: var(--radius-card);
+  --radius-dialog: var(--radius-dialog);
+  --box-shadow-sm: var(--elevation-sm);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface: var(--surface);
+  --color-on-surface: var(--on-surface);
+  --color-surface-variant: var(--surface-variant);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Roboto', sans-serif;
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-h1);
+      font-weight: var(--font-weight-normal);
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-h2);
+      font-weight: var(--font-weight-normal);
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-h3);
+      font-weight: var(--font-weight-normal);
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-h4);
+      font-weight: var(--font-weight-medium);
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-label);
+      font-weight: var(--font-weight-medium);
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Material 3 Typography Utilities */
+@layer utilities {
+  /* Display */
+  .display-large {
+    font-family: 'Roboto', sans-serif;
+    font-size: 57px;
+    font-weight: var(--font-weight-normal);
+    line-height: 64px;
+    letter-spacing: -0.25px;
+  }
+  
+  .display-medium {
+    font-family: 'Roboto', sans-serif;
+    font-size: 45px;
+    font-weight: var(--font-weight-normal);
+    line-height: 52px;
+    letter-spacing: 0px;
+  }
+  
+  .display-small {
+    font-family: 'Roboto', sans-serif;
+    font-size: 36px;
+    font-weight: var(--font-weight-normal);
+    line-height: 44px;
+    letter-spacing: 0px;
+  }
+
+  /* Headline */
+  .headline-large {
+    font-family: 'Roboto', sans-serif;
+    font-size: 32px;
+    font-weight: var(--font-weight-normal);
+    line-height: 40px;
+    letter-spacing: 0px;
+  }
+  
+  .headline-medium {
+    font-family: 'Roboto', sans-serif;
+    font-size: 28px;
+    font-weight: var(--font-weight-normal);
+    line-height: 36px;
+    letter-spacing: 0px;
+  }
+  
+  .headline-small {
+    font-family: 'Roboto', sans-serif;
+    font-size: 24px;
+    font-weight: var(--font-weight-normal);
+    line-height: 32px;
+    letter-spacing: 0px;
+  }
+
+  /* Title */
+  .title-large {
+    font-family: 'Roboto', sans-serif;
+    font-size: 22px;
+    font-weight: var(--font-weight-normal);
+    line-height: 28px;
+    letter-spacing: 0px;
+  }
+  
+  .title-medium {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: var(--font-weight-medium);
+    line-height: 24px;
+    letter-spacing: 0.15px;
+  }
+  
+  .title-small {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: var(--font-weight-medium);
+    line-height: 20px;
+    letter-spacing: 0.1px;
+  }
+
+  /* Body */
+  .body-large {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: var(--font-weight-normal);
+    line-height: 24px;
+    letter-spacing: 0.5px;
+  }
+  
+  .body-medium {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: var(--font-weight-normal);
+    line-height: 20px;
+    letter-spacing: 0.25px;
+  }
+  
+  .body-small {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: var(--font-weight-normal);
+    line-height: 16px;
+    letter-spacing: 0.4px;
+  }
+
+  /* Label */
+  .label-large {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: var(--font-weight-medium);
+    line-height: 20px;
+    letter-spacing: 0.1px;
+  }
+  
+  .label-medium {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: var(--font-weight-medium);
+    line-height: 16px;
+    letter-spacing: 0.5px;
+  }
+  
+  .label-small {
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+    font-weight: var(--font-weight-medium);
+    line-height: 16px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Utility for hiding scrollbars while maintaining scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}

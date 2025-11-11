@@ -1,0 +1,14 @@
+# Playwright Test Results
+
+This directory contains test artifacts and screenshots.
+
+## Directories
+
+- `screenshots/` - Screenshots taken during test failures
+- `test-results/` - Test execution results and traces
+
+## Gitignore
+
+These files are typically gitignored but kept for local debugging.
+
+

@@ -1,0 +1,408 @@
+import React, { memo } from 'react';
+import { ImageWithFallback } from './figma/ImageWithFallback';
+import svgPaths from "../imports/svg-7un8q74kd7";
+import svgPathsNew from "../imports/svg-9jzmb4i3sv";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { Badge } from "./ui/badge";
+import { Archive, Clock, Edit3, Download, MoreHorizontal, RefreshCw } from "lucide-react";
+
+// Base item interface that works for both Item and OrderItem
+export interface BaseItem {
+  id: string;
+  itemId?: string;
+  title?: string;
+  brand: string;
+  category: string;
+  subcategory?: string;
+  size?: string;
+  color?: string;
+  price: number;
+  status?: string;
+  date?: string;
+  deliveryId?: string;
+  sellerName?: string;
+  image?: string; // Full-size product image
+  thumbnail?: string; // Thumbnail/fallback image
+  daysRemaining?: number;
+  selected?: boolean;
+  // Order-specific fields
+  partnerItemId?: string;
+  retailerItemId?: string;
+  gender?: string;
+  source?: string;
+  errors?: string[];
+}
+
+export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+
+interface ItemCardProps {
+  item: BaseItem;
+  onToggleSelect?: (itemId: string) => void;
+  onMoreActions?: (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status') => void;
+  onEdit?: (item: BaseItem) => void;
+  onClick?: (item: BaseItem) => void;
+  variant?: 'items-list' | 'order-details';
+  showActions?: boolean;
+  showSelection?: boolean;
+  userRole?: UserRole;
+}
+
+export const ItemCard = memo(function ItemCard({ 
+  item, 
+  onToggleSelect, 
+  onMoreActions, 
+  onEdit,
+  onClick,
+  variant = 'items-list',
+  showActions = true,
+  showSelection = true,
+  userRole = 'store-staff'
+}: ItemCardProps) {
+  
+  // Check if user can update status
+  const canUpdateStatus = () => {
+    if (!item.status) return false;
+    
+    // Admin and Store Manager can always update
+    if (userRole === 'admin' || userRole === 'store-manager') {
+      return true;
+    }
+    
+    // Store staff can update most statuses, but with restrictions
+    if (userRole === 'store-staff') {
+      const restrictedStatuses = ['To return', 'Archived'];
+      return !restrictedStatuses.includes(item.status);
+    }
+    
+    // Partners and buyers cannot update status
+    return false;
+  };
+  const getStatusColor = (status?: string) => {
+    if (!status) return 'text-on-surface-variant';
+    
+    switch (status.toLowerCase()) {
+      case 'in store':
+        return 'text-success';
+      case 'in transit':
+      case 'pending':
+        return 'text-on-surface-variant';
+      case 'to return':
+      case 'expired':
+        return 'text-error';
+      case 'archived':
+        return 'text-on-surface-variant';
+      case 'in store 2nd try':
+        return 'text-tertiary';
+      case 'valid':
+        return 'text-success';
+      case 'error':
+        return 'text-error';
+      default:
+        return 'text-on-surface-variant';
+    }
+  };
+
+  if (variant === 'order-details') {
+    return (
+      <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
+        {/* M3 Three-line List Item - Mobile Layout */}
+        <button 
+          className="w-full flex items-center gap-4 p-4 text-left md:hidden"
+          onClick={() => onEdit?.(item)}
+          aria-label="Edit item"
+        >
+          {/* Status Indicator */}
+
+          
+          {/* Thumbnail */}
+          <div className="flex-shrink-0 w-14 h-14 bg-surface-container rounded-xl overflow-hidden">
+            {item.image || item.thumbnail ? (
+              <ImageWithFallback 
+                src={item.image || item.thumbnail || ''} 
+                alt={item.title || item.brand}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-surface-variant flex items-center justify-center">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="var(--on-surface-variant)" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Z" />
+                </svg>
+              </div>
+            )}
+          </div>
+          
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
+            {/* Line 1: Status */}
+            <div className="flex items-center gap-2 mb-1 min-w-0">
+              <div className={`label-small whitespace-nowrap flex-shrink-0 ${
+                item.status === 'valid' || item.retailerItemId ? 'text-success' : 'text-error'
+              }`}>
+                {item.retailerItemId ? 'Ready' : item.status || 'Pending'}
+              </div>
+            </div>
+            
+            {/* Line 2: Title/Item ID */}
+            <div className="title-small text-on-surface mb-0.5 truncate">
+              {item.title || `${item.brand} ${item.category}`}
+            </div>
+            
+            {/* Line 3: Brand • Category • Size */}
+            <div className="body-small text-on-surface-variant mb-1 truncate">
+              {item.brand} • {item.category}{item.size && ` • ${item.size}`}
+            </div>
+            
+            {/* Line 4: Partner ID and Retailer ID (two columns) */}
+            <div className="grid grid-cols-2 gap-2 label-small text-on-surface-variant opacity-90">
+              {item.partnerItemId && (
+                <div className="truncate">
+                  {item.partnerItemId}
+                </div>
+              )}
+              {item.retailerItemId && (
+                <div className="truncate text-success">
+                  {item.retailerItemId}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Trailing Elements */}
+          <div className="flex-shrink-0 flex items-center gap-2">
+            {/* Price */}
+            <div className="text-right">
+              <div className="title-small text-on-surface whitespace-nowrap">
+                ${item.price.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </button>
+
+        {/* Desktop/Tablet: Table Row Layout */}
+        <div className="hidden md:flex items-center gap-4 px-4 py-3 hover:bg-surface-container-high transition-colors">
+
+          
+          {/* Item Info */}
+          <div className="flex-1 grid grid-cols-5 gap-4 items-center">
+            <div className="min-w-0">
+              <p className="title-small text-on-surface break-words">{item.partnerItemId || 'N/A'}</p>
+              <p className="body-small text-on-surface-variant">Partner ID</p>
+            </div>
+            <div className="min-w-0">
+              <p className="title-small text-on-surface break-words">{item.brand}</p>
+              <p className="body-small text-on-surface-variant">{item.category}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="title-small text-on-surface">{item.size || 'N/A'}</p>
+              <p className="body-small text-on-surface-variant">{item.color}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="title-small text-on-surface">${item.price.toFixed(2)}</p>
+              <p className="body-small text-on-surface-variant">Price</p>
+            </div>
+            <div className="min-w-0">
+              {item.retailerItemId ? (
+                <div>
+                  <p className="title-small text-on-surface break-words">{item.retailerItemId}</p>
+                  <p className="body-small text-success">Assigned</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="title-small text-on-surface-variant">Not assigned</p>
+                  <p className="body-small text-on-surface-variant">Retailer ID</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Actions */}
+          {onEdit && showActions && (
+            <button
+              onClick={() => onEdit(item)}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors text-on-surface-variant flex-shrink-0"
+            >
+              <Edit3 size={16} />
+            </button>
+          )}
+        </div>
+        
+        {item.status === 'error' && item.errors && (
+          <div className="mx-4 mb-3 p-3 rounded-xl bg-error-container/20 border border-error">
+            <div className="flex items-start gap-2">
+              <div className="w-4 h-4 rounded-full bg-error flex items-center justify-center mt-0.5">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" className="text-on-error" />
+                </svg>
+              </div>
+              <p className="body-small text-on-error-container">
+                {item.errors.join(', ')}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Default items-list variant
+  return (
+    <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
+      {/* M3 List Item - Based on Figma Design */}
+      <div className="flex items-center px-1 py-3">
+        
+        {/* Leading Element - Checkbox for selection */}
+        {showSelection && (
+          <div className="flex items-center justify-center flex-shrink-0">
+            <button 
+              className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+              onClick={() => onToggleSelect?.(item.id)}
+              aria-label={item.selected ? "Deselect item" : "Select item"}
+            >
+              <div className="relative w-6 h-6">
+                {item.selected ? (
+                  <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
+                    <path d={svgPaths.p10e86e80} fill="var(--primary)" />
+                  </svg>
+                ) : (
+                  <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
+                    <path d={svgPaths.p3e435600} fill="var(--on-surface-variant)" />
+                  </svg>
+                )}
+              </div>
+            </button>
+          </div>
+        )}
+        
+        {/* Thumbnail */}
+        <div className="flex-shrink-0 w-12 h-[68px] bg-[rgba(0,0,0,0.08)] rounded flex items-center justify-center overflow-hidden">
+          {item.image || item.thumbnail ? (
+            <ImageWithFallback 
+              src={item.image || item.thumbnail || ''} 
+              alt={item.title || item.brand}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 20 20" stroke="var(--on-surface)" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+              <path d={svgPathsNew.p22bc0080} />
+            </svg>
+          )}
+        </div>
+        
+        {/* Main Content */}
+        <button 
+          className="flex-1 min-w-0 text-left cursor-pointer hover:opacity-80 transition-opacity pl-3"
+          onClick={() => onClick?.(item)}
+        >
+          {/* Line 1: Date • Status */}
+          <div className="flex items-center gap-1 mb-0.5 min-w-0">
+            <div className="label-small text-on-surface whitespace-nowrap flex-shrink-0">
+              {item.date || '2022-06-09'}
+            </div>
+            <div className="w-1 h-1 rounded-full bg-outline-variant flex-shrink-0"></div>
+            <div className={`label-small whitespace-nowrap truncate ${getStatusColor(item.status)}`}>
+              {item.status || 'No Status'}
+            </div>
+          </div>
+          
+          {/* Line 2: Brand */}
+          <div className="title-small text-on-surface mb-0.5 truncate">
+            {item.brand}
+          </div>
+          
+          {/* Line 3: Category • Size */}
+          <div className="body-small text-on-surface mb-0.5 truncate">
+            {item.category}{item.size ? ` • ${item.size}` : ''}
+          </div>
+          
+          {/* Line 4: ID and Delivery */}
+          <div className="label-small text-on-surface opacity-90 mb-0.5">
+            <div className="line-clamp-2">
+              ID: {item.retailerItemId || item.itemId || item.partnerItemId || '684756'}
+              {item.deliveryId && (
+                <>
+                  <br />
+                  Delivery: {item.deliveryId}
+                </>
+              )}
+            </div>
+          </div>
+          
+          {/* Line 5: Seller */}
+          <div className="body-small text-on-surface truncate">
+            {item.sellerName || 'Sellpy'}
+          </div>
+        </button>
+        
+        {/* Trailing Elements */}
+        <div className="flex-shrink-0 flex items-center gap-0 h-full">
+          {/* Price and Days */}
+          <div className="flex flex-col items-end justify-center h-full px-0">
+            <div className="title-small text-on-surface whitespace-nowrap">
+              €{item.price.toFixed(2)}
+            </div>
+            {item.daysRemaining !== undefined && (
+              <div className="label-small text-on-surface whitespace-nowrap">
+                {item.daysRemaining} days
+              </div>
+            )}
+          </div>
+          
+          {/* More Actions */}
+          {showActions && onMoreActions && (
+            <div className="flex items-center justify-center h-full">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button 
+                    className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                    aria-label="More actions"
+                  >
+                    <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                      <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+                    </svg>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Item actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onMoreActions(item, 'edit')}>
+                    <Edit3 className="mr-2 h-4 w-4" />
+                    <span>View details</span>
+                  </DropdownMenuItem>
+                  {canUpdateStatus() && (
+                    <>
+                      <DropdownMenuItem onClick={() => onMoreActions(item, 'update-status')}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        <span>Update status</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onMoreActions(item, 'archive')}>
+                    <Archive className="mr-2 h-4 w-4" />
+                    <span>Archive item</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onMoreActions(item, 'mark-expired')}>
+                    <Clock className="mr-2 h-4 w-4" />
+                    <span>Mark as expired</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onMoreActions(item, 'export')}>
+                    <Download className="mr-2 h-4 w-4" />
+                    <span>Export item data</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});

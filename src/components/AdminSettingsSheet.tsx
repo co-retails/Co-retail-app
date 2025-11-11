@@ -1,0 +1,347 @@
+import React from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
+import { Button } from './ui/button';
+import { Avatar, AvatarFallback } from './ui/avatar';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
+import { 
+  HelpCircle, 
+  Settings, 
+  Users, 
+  BarChart3, 
+  Package, 
+  Flag, 
+  Store, 
+  ContactRound, 
+  CalendarDays,
+  ChevronRight,
+  LogOut,
+  Cog
+} from 'lucide-react';
+import { useMediaQuery } from './ui/use-mobile';
+import svgPaths from '../imports/svg-hxa7jl3k8x';
+
+export interface UserRole {
+  id: string;
+  name: 'Admin' | 'Brand Admin' | 'Store Manager';
+  permissions: string[];
+}
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  userId: string;
+  role: UserRole;
+}
+
+type AppRole = 'admin' | 'store-staff' | 'partner' | 'buyer';
+
+interface AdminSettingsSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  userAccount: UserAccount;
+  currentAppRole: AppRole;
+  onLogout: () => void;
+  onSwitchToAdmin?: () => void;
+  onNavigateToStockCheckReport?: () => void;
+  onNavigateToPortalConfiguration?: () => void;
+  onNavigateToPartnerSettings?: () => void;
+}
+
+interface MenuItem {
+  id: string;
+  title: string;
+  description?: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  adminOnly?: boolean;
+  brandAdminOnly?: boolean;
+}
+
+export default function AdminSettingsSheet({
+  isOpen,
+  onClose,
+  userAccount,
+  currentAppRole,
+  onLogout,
+  onSwitchToAdmin,
+  onNavigateToStockCheckReport,
+  onNavigateToPortalConfiguration,
+  onNavigateToPartnerSettings
+}: AdminSettingsSheetProps) {
+  if (!userAccount) {
+    console.warn('AdminSettingsSheet: userAccount is undefined, sheet will not render.');
+    return null;
+  }
+
+  const roleName = userAccount.role?.name ?? 'Admin';
+
+  const isLargeScreen = useMediaQuery('(min-width: 640px)');
+
+  const hasPermission = (requiredRole?: 'Admin' | 'Brand Admin') => {
+    if (!requiredRole) {
+      return true;
+    }
+
+    if (requiredRole === 'Admin') {
+      return roleName === 'Admin';
+    }
+
+    if (requiredRole === 'Brand Admin') {
+      return ['Admin', 'Brand Admin'].includes(roleName);
+    }
+
+    return true;
+  };
+
+  const handleStockCheckReport = () => {
+    if (onNavigateToStockCheckReport) {
+      onNavigateToStockCheckReport();
+      onClose();
+    }
+  };
+
+  const handlePortalConfiguration = () => {
+    if (onNavigateToPortalConfiguration) {
+      onNavigateToPortalConfiguration();
+      onClose();
+    }
+  };
+
+  const handlePartnerSettings = () => {
+    if (onNavigateToPartnerSettings) {
+      onNavigateToPartnerSettings();
+      onClose();
+    }
+  };
+
+  const handleLogout = () => {
+    onLogout();
+    onClose();
+  };
+
+  const handleSwitchToAdmin = () => {
+    if (onSwitchToAdmin) {
+      onSwitchToAdmin();
+      onClose();
+    }
+  };
+
+  const menuSections: { title: string; items: MenuItem[] }[] = [
+    {
+      title: '',
+      items: [
+        {
+          id: 'help',
+          title: 'Help',
+          description: 'Find FAQs, contact support, or watch tutorials',
+          icon: <HelpCircle className="w-6 h-6" />,
+          onClick: () => {} // Placeholder for future implementation
+        }
+      ]
+    },
+    {
+      title: 'Settings',
+      items: [
+        {
+          id: 'portal-configuration',
+          title: 'Portal configuration',
+          description: 'Manage attributes, pricing, and validation rules',
+          icon: <Cog className="w-6 h-6" />,
+          onClick: handlePortalConfiguration,
+          adminOnly: true
+        },
+        {
+          id: 'notification-settings',
+          title: 'Notification settings',
+          description: 'Configure push and email notifications',
+          icon: <Flag className="w-6 h-6" />,
+          onClick: () => {} // Placeholder for future implementation
+        },
+        {
+          id: 'partner-settings',
+          title: 'Partner settings',
+          description: 'Manage partner access and agreements',
+          icon: <Store className="w-6 h-6" />,
+          onClick: handlePartnerSettings,
+          adminOnly: true
+        },
+        {
+          id: 'private-seller-settings',
+          title: 'Private seller settings',
+          description: 'View or upload agreements, set commission rates',
+          icon: <ContactRound className="w-6 h-6" />,
+          onClick: () => {} // Placeholder for future implementation
+        },
+        {
+          id: 'calendar-settings',
+          title: 'Store calendar settings',
+          description: 'Manage appointment slots for private sellers',
+          icon: <CalendarDays className="w-6 h-6" />,
+          onClick: () => {} // Placeholder for future implementation
+        }
+      ]
+    },
+    {
+      title: 'Access',
+      items: [
+        {
+          id: 'user-accounts',
+          title: 'User accounts',
+          description: 'View and edit user roles in your market',
+          icon: <Users className="w-6 h-6" />,
+          onClick: () => {} // Placeholder for future implementation
+        }
+      ]
+    },
+    {
+      title: 'Reports',
+      items: [
+        {
+          id: 'stock-check-report',
+          title: 'Stock check report',
+          description: 'Access historical stock check sessions',
+          icon: <Package className="w-6 h-6" />,
+          onClick: handleStockCheckReport
+        },
+        {
+          id: 'sales-dashboard',
+          title: 'Sales dashboard',
+          description: 'View sales performance and analytics',
+          icon: <BarChart3 className="w-6 h-6" />,
+          onClick: () => {} // Placeholder for future implementation
+        }
+      ]
+    }
+  ];
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent 
+        side={isLargeScreen ? "right" : "bottom"}
+        className={`
+          ${isLargeScreen 
+            ? 'max-w-md' 
+            : 'max-h-[90vh] rounded-t-3xl'
+          }
+          bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
+        `}
+      >
+        {/* Drag Handle - Mobile Only */}
+        {!isLargeScreen && (
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="w-8 h-1 bg-outline-variant rounded-full" />
+          </div>
+        )}
+
+        {/* Header with Account Info */}
+        <div className="flex-shrink-0">
+          <SheetHeader className={`relative px-6 pb-3 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
+            <SheetTitle className="title-large text-on-surface text-left">
+              Settings
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Admin settings and account management
+            </SheetDescription>
+          </SheetHeader>
+
+          {/* Account Information */}
+          <div className="px-6 pb-4">
+            <div className="flex items-center gap-3 p-3 bg-surface-container rounded-lg">
+              <Avatar className="w-10 h-10 bg-tertiary-container">
+                <AvatarFallback className="text-on-tertiary-container label-large">
+                  {userAccount.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="label-large text-on-surface truncate">{userAccount.name}</div>
+                <div className="body-small text-on-surface-variant truncate">{userAccount.email}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <Badge variant="secondary" className="rounded-lg">
+                Access role: {roleName}
+              </Badge>
+              <Badge variant="outline" className="rounded-lg text-on-surface">
+                Current view: {currentAppRole === 'store-staff' ? 'Store staff' : currentAppRole === 'partner' ? 'Partner' : currentAppRole === 'buyer' ? 'Buyer' : 'Admin'}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="rounded-lg text-error border-error hover:bg-error-container hover:text-on-error-container px-4"
+              >
+                <LogOut className="w-5 h-5 mr-2" />
+                Logout
+              </Button>
+              {currentAppRole !== 'admin' && onSwitchToAdmin && (
+                <Button
+                  variant="ghost"
+                  onClick={handleSwitchToAdmin}
+                  className="rounded-lg text-on-surface hover:bg-surface-container-high"
+                >
+                  View full admin experience
+                </Button>
+              )}
+            </div>
+            {currentAppRole !== 'admin' && !onSwitchToAdmin && (
+              <p className="body-small text-on-surface-variant mt-3">
+                Switch to the Admin role from the role selector to see all admin-only screens.
+              </p>
+            )}
+          </div>
+
+          <Separator className="bg-outline-variant" />
+        </div>
+
+        {/* Scrollable Menu Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="py-2">
+            {menuSections.map((section, sectionIndex) => (
+              <div key={sectionIndex}>
+                {section.title && (
+                  <div className="px-6 py-3">
+                    <h3 className="title-small text-on-surface">{section.title}</h3>
+                  </div>
+                )}
+                
+                <div className="space-y-1 px-3">
+                  {section.items.map((item) => {
+                    // Check permissions
+                    if (item.adminOnly && !hasPermission('Admin')) return null;
+                    if (item.brandAdminOnly && !hasPermission('Brand Admin')) return null;
+
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={item.onClick}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-surface-container-highest active:bg-surface-container text-left transition-colors"
+                      >
+                        <div className="text-on-surface-variant flex-shrink-0">
+                          {item.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="body-large text-on-surface">{item.title}</div>
+                          {item.description && (
+                            <div className="body-small text-on-surface-variant">{item.description}</div>
+                          )}
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                {sectionIndex < menuSections.length - 1 && (
+                  <Separator className="my-2 bg-outline-variant" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

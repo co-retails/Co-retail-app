@@ -1,0 +1,829 @@
+import React, { useState, useEffect } from 'react';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { StatsCard } from './ui/stats-card';
+import { ArrowLeftIcon, PlusIcon, PackageIcon, TruckIcon, ClipboardListIcon, BarChart3Icon, ChevronDown, Settings, UserIcon, FilterIcon, QrCodeIcon, Store as StoreIcon, ChevronRight, AlertCircle, Package, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X } from 'lucide-react';
+import { TaskButton } from './ui/task-button';
+import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
+import svgPaths from "../imports/svg-8iuolkmxl8";
+import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
+import PartnerWarehouseSelector, { Partner as WarehousePartner, Warehouse, PartnerWarehouseSelection } from './PartnerWarehouseSelector';
+import { ShowroomOrder } from './ShowroomTypes';
+
+export interface PartnerOrder {
+  id: string;
+  status: 'pending' | 'registered' | 'in-transit' | 'delivered' | 'in-review';
+  createdDate: string;
+  itemCount: number;
+  boxCount: number;
+  deliveryNote?: string;
+}
+
+export interface PartnerStats {
+  pendingOrders: number;
+  registeredOrders: number;
+  inTransitDeliveries: number;
+  totalItemsThisMonth: number;
+  inReviewOrders: number;
+}
+
+// Extended partner order interface with partner and store information
+export interface ExtendedPartnerOrder extends PartnerOrder {
+  partnerId?: string;
+  partnerName?: string;
+  receivingStoreId?: string;
+  receivingStoreName?: string;
+}
+
+// View filter types
+export type ViewMode = 'all' | 'by-partner' | 'by-store';
+
+export interface ViewFilter {
+  mode: ViewMode;
+  partnerId?: string;
+  brandIds?: string[];
+  storeIds?: string[];
+  countryIds?: string[];
+}
+
+interface PartnerDashboardProps {
+  onBack: () => void;
+  onCreateOrder: () => void;
+  onViewOrders: () => void;
+  onViewBoxes: () => void;
+  onViewDeliveries: () => void;
+  onViewReturns: () => void;
+  onNavigateToShowroom?: () => void;
+  onAdminClick?: () => void;
+  onRoleSwitcherClick?: () => void;
+  stats: PartnerStats;
+  recentOrders: ExtendedPartnerOrder[];
+  brands: Brand[];
+  countries: Country[];
+  stores: Store[];
+  currentStoreSelection: StoreSelection;
+  onStoreSelectionChange: (selection: StoreSelection) => void;
+  partners: WarehousePartner[];
+  warehouses: Warehouse[];
+  currentPartnerWarehouseSelection: PartnerWarehouseSelection;
+  onPartnerWarehouseSelectionChange: (selection: PartnerWarehouseSelection) => void;
+  currentUserRole: 'store-staff' | 'partner';
+  showroomOrders?: ShowroomOrder[];
+  onNavigateToOrdersTab?: () => void;
+  onNavigateToShipmentsTab?: () => void;
+  onNavigateToQuotations?: () => void;
+  onViewQuotationDetails?: (quotationId: string) => void;
+  // Shared filter state for partner portal
+  viewFilter: ViewFilter;
+  onViewFilterChange: (filter: ViewFilter) => void;
+}
+
+export default function PartnerDashboard({
+  onBack,
+  onCreateOrder,
+  onViewOrders,
+  onViewBoxes,
+  onViewDeliveries,
+  onViewReturns,
+  onNavigateToShowroom,
+  onAdminClick,
+  onRoleSwitcherClick,
+  stats,
+  recentOrders,
+  brands,
+  countries,
+  stores,
+  currentStoreSelection,
+  onStoreSelectionChange,
+  partners,
+  warehouses,
+  currentPartnerWarehouseSelection,
+  onPartnerWarehouseSelectionChange,
+  currentUserRole,
+  showroomOrders = [],
+  onNavigateToOrdersTab,
+  onNavigateToShipmentsTab,
+  onNavigateToQuotations,
+  onViewQuotationDetails,
+  viewFilter,
+  onViewFilterChange
+}: PartnerDashboardProps) {
+  const [isPartnerWarehouseSelectorOpen, setIsPartnerWarehouseSelectorOpen] = useState(false);
+  
+  // Update view filter when partner selection changes (reset to partner-only view)
+  useEffect(() => {
+    // Only reset if switching to a different partner, preserve brand/country/store filters if same partner
+    if (viewFilter.partnerId !== currentPartnerWarehouseSelection.partnerId) {
+      onViewFilterChange({ 
+        mode: 'by-partner', 
+        partnerId: currentPartnerWarehouseSelection.partnerId 
+      });
+    } else if (!viewFilter.partnerId) {
+      // Initialize if no partner ID set
+      onViewFilterChange({ 
+        mode: 'by-partner', 
+        partnerId: currentPartnerWarehouseSelection.partnerId 
+      });
+    }
+  }, [currentPartnerWarehouseSelection.partnerId]);
+
+  // Get current partner/warehouse display name
+  const getCurrentPartnerWarehouseDisplay = () => {
+    const currentPartner = partners.find(partner => partner.id === currentPartnerWarehouseSelection.partnerId);
+    const currentWarehouse = warehouses.find(warehouse => warehouse.id === currentPartnerWarehouseSelection.warehouseId);
+    
+    if (currentPartner && currentWarehouse) {
+      return `${currentPartner.name} - ${currentWarehouse.name}`;
+    }
+    if (currentPartner) {
+      return currentPartner.name;
+    }
+    return 'Select Partner & Warehouse';
+  };
+
+  const handlePartnerWarehouseSelectionConfirm = (selection: PartnerWarehouseSelection) => {
+    onPartnerWarehouseSelectionChange(selection);
+  };
+
+  // Filter recent orders based on current view mode
+  const getFilteredOrders = () => {
+    let filteredOrders = recentOrders;
+    
+    switch (viewFilter.mode) {
+      case 'by-partner':
+        return viewFilter.partnerId 
+          ? recentOrders.filter(order => order.partnerId === viewFilter.partnerId)
+          : [];
+      case 'by-store':
+        // Apply all active filters
+        
+        // Filter by selected stores
+        if (viewFilter.storeIds?.length) {
+          filteredOrders = filteredOrders.filter(order => 
+            order.receivingStoreId && viewFilter.storeIds!.includes(order.receivingStoreId)
+          );
+        }
+        
+        // Filter by selected brands (if no specific stores selected)
+        if (viewFilter.brandIds?.length && (!viewFilter.storeIds?.length)) {
+          const brandStoreIds = stores
+            .filter(store => viewFilter.brandIds!.includes(store.brandId))
+            .map(store => store.id);
+          filteredOrders = filteredOrders.filter(order => 
+            order.receivingStoreId && brandStoreIds.includes(order.receivingStoreId)
+          );
+        }
+        
+        // Filter by selected countries (if no specific stores/brands selected)
+        if (viewFilter.countryIds?.length && (!viewFilter.storeIds?.length) && (!viewFilter.brandIds?.length)) {
+          const countryStoreIds = stores
+            .filter(store => viewFilter.countryIds!.includes(store.countryId))
+            .map(store => store.id);
+          filteredOrders = filteredOrders.filter(order => 
+            order.receivingStoreId && countryStoreIds.includes(order.receivingStoreId)
+          );
+        }
+        
+        return filteredOrders;
+      default:
+        return recentOrders;
+    }
+  };
+
+  // Calculate filtered stats based on current view mode
+  const getFilteredStats = (): PartnerStats => {
+    const filteredOrders = getFilteredOrders();
+    
+    return {
+      pendingOrders: filteredOrders.filter(order => order.status === 'pending').length,
+      registeredOrders: filteredOrders.filter(order => order.status === 'registered').length,
+      inTransitDeliveries: filteredOrders.filter(order => order.status === 'in-transit').length,
+      totalItemsThisMonth: filteredOrders.reduce((sum, order) => sum + order.itemCount, 0),
+      inReviewOrders: filteredOrders.filter(order => order.status === 'in-review').length
+    };
+  };
+
+  // Handle view all stores (reset to partner only)
+  const handleViewAllStores = () => {
+    onViewFilterChange({ mode: 'by-partner', partnerId: currentPartnerWarehouseSelection.partnerId });
+  };
+
+  // Handle brand filter change (multiselect)
+  const handleBrandFilterChange = (brandIds: string[]) => {
+    onViewFilterChange({ 
+      mode: 'by-store', 
+      brandIds, 
+      storeIds: viewFilter.storeIds,
+      countryIds: viewFilter.countryIds,
+      partnerId: viewFilter.partnerId
+    });
+  };
+
+  // Handle store filter change (multiselect)
+  const handleStoreFilterChange = (storeIds: string[]) => {
+    onViewFilterChange({ 
+      mode: 'by-store', 
+      brandIds: viewFilter.brandIds,
+      storeIds, 
+      countryIds: viewFilter.countryIds,
+      partnerId: viewFilter.partnerId
+    });
+  };
+
+  // Handle country filter change (multiselect)
+  const handleCountryFilterChange = (countryIds: string[]) => {
+    onViewFilterChange({ 
+      mode: 'by-store', 
+      brandIds: viewFilter.brandIds,
+      storeIds: viewFilter.storeIds,
+      countryIds,
+      partnerId: viewFilter.partnerId
+    });
+  };
+
+  // Get display name for current filter
+  const getFilterDisplayName = () => {
+    const hasFilters = (viewFilter.brandIds?.length || 0) > 0 || 
+                      (viewFilter.storeIds?.length || 0) > 0 || 
+                      (viewFilter.countryIds?.length || 0) > 0;
+    
+    if (!hasFilters) {
+      return 'All Stores';
+    }
+    
+    const filterParts = [];
+    
+    // Add brand filters
+    if (viewFilter.brandIds?.length) {
+      const selectedBrands = brands.filter(b => viewFilter.brandIds!.includes(b.id));
+      if (selectedBrands.length === 1) {
+        filterParts.push(selectedBrands[0].name);
+      } else {
+        filterParts.push(`${selectedBrands.length} Brands`);
+      }
+    }
+    
+    // Add country filters
+    if (viewFilter.countryIds?.length) {
+      const selectedCountries = countries.filter(c => viewFilter.countryIds!.includes(c.id));
+      if (selectedCountries.length === 1) {
+        filterParts.push(selectedCountries[0].name);
+      } else {
+        filterParts.push(`${selectedCountries.length} Countries`);
+      }
+    }
+    
+    // Add store filters
+    if (viewFilter.storeIds?.length) {
+      const selectedStores = stores.filter(s => viewFilter.storeIds!.includes(s.id));
+      if (selectedStores.length === 1) {
+        filterParts.push(selectedStores[0].name);
+      } else {
+        filterParts.push(`${selectedStores.length} Stores`);
+      }
+    }
+    
+    return filterParts.join(' • ');
+  };
+
+  const filteredStats = getFilteredStats();
+  const filteredOrders = getFilteredOrders();
+
+  const getStatusBadge = (status: PartnerOrder['status']) => {
+    const variants = {
+      'pending': 'secondary',
+      'registered': 'default',
+      'in-transit': 'outline',
+      'delivered': 'secondary'
+    } as const;
+    
+    const labels = {
+      'pending': 'Pending',
+      'registered': 'Registered',
+      'in-transit': 'In Transit',
+      'delivered': 'Delivered'
+    };
+    
+    return (
+      <Badge variant={variants[status]}>
+        {labels[status]}
+      </Badge>
+    );
+  };
+
+  const StatusBarIPhone = () => {
+    return (
+      <div className="h-[44px] overflow-clip relative shrink-0 w-full">
+        <div className="absolute h-[11.336px] right-[14.67px] top-[17.33px] w-[66.661px]">
+          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 67 12">
+            <path d={svgPaths.p18c81cf0} fill="#212121" opacity="0.35" stroke="white" />
+            <path d={svgPaths.p3d3cbf00} fill="#212121" opacity="0.4" />
+            <path d={svgPaths.p3cceaf80} fill="#212121" />
+            <path clipRule="evenodd" d={svgPaths.p1d7c8600} fill="#212121" fillRule="evenodd" />
+            <path clipRule="evenodd" d={svgPaths.p3e2de00} fill="#212121" fillRule="evenodd" />
+          </svg>
+        </div>
+        <div className="absolute h-[21px] left-[24px] rounded-[24px] top-[12px] w-[54px]">
+          <div className="absolute font-normal h-[20px] leading-[0] left-[27px] text-[#212121] text-[15px] text-center top-px tracking-[-0.5px] translate-x-[-50%] w-[54px]">
+            <p className="leading-[20px]">9:41</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-surface">
+      {/* Unified Header - Same as DeliveryHomeScreen */}
+      <div className="w-full bg-surface border-b border-outline-variant">
+        <StatusBarIPhone />
+        
+        {/* Header Content */}
+        <div className="px-4 md:px-6 py-3">
+          {/* Top Row: Profile Icon, Logo, Admin Icon */}
+          <div className="flex items-center justify-between mb-4">
+            {/* Profile/Role Switcher Icon */}
+            <button
+              onClick={onRoleSwitcherClick}
+              className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
+              aria-label="Switch Role"
+            >
+              <UserIcon className="h-6 w-6 text-on-surface-variant" />
+            </button>
+            
+            {/* Centered Logo */}
+            <div className="flex flex-col items-center">
+              <div className="h-[28px] w-[153px] mb-1">
+                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
+                  <path d={svgPaths.p2523a00} fill="#1A1A1A" />
+                </svg>
+              </div>
+              <div className="label-large text-on-surface tracking-wider uppercase">
+                {currentUserRole === 'partner' ? 'Partner portal' : 'Resell'}
+              </div>
+            </div>
+            
+            {/* Admin Settings Icon */}
+            <button
+              onClick={onAdminClick}
+              className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
+              aria-label="Admin Settings"
+            >
+              <Settings className="h-6 w-6 text-on-surface-variant" />
+            </button>
+          </div>
+          
+          {/* Partner/Warehouse Selector Row */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => setIsPartnerWarehouseSelectorOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-surface-container-high transition-colors"
+            >
+              <span className="title-medium text-on-surface">{getCurrentPartnerWarehouseDisplay()}</span>
+              <ChevronDown className="h-4 w-4 text-on-surface-variant" />
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Main Content - M3 Grid: 16px mobile, 24px tablet+ */}
+      <div className="px-4 md:px-6 py-6 space-y-6">
+        {/* Partner Overview - Matching Home Screen Button Style */}
+        <div className="space-y-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="title-medium text-on-surface">Partner Overview</h2>
+              
+              {/* Filter Button - Mobile & Desktop - Matching ShippingScreen design */}
+              <StoreFilterBottomSheet
+                viewFilter={viewFilter}
+                onViewAllStores={handleViewAllStores}
+                onBrandFilterChange={handleBrandFilterChange}
+                onStoreFilterChange={handleStoreFilterChange}
+                onCountryFilterChange={handleCountryFilterChange}
+                currentPartnerId={currentPartnerWarehouseSelection.partnerId}
+                partners={partners}
+                brands={brands}
+                stores={stores}
+                countries={countries}
+              >
+                <button 
+                  className={`
+                    h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
+                    ${((viewFilter.storeIds?.length || 0) > 0 || 
+                      (viewFilter.brandIds?.length || 0) > 0 || 
+                      (viewFilter.countryIds?.length || 0) > 0)
+                      ? 'bg-secondary-container border-outline text-on-secondary-container'
+                      : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
+                    }
+                  `}
+                >
+                  <FilterIcon className="h-4 w-4 flex-shrink-0" />
+                  <span className="label-medium">
+                    {((viewFilter.brandIds?.length || 0) > 0 || 
+                      (viewFilter.countryIds?.length || 0) > 0 || 
+                      (viewFilter.storeIds?.length || 0) > 0)
+                      ? 'Filtered'
+                      : 'Filter'
+                    }
+                  </span>
+                  {((viewFilter.brandIds?.length || 0) > 0 || 
+                    (viewFilter.countryIds?.length || 0) > 0 || 
+                    (viewFilter.storeIds?.length || 0) > 0) && (
+                    <div className="w-2 h-2 rounded-full bg-primary" />
+                  )}
+                </button>
+              </StoreFilterBottomSheet>
+            </div>
+            
+            {/* Filter Chips Display - M3 Pattern with Filter Chips - Desktop & Mobile */}
+            {((viewFilter.brandIds?.length || 0) > 0 || 
+              (viewFilter.countryIds?.length || 0) > 0 || 
+              (viewFilter.storeIds?.length || 0) > 0) && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="label-small text-on-surface-variant">Active filters:</span>
+                  
+                  {/* Brand Filter Chips */}
+                  {viewFilter.brandIds && viewFilter.brandIds.length > 0 && 
+                    brands.filter(b => viewFilter.brandIds!.includes(b.id)).map(brand => (
+                      <div 
+                        key={`brand-${brand.id}`} 
+                        className="inline-flex items-center gap-2 h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px]"
+                      >
+                        <span className="label-small">{brand.name}</span>
+                        <button
+                          onClick={() => {
+                            const newBrandIds = viewFilter.brandIds!.filter(id => id !== brand.id);
+                            handleBrandFilterChange(newBrandIds);
+                          }}
+                          className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
+                          aria-label={`Remove ${brand.name} filter`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))
+                  }
+                  
+                  {/* Country Filter Chips */}
+                  {viewFilter.countryIds && viewFilter.countryIds.length > 0 && 
+                    countries.filter(c => viewFilter.countryIds!.includes(c.id)).map(country => (
+                      <div 
+                        key={`country-${country.id}`} 
+                        className="inline-flex items-center gap-2 h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px]"
+                      >
+                        <span className="label-small">{country.name}</span>
+                        <button
+                          onClick={() => {
+                            const newCountryIds = viewFilter.countryIds!.filter(id => id !== country.id);
+                            handleCountryFilterChange(newCountryIds);
+                          }}
+                          className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
+                          aria-label={`Remove ${country.name} filter`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))
+                  }
+                  
+                  {/* Store Filter Chips */}
+                  {viewFilter.storeIds && viewFilter.storeIds.length > 0 && 
+                    stores.filter(s => viewFilter.storeIds!.includes(s.id)).map(store => (
+                      <div 
+                        key={`store-${store.id}`} 
+                        className="inline-flex items-center gap-2 h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px]"
+                      >
+                        <span className="label-small">{store.name} ({store.code})</span>
+                        <button
+                          onClick={() => {
+                            const newStoreIds = viewFilter.storeIds!.filter(id => id !== store.id);
+                            handleStoreFilterChange(newStoreIds);
+                          }}
+                          className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
+                          aria-label={`Remove ${store.name} filter`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))
+                  }
+                  
+                  {/* Clear All Filters Button */}
+                  <button
+                    onClick={handleViewAllStores}
+                    className="inline-flex items-center h-8 px-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors rounded-[8px]"
+                  >
+                    <span className="label-small">Clear all</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Mobile Filter Status - Always show current filter */}
+            <div className="sm:hidden">
+              <div className="flex items-center gap-2 p-3 rounded-lg">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  viewFilter.mode === 'by-store' && (
+                    (viewFilter.storeIds?.length || 0) > 0 || 
+                    (viewFilter.brandIds?.length || 0) > 0 || 
+                    (viewFilter.countryIds?.length || 0) > 0
+                  ) ? 'bg-primary' : 'bg-secondary'
+                }`} />
+                <span className="body-small text-on-surface">
+                  {getFilterDisplayName()}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+
+        {/* Quick Actions */}
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Chinese Partner Quick Actions */}
+            {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Shenzhen Fashion Manufacturing' ? (
+              <>
+                {/* Quotation Requests for Chinese partner */}
+                {onNavigateToQuotations && (
+                  <button
+                    onClick={onNavigateToQuotations}
+                    className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
+                        <ShoppingCart className="w-5 h-5 text-accent" />
+                      </div>
+                      <div>
+                        <p className="title-small text-on-surface">Quotation requests</p>
+                        <p className="body-small text-on-surface-variant">
+                          {showroomOrders.filter(o => o.type === 'rfq' && (o.status === 'requested' || o.status === 'negotiation')).length} pending
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                  </button>
+                )}
+
+                {/* Showroom Products */}
+                {onNavigateToShowroom && (
+                  <button
+                    onClick={onNavigateToShowroom}
+                    className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
+                        <ShoppingBag className="w-5 h-5 text-on-primary-container" />
+                      </div>
+                      <div>
+                        <p className="title-small text-on-surface">Showroom</p>
+                        <p className="body-small text-on-surface-variant">Manage products</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Regular Partner Quick Actions */}
+                <button
+                  onClick={onViewOrders}
+                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
+                      <ClipboardListIcon className="w-5 h-5 text-on-primary-container" />
+                    </div>
+                    <div>
+                      <p className="title-small text-on-surface">Orders to process</p>
+                      <p className="body-small text-on-surface-variant">{filteredStats.pendingOrders} orders</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                </button>
+
+                <button
+                  onClick={onViewBoxes}
+                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
+                      <TruckIcon className="w-5 h-5 text-on-secondary-container" />
+                    </div>
+                    <div>
+                      <p className="title-small text-on-surface">Active shipments</p>
+                      <p className="body-small text-on-surface-variant">{filteredStats.inTransitDeliveries} shipments</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                </button>
+
+                <button
+                  onClick={onViewReturns}
+                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-tertiary-container rounded-full flex items-center justify-center">
+                      <RotateCcw className="w-5 h-5 text-on-tertiary-container" />
+                    </div>
+                    <div>
+                      <p className="title-small text-on-surface">Return deliveries</p>
+                      <p className="body-small text-on-surface-variant">{filteredStats.inTransitDeliveries} deliveries</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                </button>
+
+                {/* Digital Showroom - Only for white-label partners */}
+                {onNavigateToShowroom && 
+                 partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.productType === 'white-label' && (
+                  <button
+                    onClick={onNavigateToShowroom}
+                    className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
+                        <ShoppingBag className="w-5 h-5 text-on-secondary-container" />
+                      </div>
+                      <div>
+                        <p className="title-small text-on-surface">Showroom</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Latest Quotation Requests - Chinese Partner Only */}
+        {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Shenzhen Fashion Manufacturing' && (
+          <Card className="bg-transparent border border-outline-variant shadow-none">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="title-medium">Latest quotation requests</CardTitle>
+                {onNavigateToQuotations && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={onNavigateToQuotations}
+                    className="body-small"
+                  >
+                    View all
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {showroomOrders.filter(o => o.type === 'rfq').length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare size={48} className="mx-auto text-on-surface-variant/50 mb-4" />
+                  <p className="body-large text-on-surface-variant">No quotation requests yet</p>
+                  <p className="body-medium text-on-surface-variant">Quotation requests from buyers will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {showroomOrders
+                    .filter(o => o.type === 'rfq')
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .slice(0, 5)
+                    .map((quotation) => {
+                      const getQuotationStatusBadge = (status: string) => {
+                        const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+                          requested: { label: 'New request', variant: 'default' },
+                          negotiation: { label: 'In negotiation', variant: 'secondary' },
+                          quote_approved: { label: 'Approved', variant: 'secondary' },
+                          converted_to_po: { label: 'Converted to PO', variant: 'outline' },
+                          rejected: { label: 'Rejected', variant: 'destructive' }
+                        };
+                        const config = statusConfig[status] || { label: status, variant: 'outline' as const };
+                        return <Badge variant={config.variant}>{config.label}</Badge>;
+                      };
+
+                      return (
+                        <button
+                          key={quotation.id}
+                          onClick={() => onViewQuotationDetails?.(quotation.id)}
+                          className="w-full flex items-start justify-between p-3 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors text-left"
+                        >
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="title-small text-on-surface">RFQ #{quotation.id}</p>
+                              {getQuotationStatusBadge(quotation.status)}
+                            </div>
+                            <div className="flex items-center gap-2 text-on-surface-variant">
+                              <Calendar className="w-4 h-4" />
+                              <p className="body-small">
+                                {new Date(quotation.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </p>
+                            </div>
+                            <p className="body-small text-on-surface-variant">
+                              {quotation.items.length} {quotation.items.length === 1 ? 'item' : 'items'} • {quotation.buyerName}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 ml-3">
+                            <p className="title-small text-on-surface">$ {quotation.subtotal.toFixed(2)}</p>
+                            <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recent Orders */}
+        {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name !== 'Shenzhen Fashion Manufacturing' && (
+          <Card className="bg-transparent border border-outline-variant shadow-none">
+            <CardHeader>
+              <CardTitle className="title-medium">Recent Orders</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-8">
+                  <PackageIcon size={48} className="mx-auto text-on-surface-variant/50 mb-4" />
+                  {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Sellpy Operations' ? (
+                    <>
+                      <p className="body-large text-on-surface-variant">No items need retailer IDs</p>
+                      <p className="body-medium text-on-surface-variant">Items from API integration will appear here when they need retailer item IDs</p>
+                      <Button onClick={onCreateOrder} className="mt-4">
+                        <QrCodeIcon size={16} className="mr-2" />
+                        Check for Items
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="body-large text-on-surface-variant">No orders yet</p>
+                      <p className="body-medium text-on-surface-variant">Create your first order to get started</p>
+                      <Button onClick={onCreateOrder} className="mt-4">
+                        <PlusIcon size={16} className="mr-2" />
+                        Create Order
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-outline-variant transition-colors"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="title-small text-on-surface">#{order.id}</p>
+                          {getStatusBadge(order.status)}
+                        </div>
+                        <p className="body-small text-on-surface-variant">
+                          {order.itemCount} items • {order.boxCount} boxes • {order.createdDate}
+                          {order.receivingStoreName && (
+                            <span> • Store: {order.receivingStoreName}</span>
+                          )}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        View
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  <Button
+                    variant="outline"
+                    onClick={onViewOrders}
+                    className="w-full sm:w-auto sm:min-w-[200px] sm:max-w-xs mx-auto mt-4"
+                  >
+                    View All Orders
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Partner/Warehouse Selector Modal */}
+      <PartnerWarehouseSelector
+        isOpen={isPartnerWarehouseSelectorOpen}
+        onClose={() => setIsPartnerWarehouseSelectorOpen(false)}
+        onConfirm={handlePartnerWarehouseSelectionConfirm}
+        partners={partners}
+        warehouses={warehouses}
+        currentSelection={currentPartnerWarehouseSelection}
+      />
+    </div>
+  );
+}
