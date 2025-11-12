@@ -60,6 +60,7 @@ export type Screen =
   | 'showroom-dashboard' 
   | 'showroom-products' 
   | 'showroom-import' 
+  | 'price-fork-calibration'
   | 'showroom-browse' 
   | 'showroom-product-detail' 
   | 'showroom-cart' 

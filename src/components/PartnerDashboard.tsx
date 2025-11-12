@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Settings, UserIcon, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, Truck, Package, Plus } from 'lucide-react';
+import { Settings, UserIcon, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, Truck, Package, Plus, Sparkles } from 'lucide-react';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import type { Store, Country, Brand } from './StoreSelector';
@@ -43,6 +43,7 @@ interface PartnerDashboardProps {
   onViewBoxes: () => void;
   onViewReturns: () => void;
   onNavigateToShowroom?: () => void;
+  onNavigateToPriceFork?: () => void;
   onAdminClick?: () => void;
   onRoleSwitcherClick?: () => void;
   stats: PartnerStats;
@@ -70,6 +71,7 @@ export default function PartnerDashboard({
   onViewBoxes,
   onViewReturns,
   onNavigateToShowroom,
+  onNavigateToPriceFork,
   onAdminClick,
   onRoleSwitcherClick,
   stats,
@@ -525,6 +527,24 @@ export default function PartnerDashboard({
             ) : (
               <>
                 {/* Regular Partner Quick Actions */}
+                {onNavigateToPriceFork && (
+                  <button
+                    onClick={onNavigateToPriceFork}
+                    className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-on-secondary-container" />
+                      </div>
+                      <div>
+                        <p className="title-small text-on-surface">Price Fork calibration</p>
+                        <p className="body-small text-on-surface-variant">Tune AI pricing inputs</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                  </button>
+                )}
+
                 <button
                   onClick={onViewOrders}
                   className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"

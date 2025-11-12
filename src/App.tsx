@@ -24,6 +24,7 @@ import AdminSettingsSheet from './components/AdminSettingsSheet';
 import PartnerDashboard, { PartnerOrder } from './components/PartnerDashboard';
 import OrderCreationScreen, { OrderItem } from './components/OrderCreationScreen';
 import ThriftedOrderCreationScreen from './components/ThriftedOrderCreationScreen';
+import PriceForkCalibrationScreen from './components/PriceForkCalibrationScreen';
 import BoxManagementScreen, { DeliveryNote } from './components/BoxManagementScreen';
 import DeliveryNoteCreationScreen, { DeliveryNote as DeliveryNoteCreationDeliveryNote } from './components/DeliveryNoteCreationScreen';
 import OrderDetailsScreen from './components/OrderDetailsScreen';
@@ -264,7 +265,8 @@ export default function App() {
     handleNavigateToBuyerOrders,
     handleNavigateToBuyerQuotations,
     handleNavigateToBuyerShipments,
-    handleNavigateToPortalConfig
+    handleNavigateToPortalConfig,
+    handleNavigateToPriceForkCalibration
   } = navigationHandlers;
 
   // Buyer-specific state
@@ -1076,7 +1078,8 @@ export default function App() {
       handleNavigateToBuyerOrders,
       handleNavigateToBuyerQuotations,
       handleNavigateToBuyerShipments,
-      setCurrentScreen: setCurrentScreenSafe
+      setCurrentScreen: setCurrentScreenSafe,
+      handleNavigateToPriceForkCalibration
     }
   });
 
@@ -1474,6 +1477,7 @@ export default function App() {
           onViewDeliveries={handleNavigateToShipmentsTab}
           onViewReturns={handleNavigateToReturnsTab}
           onNavigateToShowroom={handleNavigateToShowroom}
+          onNavigateToPriceFork={handleNavigateToPriceForkCalibration}
           onAdminClick={handleOpenAdminSettings}
           onRoleSwitcherClick={handleOpenRoleSwitcher}
           stats={mockPartnerStats}
@@ -2124,6 +2128,10 @@ export default function App() {
         />
       )}
 
+      {currentScreen === 'price-fork-calibration' && (
+        <PriceForkCalibrationScreen />
+      )}
+
       {/* Quotation Details Screen */}
       {currentScreen === 'quotation-details' && selectedShowroomOrder && (
         <QuotationDetailsScreen 
@@ -2300,6 +2308,10 @@ export default function App() {
         onNavigateToPartnerSettings={() => {
           setIsAdminSettingsSheetOpen(false);
           setCurrentScreenSafe('partner-settings');
+        }}
+        onNavigateToPriceForkCalibration={() => {
+          setIsAdminSettingsSheetOpen(false);
+          setCurrentScreenSafe('price-fork-calibration');
         }}
       />
 

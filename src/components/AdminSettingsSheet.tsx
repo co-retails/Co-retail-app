@@ -16,7 +16,8 @@ import {
   CalendarDays,
   ChevronRight,
   LogOut,
-  Cog
+  Cog,
+  Sparkles
 } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
 import svgPaths from '../imports/svg-hxa7jl3k8x';
@@ -47,6 +48,7 @@ interface AdminSettingsSheetProps {
   onNavigateToStockCheckReport?: () => void;
   onNavigateToPortalConfiguration?: () => void;
   onNavigateToPartnerSettings?: () => void;
+  onNavigateToPriceForkCalibration?: () => void;
 }
 
 interface MenuItem {
@@ -68,7 +70,8 @@ export default function AdminSettingsSheet({
   onSwitchToAdmin,
   onNavigateToStockCheckReport,
   onNavigateToPortalConfiguration,
-  onNavigateToPartnerSettings
+  onNavigateToPartnerSettings,
+  onNavigateToPriceForkCalibration
 }: AdminSettingsSheetProps) {
   if (!userAccount) {
     console.warn('AdminSettingsSheet: userAccount is undefined, sheet will not render.');
@@ -116,6 +119,13 @@ export default function AdminSettingsSheet({
     }
   };
 
+  const handlePriceForkCalibration = () => {
+    if (onNavigateToPriceForkCalibration) {
+      onNavigateToPriceForkCalibration();
+      onClose();
+    }
+  };
+
   const handleLogout = () => {
     onLogout();
     onClose();
@@ -150,6 +160,14 @@ export default function AdminSettingsSheet({
           description: 'Manage attributes, pricing, and validation rules',
           icon: <Cog className="w-6 h-6" />,
           onClick: handlePortalConfiguration,
+          adminOnly: true
+        },
+        {
+          id: 'price-fork',
+          title: 'Price Fork calibration',
+          description: 'Adjust AI pricing parameters and run simulations',
+          icon: <Sparkles className="w-6 h-6" />,
+          onClick: handlePriceForkCalibration,
           adminOnly: true
         },
         {

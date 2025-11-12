@@ -84,7 +84,7 @@ export default function BoxDetailsSideSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col p-0 max-h-screen">
+      <SheetContent side="right" className="flex flex-col p-0 max-h-screen w-full sm:max-w-full">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-outline-variant flex-shrink-0">
           <SheetTitle className="title-large">Add Items to Box</SheetTitle>
           <SheetDescription className="body-medium">
@@ -99,7 +99,7 @@ export default function BoxDetailsSideSheet({
               onScan={handleScan}
               onManualEntry={handleManualEntry}
               isScanning={false}
-              showManualEntry={true}
+              showManualEntry={false}
             />
           </div>
 
@@ -107,11 +107,11 @@ export default function BoxDetailsSideSheet({
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'scanned' | 'not-scanned')} className="flex-1 flex flex-col min-h-0">
               <div className="flex-shrink-0 px-6 pt-4 border-b border-outline-variant">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="scanned" className="data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
+                <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0">
+                  <TabsTrigger value="scanned" className="border border-outline-variant rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
                     Scanned ({scannedItems.length})
                   </TabsTrigger>
-                  <TabsTrigger value="not-scanned" className="data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
+                  <TabsTrigger value="not-scanned" className="border border-outline-variant rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
                     Not Scanned ({notScannedItems.length})
                   </TabsTrigger>
                 </TabsList>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, TruckIcon, Tag, Store, User, QrCode, ClipboardList, ShoppingBag, FileText } from 'lucide-react';
+import { Bookmark, TruckIcon, Tag, Store, User, QrCode, ClipboardList, ShoppingBag, FileText, Sparkles } from 'lucide-react';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 
 interface NavigationDestination {
@@ -18,6 +18,9 @@ function NavigationBar({ activeDestination, destinations }: ResponsiveNavigation
   const renderIcon = (destination: NavigationDestination, isActive: boolean) => {
     const color = isActive ? "var(--primary)" : "var(--on-surface-variant)";
     
+    if (destination.id === 'price-fork') {
+      return <Sparkles className="w-6 h-6" style={{ color }} />;
+    }
     // Use lucide-react icons for specific destinations
     if (destination.id === 'buyer-wishlist') {
       return (
@@ -30,6 +33,9 @@ function NavigationBar({ activeDestination, destinations }: ResponsiveNavigation
       );
     }
     
+    if (destination.id === 'price-fork') {
+      return <Sparkles className="w-6 h-6" style={{ color }} />;
+    }
     if (destination.id === 'shipping') {
       return <TruckIcon className="w-6 h-6" style={{ color }} />;
     }

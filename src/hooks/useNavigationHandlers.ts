@@ -85,6 +85,8 @@ export function useNavigationHandlers({
     } else if (currentScreen === 'partner-quotations' || 
                currentScreen === 'quotation-details') {
       setCurrentScreen('partner-dashboard');
+    } else if (currentScreen === 'price-fork-calibration') {
+      setCurrentScreen('partner-dashboard');
     } else if (currentScreen === 'portal-configuration') {
       setCurrentScreen('home');
     } else {
@@ -130,6 +132,10 @@ export function useNavigationHandlers({
 
   const handleNavigateToPartnerQuotations = useCallback(() => {
     setCurrentScreen('partner-quotations');
+  }, [setCurrentScreen]);
+
+  const handleNavigateToPriceForkCalibration = useCallback(() => {
+    setCurrentScreen('price-fork-calibration');
   }, [setCurrentScreen]);
 
   const handleNavigateToBuyerDashboard = useCallback(() => {
@@ -178,6 +184,7 @@ export function useNavigationHandlers({
     handleNavigateToBuyerQuotations,
     handleNavigateToBuyerShipments,
     handleNavigateToPortalConfig,
-    handleNavigateToSellpyOrders
+    handleNavigateToSellpyOrders,
+    handleNavigateToPriceForkCalibration
   };
 }
