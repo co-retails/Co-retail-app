@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, QrCode, Package, Truck, MoreVertical } from 'lucide-react';
@@ -10,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 
 interface DeliveryDetailsScreenProps {
   delivery: Delivery;
@@ -43,6 +43,10 @@ function TopAppBar({ onBack }: { onBack: () => void }) {
 }
 
 function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
+  const statusDisplay = delivery.status === 'Cancelled' && delivery.cancellationReason
+    ? `${delivery.status} • ${delivery.cancellationReason}`
+    : delivery.status;
+
   return (
     <Card className="mx-4 md:mx-6 mb-6 bg-surface-container border border-outline-variant">
       <CardContent className="p-4">
@@ -56,7 +60,7 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
           <div className="flex-1 min-w-0">
             {/* Supporting text - Date and Status */}
             <div className="label-small text-on-surface-variant mb-2">
-              <span>{delivery.date}, New - {delivery.status}</span>
+              <span>{delivery.date}, New - {statusDisplay}</span>
             </div>
             
             {/* Primary text - Delivery ID */}
@@ -89,13 +93,29 @@ function BoxCard({
   box, 
   onSelect,
   onMarkScanned,
-  isScanned
+  isScanned,
+  canScan
 }: { 
   box: Box; 
   onSelect: () => void;
   onMarkScanned: () => void;
   isScanned: boolean;
+  canScan: boolean;
 }) {
+  let statusLabel = 'In transit';
+  let statusClass = 'label-small text-on-surface-variant px-2 py-1 bg-surface-container rounded-[8px]';
+
+  if (box.status === 'Delivered') {
+    statusLabel = 'Delivered';
+    statusClass = 'label-small text-on-secondary-container px-2 py-1 bg-secondary-container rounded-[8px]';
+  } else if (box.status === 'Cancelled') {
+    statusLabel = `Cancelled${box.cancellationReason ? ` • ${box.cancellationReason}` : ''}`;
+    statusClass = 'label-small text-error px-2 py-1 bg-error-container rounded-[8px]';
+  } else if (isScanned) {
+    statusLabel = 'Scanned';
+    statusClass = 'label-small text-primary px-2 py-1 bg-primary-container rounded-[8px]';
+  }
+
   return (
     <button
       onClick={onSelect}
@@ -126,17 +146,13 @@ function BoxCard({
       
       {/* Trailing Element - More menu or status */}
       <div className="flex-shrink-0 flex items-center gap-2">
-        {isScanned && (
-          <div className="label-small text-primary px-2 py-1 bg-primary-container rounded-[8px]">
-            Scanned
-          </div>
-        )}
-        {!isScanned && (
+        <div className={statusClass}>{statusLabel}</div>
+        {!isScanned && canScan && box.status !== 'Delivered' && box.status !== 'Cancelled' && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button 
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
                 aria-label="More actions"
               >
                 <MoreVertical className="w-4 h-4 text-on-surface-variant" />
@@ -144,7 +160,7 @@ function BoxCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2">
               <DropdownMenuItem 
-                onClick={(e) => {
+                onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                   e.stopPropagation();
                   onMarkScanned();
                 }}
@@ -163,11 +179,13 @@ function BoxCard({
 function BoxesList({ 
   boxes,
   onSelectBox,
-  onMarkBoxScanned
+  onMarkBoxScanned,
+  canScan
 }: { 
   boxes: Box[];
   onSelectBox: (box: Box) => void;
   onMarkBoxScanned: (boxId: string) => void;
+  canScan: boolean;
 }) {
   if (boxes.length === 0) {
     return (
@@ -193,6 +211,7 @@ function BoxesList({
             onSelect={() => onSelectBox(box)}
             onMarkScanned={() => onMarkBoxScanned(box.id)}
             isScanned={box.isScanned}
+            canScan={canScan}
           />
         ))}
       </div>
@@ -209,6 +228,7 @@ export default function DeliveryDetailsScreen({
   onMarkBoxScanned
 }: DeliveryDetailsScreenProps) {
   const scannedBoxes = boxes.filter(b => b.isScanned);
+  const canScan = delivery.status === 'In transit';
 
   return (
     <div className="bg-surface min-h-screen flex flex-col">
@@ -223,7 +243,9 @@ export default function DeliveryDetailsScreen({
         {/* Instructions */}
         <div className="px-4 md:px-6 mb-4">
           <p className="body-medium text-on-surface-variant">
-            Click on a box to view items, or use scan to receive to start scanning.
+            {canScan
+              ? 'Click on a box to view items, or use scan to receive to start scanning.'
+              : 'Review the boxes for this delivery. Scanning is disabled because this delivery is no longer in transit.'}
           </p>
         </div>
         
@@ -239,19 +261,22 @@ export default function DeliveryDetailsScreen({
           boxes={boxes}
           onSelectBox={onSelectBox}
           onMarkBoxScanned={onMarkBoxScanned}
+          canScan={canScan}
         />
       </div>
       
       {/* Fixed Bottom Action Button */}
-      <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 md:p-6">
-        <Button 
-          onClick={onScanToReceive}
-        className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center label-large"
-        >
-          <QrCode className="w-4 h-4 mr-2" />
-          Scan to receive
-        </Button>
-      </div>
+      {canScan && (
+        <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 md:p-6">
+          <Button 
+            onClick={onScanToReceive}
+          className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center label-large"
+          >
+            <QrCode className="w-4 h-4 mr-2" />
+            Scan to receive
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

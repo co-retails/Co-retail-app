@@ -1,8 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
-import svgPaths from "../imports/svg-s0skia6nd0";
-import itemsSvgPaths from "../imports/svg-7un8q74kd7";
-import navSvgPaths from "../imports/svg-uvbj8etlds";
 import { ItemCard, BaseItem } from './ItemCard';
 import { 
   DropdownMenu,
@@ -25,11 +21,11 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
-import { Archive, Clock, Edit3, Download, RefreshCw } from "lucide-react";
+import { Archive, Clock, Edit3, Download, RefreshCw, Check, MoreVertical } from "lucide-react";
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
 import { UserRole } from './ItemCard';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Checkbox } from './ui/checkbox';
 import { getSekPriceOptions } from '../data/partnerPricing';
 
@@ -47,6 +43,12 @@ interface ScanScreenProps {
   userRole?: UserRole;
   currentPartnerWarehouseSelection?: { partnerId: string; warehouseId: string };
 }
+
+const getTodayString = () => {
+  const iso = new Date().toISOString();
+  const separatorIndex = iso.indexOf('T');
+  return separatorIndex === -1 ? iso : iso.slice(0, separatorIndex);
+};
 
 function ScanViewer({ onManualEntry, onScan }: { 
   onManualEntry: (itemId: string) => void;
@@ -183,10 +185,8 @@ function MultiSelectActions({ selectedCount, onSelectAll, onArchive, onMarkExpir
             onClick={onSelectAll}
             aria-label="Select all items"
           >
-            <div className="relative w-6 h-6">
-              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
-                <path clipRule="evenodd" d={itemsSvgPaths.p3e435600} fill="var(--outline-variant)" fillRule="evenodd" />
-              </svg>
+            <div className="w-6 h-6 rounded-md border border-outline flex items-center justify-center bg-surface-container-high">
+              <Check className="w-4 h-4 text-on-surface" />
             </div>
           </button>
           
@@ -204,9 +204,7 @@ function MultiSelectActions({ selectedCount, onSelectAll, onArchive, onMarkExpir
                 className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
                 aria-label="More actions"
               >
-                <svg className="w-5 h-5" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                  <path d={itemsSvgPaths.p1aa02900} fill="var(--on-surface)" />
-                </svg>
+                <MoreVertical className="w-5 h-5 text-on-surface" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -281,7 +279,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
             <Label htmlFor="status" className="text-right">
               Status
             </Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+            <Select value={formData.status} onValueChange={(value: string) => setFormData(prev => ({ ...prev, status: value }))}>
               <SelectTrigger className="col-span-3 bg-surface-container-high border border-outline rounded-lg">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -347,8 +345,8 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
   items: ScannedItem[];
   onClearItems: () => void;
   onToggleSelect: (itemId: string) => void;
-  onMoreActions: (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status') => void;
-  onClick: (item: ScannedItem) => void;
+  onMoreActions: (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status' | 'reject') => void;
+  onClick: (item: BaseItem) => void;
   userRole: UserRole;
   onSelectAll: () => void;
 }) {
@@ -397,7 +395,7 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
                     item={item}
                     onToggleSelect={onToggleSelect}
                     onMoreActions={onMoreActions}
-                    onClick={onClick}
+                    onClick={(baseItem) => onClick(baseItem)}
                     showActions={true}
                     showSelection={true}
                     userRole={userRole}
@@ -425,10 +423,6 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
 }
 
 export default function ScanScreen({
-  onNavigateToHome,
-  onNavigateToItems,
-  onNavigateToSellers,
-  onNavigateToShipping,
   userRole = 'store-staff',
   currentPartnerWarehouseSelection
 }: ScanScreenProps) {
@@ -515,7 +509,7 @@ export default function ScanScreen({
     setScannedItems(prev => prev.map(item => ({ ...item, selected: !allSelected })));
   };
 
-  const handleMoreActions = (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status') => {
+  const handleMoreActions = (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status' | 'reject') => {
     switch (action) {
       case 'edit':
         setSelectedItemForDetails(item as ScannedItem);
@@ -538,6 +532,9 @@ export default function ScanScreen({
       case 'update-status':
         setItemToUpdateStatus(item as ScannedItem);
         setShowStatusUpdateDialog(true);
+        break;
+      case 'reject':
+        toast.info('Reject flow is available from the items screen.');
         break;
     }
   };
@@ -565,8 +562,8 @@ export default function ScanScreen({
     }
   };
 
-  const handleItemClick = (item: ScannedItem) => {
-    setSelectedItemForDetails(item);
+  const handleItemClick = (item: BaseItem) => {
+    setSelectedItemForDetails(item as ScannedItem);
   };
 
   const handleArchiveSelected = () => {
@@ -708,21 +705,27 @@ export default function ScanScreen({
     const colors = ['Black', 'White', 'Blue', 'Gray', 'Red', 'Green', 'Beige'];
     const sellers = ['Anna Martinez', 'John Smith', 'Maria Lopez', 'David Chen', 'Sarah Johnson', 'Michael Brown'];
     
-    const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const today = getTodayString().replace(/-/g, '');
     const randomNum = Math.floor(Math.random() * 999) + 1;
     
+    const brand = brands[Math.floor(Math.random() * brands.length)] ?? 'Brand';
+    const category = categories[Math.floor(Math.random() * categories.length)] ?? 'Category';
+    const size = sizes[Math.floor(Math.random() * sizes.length)] ?? 'M';
+    const color = colors[Math.floor(Math.random() * colors.length)] ?? 'Color';
+    const seller = sellers[Math.floor(Math.random() * sellers.length)] ?? 'Scanner';
+
     const newItem: ScannedItem = {
       id: Date.now().toString(),
       itemId: `${34780000 + Math.floor(Math.random() * 10000)}`,
       status: 'In Store',
-      date: new Date().toISOString().split('T')[0],
-      brand: brands[Math.floor(Math.random() * brands.length)],
-      category: categories[Math.floor(Math.random() * categories.length)],
-      size: sizes[Math.floor(Math.random() * sizes.length)],
-      color: colors[Math.floor(Math.random() * colors.length)],
+      date: getTodayString(),
+      brand,
+      category,
+      size,
+      color,
       price: Math.floor(Math.random() * 50) + 10,
       deliveryId: `DEL-${today}-${randomNum.toString().padStart(3, '0')}`,
-      sellerName: sellers[Math.floor(Math.random() * sellers.length)],
+      sellerName: seller,
       selected: false,
       statusHistory: [
         { 
@@ -750,7 +753,7 @@ export default function ScanScreen({
       id: Date.now().toString(),
       itemId: itemId,
       status: 'Pending',
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayString(),
       brand: '-',
       category: '-',
       price: 0,
@@ -814,6 +817,7 @@ export default function ScanScreen({
         onMoreActions={handleMoreActions}
         onClick={handleItemClick}
         userRole={userRole}
+        onSelectAll={handleSelectAll}
       />
 
       {/* Bulk Edit Modal */}

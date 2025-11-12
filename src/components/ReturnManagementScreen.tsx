@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User } from 'lucide-react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import { Partner } from './PartnerSelectionScreen';
 import { ItemCard, BaseItem } from './ItemCard';
@@ -42,25 +41,25 @@ interface ReturnManagementScreenProps {
 
 function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
   return (
-    <div className="sticky top-0 bg-primary z-10">
+    <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
       <div className="flex items-center h-16 px-4 md:px-6">
         {/* Leading icon */}
         <button 
-          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-on-primary/12 focus:bg-on-primary/12 active:bg-on-primary/20 transition-colors mr-2"
+          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
           onClick={onBack}
           aria-label="Go back"
         >
-          <ArrowLeft className="w-6 h-6 text-on-primary" />
+          <ArrowLeft className="w-6 h-6 text-on-surface" />
         </button>
         
         {/* Title */}
-        <h1 className="title-large text-on-primary flex-1">
+        <h1 className="title-large text-on-surface flex-1">
           {title}
         </h1>
         
         {/* Trailing icon */}
-        <button className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-on-primary/12 focus:bg-on-primary/12 active:bg-on-primary/20 transition-colors">
-          <MoreVertical className="w-6 h-6 text-on-primary" />
+        <button className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors">
+          <MoreVertical className="w-6 h-6 text-on-surface" />
         </button>
       </div>
     </div>
@@ -98,32 +97,13 @@ function ReturnOrderSummaryCard({ partner }: { partner: Partner }) {
 
 function ActiveScanner({ 
   onScan, 
-  onManualEntry,
   isScanning,
   unscannedCount 
 }: { 
   onScan: () => void;
-  onManualEntry: () => void;
   isScanning: boolean;
   unscannedCount: number;
 }) {
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualItemId, setManualItemId] = useState('');
-
-  const handleManualSubmit = () => {
-    if (manualItemId.trim()) {
-      onManualEntry(manualItemId.trim());
-      setManualItemId('');
-      setShowManualEntry(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleManualSubmit();
-    }
-  };
-
   return (
     <div className="mx-4 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden">
       {/* Camera Preview Area */}
@@ -190,141 +170,7 @@ function ActiveScanner({
           </button>
         </div>
       </div>
-      
-      {/* Manual Entry Section */}
-      <div className="p-4 border-t border-outline-variant bg-surface">
-        {!showManualEntry ? (
-          <button 
-            className="w-full text-primary hover:bg-primary-container/10 focus:bg-primary-container/10 active:bg-primary-container/20 transition-colors py-2 rounded-md label-medium"
-            onClick={() => setShowManualEntry(true)}
-          >
-            Add box label manually
-          </button>
-        ) : (
-          <div className="space-y-3">
-            <div className="title-small text-on-surface text-center">
-              Enter box label
-            </div>
-            <input
-              type="text"
-              value={manualItemId}
-              onChange={(e) => setManualItemId(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="e.g. BOX-123456"
-              className="w-full px-3 py-2 bg-surface-container border border-outline-variant rounded-md focus:border-primary focus:outline-none text-on-surface body-large"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setShowManualEntry(false);
-                  setManualItemId('');
-                }}
-                className="flex-1 border border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-4 py-2 rounded-lg min-h-[40px] label-large"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleManualSubmit}
-                disabled={!manualItemId.trim()}
-                className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors disabled:opacity-38 disabled:cursor-not-allowed px-4 py-2 rounded-lg min-h-[40px] label-large"
-              >
-                Add box
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
-  );
-}
-
-function ActionButtons({ 
-  onScanItems, 
-  onAddManually, 
-  isScanning, 
-  showManualAdd 
-}: { 
-  onScanItems: () => void; 
-  onAddManually: () => void;
-  isScanning: boolean;
-  showManualAdd: boolean;
-}) {
-  return (
-    <div className="flex gap-3 mx-4 mb-6">
-      <Button 
-        onClick={onScanItems}
-        disabled={isScanning}
-        className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center"
-      >
-        <QrCode className="w-4 h-4 mr-2" />
-        {isScanning ? 'Scanning...' : 'Scan items'}
-      </Button>
-      <Button 
-        variant="outline"
-        onClick={onAddManually}
-        className={`flex-1 border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center ${
-          showManualAdd ? 'bg-primary-container' : ''
-        }`}
-      >
-        Add manually
-      </Button>
-    </div>
-  );
-}
-
-function ManualAddForm({ 
-  isVisible, 
-  itemId, 
-  onItemIdChange, 
-  onCancel, 
-  onAdd 
-}: {
-  isVisible: boolean;
-  itemId: string;
-  onItemIdChange: (value: string) => void;
-  onCancel: () => void;
-  onAdd: () => void;
-}) {
-  if (!isVisible) return null;
-
-  return (
-    <Card className="mx-4 mb-4 bg-surface-container-high border border-outline-variant">
-      <CardContent className="p-4">
-        <div className="space-y-4">
-          <h3 className="title-medium text-on-surface">
-            Add Item Manually
-          </h3>
-          <div className="space-y-2">
-            <label className="label-large text-on-surface">
-              Item ID or Partner Reference
-            </label>
-            <input
-              type="text"
-              placeholder="Enter item ID"
-              value={itemId}
-              onChange={(e) => onItemIdChange(e.target.value)}
-              className="w-full px-4 py-3 bg-surface-container border border-outline rounded-lg body-large text-on-surface placeholder:text-on-surface-variant"
-            />
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              className="border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={onAdd}
-              className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center"
-            >
-              Add
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -334,14 +180,14 @@ function TabBar({
   scannedCount, 
   unscannedCount 
 }: { 
-  activeTab: string; 
-  onTabChange: (tab: string) => void;
+  activeTab: 'scanned' | 'unscanned'; 
+  onTabChange: (tab: 'scanned' | 'unscanned') => void;
   scannedCount: number;
   unscannedCount: number;
 }) {
-  const tabs = [
-    { id: 'scanned', label: `Scanned (${scannedCount})` },
-    { id: 'unscanned', label: `Not scanned (${unscannedCount})` }
+  const tabs: Array<{ id: 'scanned' | 'unscanned'; label: string; count: number }> = [
+    { id: 'scanned', label: `Scanned (${scannedCount})`, count: scannedCount },
+    { id: 'unscanned', label: `Not scanned (${unscannedCount})`, count: unscannedCount }
   ];
 
   return (
@@ -489,13 +335,9 @@ function ReturnItemCard({
 }
 
 function EmptyState({ 
-  type, 
-  onScan, 
-  onAddManually 
+  type
 }: { 
-  type: 'scanned' | 'unscanned'; 
-  onScan: () => void;
-  onAddManually: () => void;
+  type: 'scanned' | 'unscanned';
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6">
@@ -507,7 +349,7 @@ function EmptyState({
               No items scanned yet
             </h3>
             <p className="body-medium text-on-surface-variant max-w-sm">
-              Use the SCAN ITEMS button or ADD MANUALLY to include items in this return
+              Use the SCAN ITEMS button to include items in this return
             </p>
           </>
         ) : (
@@ -608,33 +450,21 @@ export default function ReturnManagementScreen({
       alert('No items available to scan');
       return;
     }
-    
+
     setIsScanning(true);
-    
+
     // Simulate scanning a random item
     setTimeout(() => {
       const randomItem = unscannedItems[Math.floor(Math.random() * unscannedItems.length)];
+      if (!randomItem) {
+        setIsScanning(false);
+        return;
+      }
       onUpdateItem(randomItem.id, 'scan');
       onUpdateItem(randomItem.id, 'select');
       setIsScanning(false);
       setActiveTab('scanned');
     }, 2000);
-  };
-
-  const handleManualAdd = (itemId: string) => {
-    // Find item by ID and mark as scanned
-    const item = unscannedItems.find(item => 
-      item.itemId.toLowerCase().includes(itemId.toLowerCase()) ||
-      item.partnerItemRef.toLowerCase().includes(itemId.toLowerCase())
-    );
-    
-    if (item) {
-      onUpdateItem(item.id, 'scan');
-      onUpdateItem(item.id, 'select');
-      setActiveTab('scanned');
-    } else {
-      alert('Item not found. Please check the ID and try again.');
-    }
   };
 
   const handleToggleSelect = (itemId: string) => {
@@ -677,7 +507,6 @@ export default function ReturnManagementScreen({
         <div className="pt-4 md:pt-6">
           <ActiveScanner 
             onScan={handleScan}
-            onManualEntry={handleManualAdd}
             isScanning={isScanning}
             unscannedCount={unscannedItems.length}
           />
@@ -718,8 +547,6 @@ export default function ReturnManagementScreen({
           ) : (
             <EmptyState 
               type={activeTab as 'scanned' | 'unscanned'}
-              onScan={handleScan}
-              onAddManually={() => setShowManualAdd(true)}
             />
           )}
         </div>

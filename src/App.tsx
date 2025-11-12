@@ -1186,15 +1186,23 @@ export default function App() {
             // Generate mock boxes for the delivery
             const mockBoxes = [];
             for (let i = 1; i <= delivery.boxes; i++) {
+              const initialStatus =
+                delivery.status === 'Delivered'
+                  ? 'Delivered'
+                  : delivery.status === 'Cancelled'
+                  ? 'Cancelled'
+                  : 'In transit';
               mockBoxes.push({
                 id: `box-${i}`,
                 boxId: `BOX-${delivery.deliveryId.slice(-6)}-${i.toString().padStart(3, '0')}`,
                 orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
                 externalOrder: `EXT-${Math.floor(10000 + Math.random() * 90000)}`,
                 items: Math.floor(20 + Math.random() * 100),
-                status: 'In transit' as const,
+                status: initialStatus as 'In transit' | 'Delivered' | 'Cancelled',
                 date: delivery.date,
-                isScanned: false
+                isScanned: initialStatus === 'Delivered',
+                deliveryId: delivery.id as string,
+                cancellationReason: initialStatus === 'Cancelled' ? (delivery.cancellationReason || 'Missing box') : undefined
               });
             }
             setDeliveryBoxes(mockBoxes);
@@ -1217,6 +1225,7 @@ export default function App() {
             setCurrentScreenSafe('order-details');
           }}
           onOpenOrderDetails={(order) => {
+            setSelectedPartnerOrder(order);
             handleViewShipmentDetails('order', order);
           }}
           onOpenShipmentDetails={(deliveryNote) => {
@@ -1304,22 +1313,60 @@ export default function App() {
         <ReceiveDeliveryScreen
           delivery={selectedDelivery}
           boxes={deliveryBoxes}
+          userRole={currentUserRole}
+          onBoxesChange={setDeliveryBoxes}
+          onUpdateDeliveryStatus={(deliveryId, status, reason) => {
+            setDeliveries(prevDeliveries =>
+              prevDeliveries.map(delivery =>
+                delivery.id === deliveryId
+                  ? { ...delivery, status, cancellationReason: reason }
+                  : delivery
+              )
+            );
+            setSelectedDelivery(prev =>
+              prev && prev.id === deliveryId ? { ...prev, status, cancellationReason: reason } : prev
+            );
+            if (status === 'Cancelled') {
+              setDeliveryBoxes(prev =>
+                prev.map(box => ({
+                  ...box,
+                  status: 'Cancelled',
+                  isScanned: false,
+                  cancellationReason: 'Missing box'
+                }))
+              );
+            }
+          }}
           onBack={() => setCurrentScreenSafe('delivery-details')}
           onRegister={(delivery, scannedBoxes) => {
             // Update the boxes in state
             setDeliveryBoxes(prev => prev.map(box => {
               const scannedBox = scannedBoxes.find(sb => sb.id === box.id);
               if (scannedBox) {
-                return { ...scannedBox, status: 'Delivered', isScanned: true };
+                return { ...scannedBox, status: 'Delivered', isScanned: true, cancellationReason: undefined };
               }
-              return box;
+              return { ...box, status: box.status === 'Cancelled' ? 'Cancelled' : box.status, cancellationReason: box.cancellationReason };
             }));
+            setDeliveries(prevDeliveries =>
+              prevDeliveries.map(existing =>
+                existing.id === delivery.id
+                  ? { ...existing, status: 'Delivered', cancellationReason: undefined }
+                  : existing
+              )
+            );
+            setSelectedDelivery(prev =>
+              prev && prev.id === delivery.id ? { ...prev, status: 'Delivered', cancellationReason: undefined } : prev
+            );
             // Navigate back or to confirmation
             setCurrentScreenSafe('shipping');
-            const event = new CustomEvent('toast', {
-              detail: { message: `Registered ${scannedBoxes.length} boxes successfully`, type: 'success' }
-            });
-            window.dispatchEvent(event);
+            window.dispatchEvent(
+              new CustomEvent('delivery-registered', {
+                detail: {
+                  deliveryId: delivery.id,
+                  timestamp: new Date().toISOString()
+                }
+              })
+            );
           }}
         />
       )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ export type ItemStatus =
   | 'Missing' 
   | 'Broken' 
   | 'Expired'
+  | 'Rejected'
   | 'Storage'
   | 'Pre-register'
   | 'Waiting for payout';
@@ -55,6 +56,7 @@ const getAvailableStatuses = (currentStatus: string | undefined, userRole: UserR
       'Missing',
       'Broken',
       'Expired',
+      'Rejected',
       'Storage',
       'Pre-register',
       'Waiting for payout'
@@ -151,7 +153,7 @@ export function StatusUpdateDialog({
               New status
             </Label>
             {availableStatuses.length > 0 ? (
-              <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as ItemStatus)}>
+              <Select value={selectedStatus} onValueChange={(value: ItemStatus) => setSelectedStatus(value)}>
                 <SelectTrigger id="status" className="bg-surface-container-high border-outline-variant min-h-[48px]">
                   <SelectValue placeholder="Select new status" />
                 </SelectTrigger>

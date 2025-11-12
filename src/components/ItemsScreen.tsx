@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useState, useMemo, useEffect } from 'react';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import { 
   DropdownMenu,
@@ -30,11 +29,12 @@ import { ItemCard, BaseItem } from './ItemCard';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
 import { UserRole } from './ItemCard';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Checkbox } from './ui/checkbox';
 import { getSekPriceOptions } from '../data/partnerPricing';
+import type { Store as StoreRecord, Country as CountryRecord, Brand as BrandRecord } from './StoreSelector';
 
-export interface Item {
+export interface Item extends BaseItem {
   id: string;
   itemId: string;
   title: string;
@@ -44,7 +44,7 @@ export interface Item {
   size?: string;
   color?: string;
   price: number;
-  status: 'In Store' | 'Pending' | 'To return' | 'Archived' | 'In Store 2nd try' | 'Sold' | 'Pick up' | 'Charity' | 'In transit' | 'Expired' | 'Missing' | 'Broken' | 'Return - In transit';
+  status: 'In Store' | 'Pending' | 'To return' | 'Archived' | 'In Store 2nd try' | 'Sold' | 'Pick up' | 'Charity' | 'In transit' | 'Expired' | 'Missing' | 'Broken' | 'Return - In transit' | 'Rejected';
   date: string;
   deliveryId?: string;
   sellerName?: string;
@@ -55,6 +55,8 @@ export interface Item {
   orderType?: 'order' | 'return';
   selected: boolean;
   statusHistory?: StatusHistoryEntry[];
+  rejectReason?: 'Broken on arrival' | 'Not accepted brand' | 'Not in season';
+  lastInStoreAt?: string;
 }
 
 interface ItemsScreenProps {
@@ -69,9 +71,9 @@ interface ItemsScreenProps {
   // Shared filter state for partner portal
   viewFilter?: ViewFilter;
   onViewFilterChange?: (filter: ViewFilter) => void;
-  brands?: { id: string; name: string }[];
-  countries?: { id: string; name: string }[];
-  stores?: { id: string; name: string; code: string; countryId: string; brandId: string }[];
+  brands?: BrandRecord[];
+  countries?: CountryRecord[];
+  stores?: StoreRecord[];
   onCreateReturn?: (items: Item[]) => void;
 }
 
@@ -158,6 +160,8 @@ function QuickFilterChips({
   );
 }
 
+type ActiveFilter = { key: keyof ItemFilters; label: string };
+
 function ActiveFiltersDisplay({ 
   filters, 
   onRemoveFilter, 
@@ -167,7 +171,7 @@ function ActiveFiltersDisplay({
   onRemoveFilter: (filterKey: keyof ItemFilters) => void;
   onClearAll: () => void;
 }) {
-  const activeFilters = [];
+  const activeFilters: ActiveFilter[] = [];
   
   if (filters.keyword) activeFilters.push({ key: 'keyword', label: `"${filters.keyword}"` });
   if (filters.brand !== 'all') activeFilters.push({ key: 'brand', label: filters.brand });
@@ -205,7 +209,7 @@ function ActiveFiltersDisplay({
           >
             <span>{filter.label}</span>
             <button
-              onClick={() => onRemoveFilter(filter.key as keyof SearchFilters)}
+              onClick={() => onRemoveFilter(filter.key)}
               className="w-4 h-4 rounded-full hover:bg-on-primary-container/20 flex items-center justify-center"
               aria-label={`Remove ${filter.label} filter`}
             >
@@ -259,7 +263,12 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
             <Label htmlFor="status" className="text-right">
               Status
             </Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+            <Select
+              value={formData.status}
+              onValueChange={(value: string) =>
+                setFormData(prev => ({ ...prev, status: value as Item['status'] | 'none' }))
+              }
+            >
               <SelectTrigger className="col-span-3 bg-surface-container-high border border-outline rounded-lg">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -420,19 +429,14 @@ function MultiSelectActions({
 }
 
 export default function ItemsScreen({ 
-  onBack, 
-  onNavigateToHome, 
-  onNavigateToShipping, 
-  onNavigateToScan, 
-  onNavigateToSellers, 
   userRole = 'store-staff', 
   currentPartnerWarehouseSelection, 
   partners,
   viewFilter: externalViewFilter,
   onViewFilterChange: externalOnViewFilterChange,
-  brands = [],
-  countries = [],
-  stores = [],
+  brands = [] as BrandRecord[],
+  countries = [] as CountryRecord[],
+  stores = [] as StoreRecord[],
   onCreateReturn
 }: ItemsScreenProps) {
   const [quickFilter, setQuickFilter] = useState('all');
@@ -443,6 +447,15 @@ export default function ItemsScreen({
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<Item | null>(null);
 
   const partnerIdForPricing = currentPartnerWarehouseSelection?.partnerId;
+
+  const partnerOptions = useMemo(
+    () =>
+      (partners ?? []).map((partner) => ({
+        ...partner,
+        code: (partner as { code?: string }).code ?? partner.id
+      })),
+    [partners]
+  );
 
   const partnerPriceOptions = useMemo(() => {
     if (!selectedItemForDetails || !partnerIdForPricing) {
@@ -455,6 +468,61 @@ export default function ItemsScreen({
   const [batchStatusNote, setBatchStatusNote] = useState('');
   const [showStatusUpdateDialog, setShowStatusUpdateDialog] = useState(false);
   const [itemToUpdateStatus, setItemToUpdateStatus] = useState<Item | null>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [itemToReject, setItemToReject] = useState<Item | null>(null);
+  const rejectReasons = ['Broken on arrival', 'Not accepted brand', 'Not in season'] as const;
+  type RejectReason = typeof rejectReasons[number];
+  const [rejectReason, setRejectReason] = useState<RejectReason>(rejectReasons[0]);
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+  const formatTimestamp = (date: Date | string = new Date()) => {
+    const value = typeof date === 'string' ? normalizeTimestamp(date) : date;
+    return new Date(value).toLocaleString('sv-SE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).replace(',', '');
+  };
+
+  const normalizeTimestamp = (value: string) => {
+    if (value.includes('T')) return value;
+    const sanitized = value.replace(' ', 'T');
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(sanitized) ? `${sanitized}:00` : sanitized;
+  };
+
+  const getLastInStoreTimestamp = (item: Item): number | undefined => {
+    if (item.lastInStoreAt) {
+      const parsed = Date.parse(item.lastInStoreAt);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    if (item.statusHistory && item.statusHistory.length) {
+      for (let i = item.statusHistory.length - 1; i >= 0; i--) {
+        const entry = item.statusHistory[i];
+        if (!entry) {
+          continue;
+        }
+        if (entry.status?.toLowerCase() === 'in store' && entry.timestamp) {
+          const parsed = Date.parse(normalizeTimestamp(entry.timestamp));
+          if (!Number.isNaN(parsed)) {
+            return parsed;
+          }
+        }
+      }
+    }
+    return undefined;
+  };
+
+  const canRejectItem = (item: Item) => {
+    if (userRole !== 'admin') return false;
+    if (item.status !== 'In Store') return false;
+    const timestamp = getLastInStoreTimestamp(item);
+    if (timestamp === undefined) return false;
+    return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
+  };
   
   // Use shared filter state for partner portal, local state for store staff
   const [localViewFilter, setLocalViewFilter] = useState<ViewFilter>({
@@ -743,6 +811,19 @@ export default function ItemsScreen({
     }
   ]);
 
+  useEffect(() => {
+    setItems(prev =>
+      prev.map(item => {
+        if (item.status === 'In Store' && !item.lastInStoreAt) {
+          const timestamp = getLastInStoreTimestamp(item);
+          const iso = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
+          return { ...item, lastInStoreAt: iso };
+        }
+        return item;
+      })
+    );
+  }, []);
+
   // Apply all filters and search
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -779,7 +860,7 @@ export default function ItemsScreen({
         matchesQuickFilter = 
           (quickFilter === 'pending' && (item.status === 'In transit' || item.status === 'Return - In transit')) ||
           (quickFilter === 'in-store' && (item.status === 'In Store' || item.status === 'In Store 2nd try')) ||
-          (quickFilter === 'expired' && item.status === 'To return');
+        (quickFilter === 'expired' && (item.status === 'To return' || item.status === 'Rejected'));
       }
       
       // Advanced filter sheet filters
@@ -840,14 +921,14 @@ export default function ItemsScreen({
         returnInTransit: items.filter(item => (item.status === 'In transit' || item.status === 'Return - In transit') && item.orderType === 'return').length,
         // Keep old keys for backward compatibility
         pending: items.filter(item => item.status === 'In transit' || item.status === 'Return - In transit').length,
-        expired: items.filter(item => item.status === 'To return').length
+        expired: items.filter(item => item.status === 'To return' || item.status === 'Rejected').length
       };
     } else {
       return {
         all: items.length,
         pending: items.filter(item => item.status === 'In transit').length,
         inStore: items.filter(item => item.status === 'In Store' || item.status === 'In Store 2nd try').length,
-        expired: items.filter(item => item.status === 'To return').length,
+        expired: items.filter(item => item.status === 'To return' || item.status === 'Rejected').length,
         // Partner portal keys (for compatibility)
         inShipment: 0,
         sold: 0,
@@ -856,11 +937,56 @@ export default function ItemsScreen({
     }
   }, [items, isPartnerPortal]);
 
+  useEffect(() => {
+    const handleDeliveryRegistered = (event: Event) => {
+      const customEvent = event as CustomEvent<{ deliveryId?: string; timestamp?: string }>;
+      const { deliveryId, timestamp } = customEvent.detail || {};
+      if (!deliveryId) {
+        return;
+      }
+      const isoTimestamp = timestamp || new Date().toISOString();
+      const formatted = formatTimestamp(isoTimestamp);
+      setItems(prev =>
+        prev.map(item => {
+          if (item.deliveryId !== deliveryId) {
+            return item;
+          }
+          const existingTimestamp = item.lastInStoreAt ? Date.parse(item.lastInStoreAt) : undefined;
+          const incomingTimestamp = Date.parse(isoTimestamp);
+          if (existingTimestamp !== undefined && existingTimestamp >= incomingTimestamp && item.status === 'In Store') {
+            return item;
+          }
+          return {
+            ...item,
+            status: 'In Store',
+            date: isoTimestamp.slice(0, 10),
+            lastInStoreAt: isoTimestamp,
+            rejectReason: undefined,
+            statusHistory: [
+              ...(item.statusHistory || []),
+              {
+                status: 'In Store',
+                timestamp: formatted,
+                user: 'System',
+                note: 'Registered in store'
+              }
+            ]
+          } as Item;
+        })
+      );
+    };
+
+    window.addEventListener('delivery-registered', handleDeliveryRegistered as EventListener);
+    return () => {
+      window.removeEventListener('delivery-registered', handleDeliveryRegistered as EventListener);
+    };
+  }, []);
+
   const selectedItems = items.filter(item => item.selected);
   const canReturnSelectedItems =
     selectedItems.length > 0 &&
     selectedItems.every(
-      (item) => item.status !== 'In transit' && item.status !== 'Return - In transit'
+      (item) => item.status !== 'In transit' && item.status !== 'Return - In transit' && item.status !== 'Rejected'
     );
 
   const handleToggleSelect = (id: string) => {
@@ -932,12 +1058,12 @@ export default function ItemsScreen({
     setItems((prev) =>
       prev.map((item) =>
         selectedIds.has(item.id)
-          ? {
+          ? ({
               ...item,
               status: 'Return - In transit',
               orderType: 'return' as Item['orderType'],
               selected: false
-            }
+            } as Item)
           : item
       )
     );
@@ -953,7 +1079,7 @@ export default function ItemsScreen({
     }
   };
 
-  const handleMoreActions = (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status') => {
+  const handleMoreActions = (item: Item, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status' | 'reject') => {
     const fullItem = items.find(i => i.id === item.id);
     
     switch (action) {
@@ -991,6 +1117,17 @@ export default function ItemsScreen({
           setShowStatusUpdateDialog(true);
         }
         break;
+      case 'reject':
+        if (fullItem) {
+          if (!canRejectItem(fullItem)) {
+            toast.error('Item can only be rejected within 24 hours of arriving in store.');
+            return;
+          }
+          setItemToReject(fullItem);
+          setRejectReason(rejectReasons[0]);
+          setShowRejectDialog(true);
+        }
+        break;
     }
   };
   
@@ -1017,11 +1154,48 @@ export default function ItemsScreen({
     }
   };
 
+  const handleRejectDialogClose = () => {
+    setShowRejectDialog(false);
+    setItemToReject(null);
+    setRejectReason(rejectReasons[0]);
+  };
+
+  const handleConfirmReject = () => {
+    if (!itemToReject) return;
+    const now = new Date();
+    const isoTimestamp = now.toISOString();
+    const formatted = formatTimestamp(now);
+    setItems(prev =>
+      prev.map(item =>
+        item.id === itemToReject.id
+          ? {
+              ...item,
+              status: 'Rejected',
+              rejectReason,
+              selected: false,
+              date: item.date || isoTimestamp.slice(0, 10),
+              statusHistory: [
+                ...(item.statusHistory || []),
+                {
+                  status: 'Rejected',
+                  timestamp: formatted,
+                  user: 'Current User',
+                  note: rejectReason
+                }
+              ]
+            }
+          : item
+      )
+    );
+    toast.info(`Item ${itemToReject.itemId} marked as rejected (${rejectReason})`);
+    handleRejectDialogClose();
+  };
+
   const handleArchiveSelected = () => {
     const selectedIds = selectedItems.map(item => item.id);
     setItems(prev => prev.map(item => 
       selectedIds.includes(item.id) 
-        ? { ...item, status: 'Archived', selected: false }
+        ? ({ ...item, status: 'Archived', selected: false } as Item)
         : item
     ));
     toast.success(`${selectedItems.length} items archived successfully`);
@@ -1031,7 +1205,7 @@ export default function ItemsScreen({
     const selectedIds = selectedItems.map(item => item.id);
     setItems(prev => prev.map(item => 
       selectedIds.includes(item.id) 
-        ? { ...item, status: 'To return', selected: false }
+        ? ({ ...item, status: 'To return', selected: false } as Item)
         : item
     ));
     toast.success(`${selectedItems.length} items marked as expired`);
@@ -1083,13 +1257,7 @@ export default function ItemsScreen({
         if (updates.status && updates.status !== item.status) {
           const newHistoryEntry: StatusHistoryEntry = {
             status: updates.status,
-            timestamp: new Date().toLocaleString('sv-SE', { 
-              year: 'numeric', 
-              month: '2-digit', 
-              day: '2-digit', 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            }).replace(',', ''),
+            timestamp: formatTimestamp(),
             user: 'Current User'
           };
           
@@ -1097,9 +1265,13 @@ export default function ItemsScreen({
             ...(item.statusHistory || []),
             newHistoryEntry
           ];
+
+          if (updates.status === 'In Store') {
+            updatedItem.lastInStoreAt = new Date().toISOString();
+          }
         }
         
-        return updatedItem;
+        return updatedItem as Item;
       }
       return item;
     }));
@@ -1111,13 +1283,7 @@ export default function ItemsScreen({
   const handleBatchStatusUpdate = () => {
     if (batchNewStatus !== 'none') {
       const selectedIds = selectedItems.map(item => item.id);
-      const timestamp = new Date().toLocaleString('sv-SE', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }).replace(',', '');
+      const timestamp = formatTimestamp();
       
       setItems(prev => prev.map(item => {
         if (selectedIds.includes(item.id)) {
@@ -1135,8 +1301,9 @@ export default function ItemsScreen({
             statusHistory: [
               ...(item.statusHistory || []),
               newHistoryEntry
-            ]
-          };
+            ],
+            ...(batchNewStatus === 'In Store' ? { lastInStoreAt: new Date().toISOString() } : {})
+          } as Item;
         }
         return item;
       }));
@@ -1194,7 +1361,7 @@ export default function ItemsScreen({
                   });
                 }}
                 currentPartnerId={currentPartnerWarehouseSelection?.partnerId || ''}
-                partners={partners || []}
+                partners={partnerOptions}
                 brands={brands}
                 stores={stores}
                 countries={countries}
@@ -1386,11 +1553,11 @@ export default function ItemsScreen({
                     <ItemCard
                       item={item}
                       onToggleSelect={handleToggleSelect}
-                      onMoreActions={handleMoreActions}
-                      onClick={handleItemClick}
+                      onMoreActions={(baseItem, action) => handleMoreActions(baseItem as Item, action)}
+                      onClick={(baseItem) => handleItemClick(baseItem as Item)}
                       showActions={true}
                       showSelection={true}
-                      userRole={userRole}
+                      userRole={userRole ?? 'store-staff'}
                     />
                   </div>
                 ))}
@@ -1441,6 +1608,53 @@ export default function ItemsScreen({
         itemTitle={itemToUpdateStatus?.title}
         userRole={userRole}
       />
+
+      <Dialog open={showRejectDialog} onOpenChange={(open: boolean) => {
+        if (!open) {
+          handleRejectDialogClose();
+        }
+      }}>
+        <DialogContent className="bg-surface border border-outline-variant rounded-xl max-w-[calc(100%-2rem)] sm:max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle className="title-large text-on-surface">
+              Reject item
+            </DialogTitle>
+            <DialogDescription className="body-medium text-on-surface-variant">
+              Select a reason to reject {itemToReject?.itemId || 'the item'}. Rejections are only allowed within 24 hours of receiving it in store.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {rejectReasons.map((reason) => (
+              <label key={reason} className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="reject-reason"
+                  value={reason}
+                  checked={rejectReason === reason}
+                  onChange={() => setRejectReason(reason)}
+                  className="accent-primary h-4 w-4"
+                />
+                <span className="body-medium text-on-surface">{reason}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={handleRejectDialogClose}
+              className="w-full sm:w-auto sm:min-w-[120px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmReject}
+              className="w-full sm:w-auto sm:min-w-[140px] bg-error text-on-error hover:bg-error/90 focus:bg-error/90 active:bg-error/80"
+            >
+              Confirm rejection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Batch Status Update Dialog */}
       <Dialog open={showBatchStatusUpdate} onOpenChange={setShowBatchStatusUpdate}>

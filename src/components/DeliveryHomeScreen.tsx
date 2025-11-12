@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
-import { Button } from './ui/button';
+import { useState } from 'react';
 import { Card } from './ui/card';
-import { StatsCard } from './ui/stats-card';
-import { TaskButton } from './ui/task-button';
 import { Section } from './ui/section';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
 import SalesDataDashboard from './SalesDataDashboard';
 import MonthlyGoalTracker, { GoalEditDialog } from './MonthlyGoalTracker';
-import { ChevronDown, Settings, Target, UserIcon, Package, AlertCircle, TruckIcon, ChevronRight, ClipboardList, Search, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { ChevronDown, Settings, Target, UserIcon, ChevronRight, Search, RotateCcw, ClipboardCheck } from 'lucide-react';
 
 interface DeliveryHomeScreenProps {
   onNavigateToShipping: () => void;
@@ -124,9 +121,6 @@ export default function DeliveryHomeScreen({
   onNavigateToShipping, 
   onNavigateToReturns, 
   onNavigateToReturnsTab,
-  onNavigateToItems, 
-  onNavigateToScan, 
-  onNavigateToSellers, 
   onNavigateToStockCheck, 
   onNavigateToAdmin,
   onNavigateToRoleSwitcher,
@@ -168,10 +162,10 @@ export default function DeliveryHomeScreen({
       {/* Main Content Container */}
       <div className="w-full">
         {/* Main Content */}
-        <div className="px-4 md:px-6 pt-6 pb-8 space-y-8">
+        <div className="px-4 md:px-6 pt-6 pb-8 space-y-8 max-w-5xl mx-auto w-full">
           
           {/* Overview Stats - Compact Cards */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Card 
               className="p-4 bg-surface-container border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors"
               onClick={onNavigateToShipping}
@@ -179,16 +173,6 @@ export default function DeliveryHomeScreen({
               <div>
                 <p className="body-small text-on-surface-variant mb-1">Inbound deliveries</p>
                 <p className="headline-small text-on-surface">{deliveryStats.newDeliveries}</p>
-              </div>
-            </Card>
-
-            <Card 
-              className="p-4 bg-surface-container border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors"
-              onClick={onNavigateToReturns}
-            >
-              <div>
-                <p className="body-small text-on-surface-variant mb-1">Items to return</p>
-                <p className="headline-small text-on-surface">{deliveryStats.toReturn}</p>
               </div>
             </Card>
 
@@ -208,11 +192,29 @@ export default function DeliveryHomeScreen({
             <h2 className="title-medium text-on-surface mb-4">Quick actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
+                onClick={onNavigateToReturns}
+                className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-secondary-container shadow-sm ring-1 ring-secondary/20">
+                    <RotateCcw className="w-5 h-5 text-on-secondary-container" />
+                  </div>
+                  <div>
+                    <p className="title-small text-on-surface">Create a return</p>
+                    <p className="body-small text-on-surface-variant">
+                      {deliveryStats.toReturn} item{deliveryStats.toReturn === 1 ? '' : 's'} pending
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+              </button>
+
+              <button
                 onClick={onNavigateToStockCheck}
                 className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary-container shadow-sm ring-1 ring-primary/20">
                     <ClipboardCheck className="w-5 h-5 text-on-primary-container" />
                   </div>
                   <div>
@@ -227,8 +229,8 @@ export default function DeliveryHomeScreen({
                 className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                    <Search className="w-5 h-5 text-on-secondary-container" />
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-tertiary-container shadow-sm ring-1 ring-tertiary/20">
+                    <Search className="w-5 h-5 text-on-tertiary-container" />
                   </div>
                   <div>
                     <p className="title-small text-on-surface">Search deliveries</p>

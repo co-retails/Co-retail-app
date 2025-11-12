@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { StatsCard } from './ui/stats-card';
-import { ArrowLeftIcon, PlusIcon, PackageIcon, TruckIcon, ClipboardListIcon, BarChart3Icon, ChevronDown, Settings, UserIcon, FilterIcon, QrCodeIcon, Store as StoreIcon, ChevronRight, AlertCircle, Package, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X } from 'lucide-react';
-import { TaskButton } from './ui/task-button';
+import { Settings, UserIcon, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, Truck, Package, Plus } from 'lucide-react';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import svgPaths from "../imports/svg-8iuolkmxl8";
-import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
+import type { Store, Country, Brand } from './StoreSelector';
 import PartnerWarehouseSelector, { Partner as WarehousePartner, Warehouse, PartnerWarehouseSelection } from './PartnerWarehouseSelector';
 import { ShowroomOrder } from './ShowroomTypes';
 
@@ -40,20 +37,10 @@ export interface ExtendedPartnerOrder extends PartnerOrder {
 // View filter types
 export type ViewMode = 'all' | 'by-partner' | 'by-store';
 
-export interface ViewFilter {
-  mode: ViewMode;
-  partnerId?: string;
-  brandIds?: string[];
-  storeIds?: string[];
-  countryIds?: string[];
-}
-
 interface PartnerDashboardProps {
-  onBack: () => void;
   onCreateOrder: () => void;
   onViewOrders: () => void;
   onViewBoxes: () => void;
-  onViewDeliveries: () => void;
   onViewReturns: () => void;
   onNavigateToShowroom?: () => void;
   onAdminClick?: () => void;
@@ -63,29 +50,24 @@ interface PartnerDashboardProps {
   brands: Brand[];
   countries: Country[];
   stores: Store[];
-  currentStoreSelection: StoreSelection;
-  onStoreSelectionChange: (selection: StoreSelection) => void;
   partners: WarehousePartner[];
   warehouses: Warehouse[];
   currentPartnerWarehouseSelection: PartnerWarehouseSelection;
   onPartnerWarehouseSelectionChange: (selection: PartnerWarehouseSelection) => void;
   currentUserRole: 'store-staff' | 'partner';
   showroomOrders?: ShowroomOrder[];
-  onNavigateToOrdersTab?: () => void;
-  onNavigateToShipmentsTab?: () => void;
   onNavigateToQuotations?: () => void;
   onViewQuotationDetails?: (quotationId: string) => void;
+  onOpenOrderDetails?: (order: ExtendedPartnerOrder) => void;
   // Shared filter state for partner portal
   viewFilter: ViewFilter;
   onViewFilterChange: (filter: ViewFilter) => void;
 }
 
 export default function PartnerDashboard({
-  onBack,
   onCreateOrder,
   onViewOrders,
   onViewBoxes,
-  onViewDeliveries,
   onViewReturns,
   onNavigateToShowroom,
   onAdminClick,
@@ -95,20 +77,17 @@ export default function PartnerDashboard({
   brands,
   countries,
   stores,
-  currentStoreSelection,
-  onStoreSelectionChange,
   partners,
   warehouses,
   currentPartnerWarehouseSelection,
   onPartnerWarehouseSelectionChange,
   currentUserRole,
   showroomOrders = [],
-  onNavigateToOrdersTab,
-  onNavigateToShipmentsTab,
   onNavigateToQuotations,
   onViewQuotationDetails,
   viewFilter,
-  onViewFilterChange
+  onViewFilterChange,
+  onOpenOrderDetails
 }: PartnerDashboardProps) {
   const [isPartnerWarehouseSelectorOpen, setIsPartnerWarehouseSelectorOpen] = useState(false);
   
@@ -131,6 +110,9 @@ export default function PartnerDashboard({
 
   // Get current partner/warehouse display name
   const getCurrentPartnerWarehouseDisplay = () => {
+    if (!currentPartnerWarehouseSelection.partnerId) {
+      return 'Select partner';
+    }
     const currentPartner = partners.find(partner => partner.id === currentPartnerWarehouseSelection.partnerId);
     const currentWarehouse = warehouses.find(warehouse => warehouse.id === currentPartnerWarehouseSelection.warehouseId);
     
@@ -194,6 +176,9 @@ export default function PartnerDashboard({
 
   // Calculate filtered stats based on current view mode
   const getFilteredStats = (): PartnerStats => {
+    if (viewFilter.mode === 'all' && !viewFilter.partnerId) {
+      return stats;
+    }
     const filteredOrders = getFilteredOrders();
     
     return {
@@ -243,74 +228,36 @@ export default function PartnerDashboard({
     });
   };
 
-  // Get display name for current filter
-  const getFilterDisplayName = () => {
-    const hasFilters = (viewFilter.brandIds?.length || 0) > 0 || 
-                      (viewFilter.storeIds?.length || 0) > 0 || 
-                      (viewFilter.countryIds?.length || 0) > 0;
-    
-    if (!hasFilters) {
-      return 'All Stores';
-    }
-    
-    const filterParts = [];
-    
-    // Add brand filters
-    if (viewFilter.brandIds?.length) {
-      const selectedBrands = brands.filter(b => viewFilter.brandIds!.includes(b.id));
-      if (selectedBrands.length === 1) {
-        filterParts.push(selectedBrands[0].name);
-      } else {
-        filterParts.push(`${selectedBrands.length} Brands`);
-      }
-    }
-    
-    // Add country filters
-    if (viewFilter.countryIds?.length) {
-      const selectedCountries = countries.filter(c => viewFilter.countryIds!.includes(c.id));
-      if (selectedCountries.length === 1) {
-        filterParts.push(selectedCountries[0].name);
-      } else {
-        filterParts.push(`${selectedCountries.length} Countries`);
-      }
-    }
-    
-    // Add store filters
-    if (viewFilter.storeIds?.length) {
-      const selectedStores = stores.filter(s => viewFilter.storeIds!.includes(s.id));
-      if (selectedStores.length === 1) {
-        filterParts.push(selectedStores[0].name);
-      } else {
-        filterParts.push(`${selectedStores.length} Stores`);
-      }
-    }
-    
-    return filterParts.join(' • ');
-  };
-
   const filteredStats = getFilteredStats();
   const filteredOrders = getFilteredOrders();
 
-  const getStatusBadge = (status: PartnerOrder['status']) => {
-    const variants = {
-      'pending': 'secondary',
-      'registered': 'default',
-      'in-transit': 'outline',
-      'delivered': 'secondary'
-    } as const;
-    
-    const labels = {
-      'pending': 'Pending',
-      'registered': 'Registered',
-      'in-transit': 'In Transit',
-      'delivered': 'Delivered'
-    };
-    
-    return (
-      <Badge variant={variants[status]}>
-        {labels[status]}
-      </Badge>
-    );
+  const getOrderStatusVariant = (status: ExtendedPartnerOrder['status']): 'default' | 'secondary' | 'outline' => {
+    switch (status) {
+      case 'registered':
+        return 'default';
+      case 'in-transit':
+      case 'in-review':
+        return 'outline';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const getOrderStatusLabel = (status: ExtendedPartnerOrder['status']) => {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'registered':
+        return 'Registered';
+      case 'in-transit':
+        return 'In transit';
+      case 'delivered':
+        return 'Delivered';
+      case 'in-review':
+        return 'In review';
+      default:
+        return status;
+    }
   };
 
   const StatusBarIPhone = () => {
@@ -382,7 +329,7 @@ export default function PartnerDashboard({
               className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-surface-container-high transition-colors"
             >
               <span className="title-medium text-on-surface">{getCurrentPartnerWarehouseDisplay()}</span>
-              <ChevronDown className="h-4 w-4 text-on-surface-variant" />
+              <ChevronDownIcon className="h-4 w-4 text-on-surface-variant" />
             </button>
           </div>
 
@@ -524,21 +471,7 @@ export default function PartnerDashboard({
               </div>
             )}
             
-            {/* Mobile Filter Status - Always show current filter */}
-            <div className="sm:hidden">
-              <div className="flex items-center gap-2 p-3 rounded-lg">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  viewFilter.mode === 'by-store' && (
-                    (viewFilter.storeIds?.length || 0) > 0 || 
-                    (viewFilter.brandIds?.length || 0) > 0 || 
-                    (viewFilter.countryIds?.length || 0) > 0
-                  ) ? 'bg-primary' : 'bg-secondary'
-                }`} />
-                <span className="body-small text-on-surface">
-                  {getFilterDisplayName()}
-                </span>
-              </div>
-            </div>
+            {/* Mobile Filter summary removed to avoid duplication with chips */}
           </div>
           
         </div>
@@ -562,7 +495,7 @@ export default function PartnerDashboard({
                       <div>
                         <p className="title-small text-on-surface">Quotation requests</p>
                         <p className="body-small text-on-surface-variant">
-                          {showroomOrders.filter(o => o.type === 'rfq' && (o.status === 'requested' || o.status === 'negotiation')).length} pending
+                          {showroomOrders.filter(o => o.type === 'rfq' && (o.status === 'pending' || o.status === 'negotiation')).length} pending
                         </p>
                       </div>
                     </div>
@@ -598,7 +531,7 @@ export default function PartnerDashboard({
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
-                      <ClipboardListIcon className="w-5 h-5 text-on-primary-container" />
+                      <ClipboardList className="w-5 h-5 text-on-primary-container" />
                     </div>
                     <div>
                       <p className="title-small text-on-surface">Orders to process</p>
@@ -614,7 +547,7 @@ export default function PartnerDashboard({
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                      <TruckIcon className="w-5 h-5 text-on-secondary-container" />
+                      <Truck className="w-5 h-5 text-on-secondary-container" />
                     </div>
                     <div>
                       <p className="title-small text-on-surface">Active shipments</p>
@@ -755,7 +688,7 @@ export default function PartnerDashboard({
             <CardContent>
               {filteredOrders.length === 0 ? (
                 <div className="text-center py-8">
-                  <PackageIcon size={48} className="mx-auto text-on-surface-variant/50 mb-4" />
+                  <Package size={48} className="mx-auto text-on-surface-variant/50 mb-4" />
                   {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Sellpy Operations' ? (
                     <>
                       <p className="body-large text-on-surface-variant">No items need retailer IDs</p>
@@ -770,7 +703,7 @@ export default function PartnerDashboard({
                       <p className="body-large text-on-surface-variant">No orders yet</p>
                       <p className="body-medium text-on-surface-variant">Create your first order to get started</p>
                       <Button onClick={onCreateOrder} className="mt-4">
-                        <PlusIcon size={16} className="mr-2" />
+                        <Plus size={16} className="mr-2" />
                         Create Order
                       </Button>
                     </>
@@ -778,36 +711,54 @@ export default function PartnerDashboard({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {filteredOrders.map((order) => (
-                    <div
+                  {filteredOrders.map(order => (
+                    <Card 
                       key={order.id}
-                      className="flex items-center justify-between p-3 rounded-lg border border-outline-variant transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onOpenOrderDetails?.(order)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onOpenOrderDetails?.(order);
+                        }
+                      }}
+                      className="p-4 border-outline-variant bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="title-small text-on-surface">#{order.id}</p>
-                          {getStatusBadge(order.status)}
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="title-small text-on-surface mb-1">{order.id}</div>
+                          <div className="body-small text-on-surface-variant">{order.itemCount} items • {order.boxCount} boxes</div>
+                          <div className="body-small text-on-surface-variant">Created {order.createdDate}</div>
+                          {(() => {
+                            const receivingStore = stores.find(store => store.id === order.receivingStoreId);
+                            const brandName = receivingStore
+                              ? brands.find(brand => brand.id === receivingStore.brandId)?.name
+                              : undefined;
+                            if (!order.receivingStoreName && !receivingStore && !brandName) {
+                              return null;
+                            }
+                            const name = order.receivingStoreName || receivingStore?.name;
+                            const code = receivingStore?.code || order.receivingStoreId;
+                            if (!name && !code && !brandName) {
+                              return null;
+                            }
+                            return (
+                              <div className="body-small text-on-surface-variant">
+                                To: {brandName && <span className="font-medium text-on-surface">{brandName}</span>}
+                                {brandName && (name || code) ? ' • ' : ''}
+                                {name || 'Unknown store'}
+                                {code && <span className="ml-1">({code})</span>}
+                              </div>
+                            );
+                          })()}
                         </div>
-                        <p className="body-small text-on-surface-variant">
-                          {order.itemCount} items • {order.boxCount} boxes • {order.createdDate}
-                          {order.receivingStoreName && (
-                            <span> • Store: {order.receivingStoreName}</span>
-                          )}
-                        </p>
+                        <Badge variant={getOrderStatusVariant(order.status)}>
+                          {getOrderStatusLabel(order.status)}
+                        </Badge>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        View
-                      </Button>
-                    </div>
+                    </Card>
                   ))}
-                  
-                  <Button
-                    variant="outline"
-                    onClick={onViewOrders}
-                    className="w-full sm:w-auto sm:min-w-[200px] sm:max-w-xs mx-auto mt-4"
-                  >
-                    View All Orders
-                  </Button>
                 </div>
               )}
             </CardContent>

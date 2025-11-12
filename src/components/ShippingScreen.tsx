@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, AlertCircle, Truck as TruckIcon, Trash2, FilterIcon, MoreVertical, X, QrCode, ClipboardListIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, X, QrCode, ClipboardListIcon } from 'lucide-react';
 import { UserRole } from './RoleSwitcher';
-import { PartnerOrder } from './PartnerDashboard';
+import type { ExtendedPartnerOrder } from './PartnerDashboard';
 import { DeliveryNote } from './BoxManagementScreen';
 import { ReturnItem } from './ReturnManagementScreen';
 import { ShowroomOrder } from './ShowroomTypes';
 import { OrderItem } from './OrderCreationScreen';
-import StoreFilterBottomSheet, { ViewFilter, ViewMode } from './StoreFilterBottomSheet';
+import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -14,6 +14,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import type { Store as StoreRecord, Country as CountryRecord, Brand as BrandRecord } from './StoreSelector';
+import type { SetStateAction, MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent, ChangeEvent } from 'react';
+
+type ShippingPartnerOrder = ExtendedPartnerOrder & {
+  externalOrderId?: string;
+  orderValue?: number;
+  salesMargin?: number;
+};
+
+type DeliveryNoteStatus = DeliveryNote['status'] | 'pending';
+type ShippingTab = 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered';
+type ShippingUserRole = UserRole | 'admin' | 'store-manager' | 'buyer';
 
 export interface SellpyOrder {
   id: string;
@@ -32,12 +44,13 @@ export interface SellpyOrder {
 export interface Delivery {
   id: string;
   date: string;
-  status: 'In transit' | 'Delivered' | 'Partially Delivered';
+  status: 'In transit' | 'Delivered' | 'Partially Delivered' | 'Cancelled';
   deliveryId: string;
   orders: number;
   items: number;
   boxes: number;
   sender: string;
+  cancellationReason?: 'Missing delivery';
 }
 
 export interface ReturnDelivery {
@@ -68,24 +81,24 @@ interface ShippingScreenProps {
   onNavigateToScan?: () => void;
   onNavigateToSellers?: () => void;
   onScanBox?: () => void;
-  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered';
-  currentUserRole?: UserRole;
-  partnerOrders?: PartnerOrder[];
+  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'orders';
+  currentUserRole?: ShippingUserRole;
+  partnerOrders?: ShippingPartnerOrder[];
   deliveryNotes?: DeliveryNote[];
   returnItems?: ReturnItem[];
   returnDeliveries?: ReturnDelivery[];
   currentPartnerId?: string;
   onSelectSellpyOrder?: (order: SellpyOrder) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
-  onOpenOrderDetails?: (order: PartnerOrder) => void;
+  onOpenOrderDetails?: (order: ShippingPartnerOrder) => void;
   onOpenShipmentDetails?: (deliveryNote: DeliveryNote) => void;
   onOpenReturnDetails?: (returnDelivery: ReturnDelivery) => void;
   showroomOrders?: ShowroomOrder[];
   onViewShowroomOrder?: (orderId: string) => void;
   sellpyOrders?: SellpyOrder[];
-  brands?: { id: string; name: string; }[];
-  countries?: { id: string; name: string; }[];
-  stores?: { id: string; name: string; code: string; countryId: string; brandId: string; }[];
+  brands?: BrandRecord[];
+  countries?: CountryRecord[];
+  stores?: StoreRecord[];
   onCreateDeliveryNoteForOrder?: (orderId: string) => void;
   currentStoreSelection?: StoreSelection;
   isAdmin?: boolean;
@@ -100,20 +113,22 @@ interface ShippingScreenProps {
 
 
 function Tabs({ activeTab, onTabChange, userRole }: { 
-  activeTab: string; 
-  onTabChange: (tab: string) => void;
-  userRole?: UserRole;
+  activeTab: ShippingTab; 
+  onTabChange: (tab: ShippingTab) => void;
+  userRole?: ShippingUserRole;
 }) {
-  const tabs = userRole === 'partner' ? [
-    { id: 'pending', label: 'Orders' },
-    { id: 'in-transit', label: 'Shipments' },
-    { id: 'delivered', label: 'Delivered' },
-    { id: 'returns', label: 'Returns' }
-  ] : [
-    { id: 'shipments', label: 'New' },
-    { id: 'returns', label: 'Returns' },
-    { id: 'all', label: 'All' }
-  ];
+  const tabs: Array<{ id: ShippingTab; label: string }> = userRole === 'partner'
+    ? [
+        { id: 'pending', label: 'Orders' },
+        { id: 'in-transit', label: 'Shipments' },
+        { id: 'delivered', label: 'Delivered' },
+        { id: 'returns', label: 'Returns' }
+      ]
+    : [
+        { id: 'shipments', label: 'New' },
+        { id: 'returns', label: 'Returns' },
+        { id: 'all', label: 'All' }
+      ];
 
   return (
     <div className="bg-surface w-full mb-4">
@@ -206,13 +221,13 @@ function PartnerDeliveryNoteItem({
   brands
 }: { 
   deliveryNote: DeliveryNote; 
-  orders: PartnerOrder[];
+  orders: ShippingPartnerOrder[];
   onClick?: () => void;
   isAdmin?: boolean;
   onDelete?: (deliveryNoteId: string) => void;
   showSenderReceiver?: boolean;
-  stores?: { id: string; name: string; code: string; countryId: string; brandId: string; }[];
-  brands?: { id: string; name: string; }[];
+  stores?: StoreRecord[];
+  brands?: BrandRecord[];
 }) {
   const relatedOrders = orders.filter(order => order.deliveryNote === deliveryNote.id);
   const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
@@ -241,16 +256,9 @@ function PartnerDeliveryNoteItem({
   };
   
   const receiverDisplay = getReceiverDisplay();
+  const deliveryStatus = deliveryNote.status as DeliveryNoteStatus;
   
-  const getStatusColor = (status: DeliveryNote['status']) => {
-    switch (status) {
-      case 'pending': return 'text-on-surface-variant';
-      case 'registered': return 'text-primary';
-      default: return 'text-on-surface-variant';
-    }
-  };
-
-  const getStatusDisplay = (status: DeliveryNote['status']) => {
+  const getStatusDisplay = (status: DeliveryNoteStatus) => {
     switch (status) {
       case 'pending': return 'Pending Shipment';
       case 'registered': return 'In Transit';
@@ -258,7 +266,7 @@ function PartnerDeliveryNoteItem({
     }
   };
 
-  const getStatusBadgeColor = (status: DeliveryNote['status']) => {
+  const getStatusBadgeColor = (status: DeliveryNoteStatus) => {
     switch (status) {
       case 'pending': return 'bg-warning-container text-on-warning-container';
       case 'registered': return 'bg-primary-container text-on-primary-container';
@@ -291,7 +299,7 @@ function PartnerDeliveryNoteItem({
               {deliveryNote.createdDate},
             </span>
             <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeColor(deliveryNote.status)}`}>
-              {getStatusDisplay(deliveryNote.status)}
+              {getStatusDisplay(deliveryNote.status as DeliveryNoteStatus)}
             </span>
           </div>
           
@@ -335,13 +343,13 @@ function PartnerDeliveryNoteItem({
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
           {/* Status Badge - Always visible on desktop, positioned far right */}
-          <div className={`hidden md:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(deliveryNote.status)}`}>
-            {getStatusDisplay(deliveryNote.status)}
+          <div className={`hidden md:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(deliveryStatus)}`}>
+            {getStatusDisplay(deliveryStatus)}
           </div>
           {/* Delete button for Admin on pending deliveries */}
-          {isAdmin && deliveryNote.status === 'pending' && onDelete && (
+          {isAdmin && deliveryStatus === 'pending' && onDelete && (
             <button
-              onClick={(e) => {
+              onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                 e.stopPropagation();
                 if (confirm('Are you sure you want to delete this delivery? This action cannot be undone.')) {
                   onDelete(deliveryNote.id);
@@ -370,15 +378,6 @@ function ReturnDeliveryComponent({
   onUpdateStatus?: (deliveryId: string, status: 'Returned') => void;
   onClick?: () => void;
 }) {
-  const getStatusColor = (status: ReturnDelivery['status']) => {
-    switch (status) {
-      case 'Pending pickup': return 'text-on-warning-container';
-      case 'In transit': return 'text-on-primary-container';
-      case 'Returned': return 'text-on-success-container';
-      default: return 'text-on-surface-variant';
-    }
-  };
-
   const getStatusDisplay = (status: ReturnDelivery['status']) => {
     switch (status) {
       case 'Pending pickup': return 'Pending pickup';
@@ -461,7 +460,7 @@ function ReturnDeliveryComponent({
           {/* Mark as Returned button */}
           {returnDelivery.status !== 'Returned' && onUpdateStatus && (
             <button 
-              onClick={(e) => {
+              onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                 e.stopPropagation();
                 handleMarkAsReturned();
               }}
@@ -488,7 +487,7 @@ function PartnerOrderItem({
   stores,
   brands
 }: { 
-  order: PartnerOrder; 
+  order: ShippingPartnerOrder; 
   onClick?: () => void; 
   isClickable?: boolean;
   isSellpyPending?: boolean;
@@ -496,8 +495,8 @@ function PartnerOrderItem({
   onDelete?: (orderId: string) => void;
   onCreateDeliveryNote?: (orderId: string) => void;
   showSenderReceiver?: boolean;
-  stores?: { id: string; name: string; code: string; countryId: string; brandId: string; }[];
-  brands?: { id: string; name: string; }[];
+  stores?: StoreRecord[];
+  brands?: BrandRecord[];
 }) {
   // Helper to get receiver display with brand and store code
   const getReceiverDisplay = () => {
@@ -519,18 +518,7 @@ function PartnerOrderItem({
   
   const receiverDisplay = getReceiverDisplay();
   
-  const getStatusColor = (status: PartnerOrder['status']) => {
-    switch (status) {
-      case 'pending': return 'text-on-warning-container';
-      case 'registered': return 'text-on-secondary-container';
-      case 'in-transit': return 'text-on-primary-container';
-      case 'delivered': return 'text-on-tertiary-container';
-      case 'in-review': return 'text-on-warning-container';
-      default: return 'text-on-surface-variant';
-    }
-  };
-
-  const getStatusDisplay = (status: PartnerOrder['status']) => {
+  const getStatusDisplay = (status: ShippingPartnerOrder['status']) => {
     switch (status) {
       case 'pending': return 'Pending';
       case 'registered': return 'Ready for Packaging';
@@ -541,7 +529,7 @@ function PartnerOrderItem({
     }
   };
 
-  const getStatusBadgeColor = (status: PartnerOrder['status']) => {
+  const getStatusBadgeColor = (status: ShippingPartnerOrder['status']) => {
     switch (status) {
       case 'pending': return 'bg-warning-container text-on-warning-container';
       case 'registered': return 'bg-tertiary-container text-on-tertiary-container';
@@ -566,7 +554,7 @@ function PartnerOrderItem({
         onClick={isClickable ? onClick : undefined}
         role={isClickable ? 'button' : undefined}
         tabIndex={isClickable ? 0 : undefined}
-        onKeyDown={isClickable ? (e) => {
+        onKeyDown={isClickable ? (e: ReactKeyboardEvent<HTMLDivElement>) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             onClick?.();
@@ -645,7 +633,7 @@ function PartnerOrderItem({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
                   className="p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors"
                   aria-label="Order actions"
                 >
@@ -654,7 +642,7 @@ function PartnerOrderItem({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem
-                  onClick={(e) => {
+                  onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                     e.stopPropagation();
                     onCreateDeliveryNote(order.id);
                   }}
@@ -670,7 +658,7 @@ function PartnerOrderItem({
           {/* Delete button for Admin on pending orders */}
           {isAdmin && order.status === 'pending' && onDelete && (
             <button
-              onClick={(e) => {
+              onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                 e.stopPropagation();
                 if (confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
                   onDelete(order.id);
@@ -702,19 +690,6 @@ function ShowroomOrderItem({
   order: ShowroomOrder; 
   onClick?: () => void; 
 }) {
-  const getStatusColor = (status: ShowroomOrder['status']) => {
-    switch (status) {
-      case 'submitted': return 'text-on-surface-variant';
-      case 'in_review': return 'text-on-warning-container';
-      case 'approved': return 'text-on-tertiary-container';
-      case 'rejected': return 'text-on-error-container';
-      case 'fulfillment': return 'text-on-primary-container';
-      case 'shipped': return 'text-on-tertiary-container';
-      case 'closed': return 'text-on-surface-variant';
-      default: return 'text-on-surface-variant';
-    }
-  };
-
   const getStatusDisplay = (status: ShowroomOrder['status']) => {
     switch (status) {
       case 'submitted': return 'Submitted';
@@ -911,17 +886,12 @@ function SellpyOrderItem({
 export default function ShippingScreen({ 
   deliveries, 
   onSelectDelivery, 
-  onBack, 
-  onNavigateToHome, 
-  onNavigateToItems, 
   onNavigateToScan, 
-  onNavigateToSellers,
   onScanBox,
   initialTab,
   currentUserRole = 'store-staff',
   partnerOrders = [],
   deliveryNotes = [],
-  returnItems = [],
   returnDeliveries = [],
   currentPartnerId,
   onSelectSellpyOrder,
@@ -932,10 +902,9 @@ export default function ShippingScreen({
   showroomOrders = [],
   onViewShowroomOrder,
   sellpyOrders = [],
-  brands = [],
-  countries = [],
-  stores = [],
-  currentStoreSelection,
+  brands = [] as BrandRecord[],
+  countries = [] as CountryRecord[],
+  stores = [] as StoreRecord[],
   isAdmin = false,
   onDeletePartnerOrder,
   onDeleteDeliveryNote,
@@ -944,6 +913,8 @@ export default function ShippingScreen({
   viewFilter: externalViewFilter,
   onViewFilterChange: externalOnViewFilterChange
 }: ShippingScreenProps) {
+  const role: ShippingUserRole = currentUserRole ?? 'store-staff';
+
   const handleScanClick = () => {
     if (onScanBox) {
       onScanBox();
@@ -953,8 +924,8 @@ export default function ShippingScreen({
   };
 
   // Adjust initial tab based on user role
-  const getInitialTab = () => {
-    if (currentUserRole === 'partner') {
+  const getInitialTab = (): ShippingTab => {
+    if (role === 'partner') {
       // Default to 'pending' (Orders tab) if no initialTab provided
       if (!initialTab) {
         return 'pending';
@@ -965,10 +936,13 @@ export default function ShippingScreen({
              initialTab; // Keep 'returns' as 'returns' for partners
     }
     // For store staff, default to 'shipments' (renamed to 'New')
-    return initialTab || 'shipments';
+    if (!initialTab || initialTab === 'orders') {
+      return 'shipments';
+    }
+    return initialTab;
   };
 
-  const [activeTab, setActiveTab] = useState(getInitialTab());
+  const [activeTab, setActiveTab] = useState<ShippingTab>(getInitialTab());
   const [searchTerm, setSearchTerm] = useState('');
   
   // Use shared filter state for partner portal, local state for store staff
@@ -980,17 +954,28 @@ export default function ShippingScreen({
   });
   
   // Use external filter if provided (partner portal), otherwise use local
-  const viewFilter = externalViewFilter || localViewFilter;
-  const setViewFilter = externalOnViewFilterChange || setLocalViewFilter;
+  const viewFilter = externalViewFilter ?? localViewFilter;
+
+  const applyViewFilter = (
+    update: ViewFilter | ((prev: ViewFilter) => ViewFilter)
+  ) => {
+    if (externalOnViewFilterChange) {
+      const next =
+        typeof update === 'function' ? update(viewFilter) : update;
+      externalOnViewFilterChange(next);
+    } else {
+      setLocalViewFilter(update as SetStateAction<ViewFilter>);
+    }
+  };
 
   // Update active tab when initialTab or currentUserRole changes
-  React.useEffect(() => {
+  useEffect(() => {
     setActiveTab(getInitialTab());
-  }, [initialTab, currentUserRole]);
+  }, [initialTab, role]);
 
   // Filter handlers
   const handleViewAllStores = () => {
-    setViewFilter({
+    applyViewFilter({
       mode: 'all',
       brandIds: [],
       countryIds: [],
@@ -999,7 +984,7 @@ export default function ShippingScreen({
   };
 
   const handleBrandFilterChange = (brandIds: string[]) => {
-    setViewFilter(prev => ({
+    applyViewFilter(prev => ({
       ...prev,
       mode: 'by-store',
       brandIds
@@ -1007,7 +992,7 @@ export default function ShippingScreen({
   };
 
   const handleCountryFilterChange = (countryIds: string[]) => {
-    setViewFilter(prev => ({
+    applyViewFilter(prev => ({
       ...prev,
       mode: 'by-store',
       countryIds
@@ -1015,7 +1000,7 @@ export default function ShippingScreen({
   };
 
   const handleStoreFilterChange = (storeIds: string[]) => {
-    setViewFilter(prev => ({
+    applyViewFilter(prev => ({
       ...prev,
       mode: 'by-store',
       storeIds
@@ -1040,48 +1025,6 @@ export default function ShippingScreen({
     return `${brandName} ${storeCode}`;
   };
 
-  // Get filter display name
-  const getFilterDisplayName = () => {
-    const hasFilters = (viewFilter.brandIds?.length || 0) > 0 || 
-                      (viewFilter.storeIds?.length || 0) > 0 || 
-                      (viewFilter.countryIds?.length || 0) > 0;
-    
-    if (!hasFilters) {
-      return 'All Stores';
-    }
-    
-    const filterParts = [];
-    
-    if (viewFilter.brandIds?.length) {
-      const selectedBrands = brands.filter(b => viewFilter.brandIds!.includes(b.id));
-      if (selectedBrands.length === 1) {
-        filterParts.push(selectedBrands[0].name);
-      } else {
-        filterParts.push(`${selectedBrands.length} Brands`);
-      }
-    }
-    
-    if (viewFilter.countryIds?.length) {
-      const selectedCountries = countries.filter(c => viewFilter.countryIds!.includes(c.id));
-      if (selectedCountries.length === 1) {
-        filterParts.push(selectedCountries[0].name);
-      } else {
-        filterParts.push(`${selectedCountries.length} Countries`);
-      }
-    }
-    
-    if (viewFilter.storeIds?.length) {
-      const selectedStores = stores.filter(s => viewFilter.storeIds!.includes(s.id));
-      if (selectedStores.length === 1) {
-        filterParts.push(selectedStores[0].name);
-      } else {
-        filterParts.push(`${selectedStores.length} Stores`);
-      }
-    }
-    
-    return filterParts.join(' • ');
-  };
-
   const filteredDeliveries = deliveries.filter(delivery => {
     const matchesSearch = searchTerm === '' || 
       delivery.deliveryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1089,13 +1032,17 @@ export default function ShippingScreen({
     
     const matchesTab = activeTab === 'all' || 
       (activeTab === 'shipments' && delivery.status === 'In transit') ||
-      (activeTab === 'returns' && delivery.status === 'Delivered');
+      (activeTab === 'returns' && (delivery.status === 'Delivered' || delivery.status === 'Cancelled'));
     
     return matchesSearch && matchesTab;
   });
 
+  const hasInTransitDelivery = deliveries.some((delivery) => delivery.status === 'In transit');
+
   // Filter data based on active tab and search
-  const filteredPartnerOrders = partnerOrders.filter(order => {
+  const partnerOrdersList = partnerOrders ?? [];
+
+  const filteredPartnerOrders = partnerOrdersList.filter(order => {
     const matchesSearch = searchTerm === '' || 
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.deliveryNote && order.deliveryNote.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -1108,11 +1055,11 @@ export default function ShippingScreen({
     
     // For partners: only show their orders
     // For store staff: show all orders
-    const matchesPartner = currentUserRole === 'store-staff' || 
+    const matchesPartner = role === 'store-staff' || 
       order.partnerId === currentPartnerId;
     
     // Apply brand/country/store filters (for partner portal only)
-    if (currentUserRole === 'partner') {
+    if (role === 'partner') {
       const orderStore = order.receivingStoreId ? stores?.find(s => s.id === order.receivingStoreId) : null;
       
       // Check brand filter
@@ -1140,6 +1087,16 @@ export default function ShippingScreen({
     return matchesSearch && matchesTab && matchesPartner;
   });
 
+  const findSellpyOrder = (orderId: string) =>
+    sellpyOrders.find(order => order.id === orderId);
+
+  const handleSellpyOrderSelect = (orderId: string) => {
+    if (!onSelectSellpyOrder) return;
+    const sellpyOrder = findSellpyOrder(orderId);
+    if (sellpyOrder) {
+      onSelectSellpyOrder(sellpyOrder);
+    }
+  };
 
 
   // Filter return deliveries based on search and role
@@ -1152,7 +1109,7 @@ export default function ShippingScreen({
     // For partners: only show their return deliveries
     // For store staff: show all return deliveries
     return matchesSearch && (
-      currentUserRole === 'store-staff' || 
+      role === 'store-staff' || 
       delivery.partnerId === currentPartnerId
     );
   });
@@ -1161,10 +1118,12 @@ export default function ShippingScreen({
     const matchesSearch = searchTerm === '' || 
       note.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       note.orderId.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const noteStatus = note.status as DeliveryNoteStatus;
     
-    const matchesTab = activeTab === 'pending' && note.status === 'pending' ||
-      activeTab === 'in-transit' && note.status === 'registered' ||
-      activeTab === 'delivered' && (note.status === 'delivered' || note.status === 'rejected');
+    const matchesTab = (activeTab === 'pending' && noteStatus === 'pending') ||
+      (activeTab === 'in-transit' && noteStatus === 'registered') ||
+      (activeTab === 'delivered' && (noteStatus === 'delivered' || noteStatus === 'rejected'));
     
     return matchesSearch && matchesTab;
   });
@@ -1194,10 +1153,10 @@ export default function ShippingScreen({
   // Determine what to show based on the tab and partner type
   const isChinesePartner = currentPartnerId === '6'; // Shenzhen Fashion Manufacturing
   const isThriftedPartner = currentPartnerId === '2'; // Thrifted
-  const showCreateOrderButton = currentUserRole === 'partner' && isThriftedPartner && !!onCreateOrder;
-  const showShowroomOrders = currentUserRole === 'partner' && isChinesePartner && (activeTab === 'pending' || activeTab === 'in-transit' || activeTab === 'delivered');
-  const showDeliveryNotes = currentUserRole === 'partner' && !isChinesePartner && (activeTab === 'in-transit' || activeTab === 'delivered');
-  const showOrders = currentUserRole === 'partner' && !isChinesePartner && (activeTab === 'pending' || (!showDeliveryNotes && filteredDeliveryNotes.length === 0));
+  const showCreateOrderButton = role === 'partner' && isThriftedPartner && !!onCreateOrder;
+  const showShowroomOrders = role === 'partner' && isChinesePartner && (activeTab === 'pending' || activeTab === 'in-transit' || activeTab === 'delivered');
+  const showDeliveryNotes = role === 'partner' && !isChinesePartner && (activeTab === 'in-transit' || activeTab === 'delivered');
+  const showOrders = role === 'partner' && !isChinesePartner && (activeTab === 'pending' || (!showDeliveryNotes && filteredDeliveryNotes.length === 0));
   const showReturns = activeTab === 'returns'; // Show returns for both partners and store staff
   // Store staff no longer has an 'orders' tab - removed
   const showSellpyOrders = false;
@@ -1209,11 +1168,11 @@ export default function ShippingScreen({
         <div className="px-4 md:px-6 py-4">
           <div className="flex items-center justify-between">
             <h3 className="headline-small text-on-surface">
-              {currentUserRole === 'partner' ? 'Orders & Shipments' : 'Shipping'}
+              {role === 'partner' ? 'Orders & Shipments' : 'Shipping'}
             </h3>
             
             {/* Filter Button - Partner Portal Only - Matching ItemsScreen design */}
-            {currentUserRole === 'partner' && brands && brands.length > 0 && (
+            {role === 'partner' && brands && brands.length > 0 && (
               <StoreFilterBottomSheet
                 viewFilter={viewFilter}
                 onViewAllStores={handleViewAllStores}
@@ -1257,7 +1216,7 @@ export default function ShippingScreen({
           </div>
           
           {/* Filter Chips Display - Partner Portal Only - Matching ItemsScreen design */}
-          {currentUserRole === 'partner' && ((viewFilter.brandIds?.length || 0) > 0 || 
+          {role === 'partner' && ((viewFilter.brandIds?.length || 0) > 0 || 
             (viewFilter.countryIds?.length || 0) > 0 || 
             (viewFilter.storeIds?.length || 0) > 0) && (
             <div className="mt-3">
@@ -1273,7 +1232,7 @@ export default function ShippingScreen({
                     >
                       {brand.name}
                       <button
-                        onClick={(e) => {
+                        onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
                           handleBrandFilterChange(viewFilter.brandIds!.filter(id => id !== brand.id));
                         }}
@@ -1294,7 +1253,7 @@ export default function ShippingScreen({
                     >
                       {country.name}
                       <button
-                        onClick={(e) => {
+                        onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
                           handleCountryFilterChange(viewFilter.countryIds!.filter(id => id !== country.id));
                         }}
@@ -1315,7 +1274,7 @@ export default function ShippingScreen({
                     >
                       {store.name}
                       <button
-                        onClick={(e) => {
+                        onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
                           handleStoreFilterChange(viewFilter.storeIds!.filter(id => id !== store.id));
                         }}
@@ -1358,10 +1317,10 @@ export default function ShippingScreen({
                 type="text"
                 placeholder={showReturns ? "Search for return delivery ID or store name" : 
                   showSellpyOrders ? "Search for order ID or store name" :
-                  currentUserRole === 'partner' ? "Search for order ID or delivery note" : "Search for delivery ID"
+                  role === 'partner' ? "Search for order ID or delivery note" : "Search for delivery ID"
                 }
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                 className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
               />
             </div>
@@ -1369,7 +1328,7 @@ export default function ShippingScreen({
         </div>
 
         {/* Action Button - Role-specific */}
-        {(currentUserRole === 'store-staff' || currentUserRole === 'admin') && (onScanBox || onNavigateToScan) && (
+        {(role === 'store-staff' || role === 'admin') && (onScanBox || onNavigateToScan) && hasInTransitDelivery && (
           <div className="flex justify-end mb-4">
             <Button
               onClick={handleScanClick}
@@ -1382,7 +1341,11 @@ export default function ShippingScreen({
         )}
 
         {/* Tabs */}
-        <Tabs activeTab={activeTab} onTabChange={setActiveTab} userRole={currentUserRole} />
+        <Tabs
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab)}
+          userRole={role}
+        />
 
         {/* Count Display */}
         <div className="mb-3">
@@ -1391,7 +1354,7 @@ export default function ShippingScreen({
               `${filteredReturnDeliveries.length} return deliveries` :
               showSellpyOrders ?
                 `${filteredSellpyOrders.length} orders` :
-              currentUserRole === 'partner' ? 
+              role === 'partner' ? 
                 (showShowroomOrders ?
                   `${filteredShowroomOrders.length} ${activeTab === 'pending' ? 'purchase orders' : activeTab === 'in-transit' ? 'shipments' : 'deliveries'}` :
                   showDeliveryNotes ? 
@@ -1407,7 +1370,7 @@ export default function ShippingScreen({
         <div className="space-y-0 mb-4">
           {showReturns ? (
             // Returns View - Different for partners vs store staff
-            currentUserRole === 'partner' ? (
+            role === 'partner' ? (
               // Partner View - Show Return Deliveries
               filteredReturnDeliveries.length > 0 ? (
                 <>
@@ -1484,7 +1447,7 @@ export default function ShippingScreen({
                                 {returnDelivery.status !== 'Returned' && onUpdateReturnDeliveryStatus && (
                                   <button 
                                     className="px-3 py-1.5 bg-primary text-on-primary rounded-full label-medium hover:bg-primary/90 transition-colors"
-                                    onClick={(e) => {
+                                    onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                                       e.stopPropagation();
                                       onUpdateReturnDeliveryStatus(returnDelivery.id, 'Returned');
                                     }}
@@ -1617,7 +1580,7 @@ export default function ShippingScreen({
                     <div key={order.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <SellpyOrderItem 
                         order={order}
-                        onClick={() => onSelectSellpyOrder?.(order)}
+                        onClick={() => handleSellpyOrderSelect(order.id)}
                       />
                     </div>
                   ))}
@@ -1661,7 +1624,7 @@ export default function ShippingScreen({
                         return (
                           <tr 
                             key={order.id}
-                            onClick={() => onSelectSellpyOrder?.(order)}
+                            onClick={() => handleSellpyOrderSelect(order.id)}
                             className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-3 body-medium text-on-surface-variant">{order.createdDate}</td>
@@ -1697,7 +1660,7 @@ export default function ShippingScreen({
                 </div>
               </div>
             )
-          ) : currentUserRole === 'partner' ? (
+          ) : role === 'partner' ? (
             // Partner View - Show showroom orders (Chinese partner), delivery notes, or regular orders
             showShowroomOrders && filteredShowroomOrders.length > 0 ? (
               // Show Showroom Purchase Orders (Chinese Partner)
@@ -1793,7 +1756,7 @@ export default function ShippingScreen({
                     <div key={deliveryNote.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <PartnerDeliveryNoteItem 
                         deliveryNote={deliveryNote}
-                        orders={partnerOrders}
+                        orders={partnerOrdersList}
                         onClick={() => onOpenShipmentDetails?.(deliveryNote)}
                         isAdmin={isAdmin}
                         onDelete={onDeleteDeliveryNote}
@@ -1822,12 +1785,13 @@ export default function ShippingScreen({
                     </thead>
                     <tbody>
                       {filteredDeliveryNotes.map((deliveryNote) => {
-                        const relatedOrders = partnerOrders.filter(order => order.deliveryNote === deliveryNote.id);
+                        const noteStatus = deliveryNote.status as DeliveryNoteStatus;
+                        const relatedOrders = partnerOrdersList.filter(order => order.deliveryNote === deliveryNote.id);
                         const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
                         const senderName = relatedOrders[0]?.partnerName;
                         const receiverDisplay = getReceiverDisplay(relatedOrders[0]?.receivingStoreId, relatedOrders[0]?.receivingStoreName);
                         
-                        const getStatusBadgeColor = (status: DeliveryNote['status']) => {
+                        const getStatusBadgeColor = (status: DeliveryNoteStatus) => {
                           switch (status) {
                             case 'pending': return 'bg-warning-container text-on-warning-container';
                             case 'registered': return 'bg-primary-container text-on-primary-container';
@@ -1835,7 +1799,7 @@ export default function ShippingScreen({
                           }
                         };
 
-                        const getStatusDisplay = (status: DeliveryNote['status']) => {
+                        const getStatusDisplay = (status: DeliveryNoteStatus) => {
                           switch (status) {
                             case 'pending': return 'Pending Shipment';
                             case 'registered': return 'In Transit';
@@ -1883,24 +1847,24 @@ export default function ShippingScreen({
                               className="px-4 py-3 text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote)}
                             >
-                              <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(deliveryNote.status)}`}>
-                                {getStatusDisplay(deliveryNote.status)}
+                              <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(noteStatus)}`}>
+                                {getStatusDisplay(noteStatus)}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {isAdmin && deliveryNote.status === 'pending' && onDeleteDeliveryNote ? (
+                              {isAdmin && noteStatus === 'pending' && onDeleteDeliveryNote ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button 
                                       className="p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors"
-                                      onClick={(e) => e.stopPropagation()}
+                                      onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
                                     >
                                       <MoreVertical className="w-4 h-4" />
                                     </button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem
-                                      onClick={(e) => {
+                                      onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                                         e.stopPropagation();
                                         if (confirm('Are you sure you want to delete this delivery? This action cannot be undone.')) {
                                           onDeleteDeliveryNote(deliveryNote.id);
@@ -1938,16 +1902,10 @@ export default function ShippingScreen({
                       <PartnerOrderItem 
                         order={order}
                         onClick={() => {
-                          // Sellpy pending orders go to retailer ID flow
                           if (order.status === 'pending' && order.partnerName === 'Sellpy Operations') {
-                            if (typeof onSelectSellpyOrder === 'function') {
-                              onSelectSellpyOrder(order);
-                            }
-                          } else {
-                            // All other orders go to general order details
-                            if (onOpenOrderDetails) {
-                              onOpenOrderDetails(order);
-                            }
+                            handleSellpyOrderSelect(order.id);
+                          } else if (onOpenOrderDetails) {
+                            onOpenOrderDetails(order);
                           }
                         }}
                         isClickable={true}
@@ -1981,18 +1939,7 @@ export default function ShippingScreen({
                     </thead>
                     <tbody>
                       {filteredPartnerOrders.map((order) => {
-                        const getStatusColor = (status: PartnerOrder['status']) => {
-                          switch (status) {
-                            case 'pending': return 'text-on-surface-variant';
-                            case 'registered': return 'text-secondary';
-                            case 'in-transit': return 'text-primary';
-                            case 'delivered': return 'text-tertiary';
-                            case 'in-review': return 'text-warning';
-                            default: return 'text-on-surface-variant';
-                          }
-                        };
-
-                        const getStatusDisplay = (status: PartnerOrder['status']) => {
+                        const getStatusDisplay = (status: ShippingPartnerOrder['status']) => {
                           switch (status) {
                             case 'pending': return 'Pending';
                             case 'registered': return 'Ready for Packaging';
@@ -2003,7 +1950,7 @@ export default function ShippingScreen({
                           }
                         };
 
-                        const getStatusBadgeColor = (status: PartnerOrder['status']) => {
+                        const getStatusBadgeColor = (status: ShippingPartnerOrder['status']) => {
                           switch (status) {
                             case 'pending': return 'bg-warning-container text-on-warning-container';
                             case 'registered': return 'bg-secondary-container text-on-secondary-container';
@@ -2026,13 +1973,9 @@ export default function ShippingScreen({
                               className="px-4 py-3 body-medium text-on-surface cursor-pointer"
                               onClick={() => {
                                 if (isSellpyPending) {
-                                  if (typeof onSelectSellpyOrder === 'function') {
-                                    onSelectSellpyOrder(order);
-                                  }
-                                } else {
-                                  if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
-                                  }
+                                  handleSellpyOrderSelect(order.id);
+                                } else if (onOpenOrderDetails) {
+                                  onOpenOrderDetails(order);
                                 }
                               }}
                             >{order.id}</td>
@@ -2040,13 +1983,9 @@ export default function ShippingScreen({
                               className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
                               onClick={() => {
                                 if (isSellpyPending) {
-                                  if (typeof onSelectSellpyOrder === 'function') {
-                                    onSelectSellpyOrder(order);
-                                  }
-                                } else {
-                                  if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
-                                  }
+                                  handleSellpyOrderSelect(order.id);
+                                } else if (onOpenOrderDetails) {
+                                  onOpenOrderDetails(order);
                                 }
                               }}
                             >
@@ -2056,13 +1995,9 @@ export default function ShippingScreen({
                               className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
                               onClick={() => {
                                 if (isSellpyPending) {
-                                  if (typeof onSelectSellpyOrder === 'function') {
-                                    onSelectSellpyOrder(order);
-                                  }
-                                } else {
-                                  if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
-                                  }
+                                  handleSellpyOrderSelect(order.id);
+                                } else if (onOpenOrderDetails) {
+                                  onOpenOrderDetails(order);
                                 }
                               }}
                             >
@@ -2080,13 +2015,9 @@ export default function ShippingScreen({
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                               onClick={() => {
                                 if (isSellpyPending) {
-                                  if (typeof onSelectSellpyOrder === 'function') {
-                                    onSelectSellpyOrder(order);
-                                  }
-                                } else {
-                                  if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
-                                  }
+                                  handleSellpyOrderSelect(order.id);
+                                } else if (onOpenOrderDetails) {
+                                  onOpenOrderDetails(order);
                                 }
                               }}
                             >{order.itemCount}</td>
@@ -2094,13 +2025,9 @@ export default function ShippingScreen({
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                               onClick={() => {
                                 if (isSellpyPending) {
-                                  if (typeof onSelectSellpyOrder === 'function') {
-                                    onSelectSellpyOrder(order);
-                                  }
-                                } else {
-                                  if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
-                                  }
+                                  handleSellpyOrderSelect(order.id);
+                                } else if (onOpenOrderDetails) {
+                                  onOpenOrderDetails(order);
                                 }
                               }}
                             >
@@ -2110,13 +2037,9 @@ export default function ShippingScreen({
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                               onClick={() => {
                                 if (isSellpyPending) {
-                                  if (typeof onSelectSellpyOrder === 'function') {
-                                    onSelectSellpyOrder(order);
-                                  }
-                                } else {
-                                  if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
-                                  }
+                                  handleSellpyOrderSelect(order.id);
+                                } else if (onOpenOrderDetails) {
+                                  onOpenOrderDetails(order);
                                 }
                               }}
                             >
@@ -2126,13 +2049,9 @@ export default function ShippingScreen({
                               className="px-4 py-3 text-right cursor-pointer"
                               onClick={() => {
                                 if (isSellpyPending) {
-                                  if (typeof onSelectSellpyOrder === 'function') {
-                                    onSelectSellpyOrder(order);
-                                  }
-                                } else {
-                                  if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
-                                  }
+                                  handleSellpyOrderSelect(order.id);
+                                } else if (onOpenOrderDetails) {
+                                  onOpenOrderDetails(order);
                                 }
                               }}
                             >
@@ -2146,7 +2065,7 @@ export default function ShippingScreen({
                                   <DropdownMenuTrigger asChild>
                                     <button 
                                       className="p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors"
-                                      onClick={(e) => e.stopPropagation()}
+                                      onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
                                     >
                                       <MoreVertical className="w-4 h-4" />
                                     </button>
@@ -2154,7 +2073,7 @@ export default function ShippingScreen({
                                   <DropdownMenuContent align="end" className="w-56">
                                     {order.status === 'registered' && onCreateDeliveryNoteForOrder && (
                                       <DropdownMenuItem
-                                        onClick={(e) => {
+                                        onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                                           e.stopPropagation();
                                           onCreateDeliveryNoteForOrder(order.id);
                                         }}
@@ -2166,7 +2085,7 @@ export default function ShippingScreen({
                                     )}
                                     {isAdmin && order.status === 'pending' && onDeletePartnerOrder && (
                                       <DropdownMenuItem
-                                        onClick={(e) => {
+                                        onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                                           e.stopPropagation();
                                           if (confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
                                             onDeletePartnerOrder(order.id);
@@ -2185,9 +2104,7 @@ export default function ShippingScreen({
                                   className="p-2 text-on-surface-variant cursor-pointer"
                                   onClick={() => {
                                     if (isSellpyPending) {
-                                      if (typeof onSelectSellpyOrder === 'function') {
-                                        onSelectSellpyOrder(order);
-                                      }
+                                      handleSellpyOrderSelect(order.id);
                                     } else {
                                       if (onOpenOrderDetails) {
                                         onOpenOrderDetails(order);
@@ -2265,6 +2182,7 @@ export default function ShippingScreen({
                             case 'In transit': return 'text-primary';
                             case 'Delivered': return 'text-tertiary';
                             case 'Partially Delivered': return 'text-warning';
+                            case 'Cancelled': return 'text-error';
                             default: return 'text-on-surface-variant';
                           }
                         };

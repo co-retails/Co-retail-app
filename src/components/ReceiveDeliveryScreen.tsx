@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { Card } from './ui/card';
 import { Checkbox } from './ui/checkbox';
-import { ArrowLeft, MoreVertical, QrCode, Package, Truck } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Package, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Delivery } from './ShippingScreen';
 import ActiveScanner from './ActiveScanner';
 import {
@@ -13,7 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { toast } from 'sonner@2.0.3';
 
 export interface Box {
   id: string;
@@ -21,24 +19,37 @@ export interface Box {
   orderNumber: string;
   externalOrder: string;
   items: number;
-  status: 'In transit' | 'Delivered';
+  status: 'In transit' | 'Delivered' | 'Cancelled';
   date: string;
   isScanned: boolean;
+  deliveryId?: string;
+  cancellationReason?: 'Missing box';
 }
+
+type ReceiveUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
 
 interface ReceiveDeliveryScreenProps {
   delivery: Delivery;
   onBack: () => void;
   onRegister: (delivery: Delivery, scannedBoxes: Box[]) => void;
   boxes?: Box[];
+  userRole?: ReceiveUserRole;
+  onBoxesChange?: (boxes: Box[]) => void;
+  onUpdateDeliveryStatus?: (deliveryId: string, status: Delivery['status'], reason?: string) => void;
 }
 
 function TopAppBarWithDeliveryInfo({ 
   onBack, 
-  delivery 
+  delivery,
+  userRole,
+  onCancelDelivery,
+  canCancelDelivery
 }: { 
   onBack: () => void;
   delivery: Delivery;
+  userRole?: ReceiveUserRole;
+  onCancelDelivery?: () => void;
+  canCancelDelivery: boolean;
 }) {
   return (
     <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
@@ -60,66 +71,38 @@ function TopAppBarWithDeliveryInfo({
           <p className="body-small text-on-surface-variant truncate">
             {delivery.sender} • {delivery.boxes} boxes
           </p>
+          <p className="body-small text-on-surface-variant truncate">
+            Status: {delivery.status}{delivery.cancellationReason ? ` • ${delivery.cancellationReason}` : ''}
+          </p>
         </div>
+
+        {userRole === 'admin' && canCancelDelivery && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="w-12 h-12 ml-2 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                aria-label="Delivery actions"
+              >
+                <MoreVertical className="w-5 h-5 text-on-surface-variant" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
+              <DropdownMenuItem
+                onClick={onCancelDelivery}
+                className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                <span className="body-medium">Mark delivery as cancelled (Missing delivery)</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );
 }
 
-function ManualAddForm({ 
-  isVisible, 
-  boxId, 
-  onBoxIdChange, 
-  onCancel, 
-  onAdd 
-}: {
-  isVisible: boolean;
-  boxId: string;
-  onBoxIdChange: (value: string) => void;
-  onCancel: () => void;
-  onAdd: () => void;
-}) {
-  if (!isVisible) return null;
-
-  return (
-    <Card className="mx-4 md:mx-6 mb-4 bg-surface-container-high border border-outline-variant">
-      <CardContent className="p-4">
-        <div className="space-y-4">
-          <h3 className="title-medium text-on-surface">
-            Add Box Manually
-          </h3>
-          <div className="space-y-2">
-            <Label className="label-large text-on-surface">
-              Box label
-            </Label>
-            <Input
-              type="text"
-              placeholder="Enter box label"
-              value={boxId}
-              onChange={(e) => onBoxIdChange(e.target.value)}
-              className="w-full px-4 py-3 bg-surface-container border border-outline rounded-[12px] body-large text-on-surface placeholder:text-on-surface-variant"
-            />
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              className="border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center label-large"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={onAdd}
-              className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center label-large"
-            >
-              Add
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+type ReceiveTab = 'scanned' | 'not-scanned';
 
 function TabBar({ 
   activeTab, 
@@ -127,12 +110,12 @@ function TabBar({
   scannedCount, 
   notScannedCount 
 }: { 
-  activeTab: string; 
-  onTabChange: (tab: string) => void;
+  activeTab: ReceiveTab; 
+  onTabChange: (tab: ReceiveTab) => void;
   scannedCount: number;
   notScannedCount: number;
 }) {
-  const tabs = [
+  const tabs: { id: ReceiveTab; label: string; count: number }[] = [
     { id: 'scanned', label: 'Scanned', count: scannedCount },
     { id: 'not-scanned', label: 'Not scanned', count: notScannedCount }
   ];
@@ -165,19 +148,43 @@ function BoxCard({
   box,
   onMarkScanned,
   onMarkUnscanned,
-  isScanned,
+  onMarkCancelled,
   selectable = false,
   isSelected = false,
-  onToggleSelect
+  onToggleSelect,
+  deliveryStatus,
+  isAdmin = false
 }: {
   box: Box;
   onMarkScanned: () => void;
   onMarkUnscanned?: () => void;
-  isScanned: boolean;
+  onMarkCancelled?: () => void;
   selectable?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  deliveryStatus: Delivery['status'];
+  isAdmin?: boolean;
 }) {
+  const canScan = deliveryStatus === 'In transit';
+  const canCancelBox = Boolean(isAdmin && deliveryStatus === 'In transit' && box.status !== 'Cancelled' && onMarkCancelled);
+  const showMarkScanned = canScan && !box.isScanned && box.status !== 'Cancelled';
+  const showMarkUnscanned = canScan && box.isScanned && box.status !== 'Cancelled';
+  const showMenu = showMarkScanned || showMarkUnscanned || canCancelBox;
+
+  let statusLabel = 'In transit';
+  let statusClass = 'bg-surface-container-high text-on-surface-variant';
+
+  if (box.status === 'Cancelled') {
+    statusLabel = `Cancelled${box.cancellationReason ? ` • ${box.cancellationReason}` : ''}`;
+    statusClass = 'bg-error-container text-error';
+  } else if (deliveryStatus === 'Delivered' || box.status === 'Delivered') {
+    statusLabel = 'Delivered';
+    statusClass = 'bg-secondary-container text-on-secondary-container';
+  } else if (box.isScanned) {
+    statusLabel = 'Scanned';
+    statusClass = 'bg-primary-container text-primary';
+  }
+
   return (
     <div className="flex items-center gap-3 px-4 py-3 bg-surface-container hover:bg-surface-container-high transition-colors">
       {selectable && (
@@ -213,29 +220,10 @@ function BoxCard({
       
       {/* Trailing Element - Status or More menu */}
       <div className="flex-shrink-0 flex items-center gap-2">
-        {isScanned ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors"
-                aria-label="More actions"
-              >
-                <MoreVertical className="w-4 h-4 text-on-surface-variant" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="bg-surface-container border border-outline-variant rounded-[12px] p-2"
-            >
-              <DropdownMenuItem
-                onClick={onMarkUnscanned}
-                className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-              >
-                <span className="body-medium text-on-surface">Mark as not scanned</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
+        <div className={`label-small px-2 py-1 rounded-[8px] ${statusClass}`}>
+          {statusLabel}
+        </div>
+        {showMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button 
@@ -245,13 +233,32 @@ function BoxCard({
                 <MoreVertical className="w-4 h-4 text-on-surface-variant" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2">
-              <DropdownMenuItem 
-                onClick={onMarkScanned}
-                className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-              >
-                <span className="body-medium text-on-surface">Mark as scanned</span>
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
+              {showMarkScanned && (
+                <DropdownMenuItem 
+                  onClick={onMarkScanned}
+                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                >
+                  <span className="body-medium text-on-surface">Mark as scanned</span>
+                </DropdownMenuItem>
+              )}
+              {showMarkUnscanned && (
+                <DropdownMenuItem
+                  onClick={onMarkUnscanned}
+                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                >
+                  <span className="body-medium text-on-surface">Mark as not scanned</span>
+                </DropdownMenuItem>
+              )}
+              {canCancelBox && (
+                <DropdownMenuItem
+                  onClick={onMarkCancelled}
+                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  <span className="body-medium">Mark as cancelled (Missing box)</span>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -262,18 +269,24 @@ function BoxCard({
 
 function BoxesList({
   boxes,
+  deliveryStatus,
   onMarkScanned,
   onMarkUnscanned,
+  onMarkCancelled,
   selectableIds = [],
   onToggleSelect,
-  showSelection = false
+  showSelection = false,
+  isAdmin = false
 }: {
   boxes: Box[];
+  deliveryStatus: Delivery['status'];
   onMarkScanned: (boxId: string) => void;
   onMarkUnscanned?: (boxId: string) => void;
+  onMarkCancelled?: (boxId: string) => void;
   selectableIds?: string[];
   onToggleSelect?: (boxId: string) => void;
   showSelection?: boolean;
+  isAdmin?: boolean;
 }) {
   if (boxes.length === 0) {
     return (
@@ -283,7 +296,7 @@ function BoxesList({
           No boxes in this category
         </h3>
         <p className="body-medium text-on-surface-variant text-center">
-          Use the scan button or manual entry to process boxes
+          Use the scan button to process boxes
         </p>
       </div>
     );
@@ -298,10 +311,12 @@ function BoxesList({
             box={box} 
             onMarkScanned={() => onMarkScanned(box.id)}
             onMarkUnscanned={onMarkUnscanned ? () => onMarkUnscanned(box.id) : undefined}
-            isScanned={box.isScanned}
+            onMarkCancelled={onMarkCancelled ? () => onMarkCancelled(box.id) : undefined}
             selectable={showSelection}
             isSelected={selectableIds.includes(box.id)}
             onToggleSelect={onToggleSelect ? () => onToggleSelect(box.id) : undefined}
+            deliveryStatus={deliveryStatus}
+            isAdmin={isAdmin}
           />
         ))}
       </div>
@@ -344,13 +359,16 @@ export default function ReceiveDeliveryScreen({
   delivery, 
   onBack, 
   onRegister,
-  boxes: initialBoxes
+  boxes: initialBoxes,
+  userRole,
+  onBoxesChange,
+  onUpdateDeliveryStatus
 }: ReceiveDeliveryScreenProps) {
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
   const [isScanning, setIsScanning] = useState(false);
-  const [showManualAdd, setShowManualAdd] = useState(false);
-  const [manualBoxId, setManualBoxId] = useState('');
   const [selectedBoxIds, setSelectedBoxIds] = useState<string[]>([]);
+  const isAdmin = userRole === 'admin';
+  const canScan = delivery.status === 'In transit';
 
   // Generate mock boxes for the delivery or use provided boxes
   const [boxes, setBoxes] = useState<Box[]>(() => {
@@ -374,6 +392,14 @@ export default function ReceiveDeliveryScreen({
     return mockBoxes;
   });
 
+  const applyBoxUpdate = (updater: (prev: Box[]) => Box[]) => {
+    setBoxes(prev => {
+      const next = updater(prev);
+      onBoxesChange?.(next);
+      return next;
+    });
+  };
+
   useEffect(() => {
     setSelectedBoxIds([]);
   }, [activeTab, boxes]);
@@ -381,14 +407,14 @@ export default function ReceiveDeliveryScreen({
   const scannedBoxes = boxes.filter(box => box.isScanned);
   const notScannedBoxes = boxes.filter(box => !box.isScanned);
   const currentBoxes = activeTab === 'scanned' ? scannedBoxes : notScannedBoxes;
-  const canRegister = scannedBoxes.length > 0;
+  const canRegister = canScan && scannedBoxes.length > 0;
 
   const markBoxesAsScanned = (boxIds: string[]) => {
     if (!boxIds.length) return;
-    setBoxes(prev =>
+    applyBoxUpdate(prev =>
       prev.map(box =>
         boxIds.includes(box.id)
-          ? { ...box, isScanned: true, status: 'In transit' as const }
+          ? { ...box, isScanned: true, status: 'In transit' as const, cancellationReason: undefined }
           : box
       )
     );
@@ -396,10 +422,10 @@ export default function ReceiveDeliveryScreen({
 
   const markBoxesAsUnscanned = (boxIds: string[]) => {
     if (!boxIds.length) return;
-    setBoxes(prev =>
+    applyBoxUpdate(prev =>
       prev.map(box =>
         boxIds.includes(box.id)
-          ? { ...box, isScanned: false, status: 'In transit' as const }
+          ? { ...box, isScanned: false, status: 'In transit' as const, cancellationReason: undefined }
           : box
       )
     );
@@ -421,7 +447,7 @@ export default function ReceiveDeliveryScreen({
   };
 
   const handleBulkMarkScanned = () => {
-    if (!selectedBoxIds.length) return;
+    if (!canScan || !selectedBoxIds.length) return;
     markBoxesAsScanned(selectedBoxIds);
     toast.success(`Marked ${selectedBoxIds.length} box${selectedBoxIds.length === 1 ? '' : 'es'} as scanned`);
     setSelectedBoxIds([]);
@@ -429,7 +455,7 @@ export default function ReceiveDeliveryScreen({
   };
 
   const handleScan = () => {
-    if (notScannedBoxes.length === 0) {
+    if (!canScan || notScannedBoxes.length === 0) {
       return;
     }
     
@@ -438,6 +464,10 @@ export default function ReceiveDeliveryScreen({
     // Simulate scanning a random box
     setTimeout(() => {
       const randomBox = notScannedBoxes[Math.floor(Math.random() * notScannedBoxes.length)];
+      if (!randomBox) {
+        setIsScanning(false);
+        return;
+      }
       markBoxesAsScanned([randomBox.id]);
       setIsScanning(false);
       setActiveTab('scanned');
@@ -446,6 +476,7 @@ export default function ReceiveDeliveryScreen({
   };
 
   const handleMarkScanned = (boxId: string) => {
+    if (!canScan) return;
     markBoxesAsScanned([boxId]);
     const box = boxes.find(b => b.id === boxId);
     toast.success(`Marked ${box?.boxId ?? 'box'} as scanned`);
@@ -453,35 +484,63 @@ export default function ReceiveDeliveryScreen({
   };
 
   const handleMarkUnscanned = (boxId: string) => {
+    if (!canScan) return;
     markBoxesAsUnscanned([boxId]);
     const box = boxes.find(b => b.id === boxId);
-    toast.success(`Moved ${box?.boxId ?? 'box'} back to Not scanned`);
+    toast.info(`Moved ${box?.boxId ?? 'box'} back to Not scanned`);
     setActiveTab('not-scanned');
   };
 
-  const handleManualAdd = () => {
-    if (!manualBoxId.trim()) {
-      return;
-    }
-
-    const box = notScannedBoxes.find(box =>
-      box.boxId.toLowerCase().includes(manualBoxId.toLowerCase())
+  const handleMarkBoxCancelled = (boxId: string) => {
+    if (!isAdmin || delivery.status === 'Cancelled') return;
+    const targetBox = boxes.find(b => b.id === boxId);
+    applyBoxUpdate(prev =>
+      prev.map(box =>
+        box.id === boxId
+          ? { ...box, status: 'Cancelled' as const, isScanned: false, cancellationReason: 'Missing box' }
+          : box
+      )
     );
-
-    if (box) {
-      markBoxesAsScanned([box.id]);
-      setManualBoxId('');
-      setShowManualAdd(false);
-      setActiveTab('scanned');
-      toast.success(`Added ${box.boxId}`);
+    setSelectedBoxIds(prev => prev.filter(id => id !== boxId));
+    if (targetBox) {
+      toast.info(`Marked ${targetBox.boxId} as cancelled (Missing box)`);
     } else {
-      toast.error('Box not found. Please check the label and try again.');
+      toast.info('Marked box as cancelled (Missing box)');
     }
+  };
+
+  const handleCancelDelivery = () => {
+    if (!isAdmin || delivery.status === 'Cancelled') return;
+    applyBoxUpdate(prev =>
+      prev.map(box => ({
+        ...box,
+        status: 'Cancelled' as const,
+        isScanned: false,
+        cancellationReason: 'Missing box'
+      }))
+    );
+    setSelectedBoxIds([]);
+    setActiveTab('not-scanned');
+    setIsScanning(false);
+    onUpdateDeliveryStatus?.(delivery.id, 'Cancelled', 'Missing delivery');
+    toast.info('Delivery marked as cancelled (Missing delivery)');
   };
 
   const handleRegister = () => {
     if (canRegister) {
       onRegister(delivery, scannedBoxes);
+      applyBoxUpdate(prev =>
+        prev.map(box =>
+          box.isScanned
+            ? { ...box, status: 'Delivered' as const, isScanned: true, cancellationReason: undefined }
+            : box
+        )
+      );
+      setSelectedBoxIds([]);
+      setActiveTab('scanned');
+      setIsScanning(false);
+      toast.success(`Registered ${scannedBoxes.length} box${scannedBoxes.length === 1 ? '' : 'es'} successfully`);
+      onUpdateDeliveryStatus?.(delivery.id, 'Delivered');
     }
   };
 
@@ -489,7 +548,7 @@ export default function ReceiveDeliveryScreen({
   useEffect(() => {
     let scanTimeout: NodeJS.Timeout;
     
-    if (notScannedBoxes.length > 0 && !isScanning && !showManualAdd) {
+    if (canScan && notScannedBoxes.length > 0 && !isScanning) {
       // Simulate finding and scanning boxes periodically (for demo purposes)
       scanTimeout = setTimeout(() => {
         // 30% chance to auto-scan on each interval
@@ -504,54 +563,36 @@ export default function ReceiveDeliveryScreen({
         clearTimeout(scanTimeout);
       }
     };
-  }, [notScannedBoxes.length, isScanning, showManualAdd]);
+  }, [canScan, notScannedBoxes.length, isScanning]);
 
   return (
     <div className="bg-surface min-h-screen flex flex-col">
       {/* Top App Bar with Delivery Info */}
-      <TopAppBarWithDeliveryInfo onBack={onBack} delivery={delivery} />
+      <TopAppBarWithDeliveryInfo 
+        onBack={onBack} 
+        delivery={delivery} 
+        userRole={userRole}
+        onCancelDelivery={handleCancelDelivery}
+        canCancelDelivery={isAdmin && delivery.status === 'In transit'}
+      />
       
       {/* Content */}
       <div className="flex-1 pb-32">
-        {/* Active Scanner - Always visible */}
-        <div className="mx-4 md:mx-6 my-6">
-          <ActiveScanner 
-            onScan={handleScan}
-            isScanning={isScanning}
-            showManualEntry={false}
-          />
-        </div>
+        {/* Active Scanner - Only when delivery is in transit */}
+        {canScan && (
+          <div className="mx-4 md:mx-6 my-6">
+            <ActiveScanner 
+              onScan={handleScan}
+              isScanning={isScanning}
+              showManualEntry={false}
+            />
+          </div>
+        )}
 
-        <div className="px-4 md:px-6 mb-4 flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={showManualAdd}
-            onClick={() => {
-              setManualBoxId('');
-              setShowManualAdd(true);
-            }}
-          >
-            Add box manually
-          </Button>
-        </div>
-
-        {/* Manual Add Form */}
-        <ManualAddForm 
-          isVisible={showManualAdd}
-          boxId={manualBoxId}
-          onBoxIdChange={setManualBoxId}
-          onCancel={() => {
-            setShowManualAdd(false);
-            setManualBoxId('');
-          }}
-          onAdd={handleManualAdd}
-        />
-        
         {/* Tab Bar */}
         <TabBar 
           activeTab={activeTab} 
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => setActiveTab(tab)}
           scannedCount={scannedBoxes.length}
           notScannedCount={notScannedBoxes.length}
         />
@@ -568,7 +609,7 @@ export default function ReceiveDeliveryScreen({
             </span>
           </div>
 
-          {activeTab === 'not-scanned' && notScannedBoxes.length > 0 && (
+          {canScan && activeTab === 'not-scanned' && notScannedBoxes.length > 0 && (
             <div className="px-4 md:px-6 mb-3 flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
@@ -590,11 +631,14 @@ export default function ReceiveDeliveryScreen({
           {/* Boxes List */}
           <BoxesList 
             boxes={currentBoxes}
+            deliveryStatus={delivery.status}
             onMarkScanned={handleMarkScanned}
             onMarkUnscanned={handleMarkUnscanned}
+            onMarkCancelled={handleMarkBoxCancelled}
             selectableIds={selectedBoxIds}
             onToggleSelect={handleToggleBoxSelection}
-            showSelection={activeTab === 'not-scanned'}
+            showSelection={activeTab === 'not-scanned' && canScan}
+            isAdmin={isAdmin}
           />
         </div>
       </div>

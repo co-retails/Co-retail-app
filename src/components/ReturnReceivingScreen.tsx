@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -103,7 +103,7 @@ export default function ReturnReceivingScreen({
   return (
     <div className="min-h-screen bg-surface">
       {/* Header */}
-      <div className="bg-surface-container border-b border-outline-variant">
+      <div className="bg-surface border-b border-outline-variant">
         <div className="px-4 md:px-6 py-3">
           <div className="flex items-center gap-3">
             <Button

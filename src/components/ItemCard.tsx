@@ -10,8 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Badge } from "./ui/badge";
-import { Archive, Clock, Edit3, Download, MoreHorizontal, RefreshCw } from "lucide-react";
+import { Archive, Clock, Edit3, Download, RefreshCw, XCircle } from "lucide-react";
+import type { StatusHistoryEntry } from './ItemDetailsDialog';
 
 // Base item interface that works for both Item and OrderItem
 export interface BaseItem {
@@ -32,6 +32,9 @@ export interface BaseItem {
   thumbnail?: string; // Thumbnail/fallback image
   daysRemaining?: number;
   selected?: boolean;
+  statusHistory?: StatusHistoryEntry[];
+  rejectReason?: 'Broken on arrival' | 'Not accepted brand' | 'Not in season';
+  lastInStoreAt?: string;
   // Order-specific fields
   partnerItemId?: string;
   retailerItemId?: string;
@@ -45,7 +48,7 @@ export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | '
 interface ItemCardProps {
   item: BaseItem;
   onToggleSelect?: (itemId: string) => void;
-  onMoreActions?: (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status') => void;
+  onMoreActions?: (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status' | 'reject') => void;
   onEdit?: (item: BaseItem) => void;
   onClick?: (item: BaseItem) => void;
   variant?: 'items-list' | 'order-details';
@@ -65,6 +68,43 @@ export const ItemCard = memo(function ItemCard({
   showSelection = true,
   userRole = 'store-staff'
 }: ItemCardProps) {
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+  const normalizeTimestamp = (value: string) => {
+    if (value.includes('T')) return value;
+    const sanitized = value.replace(' ', 'T');
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(sanitized) ? `${sanitized}:00` : sanitized;
+  };
+  const getLastInStoreTimestamp = () => {
+    if (item.lastInStoreAt) {
+      const parsed = Date.parse(item.lastInStoreAt);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    if (item.statusHistory && item.statusHistory.length) {
+      for (let i = item.statusHistory.length - 1; i >= 0; i--) {
+        const entry = item.statusHistory[i];
+        if (!entry) {
+          continue;
+        }
+        if (entry.status?.toLowerCase() === 'in store') {
+          const parsed = entry.timestamp ? Date.parse(normalizeTimestamp(entry.timestamp)) : NaN;
+          if (!Number.isNaN(parsed)) {
+            return parsed;
+          }
+        }
+      }
+    }
+    return undefined;
+  };
+  const canRejectItem = () => {
+    if (!onMoreActions) return false;
+    if (userRole !== 'admin') return false;
+    if (!item.status || item.status.toLowerCase() !== 'in store') return false;
+    const timestamp = getLastInStoreTimestamp();
+    if (timestamp === undefined) return false;
+    return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
+  };
   
   // Check if user can update status
   const canUpdateStatus = () => {
@@ -103,6 +143,8 @@ export const ItemCard = memo(function ItemCard({
       case 'valid':
         return 'text-success';
       case 'error':
+        return 'text-error';
+      case 'rejected':
         return 'text-error';
       default:
         return 'text-on-surface-variant';
@@ -338,6 +380,11 @@ export const ItemCard = memo(function ItemCard({
           <div className="body-small text-on-surface truncate">
             {item.sellerName || 'Sellpy'}
           </div>
+          {item.status?.toLowerCase() === 'rejected' && item.rejectReason && (
+            <div className="label-small text-error truncate mt-1">
+              Reason: {item.rejectReason}
+            </div>
+          )}
         </button>
         
         {/* Trailing Elements */}
@@ -382,6 +429,12 @@ export const ItemCard = memo(function ItemCard({
                         <span>Update status</span>
                       </DropdownMenuItem>
                     </>
+                  )}
+                  {canRejectItem() && (
+                    <DropdownMenuItem onClick={() => onMoreActions?.(item, 'reject')} className="text-error">
+                      <XCircle className="mr-2 h-4 w-4" />
+                      <span>Reject item</span>
+                    </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onMoreActions(item, 'archive')}>

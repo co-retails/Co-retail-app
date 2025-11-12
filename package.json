@@ -50,15 +50,17 @@
       "devDependencies": {
             "@playwright/test": "^1.56.1",
             "@types/node": "^20.10.0",
+            "@types/react": "^19.2.2",
+            "@types/react-dom": "^19.2.2",
             "@vitejs/plugin-react-swc": "^3.10.2",
             "vite": "6.3.5"
       },
       "scripts": {
-          "dev": "vite",
-          "build": "vite build",
-          "test": "playwright test",
-          "test:ui": "playwright test --ui",
-          "test:headed": "playwright test --headed",
-          "test:debug": "playwright test --debug"
+            "dev": "vite",
+            "build": "vite build",
+            "test": "playwright test",
+            "test:ui": "playwright test --ui",
+            "test:headed": "playwright test --headed",
+            "test:debug": "playwright test --debug"
       }
 }
