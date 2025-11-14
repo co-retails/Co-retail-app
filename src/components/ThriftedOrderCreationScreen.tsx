@@ -279,7 +279,8 @@ export default function ThriftedOrderCreationScreen({
     downloadCSV(csv, `thrifted-order-items-${Date.now()}.csv`);
   };
 
-  const canCreateOrder = storeSelection && orderItems.length > 0 && validItems === totalItems;
+  // Allow creating order even with validation errors (user can fix them later)
+  const canCreateOrder = storeSelection && orderItems.length > 0;
 
   // Step navigation
   const handleContinueToItems = () => {
@@ -857,26 +858,15 @@ export default function ThriftedOrderCreationScreen({
                   <span className="label-large">Save Changes</span>
                 </Button>
               ) : (
-                <>
-                  <Button
-                    onClick={() => storeSelection && onCreateOrder(orderItems, storeSelection, false)}
-                    disabled={!canCreateOrder}
-                    size="lg"
-                    className="flex-1 bg-secondary-container text-on-secondary-container"
-                  >
-                    <span className="label-large">Create Order</span>
-                  </Button>
-                  
-                  <Button
-                    onClick={() => storeSelection && onCreateOrder(orderItems, storeSelection, true)}
-                    disabled={!canCreateOrder}
-                    size="lg"
-                    className="flex-1 bg-primary text-on-primary"
-                  >
-                    <CheckIcon size={20} className="mr-2" />
-                    <span className="label-large">Create & Register</span>
-                  </Button>
-                </>
+                <Button
+                  onClick={() => storeSelection && onCreateOrder(orderItems, storeSelection, false)}
+                  disabled={!canCreateOrder}
+                  size="lg"
+                  className="flex-1 bg-primary text-on-primary"
+                >
+                  <CheckIcon size={20} className="mr-2" />
+                  <span className="label-large">Create</span>
+                </Button>
               )}
             </div>
           </div>

@@ -265,9 +265,93 @@ export default function App() {
     handleNavigateToBuyerOrders,
     handleNavigateToBuyerQuotations,
     handleNavigateToBuyerShipments,
-    handleNavigateToPortalConfig,
-    handleNavigateToPriceForkCalibration
+    handleNavigateToPortalConfig
   } = navigationHandlers;
+
+  const findStoreRecord = (storeId?: string, fallbackCode?: string) => {
+    if (storeId) {
+      const storeById = mockStores.find(store => store.id === storeId);
+      if (storeById) {
+        return storeById;
+      }
+    }
+    if (fallbackCode) {
+      return mockStores.find(store => store.code === fallbackCode);
+    }
+    return undefined;
+  };
+
+  const formatReceiverLabel = (store?: (typeof mockStores)[number], fallbackCode?: string) => {
+    if (!store && !fallbackCode) {
+      return undefined;
+    }
+    const brand = store ? mockBrands.find(brand => brand.id === store.brandId) : undefined;
+    const code = store?.code || fallbackCode;
+    if (brand || code) {
+      return [brand?.name, code].filter(Boolean).join(' ').trim();
+    }
+    return undefined;
+  };
+
+  const resolveWarehouseName = (warehouseId?: string, fallbackName?: string) => {
+    if (warehouseId) {
+      const warehouse = mockWarehouses.find(w => w.id === warehouseId);
+      if (warehouse) {
+        return warehouse.name;
+      }
+    }
+    return fallbackName;
+  };
+
+  const buildOrderMetadata = (order: PartnerOrder) => {
+    const store = findStoreRecord(order.receivingStoreId, undefined);
+    const storeName = store?.name || order.receivingStoreName;
+    const storeCode = store?.code;
+    const receiverLabel = formatReceiverLabel(store, storeCode);
+    return {
+      storeName,
+      storeCode,
+      partnerName: order.partnerName,
+      warehouseName: resolveWarehouseName(order.warehouseId, order.warehouseName),
+      receiverLabel: receiverLabel || storeName || storeCode
+    };
+  };
+
+  const buildDeliveryMetadata = (deliveryNote: DeliveryNote) => {
+    const relatedOrder = partnerOrders.find(order => order.deliveryNote === deliveryNote.id);
+    if (relatedOrder) {
+      return buildOrderMetadata(relatedOrder);
+    }
+    const store = findStoreRecord(deliveryNote.storeId, deliveryNote.storeCode);
+    const storeName = store?.name;
+    const storeCode = store?.code || deliveryNote.storeCode;
+    const receiverLabel = formatReceiverLabel(store, storeCode);
+    return {
+      storeName,
+      storeCode,
+      partnerName: deliveryNote.partnerName,
+      warehouseName: resolveWarehouseName(deliveryNote.warehouseId, deliveryNote.partnerName),
+      receiverLabel: receiverLabel || storeName || storeCode
+    };
+  };
+
+  const buildReturnMetadata = (returnDelivery: ReturnDelivery) => {
+    const store = findStoreRecord(returnDelivery.storeId, returnDelivery.storeCode);
+    const storeName = store?.name || returnDelivery.storeName;
+    const storeCode = store?.code || returnDelivery.storeCode;
+    const receiverLabel = formatReceiverLabel(store, storeCode) || storeName;
+    return {
+      storeName,
+      storeCode,
+      partnerName: returnDelivery.partnerName,
+      warehouseName: resolveWarehouseName(returnDelivery.warehouseId, returnDelivery.warehouseName || returnDelivery.partnerName),
+      receiverLabel
+    };
+  };
+
+  const handleNavigateToPriceForkCalibration = React.useCallback(() => {
+    setCurrentScreenSafe('price-fork-calibration');
+  }, [setCurrentScreenSafe]);
 
   // Buyer-specific state
   const [wishlistProductIds, setWishlistProductIds] = React.useState<string[]>([]);
@@ -357,7 +441,10 @@ export default function App() {
         storeName: currentStore?.name || 'Current store',
         storeCode: currentStore?.code || '',
         partnerId: effectivePartnerId,
-        partnerName: effectivePartnerName
+        partnerName: effectivePartnerName,
+        storeId: currentStoreSelection.storeId,
+        warehouseId: currentPartnerWarehouseSelection.warehouseId,
+        warehouseName: mockWarehouses.find((warehouse) => warehouse.id === currentPartnerWarehouseSelection.warehouseId)?.name
       },
       ...prev
     ]);
@@ -595,16 +682,11 @@ export default function App() {
     if (registeredOrderId) {
       const order = partnerOrders.find(o => o.id === registeredOrderId);
       if (order) {
-        // Get store and partner info
-        const currentStore = mockStores.find(s => s.id === currentStoreSelection.storeId);
-        const currentPartner = mockWarehousePartners.find(p => p.id === currentPartnerWarehouseSelection.partnerId);
-        
+        const metadata = buildOrderMetadata(order);
         setDetailsScreenData({
           type: 'order',
           data: order,
-          storeName: currentStore?.name || order.receivingStoreName,
-          storeCode: currentStore?.code || order.receivingStoreId,
-          partnerName: currentPartner?.name || order.partnerName
+          ...metadata
         });
         setCurrentScreenSafe('delivery-note-creation');
       }
@@ -615,16 +697,11 @@ export default function App() {
     // Find the order to pass to delivery note creation if needed
     const order = partnerOrders.find(o => o.id === orderId);
     if (order) {
-      // Get store and partner info
-      const currentStore = mockStores.find(s => s.id === currentStoreSelection.storeId);
-      const currentPartner = mockWarehousePartners.find(p => p.id === currentPartnerWarehouseSelection.partnerId);
-      
+      const metadata = buildOrderMetadata(order);
       setDetailsScreenData({
         type: 'order',
         data: order,
-        storeName: currentStore?.name,
-        storeCode: currentStore?.code,
-        partnerName: currentPartner?.name
+        ...metadata
       });
       // Navigate to delivery note creation screen
       setCurrentScreenSafe('delivery-note-creation');
@@ -636,7 +713,13 @@ export default function App() {
   };
 
   // Delivery note box management handlers
-  const [selectedDeliveryNoteBox, setSelectedDeliveryNoteBox] = React.useState<{ box: any; orderItems: OrderItem[] } | null>(null);
+  const [selectedDeliveryNoteBox, setSelectedDeliveryNoteBox] = React.useState<{ 
+    box: any; 
+    orderItems: OrderItem[];
+    receiverBrand?: string;
+    receiverStoreCode?: string;
+    senderWarehouse?: string;
+  } | null>(null);
 
   const handleAddBoxToDeliveryNote = (deliveryNoteId: string, boxLabel: string) => {
     const deliveryNote = deliveryNotes.find(note => note.id === deliveryNoteId);
@@ -678,6 +761,21 @@ export default function App() {
       // Find the related order to get order items
       const relatedOrder = partnerOrders.find(order => order.id === deliveryNote.orderId);
       
+      // Get receiver information (Brand + store code)
+      let receiverBrand: string | undefined;
+      let receiverStoreCode: string | undefined;
+      if (deliveryNote.storeId && deliveryNote.storeCode) {
+        const store = mockStores.find(s => s.id === deliveryNote.storeId);
+        if (store) {
+          const brand = mockBrands.find(b => b.id === store.brandId);
+          receiverBrand = brand?.name;
+          receiverStoreCode = deliveryNote.storeCode;
+        }
+      }
+      
+      // Get sender information (Warehouse)
+      const senderWarehouse = deliveryNote.warehouseName;
+      
       // Generate order items (in real app, these would come from the order)
       const generateOrderItems = (count: number): OrderItem[] => {
         const brands = ['WEEKDAY', 'COS', 'Monki', 'H&M'];
@@ -707,7 +805,13 @@ export default function App() {
       
       const orderItems = relatedOrder ? generateOrderItems(relatedOrder.itemCount) : [];
       
-      setSelectedDeliveryNoteBox({ box, orderItems });
+      setSelectedDeliveryNoteBox({ 
+        box, 
+        orderItems,
+        receiverBrand,
+        receiverStoreCode,
+        senderWarehouse
+      });
       setCurrentScreenSafe('delivery-note-box-details');
     }
   };
@@ -784,15 +888,33 @@ export default function App() {
   };
 
   const handleViewShipmentDetails = (type: DetailType, data: PartnerOrder | DeliveryNote | ReturnDelivery) => {
-    const currentStore = mockStores.find(s => s.id === currentStoreSelection.storeId);
-    const currentPartner = mockWarehousePartners.find(p => p.id === currentPartnerWarehouseSelection.partnerId);
-    
+    let metadata: {
+      storeName?: string;
+      storeCode?: string;
+      partnerName?: string;
+      warehouseName?: string;
+      receiverLabel?: string;
+    };
+
+    switch (type) {
+      case 'order':
+        metadata = buildOrderMetadata(data as PartnerOrder);
+        break;
+      case 'shipment':
+        metadata = buildDeliveryMetadata(data as DeliveryNote);
+        break;
+      case 'return':
+        metadata = buildReturnMetadata(data as ReturnDelivery);
+        break;
+      default:
+        metadata = {};
+        break;
+    }
+
     setDetailsScreenData({
       type,
       data,
-      storeName: currentStore?.name,
-      storeCode: currentStore?.code,
-      partnerName: currentPartner?.name
+      ...metadata
     });
     setCurrentScreenSafe('order-shipment-details');
   };
@@ -1078,8 +1200,7 @@ export default function App() {
       handleNavigateToBuyerOrders,
       handleNavigateToBuyerQuotations,
       handleNavigateToBuyerShipments,
-      setCurrentScreen: setCurrentScreenSafe,
-      handleNavigateToPriceForkCalibration
+      setCurrentScreen: setCurrentScreenSafe
     }
   });
 
@@ -1223,6 +1344,7 @@ export default function App() {
           showroomOrders={showroomOrders}
           sellpyOrders={sellpyOrders}
           currentPartnerId={currentPartnerWarehouseSelection?.partnerId}
+          currentWarehouseId={currentPartnerWarehouseSelection?.warehouseId}
           onSelectSellpyOrder={(order) => {
             setSelectedSellpyOrder(order);
             setCurrentScreenSafe('order-details');
@@ -1248,6 +1370,7 @@ export default function App() {
           brands={mockBrands}
           countries={mockCountries}
           stores={mockStores}
+          warehouses={mockWarehouses}
           currentStoreSelection={currentStoreSelection}
           isAdmin={mockUserAccount.role.name === 'Admin'}
           onDeletePartnerOrder={handleDeletePartnerOrder}
@@ -1473,15 +1596,20 @@ export default function App() {
             setShippingInitialTab('pending');
             setCurrentScreenSafe('shipping');
           }}
+          onViewRegisteredOrders={() => {
+            // Navigate to Orders tab (pending) with registered filter
+            setShippingInitialTab('pending-registered');
+            setCurrentScreenSafe('shipping');
+          }}
           onViewBoxes={handleNavigateToShipmentsTab}
           onViewDeliveries={handleNavigateToShipmentsTab}
           onViewReturns={handleNavigateToReturnsTab}
           onNavigateToShowroom={handleNavigateToShowroom}
-          onNavigateToPriceFork={handleNavigateToPriceForkCalibration}
           onAdminClick={handleOpenAdminSettings}
           onRoleSwitcherClick={handleOpenRoleSwitcher}
           stats={mockPartnerStats}
           recentOrders={partnerOrders}
+          returnDeliveries={returnDeliveries}
           brands={mockBrands}
           countries={mockCountries}
           stores={mockStores}
@@ -1527,7 +1655,9 @@ export default function App() {
                   partnerId: currentPartner?.id,
                   partnerName: currentPartner?.name,
                   receivingStoreId: storeSelection.storeId,
-                  receivingStoreName: mockStores?.find(s => s.id === storeSelection.storeId)?.name
+                  receivingStoreName: mockStores?.find(s => s.id === storeSelection.storeId)?.name,
+                  warehouseId: currentPartnerWarehouseSelection?.warehouseId,
+                  warehouseName: mockWarehouses.find(w => w.id === currentPartnerWarehouseSelection?.warehouseId)?.name
                 };
                 
                 setPartnerOrders(prev => [...prev, newOrder]);
@@ -1562,7 +1692,7 @@ export default function App() {
         <BoxManagementScreen
           deliveryNotes={deliveryNotes}
           onBack={handleBack}
-          onViewDetails={(note) => handleViewShipmentDetails('delivery', note)}
+          onViewDetails={(note) => handleViewShipmentDetails('shipment', note)}
         />
       )}
 
@@ -1681,6 +1811,22 @@ export default function App() {
           onRegisterOrder={() => {
             if (detailsScreenData.type === 'order') {
               const order = detailsScreenData.data as PartnerOrder;
+              
+              // If order is in approval status, approve it (change to pending)
+              if (order.status === 'approval') {
+                setPartnerOrders(prev => prev.map(o =>
+                  o.id === order.id ? { ...o, status: 'pending' } : o
+                ));
+                // Update detailsScreenData
+                setDetailsScreenData({
+                  ...detailsScreenData,
+                  data: { ...order, status: 'pending' }
+                });
+                toast.success('Order approved and moved to pending');
+                return;
+              }
+              
+              // Otherwise, register the order
               setRegisteredOrderId(order.id);
               setShowPostRegistrationDialog(true);
               // Update order status to registered
@@ -1802,12 +1948,57 @@ export default function App() {
         <DeliveryNoteBoxDetailsScreen
           box={selectedDeliveryNoteBox.box}
           orderItems={selectedDeliveryNoteBox.orderItems}
+          receiverBrand={selectedDeliveryNoteBox.receiverBrand}
+          receiverStoreCode={selectedDeliveryNoteBox.receiverStoreCode}
+          senderWarehouse={selectedDeliveryNoteBox.senderWarehouse}
+          isAdmin={currentUserRole === 'admin'}
           onBack={() => {
             setSelectedDeliveryNoteBox(null);
             setCurrentScreenSafe('order-shipment-details');
           }}
           onRegisterBox={handleRegisterBox}
           onSaveAndClose={handleSaveBoxAndClose}
+          onUnregisterBox={(boxId) => {
+            const deliveryNote = deliveryNotes.find(note => 
+              note.boxes.some(b => b.id === boxId)
+            );
+            
+            if (deliveryNote) {
+              setDeliveryNotes(prev => prev.map(note =>
+                note.id === deliveryNote.id
+                  ? {
+                      ...note,
+                      boxes: note.boxes.map(b =>
+                        b.id === boxId ? { ...b, status: 'pending' as const } : b
+                      )
+                    }
+                  : note
+              ));
+              
+              // Update detailsScreenData if we're viewing this delivery note
+              if (detailsScreenData?.type === 'shipment' && detailsScreenData.data.id === deliveryNote.id) {
+                setDetailsScreenData({
+                  ...detailsScreenData,
+                  data: {
+                    ...detailsScreenData.data,
+                    boxes: (detailsScreenData.data as DeliveryNote).boxes.map(b =>
+                      b.id === boxId ? { ...b, status: 'pending' as const } : b
+                    )
+                  }
+                });
+              }
+              
+              // Update selected box if it's the one being unregistered
+              if (selectedDeliveryNoteBox.box.id === boxId) {
+                setSelectedDeliveryNoteBox({
+                  ...selectedDeliveryNoteBox,
+                  box: { ...selectedDeliveryNoteBox.box, status: 'pending' }
+                });
+              }
+              
+              toast.success('Box unregistered');
+            }
+          }}
         />
       )}
 
@@ -1844,6 +2035,13 @@ export default function App() {
         
         const orderItems = generateOrderItems(orderData.itemCount);
         
+        // Get receiver brand and warehouse info
+        const receivingStoreId = orderData.receivingStoreId || detailsScreenData.storeId;
+        const receivingStoreCode = orderData.receivingStoreId || detailsScreenData.storeCode || '';
+        const store = receivingStoreId ? mockStores.find(s => s.id === receivingStoreId) : undefined;
+        const receiverBrand = store ? mockBrands.find(b => b.id === store.brandId)?.name : undefined;
+        const warehouseName = resolveWarehouseName(orderData.warehouseId, orderData.warehouseName);
+
         return (
           <DeliveryNoteCreationScreen
             onBack={handleBack}
@@ -1853,19 +2051,38 @@ export default function App() {
               // Add delivery note to state
               setDeliveryNotes(prev => [...prev, deliveryNote]);
               
-              // Update order status to in-transit
-              setPartnerOrders(prev =>
-                prev.map(order =>
-                  order.id === orderData.id
-                    ? { ...order, status: 'in-transit' as const }
-                    : order
-                )
-              );
+              // Update order status based on delivery note status
+              if (deliveryNote.status === 'registered') {
+                setPartnerOrders(prev =>
+                  prev.map(order =>
+                    order.id === orderData.id
+                      ? { ...order, status: 'in-transit' as const }
+                      : order
+                  )
+                );
+              }
               
               // Show success message
-              toast.success('Delivery note registered successfully');
+              toast.success('Delivery note saved successfully');
               
               // Navigate back to partner dashboard or shipping screen
+              if (currentUserRole === 'partner') {
+                setCurrentScreenSafe('partner-dashboard');
+              } else {
+                setCurrentScreenSafe('shipping');
+              }
+            }}
+            onSaveAndClose={() => {
+              // Create delivery note with pending status
+              const deliveryNote: DeliveryNoteCreationDeliveryNote = {
+                id: `DN-${Date.now().toString().slice(-8)}`,
+                orderId: orderData.id,
+                boxes: [],
+                status: 'pending',
+                createdDate: new Date().toISOString()
+              };
+              setDeliveryNotes(prev => [...prev, deliveryNote]);
+              toast.success('Delivery note saved');
               if (currentUserRole === 'partner') {
                 setCurrentScreenSafe('partner-dashboard');
               } else {
@@ -1881,16 +2098,23 @@ export default function App() {
               orderData.receivingStoreName
                 ? {
                     name: orderData.receivingStoreName,
-                    code: orderData.receivingStoreId || ''
+                    code: receivingStoreCode
                   }
                 : detailsScreenData.storeName
                   ? {
                       name: detailsScreenData.storeName,
-                      code: detailsScreenData.storeCode || ''
+                      code: receivingStoreCode
                     }
                   : undefined
             }
+            receiverBrand={receiverBrand}
+            warehouseName={warehouseName}
             partnerName={orderData.partnerName || detailsScreenData.partnerName}
+            isAdmin={currentUserRole === 'admin'}
+            onDeleteUnassignedItem={(itemId) => {
+              // Remove item from order items
+              toast.success('Item removed');
+            }}
           />
         );
       })()}
@@ -2129,7 +2353,7 @@ export default function App() {
       )}
 
       {currentScreen === 'price-fork-calibration' && (
-        <PriceForkCalibrationScreen />
+        <PriceForkCalibrationScreen partnerId={currentPartnerWarehouseSelection.partnerId} />
       )}
 
       {/* Quotation Details Screen */}

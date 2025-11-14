@@ -89,7 +89,7 @@ export function useAppState() {
   // Navigation state
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
-  const [shippingInitialTab, setShippingInitialTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | undefined>(undefined);
+  const [shippingInitialTab, setShippingInitialTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined>(undefined);
   
   // Role management state
   const [currentUserRole, setCurrentUserRole] = useState<AppUserRole>('admin');
@@ -163,6 +163,8 @@ export function useAppState() {
     storeName?: string;
     storeCode?: string;
     partnerName?: string;
+    warehouseName?: string;
+    receiverLabel?: string;
   } | null>(null);
   
   // Digital Showroom state

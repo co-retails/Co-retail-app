@@ -2,20 +2,23 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Settings, UserIcon, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, Truck, Package, Plus, Sparkles } from 'lucide-react';
+import { Settings, UserIcon, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, Truck, Package, Plus } from 'lucide-react';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import type { Store, Country, Brand } from './StoreSelector';
 import PartnerWarehouseSelector, { Partner as WarehousePartner, Warehouse, PartnerWarehouseSelection } from './PartnerWarehouseSelector';
 import { ShowroomOrder } from './ShowroomTypes';
+import type { ReturnDelivery } from './ShippingScreen';
 
 export interface PartnerOrder {
   id: string;
-  status: 'pending' | 'registered' | 'in-transit' | 'delivered' | 'in-review';
+  status: 'approval' | 'pending' | 'registered' | 'in-transit' | 'delivered' | 'in-review';
   createdDate: string;
   itemCount: number;
   boxCount: number;
   deliveryNote?: string;
+  warehouseId?: string;
+  warehouseName?: string;
 }
 
 export interface PartnerStats {
@@ -40,14 +43,15 @@ export type ViewMode = 'all' | 'by-partner' | 'by-store';
 interface PartnerDashboardProps {
   onCreateOrder: () => void;
   onViewOrders: () => void;
+  onViewRegisteredOrders?: () => void;
   onViewBoxes: () => void;
   onViewReturns: () => void;
   onNavigateToShowroom?: () => void;
-  onNavigateToPriceFork?: () => void;
   onAdminClick?: () => void;
   onRoleSwitcherClick?: () => void;
   stats: PartnerStats;
   recentOrders: ExtendedPartnerOrder[];
+  returnDeliveries?: ReturnDelivery[];
   brands: Brand[];
   countries: Country[];
   stores: Store[];
@@ -68,14 +72,15 @@ interface PartnerDashboardProps {
 export default function PartnerDashboard({
   onCreateOrder,
   onViewOrders,
+  onViewRegisteredOrders,
   onViewBoxes,
   onViewReturns,
   onNavigateToShowroom,
-  onNavigateToPriceFork,
   onAdminClick,
   onRoleSwitcherClick,
   stats,
   recentOrders,
+  returnDeliveries = [],
   brands,
   countries,
   stores,
@@ -134,11 +139,19 @@ export default function PartnerDashboard({
   // Filter recent orders based on current view mode
   const getFilteredOrders = () => {
     let filteredOrders = recentOrders;
+    const selectedWarehouseId = currentPartnerWarehouseSelection.warehouseId;
+    
+    // Note: Approval orders filtering will be handled by passing isAdmin prop
+    // For now, we'll filter them out - this should be updated when isAdmin prop is added
     
     switch (viewFilter.mode) {
       case 'by-partner':
         return viewFilter.partnerId 
-          ? recentOrders.filter(order => order.partnerId === viewFilter.partnerId)
+          ? filteredOrders.filter(order => {
+              const matchesPartner = order.partnerId === viewFilter.partnerId;
+              const matchesWarehouse = !selectedWarehouseId || order.warehouseId === selectedWarehouseId;
+              return matchesPartner && matchesWarehouse;
+            })
           : [];
       case 'by-store':
         // Apply all active filters
@@ -172,7 +185,10 @@ export default function PartnerDashboard({
         
         return filteredOrders;
       default:
-        return recentOrders;
+        return filteredOrders.filter(order => {
+          const matchesWarehouse = !selectedWarehouseId || order.warehouseId === selectedWarehouseId;
+          return matchesWarehouse;
+        });
     }
   };
 
@@ -232,11 +248,27 @@ export default function PartnerDashboard({
 
   const filteredStats = getFilteredStats();
   const filteredOrders = getFilteredOrders();
+  const currentPartner = partners.find(partner => partner.id === currentPartnerWarehouseSelection.partnerId);
+  const currentPartnerName = currentPartner?.name ?? '';
+  const isThriftedOrSellpyPartner = ['Thrifted', 'Sellpy', 'Sellpy Operations'].some(name => currentPartnerName.includes(name));
+  const pendingOrdersCount = filteredStats.pendingOrders;
+  const activeShipmentsCount = filteredStats.inTransitDeliveries;
+  const registeredOrdersCount = filteredStats.registeredOrders;
+  const relevantReturnDeliveries = returnDeliveries.filter(delivery => {
+    const matchesPartner = !currentPartnerWarehouseSelection.partnerId || delivery.partnerId === currentPartnerWarehouseSelection.partnerId;
+    const matchesWarehouse = !currentPartnerWarehouseSelection.warehouseId || delivery.warehouseId === currentPartnerWarehouseSelection.warehouseId;
+    return matchesPartner && matchesWarehouse;
+  });
+  const inTransitReturnCount = relevantReturnDeliveries.filter(delivery => delivery.status === 'In transit').length;
+  const pendingOrdersLabel = `${pendingOrdersCount} pending ${pendingOrdersCount === 1 ? 'order' : 'orders'}`;
+  const inTransitReturnsLabel = `${inTransitReturnCount} in transit ${inTransitReturnCount === 1 ? 'return' : 'returns'}`;
 
   const getOrderStatusVariant = (status: ExtendedPartnerOrder['status']): 'default' | 'secondary' | 'outline' => {
     switch (status) {
       case 'registered':
         return 'default';
+      case 'approval':
+        return 'outline';
       case 'in-transit':
       case 'in-review':
         return 'outline';
@@ -247,6 +279,8 @@ export default function PartnerDashboard({
 
   const getOrderStatusLabel = (status: ExtendedPartnerOrder['status']) => {
     switch (status) {
+      case 'approval':
+        return 'Approval';
       case 'pending':
         return 'Pending';
       case 'registered':
@@ -343,8 +377,12 @@ export default function PartnerDashboard({
         {/* Partner Overview - Matching Home Screen Button Style */}
         <div className="space-y-4">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="title-medium text-on-surface">Partner Overview</h2>
+            <div
+              className={`flex items-center ${isThriftedOrSellpyPartner ? 'justify-end' : 'justify-between'}`}
+            >
+              {!isThriftedOrSellpyPartner && (
+                <h2 className="title-medium text-on-surface">Partner Overview</h2>
+              )}
               
               {/* Filter Button - Mobile & Desktop - Matching ShippingScreen design */}
               <StoreFilterBottomSheet
@@ -479,141 +517,193 @@ export default function PartnerDashboard({
         </div>
 
         {/* Quick Actions */}
-        <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Chinese Partner Quick Actions */}
-            {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Shenzhen Fashion Manufacturing' ? (
-              <>
-                {/* Quotation Requests for Chinese partner */}
-                {onNavigateToQuotations && (
+        <div className="space-y-4">
+          {isThriftedOrSellpyPartner ? (
+            <>
+              <div className="flex flex-col md:flex-row md:items-stretch gap-3">
+                <Card
+                  className="p-4 bg-surface-container border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors w-full md:max-w-sm"
+                  onClick={onViewBoxes}
+                >
+                  <div>
+                    <p className="body-small text-on-surface-variant mb-1">Shipments in transit</p>
+                    <p className="headline-small text-on-surface">{activeShipmentsCount}</p>
+                  </div>
+                </Card>
+              </div>
+              <div className="space-y-3">
+                <h3 className="title-medium text-on-surface">Quick actions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <button
-                    onClick={onNavigateToQuotations}
+                    onClick={onViewRegisteredOrders ?? onViewOrders}
                     className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
-                        <ShoppingCart className="w-5 h-5 text-accent" />
+                      <div className="w-10 h-10 bg-tertiary-container rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-on-tertiary-container" />
                       </div>
                       <div>
-                        <p className="title-small text-on-surface">Quotation requests</p>
+                        <p className="title-small text-on-surface">Orders to pack</p>
                         <p className="body-small text-on-surface-variant">
-                          {showroomOrders.filter(o => o.type === 'rfq' && (o.status === 'pending' || o.status === 'negotiation')).length} pending
+                          {registeredOrdersCount} registered {registeredOrdersCount === 1 ? 'order' : 'orders'}
                         </p>
                       </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-on-surface-variant" />
                   </button>
-                )}
 
-                {/* Showroom Products */}
-                {onNavigateToShowroom && (
                   <button
-                    onClick={onNavigateToShowroom}
+                    onClick={onViewOrders}
                     className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
-                        <ShoppingBag className="w-5 h-5 text-on-primary-container" />
+                        <ClipboardList className="w-5 h-5 text-on-primary-container" />
                       </div>
                       <div>
-                        <p className="title-small text-on-surface">Showroom</p>
-                        <p className="body-small text-on-surface-variant">Manage products</p>
+                        <p className="title-small text-on-surface">Process orders</p>
+                        <p className="body-small text-on-surface-variant">{pendingOrdersLabel}</p>
                       </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-on-surface-variant" />
                   </button>
-                )}
-              </>
-            ) : (
-              <>
-                {/* Regular Partner Quick Actions */}
-                {onNavigateToPriceFork && (
+
                   <button
-                    onClick={onNavigateToPriceFork}
+                    onClick={onViewReturns}
+                    className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-tertiary-container rounded-full flex items-center justify-center">
+                        <RotateCcw className="w-5 h-5 text-on-tertiary-container" />
+                      </div>
+                      <div>
+                        <p className="title-small text-on-surface">Mark as returned</p>
+                        <p className="body-small text-on-surface-variant">{inTransitReturnsLabel}</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Chinese Partner Quick Actions */}
+              {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Shenzhen Fashion Manufacturing' ? (
+                <>
+                  {/* Quotation Requests for Chinese partner */}
+                  {onNavigateToQuotations && (
+                    <button
+                      onClick={onNavigateToQuotations}
+                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
+                          <ShoppingCart className="w-5 h-5 text-accent" />
+                        </div>
+                        <div>
+                          <p className="title-small text-on-surface">Quotation requests</p>
+                          <p className="body-small text-on-surface-variant">
+                            {showroomOrders.filter(o => o.type === 'rfq' && (o.status === 'pending' || o.status === 'negotiation')).length} pending
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                    </button>
+                  )}
+
+                  {/* Showroom Products */}
+                  {onNavigateToShowroom && (
+                    <button
+                      onClick={onNavigateToShowroom}
+                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
+                          <ShoppingBag className="w-5 h-5 text-on-primary-container" />
+                        </div>
+                        <div>
+                          <p className="title-small text-on-surface">Showroom</p>
+                          <p className="body-small text-on-surface-variant">Manage products</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Regular Partner Quick Actions */}
+                  <button
+                    onClick={onViewOrders}
+                    className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
+                        <ClipboardList className="w-5 h-5 text-on-primary-container" />
+                      </div>
+                      <div>
+                        <p className="title-small text-on-surface">Orders to process</p>
+                        <p className="body-small text-on-surface-variant">{filteredStats.pendingOrders} orders</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                  </button>
+
+                  <button
+                    onClick={onViewBoxes}
                     className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-on-secondary-container" />
+                        <Truck className="w-5 h-5 text-on-secondary-container" />
                       </div>
                       <div>
-                        <p className="title-small text-on-surface">Price Fork calibration</p>
-                        <p className="body-small text-on-surface-variant">Tune AI pricing inputs</p>
+                        <p className="title-small text-on-surface">Active shipments</p>
+                        <p className="body-small text-on-surface-variant">{filteredStats.inTransitDeliveries} shipments</p>
                       </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-on-surface-variant" />
                   </button>
-                )}
 
-                <button
-                  onClick={onViewOrders}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
-                      <ClipboardList className="w-5 h-5 text-on-primary-container" />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">Orders to process</p>
-                      <p className="body-small text-on-surface-variant">{filteredStats.pendingOrders} orders</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
-
-                <button
-                  onClick={onViewBoxes}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-on-secondary-container" />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">Active shipments</p>
-                      <p className="body-small text-on-surface-variant">{filteredStats.inTransitDeliveries} shipments</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
-
-                <button
-                  onClick={onViewReturns}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-tertiary-container rounded-full flex items-center justify-center">
-                      <RotateCcw className="w-5 h-5 text-on-tertiary-container" />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">Return deliveries</p>
-                      <p className="body-small text-on-surface-variant">{filteredStats.inTransitDeliveries} deliveries</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
-
-                {/* Digital Showroom - Only for white-label partners */}
-                {onNavigateToShowroom && 
-                 partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.productType === 'white-label' && (
                   <button
-                    onClick={onNavigateToShowroom}
+                    onClick={onViewReturns}
                     className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                        <ShoppingBag className="w-5 h-5 text-on-secondary-container" />
+                      <div className="w-10 h-10 bg-tertiary-container rounded-full flex items-center justify-center">
+                        <RotateCcw className="w-5 h-5 text-on-tertiary-container" />
                       </div>
                       <div>
-                        <p className="title-small text-on-surface">Showroom</p>
+                        <p className="title-small text-on-surface">Return deliveries</p>
+                        <p className="body-small text-on-surface-variant">{filteredStats.inTransitDeliveries} deliveries</p>
                       </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-on-surface-variant" />
                   </button>
-                )}
-              </>
-            )}
-          </div>
+
+                  {/* Digital Showroom - Only for white-label partners */}
+                  {onNavigateToShowroom && 
+                   partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.productType === 'white-label' && (
+                    <button
+                      onClick={onNavigateToShowroom}
+                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
+                          <ShoppingBag className="w-5 h-5 text-on-secondary-container" />
+                        </div>
+                        <div>
+                          <p className="title-small text-on-surface">Showroom</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Latest Quotation Requests - Chinese Partner Only */}

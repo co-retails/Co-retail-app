@@ -18,7 +18,6 @@ interface GetNavigationConfigParams {
     handleNavigateToBuyerOrders: () => void;
     handleNavigateToBuyerQuotations: () => void;
     handleNavigateToBuyerShipments: () => void;
-    handleNavigateToPriceForkCalibration: () => void;
     setCurrentScreen: (screen: any) => void;
   };
 }
@@ -95,12 +94,6 @@ export function getNavigationDestinations({
           onClick: handlers.handleNavigateToPartnerDashboard
         },
         {
-          id: 'price-fork',
-          label: 'Price Fork',
-          icon: 'sparkles',
-          onClick: handlers.handleNavigateToPriceForkCalibration
-        },
-        {
           id: 'items',
           label: 'Items',
           icon: 'p3882d700',
@@ -165,8 +158,8 @@ export function getActiveDestination(currentScreen: string, currentUserRole: str
   if (currentUserRole === 'partner') {
     if (currentScreen.startsWith('showroom') || currentScreen === 'line-sheet-creation' || currentScreen === 'product-edit') return 'showroom-dashboard';
     if (currentScreen.includes('quotation')) return 'partner-quotations';
+    if (currentScreen === 'price-fork-calibration') return 'partner-dashboard';
     if (currentScreen === 'partner-dashboard' || currentScreen === 'order-creation' || currentScreen === 'box-management' || currentScreen === 'sellpy-orders' || currentScreen === 'order-details' || currentScreen === 'retailer-id-scan' || currentScreen === 'order-shipment-details') return 'partner-dashboard';
-    if (currentScreen === 'price-fork-calibration') return 'price-fork';
     if (currentScreen === 'items') return 'items';
     if (currentScreen === 'scan') return 'scan';
     if (currentScreen.includes('shipping') || currentScreen === 'receive') return 'shipping';

@@ -26,6 +26,7 @@ export interface PriceForkTestItem {
   category: string;
   partnerCategory: string;
   condition: 'Pristine' | 'Excellent' | 'Good' | 'Fair';
+  material: 'leather' | 'silk' | 'suede' | 'other';
   purchasePrice: number;
   aiSuggestedPrice: number;
   aiConfidence: number;
@@ -80,28 +81,6 @@ export const calibrationParameters: CalibrationParameterDefinition[] = [
     format: (value) => `${Math.round((value as number) * 100)}%`
   },
   {
-    id: 'conditionAdjustment',
-    label: 'Condition sensitivity',
-    description: 'How aggressively condition impacts price recommendations.',
-    type: 'slider',
-    min: 0,
-    max: 1,
-    step: 0.05,
-    defaultValue: 0.5,
-    format: (value) => `${Math.round((value as number) * 100)}%`
-  },
-  {
-    id: 'inventoryMomentum',
-    label: 'Inventory momentum',
-    description: 'Increase to accelerate slow-moving inventory, decrease to preserve margin.',
-    type: 'slider',
-    min: -0.3,
-    max: 0.3,
-    step: 0.05,
-    defaultValue: 0.1,
-    format: (value) => `${Math.round((value as number) * 100)} bps`
-  },
-  {
     id: 'marginFloor',
     label: 'Margin floor',
     description: 'Minimum gross margin percentage the AI must respect.',
@@ -111,35 +90,16 @@ export const calibrationParameters: CalibrationParameterDefinition[] = [
     step: 1,
     defaultValue: 32,
     format: (value) => `${value}%`
-  },
-  {
-    id: 'confidenceThreshold',
-    label: 'Confidence threshold',
-    description: 'Require higher confidence to auto-apply pricing.',
-    type: 'select',
-    options: [
-      { label: 'High (≥ 85%)', value: '0.85' },
-      { label: 'Standard (≥ 70%)', value: '0.7' },
-      { label: 'Exploratory (≥ 55%)', value: '0.55' }
-    ],
-    defaultValue: '0.7'
-  },
-  {
-    id: 'enableDynamicMarkdowns',
-    label: 'Dynamic markdowns',
-    description: 'Allow the AI to schedule timed markdowns on ageing inventory.',
-    type: 'toggle',
-    defaultValue: true
   }
 ];
 
-export const priceForkDefaultState: PriceForkCalibrationState = calibrationParameters.reduce(
-  (acc, parameter) => {
-    acc[parameter.id] = parameter.defaultValue;
-    return acc;
-  },
-  {} as PriceForkCalibrationState
-);
+export const priceForkDefaultState: PriceForkCalibrationState = {
+  brandWeighting: calibrationParameters.find((param) => param.id === 'brandWeighting')?.defaultValue ?? 0.65,
+  marginFloor: calibrationParameters.find((param) => param.id === 'marginFloor')?.defaultValue ?? 32,
+  materialLeatherWeight: 1.1,
+  materialSilkWeight: 1.08,
+  materialSuedeWeight: 1.05
+};
 
 export const mockPriceForkTestItems: PriceForkTestItem[] = [
   {
@@ -151,8 +111,9 @@ export const mockPriceForkTestItems: PriceForkTestItem[] = [
     category: 'Outerwear',
     partnerCategory: 'Leather Jackets',
     condition: 'Excellent',
+    material: 'leather',
     purchasePrice: 165,
-    aiSuggestedPrice: 329,
+    aiSuggestedPrice: 320,
     aiConfidence: 0.88,
     manualOverridePrice: undefined,
     status: 'pending',
@@ -168,8 +129,9 @@ export const mockPriceForkTestItems: PriceForkTestItem[] = [
     category: 'Knitwear',
     partnerCategory: 'Cardigans',
     condition: 'Good',
+    material: 'silk',
     purchasePrice: 58,
-    aiSuggestedPrice: 115,
+    aiSuggestedPrice: 120,
     aiConfidence: 0.74,
     manualOverridePrice: undefined,
     status: 'pending',
@@ -184,10 +146,11 @@ export const mockPriceForkTestItems: PriceForkTestItem[] = [
     category: 'Denim',
     partnerCategory: 'Jeans',
     condition: 'Pristine',
+    material: 'other',
     purchasePrice: 32,
-    aiSuggestedPrice: 79,
+    aiSuggestedPrice: 80,
     aiConfidence: 0.92,
-    manualOverridePrice: 75,
+    manualOverridePrice: undefined,
     status: 'accepted',
     imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=400&q=80',
     notes: 'Manual override applied last week (+8% vs baseline).'
@@ -201,6 +164,7 @@ export const mockPriceForkTestItems: PriceForkTestItem[] = [
     category: 'Dresses',
     partnerCategory: 'Summer Dresses',
     condition: 'Fair',
+    material: 'other',
     purchasePrice: 14,
     aiSuggestedPrice: 35,
     aiConfidence: 0.58,
@@ -217,8 +181,9 @@ export const mockPriceForkTestItems: PriceForkTestItem[] = [
     category: 'Footwear',
     partnerCategory: 'Boots',
     condition: 'Excellent',
+    material: 'leather',
     purchasePrice: 72,
-    aiSuggestedPrice: 149,
+    aiSuggestedPrice: 150,
     aiConfidence: 0.81,
     manualOverridePrice: undefined,
     status: 'pending',

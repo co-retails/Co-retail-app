@@ -227,21 +227,25 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
           <ThriftedOrderCreationScreen
             onBack={() => state.setCurrentScreen('partner-dashboard')}
             onCreateOrder={(items, storeSelection, shouldRegister = false) => {
-              // Create a new order with the items
+              // Create a new order with the items (always as pending, user can register later)
               const newOrder: import('./PartnerDashboard').ExtendedPartnerOrder = {
                 id: `THR-ORD-${Date.now().toString().slice(-8)}`,
-                status: shouldRegister ? 'registered' : 'pending',
+                status: 'pending', // Always create as pending, user can register after fixing errors
                 createdDate: new Date().toISOString(),
                 itemCount: items.length,
-                boxCount: shouldRegister ? 0 : 0,
+                boxCount: 0,
                 partnerId: currentPartner?.id,
                 partnerName: currentPartner?.name,
                 receivingStoreId: storeSelection.storeId,
-                receivingStoreName: props.stores?.find(s => s.id === storeSelection.storeId)?.name
+                receivingStoreName: props.stores?.find(s => s.id === storeSelection.storeId)?.name,
+                warehouseId: state.currentPartnerWarehouseSelection?.warehouseId,
+                warehouseName: props.warehouses?.find(w => w.id === state.currentPartnerWarehouseSelection?.warehouseId)?.name
               };
               
               state.setPartnerOrders(prev => [...prev, newOrder]);
-              state.setCurrentScreen('partner-dashboard');
+              
+              // Navigate to order details screen so user can fix validation errors
+              handlers.onViewOrder?.(newOrder);
             }}
             currentPartner={currentPartner}
             brands={props.brands}

@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import type { Store as StoreRecord, Country as CountryRecord, Brand as BrandRecord } from './StoreSelector';
+import type { Warehouse } from './PartnerWarehouseSelector';
 import type { SetStateAction, MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent, ChangeEvent } from 'react';
 
 type ShippingPartnerOrder = ExtendedPartnerOrder & {
@@ -24,7 +25,10 @@ type ShippingPartnerOrder = ExtendedPartnerOrder & {
 };
 
 type DeliveryNoteStatus = DeliveryNote['status'] | 'pending';
-type ShippingTab = 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered';
+type ShippingTab = 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'pending-registered';
+type OrderStatusFilter = 'approval' | 'pending' | 'registered' | 'in-transit' | 'all';
+type ShipmentStatusFilter = 'in-transit' | 'delivered' | 'all';
+type ReturnStatusFilter = 'in-transit' | 'returned' | 'all';
 type ShippingUserRole = UserRole | 'admin' | 'store-manager' | 'buyer';
 
 export interface SellpyOrder {
@@ -51,6 +55,11 @@ export interface Delivery {
   boxes: number;
   sender: string;
   cancellationReason?: 'Missing delivery';
+  partnerId?: string;
+  partnerName?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  receivingStoreId?: string;
 }
 
 export interface ReturnDelivery {
@@ -64,6 +73,9 @@ export interface ReturnDelivery {
   storeCode: string;
   partnerId: string;
   partnerName: string;
+  storeId?: string;
+  warehouseId?: string;
+  warehouseName?: string;
 }
 
 export interface StoreSelection {
@@ -81,13 +93,14 @@ interface ShippingScreenProps {
   onNavigateToScan?: () => void;
   onNavigateToSellers?: () => void;
   onScanBox?: () => void;
-  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'orders';
+  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered';
   currentUserRole?: ShippingUserRole;
   partnerOrders?: ShippingPartnerOrder[];
   deliveryNotes?: DeliveryNote[];
   returnItems?: ReturnItem[];
   returnDeliveries?: ReturnDelivery[];
   currentPartnerId?: string;
+  currentWarehouseId?: string;
   onSelectSellpyOrder?: (order: SellpyOrder) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
   onOpenOrderDetails?: (order: ShippingPartnerOrder) => void;
@@ -99,6 +112,7 @@ interface ShippingScreenProps {
   brands?: BrandRecord[];
   countries?: CountryRecord[];
   stores?: StoreRecord[];
+  warehouses?: Warehouse[];
   onCreateDeliveryNoteForOrder?: (orderId: string) => void;
   currentStoreSelection?: StoreSelection;
   isAdmin?: boolean;
@@ -121,7 +135,6 @@ function Tabs({ activeTab, onTabChange, userRole }: {
     ? [
         { id: 'pending', label: 'Orders' },
         { id: 'in-transit', label: 'Shipments' },
-        { id: 'delivered', label: 'Delivered' },
         { id: 'returns', label: 'Returns' }
       ]
     : [
@@ -218,7 +231,8 @@ function PartnerDeliveryNoteItem({
   onDelete,
   showSenderReceiver = false,
   stores,
-  brands
+  brands,
+  warehouses
 }: { 
   deliveryNote: DeliveryNote; 
   orders: ShippingPartnerOrder[];
@@ -228,6 +242,7 @@ function PartnerDeliveryNoteItem({
   showSenderReceiver?: boolean;
   stores?: StoreRecord[];
   brands?: BrandRecord[];
+  warehouses?: Warehouse[];
 }) {
   const relatedOrders = orders.filter(order => order.deliveryNote === deliveryNote.id);
   const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
@@ -236,6 +251,8 @@ function PartnerDeliveryNoteItem({
   const senderName = relatedOrders[0]?.partnerName;
   const receivingStoreId = relatedOrders[0]?.receivingStoreId;
   const receivingStoreName = relatedOrders[0]?.receivingStoreName;
+  const warehouseId = relatedOrders[0]?.warehouseId;
+  const warehouseDisplay = relatedOrders[0]?.warehouseName || (warehouseId ? warehouses?.find(w => w.id === warehouseId)?.name : undefined);
   
   // Helper to get receiver display with brand and store code
   const getReceiverDisplay = () => {
@@ -314,19 +331,20 @@ function PartnerDeliveryNoteItem({
           </div>
           
           {/* Sender/Receiver Line - Only show if requested */}
-          {showSenderReceiver && (senderName || receiverDisplay) && (
+          {showSenderReceiver && (senderName || receiverDisplay || warehouseDisplay) && (
             <div className="label-small text-on-surface-variant opacity-90">
-              <div className="truncate">
-                {senderName && receiverDisplay && (
-                  <>From: {senderName} → To: {receiverDisplay}</>
-                )}
-                {senderName && !receiverDisplay && (
-                  <>From: {senderName}</>
-                )}
-                {!senderName && receiverDisplay && (
-                  <>To: {receiverDisplay}</>
-                )}
-              </div>
+              {warehouseDisplay && (
+                <div className="truncate">From: {warehouseDisplay}</div>
+              )}
+              {!warehouseDisplay && senderName && (
+                <div className="truncate">From: {senderName}</div>
+              )}
+              {receiverDisplay && (
+                <div className="truncate">To: {receiverDisplay}</div>
+              )}
+              {receivingStoreName && receiverDisplay !== receivingStoreName && (
+                <div className="truncate">{receivingStoreName}</div>
+              )}
             </div>
           )}
           
@@ -372,11 +390,17 @@ function PartnerDeliveryNoteItem({
 function ReturnDeliveryComponent({ 
   returnDelivery, 
   onUpdateStatus,
-  onClick
+  onClick,
+  stores,
+  brands,
+  warehouses
 }: { 
   returnDelivery: ReturnDelivery; 
   onUpdateStatus?: (deliveryId: string, status: 'Returned') => void;
   onClick?: () => void;
+  stores?: StoreRecord[];
+  brands?: BrandRecord[];
+  warehouses?: Warehouse[];
 }) {
   const getStatusDisplay = (status: ReturnDelivery['status']) => {
     switch (status) {
@@ -395,6 +419,18 @@ function ReturnDeliveryComponent({
       default: return 'bg-surface-container-high text-on-surface-variant';
     }
   };
+
+  const storeRecord =
+    (returnDelivery.storeId && stores?.find(store => store.id === returnDelivery.storeId)) ||
+    stores?.find(store => store.code === returnDelivery.storeCode);
+  const brandRecord = storeRecord ? brands?.find(brand => brand.id === storeRecord.brandId) : undefined;
+  const receiverBrandAndCode = [brandRecord?.name, storeRecord?.code || returnDelivery.storeCode]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const receiverDisplay = receiverBrandAndCode || returnDelivery.storeName;
+  const warehouseRecord = warehouses?.find(warehouse => warehouse.id === returnDelivery.warehouseId);
+  const warehouseDisplay = returnDelivery.warehouseName || warehouseRecord?.name;
 
   const handleMarkAsReturned = () => {
     if (onUpdateStatus) {
@@ -441,12 +477,24 @@ function ReturnDeliveryComponent({
           
           {/* Secondary Line - Store Name */}
           <div className="body-small text-on-surface-variant mb-0.5">
-            <span className="block truncate">{returnDelivery.storeName}</span>
+            <span className="block truncate">To: {receiverDisplay}</span>
           </div>
+          {returnDelivery.storeName && (
+            <div className="label-small text-on-surface-variant mb-0.5">
+              <span className="block truncate">{returnDelivery.storeName}</span>
+            </div>
+          )}
+          {warehouseDisplay && (
+            <div className="body-small text-on-surface-variant mb-0.5">
+              <span className="block truncate">From: {warehouseDisplay}</span>
+            </div>
+          )}
           
           {/* Metadata Line - Items, Boxes, and Store Code */}
           <div className="label-small text-on-surface-variant opacity-90">
-            <div className="truncate">{returnDelivery.items} items • {returnDelivery.boxes} boxes • {returnDelivery.storeCode}</div>
+            <div className="truncate">
+              {returnDelivery.items} items • {returnDelivery.boxes} boxes
+            </div>
           </div>
         </div>
         
@@ -485,7 +533,8 @@ function PartnerOrderItem({
   onCreateDeliveryNote,
   showSenderReceiver = false,
   stores,
-  brands
+  brands,
+  warehouses
 }: { 
   order: ShippingPartnerOrder; 
   onClick?: () => void; 
@@ -497,26 +546,21 @@ function PartnerOrderItem({
   showSenderReceiver?: boolean;
   stores?: StoreRecord[];
   brands?: BrandRecord[];
+  warehouses?: Warehouse[];
 }) {
-  // Helper to get receiver display with brand and store code
-  const getReceiverDisplay = () => {
-    if (!order.receivingStoreId || !order.receivingStoreName) {
-      return order.receivingStoreName || '';
+  const storeRecord = order.receivingStoreId ? stores?.find(s => s.id === order.receivingStoreId) : undefined;
+  const brandRecord = storeRecord ? brands?.find(b => b.id === storeRecord.brandId) : undefined;
+  const receiverDisplay = (() => {
+    const brandName = brandRecord?.name;
+    const storeCode = storeRecord?.code;
+    if (brandName || storeCode) {
+      return [brandName, storeCode].filter(Boolean).join(' ').trim();
     }
-    
-    const store = stores?.find(s => s.id === order.receivingStoreId);
-    if (!store) {
-      return order.receivingStoreName;
-    }
-    
-    const brand = brands?.find(b => b.id === store.brandId);
-    const brandName = brand?.name || '';
-    const storeCode = store.code || '';
-    
-    return `${brandName} ${storeCode}`;
-  };
-  
-  const receiverDisplay = getReceiverDisplay();
+    return order.receivingStoreName || '';
+  })();
+  const storeNameDisplay = storeRecord?.name || order.receivingStoreName;
+  const warehouseRecord = order.warehouseId ? warehouses?.find(w => w.id === order.warehouseId) : undefined;
+  const warehouseDisplay = order.warehouseName || warehouseRecord?.name;
   
   const getStatusDisplay = (status: ShippingPartnerOrder['status']) => {
     switch (status) {
@@ -590,19 +634,20 @@ function PartnerOrderItem({
           </div>
           
           {/* Sender/Receiver Line - Only show if requested */}
-          {showSenderReceiver && (order.partnerName || receiverDisplay) && (
-            <div className="label-small text-on-surface-variant opacity-90">
-              <div className="truncate">
-                {order.partnerName && receiverDisplay && (
-                  <>From: {order.partnerName} → To: {receiverDisplay}</>
-                )}
-                {order.partnerName && !receiverDisplay && (
-                  <>From: {order.partnerName}</>
-                )}
-                {!order.partnerName && receiverDisplay && (
-                  <>To: {receiverDisplay}</>
-                )}
-              </div>
+          {showSenderReceiver && (warehouseDisplay || order.partnerName || receiverDisplay) && (
+            <div className="label-small text-on-surface-variant opacity-90 space-y-0.5">
+              {warehouseDisplay && (
+                <div className="truncate">From: {warehouseDisplay}</div>
+              )}
+              {!warehouseDisplay && order.partnerName && (
+                <div className="truncate">From: {order.partnerName}</div>
+              )}
+              {receiverDisplay && (
+                <div className="truncate">To: {receiverDisplay}</div>
+              )}
+              {storeNameDisplay && receiverDisplay !== storeNameDisplay && (
+                <div className="truncate">{storeNameDisplay}</div>
+              )}
             </div>
           )}
           
@@ -894,6 +939,7 @@ export default function ShippingScreen({
   deliveryNotes = [],
   returnDeliveries = [],
   currentPartnerId,
+  currentWarehouseId,
   onSelectSellpyOrder,
   onUpdateReturnDeliveryStatus,
   onOpenOrderDetails,
@@ -905,6 +951,7 @@ export default function ShippingScreen({
   brands = [] as BrandRecord[],
   countries = [] as CountryRecord[],
   stores = [] as StoreRecord[],
+  warehouses = [] as Warehouse[],
   isAdmin = false,
   onDeletePartnerOrder,
   onDeleteDeliveryNote,
@@ -930,19 +977,52 @@ export default function ShippingScreen({
       if (!initialTab) {
         return 'pending';
       }
-      return initialTab === 'orders' ? 'pending' : 
-             initialTab === 'shipments' ? 'in-transit' :
-             initialTab === 'all' ? 'delivered' : 
-             initialTab; // Keep 'returns' as 'returns' for partners
+
+      switch (initialTab) {
+        case 'orders':
+        case 'pending':
+        case 'pending-registered': // Special case: Orders tab with registered filter
+          return 'pending';
+        case 'returns':
+          return 'returns';
+        case 'shipments':
+        case 'registered':
+        case 'in-transit':
+        case 'all':
+        case 'delivered':
+          return 'in-transit';
+        default:
+          return 'pending';
+      }
     }
     // For store staff, default to 'shipments' (renamed to 'New')
-    if (!initialTab || initialTab === 'orders') {
+    if (!initialTab || initialTab === 'orders' || initialTab === 'pending-registered') {
       return 'shipments';
     }
-    return initialTab;
+    return initialTab as ShippingTab;
   };
 
   const [activeTab, setActiveTab] = useState<ShippingTab>(getInitialTab());
+  const [orderStatusFilter, setOrderStatusFilter] = useState<OrderStatusFilter>('all');
+  const [shipmentStatusFilter, setShipmentStatusFilter] = useState<ShipmentStatusFilter>('all');
+  const [returnStatusFilter, setReturnStatusFilter] = useState<ReturnStatusFilter>('all');
+  const orderStatusFilterOptions: Array<{ id: OrderStatusFilter; label: string }> = [
+    { id: 'all', label: 'All' },
+    { id: 'approval', label: 'Approval' },
+    { id: 'pending', label: 'Pending' },
+    { id: 'registered', label: 'Registered' },
+    { id: 'in-transit', label: 'In transit' }
+  ];
+  const shipmentStatusFilterOptions: Array<{ id: ShipmentStatusFilter; label: string }> = [
+    { id: 'all', label: 'All' },
+    { id: 'in-transit', label: 'In transit' },
+    { id: 'delivered', label: 'Delivered' }
+  ];
+  const returnStatusFilterOptions: Array<{ id: ReturnStatusFilter; label: string }> = [
+    { id: 'all', label: 'All' },
+    { id: 'in-transit', label: 'In transit' },
+    { id: 'returned', label: 'Returned' }
+  ];
   const [searchTerm, setSearchTerm] = useState('');
   
   // Use shared filter state for partner portal, local state for store staff
@@ -972,6 +1052,45 @@ export default function ShippingScreen({
   useEffect(() => {
     setActiveTab(getInitialTab());
   }, [initialTab, role]);
+
+useEffect(() => {
+  if (role !== 'partner') {
+    return;
+  }
+
+  setOrderStatusFilter('all');
+  setShipmentStatusFilter('all');
+  setReturnStatusFilter('all');
+
+  if (!initialTab) {
+    return;
+  }
+
+  switch (initialTab) {
+    case 'pending':
+      setOrderStatusFilter('pending');
+      break;
+    case 'pending-registered': // Special case: Orders tab with registered filter
+      setOrderStatusFilter('registered');
+      break;
+    case 'registered':
+      setOrderStatusFilter('registered');
+      break;
+    case 'shipments':
+    case 'in-transit':
+    case 'all':
+      setShipmentStatusFilter('in-transit');
+      break;
+    case 'delivered':
+      setShipmentStatusFilter('delivered');
+      break;
+    case 'returns':
+      setReturnStatusFilter('in-transit');
+      break;
+    default:
+      break;
+  }
+}, [initialTab, role]);
 
   // Filter handlers
   const handleViewAllStores = () => {
@@ -1034,7 +1153,10 @@ export default function ShippingScreen({
       (activeTab === 'shipments' && delivery.status === 'In transit') ||
       (activeTab === 'returns' && (delivery.status === 'Delivered' || delivery.status === 'Cancelled'));
     
-    return matchesSearch && matchesTab;
+    const matchesPartner = role !== 'partner' || !currentPartnerId || delivery.partnerId === currentPartnerId;
+    const matchesWarehouse = role !== 'partner' || !currentWarehouseId || delivery.warehouseId === currentWarehouseId;
+    
+    return matchesSearch && matchesTab && matchesPartner && matchesWarehouse;
   });
 
   const hasInTransitDelivery = deliveries.some((delivery) => delivery.status === 'In transit');
@@ -1049,14 +1171,22 @@ export default function ShippingScreen({
       (order.partnerName && order.partnerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (order.receivingStoreName && order.receivingStoreName.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesTab = activeTab === 'pending' && (order.status === 'pending' || order.status === 'registered' || order.status === 'in-review') ||
-      activeTab === 'in-transit' && order.status === 'in-transit' ||
-      activeTab === 'delivered' && order.status === 'delivered';
+    // Filter out approval orders for non-admin users
+    if (order.status === 'approval' && !isAdmin) {
+      return false;
+    }
+    
+    if (role === 'partner' && activeTab !== 'pending') {
+      return false;
+    }
     
     // For partners: only show their orders
     // For store staff: show all orders
     const matchesPartner = role === 'store-staff' || 
       order.partnerId === currentPartnerId;
+    const matchesWarehouse = role === 'store-staff' || 
+      !currentWarehouseId || 
+      order.warehouseId === currentWarehouseId;
     
     // Apply brand/country/store filters (for partner portal only)
     if (role === 'partner') {
@@ -1084,7 +1214,27 @@ export default function ShippingScreen({
       }
     }
     
-    return matchesSearch && matchesTab && matchesPartner;
+    const matchesStatusFilter = (() => {
+      if (role !== 'partner') {
+        return true;
+      }
+
+      switch (orderStatusFilter) {
+        case 'approval':
+          return order.status === 'approval';
+        case 'pending':
+          return order.status === 'pending';
+        case 'registered':
+          return order.status === 'registered';
+        case 'in-transit':
+          return order.status === 'in-transit';
+        case 'all':
+        default:
+          return ['approval', 'pending', 'registered', 'in-transit', 'in-review', 'delivered'].includes(order.status);
+      }
+    })();
+    
+    return matchesSearch && matchesPartner && matchesWarehouse && matchesStatusFilter;
   });
 
   const findSellpyOrder = (orderId: string) =>
@@ -1108,10 +1258,33 @@ export default function ShippingScreen({
     
     // For partners: only show their return deliveries
     // For store staff: show all return deliveries
-    return matchesSearch && (
-      role === 'store-staff' || 
-      delivery.partnerId === currentPartnerId
-    );
+    const matchesPartner = role === 'store-staff' || 
+      delivery.partnerId === currentPartnerId;
+    const matchesWarehouse = role === 'store-staff' || 
+      !currentWarehouseId || 
+      delivery.warehouseId === currentWarehouseId;
+
+    if (!matchesPartner || !matchesWarehouse) {
+      return false;
+    }
+
+    if (role === 'partner' && activeTab === 'returns') {
+      const matchesStatus = (() => {
+        switch (returnStatusFilter) {
+          case 'in-transit':
+            return delivery.status === 'In transit' || delivery.status === 'Pending pickup';
+          case 'returned':
+            return delivery.status === 'Returned';
+          case 'all':
+          default:
+            return true;
+        }
+      })();
+
+      return matchesSearch && matchesStatus;
+    }
+
+    return matchesSearch;
   });
 
   const filteredDeliveryNotes = deliveryNotes.filter(note => {
@@ -1121,9 +1294,35 @@ export default function ShippingScreen({
 
     const noteStatus = note.status as DeliveryNoteStatus;
     
+    if (role === 'partner') {
+      if (activeTab !== 'in-transit') {
+        return false;
+      }
+
+      const matchesPartner = !currentPartnerId || note.partnerId === currentPartnerId;
+      const matchesWarehouse = !currentWarehouseId || note.warehouseId === currentWarehouseId;
+      if (!matchesPartner || !matchesWarehouse) {
+        return false;
+      }
+
+      const matchesStatusFilter = (() => {
+        switch (shipmentStatusFilter) {
+          case 'in-transit':
+            return noteStatus === 'registered';
+          case 'delivered':
+            return noteStatus === 'delivered' || noteStatus === 'rejected';
+          case 'all':
+          default:
+            return ['pending', 'registered', 'delivered', 'rejected'].includes(noteStatus);
+        }
+      })();
+
+      return matchesSearch && matchesStatusFilter;
+    }
+    
     const matchesTab = (activeTab === 'pending' && noteStatus === 'pending') ||
       (activeTab === 'in-transit' && noteStatus === 'registered') ||
-      (activeTab === 'delivered' && (noteStatus === 'delivered' || noteStatus === 'rejected'));
+      (activeTab === 'all' && (noteStatus === 'delivered' || noteStatus === 'rejected'));
     
     return matchesSearch && matchesTab;
   });
@@ -1134,9 +1333,25 @@ export default function ShippingScreen({
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.buyerName.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesTab = activeTab === 'pending' && (order.status === 'submitted' || order.status === 'in_review' || order.status === 'approved') ||
-      activeTab === 'in-transit' && (order.status === 'fulfillment' || order.status === 'shipped') ||
-      activeTab === 'delivered' && (order.status === 'shipped' || order.status === 'closed');
+    const matchesTab = (() => {
+      if (activeTab === 'pending') {
+        return order.status === 'submitted' || order.status === 'in_review' || order.status === 'approved';
+      }
+
+      if (activeTab === 'in-transit') {
+        switch (shipmentStatusFilter) {
+          case 'in-transit':
+            return order.status === 'fulfillment' || order.status === 'shipped';
+          case 'delivered':
+            return order.status === 'shipped' || order.status === 'closed';
+          case 'all':
+          default:
+            return ['fulfillment', 'shipped', 'closed'].includes(order.status);
+        }
+      }
+
+      return false;
+    })();
     
     return matchesSearch && matchesTab;
   });
@@ -1154,9 +1369,9 @@ export default function ShippingScreen({
   const isChinesePartner = currentPartnerId === '6'; // Shenzhen Fashion Manufacturing
   const isThriftedPartner = currentPartnerId === '2'; // Thrifted
   const showCreateOrderButton = role === 'partner' && isThriftedPartner && !!onCreateOrder;
-  const showShowroomOrders = role === 'partner' && isChinesePartner && (activeTab === 'pending' || activeTab === 'in-transit' || activeTab === 'delivered');
-  const showDeliveryNotes = role === 'partner' && !isChinesePartner && (activeTab === 'in-transit' || activeTab === 'delivered');
-  const showOrders = role === 'partner' && !isChinesePartner && (activeTab === 'pending' || (!showDeliveryNotes && filteredDeliveryNotes.length === 0));
+  const showShowroomOrders = role === 'partner' && isChinesePartner && (activeTab === 'pending' || activeTab === 'in-transit');
+  const showDeliveryNotes = role === 'partner' && !isChinesePartner && activeTab === 'in-transit';
+  const showOrders = role === 'partner' && !isChinesePartner && activeTab === 'pending';
   const showReturns = activeTab === 'returns'; // Show returns for both partners and store staff
   // Store staff no longer has an 'orders' tab - removed
   const showSellpyOrders = false;
@@ -1347,6 +1562,69 @@ export default function ShippingScreen({
           userRole={role}
         />
 
+        {role === 'partner' && showOrders && !isChinesePartner && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {orderStatusFilterOptions.map(({ id, label }) => {
+              const isActive = orderStatusFilter === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setOrderStatusFilter(id)}
+                  className={`px-3 py-1.5 rounded-[8px] border label-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-on-primary border-primary'
+                      : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {role === 'partner' && activeTab === 'in-transit' && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {shipmentStatusFilterOptions.map(({ id, label }) => {
+              const isActive = shipmentStatusFilter === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setShipmentStatusFilter(id)}
+                  className={`px-3 py-1.5 rounded-[8px] border label-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-on-primary border-primary'
+                      : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {role === 'partner' && activeTab === 'returns' && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {returnStatusFilterOptions.map(({ id, label }) => {
+              const isActive = returnStatusFilter === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setReturnStatusFilter(id)}
+                  className={`px-3 py-1.5 rounded-[8px] border label-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-on-primary border-primary'
+                      : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Count Display */}
         <div className="mb-3">
           <span className="body-medium text-on-surface-variant">
@@ -1356,9 +1634,9 @@ export default function ShippingScreen({
                 `${filteredSellpyOrders.length} orders` :
               role === 'partner' ? 
                 (showShowroomOrders ?
-                  `${filteredShowroomOrders.length} ${activeTab === 'pending' ? 'purchase orders' : activeTab === 'in-transit' ? 'shipments' : 'deliveries'}` :
+                  `${filteredShowroomOrders.length} ${activeTab === 'pending' ? 'purchase orders' : shipmentStatusFilter === 'delivered' ? 'deliveries' : 'shipments'}` :
                   showDeliveryNotes ? 
-                    `${filteredDeliveryNotes.length} ${activeTab === 'in-transit' ? 'shipments' : 'deliveries'}` :
+                    `${filteredDeliveryNotes.length} ${shipmentStatusFilter === 'delivered' ? 'deliveries' : 'shipments'}` :
                     `${filteredPartnerOrders.length} orders`
                 ) :
                 `${filteredDeliveries.length} deliveries`
@@ -1382,6 +1660,9 @@ export default function ShippingScreen({
                           returnDelivery={returnDelivery}
                           onUpdateStatus={onUpdateReturnDeliveryStatus}
                           onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                          stores={stores}
+                          brands={brands}
+                          warehouses={warehouses}
                         />
                       </div>
                     ))}
@@ -1394,8 +1675,8 @@ export default function ShippingScreen({
                         <tr>
                           <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
                           <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Store</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Store Code</th>
+                          <th className="px-4 py-3 text-left title-small text-on-surface">Receiver</th>
+                          <th className="px-4 py-3 text-left title-small text-on-surface">Warehouse</th>
                           <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
                           <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
                           <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
@@ -1403,7 +1684,7 @@ export default function ShippingScreen({
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredReturnDeliveries.map((returnDelivery) => {
+                      {filteredReturnDeliveries.map((returnDelivery) => {
                           return (
                             <tr 
                               key={returnDelivery.id}
@@ -1486,6 +1767,9 @@ export default function ShippingScreen({
                         <ReturnDeliveryComponent 
                           returnDelivery={returnDelivery}
                           onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                          stores={stores}
+                          brands={brands}
+                          warehouses={warehouses}
                         />
                       </div>
                     ))}
@@ -1498,8 +1782,8 @@ export default function ShippingScreen({
                         <tr>
                           <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
                           <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Store</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Store Code</th>
+                          <th className="px-4 py-3 text-left title-small text-on-surface">Receiver</th>
+                          <th className="px-4 py-3 text-left title-small text-on-surface">Warehouse</th>
                           <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
                           <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
                           <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
@@ -1508,6 +1792,21 @@ export default function ShippingScreen({
                       </thead>
                       <tbody>
                         {filteredReturnDeliveries.map((returnDelivery) => {
+                          const storeRecord = returnDelivery.storeId
+                            ? stores?.find(store => store.id === returnDelivery.storeId)
+                            : stores?.find(store => store.code === returnDelivery.storeCode);
+                          const brandRecord = storeRecord ? brands?.find(brand => brand.id === storeRecord.brandId) : undefined;
+                          const receiverDisplay = (() => {
+                            const brandName = brandRecord?.name;
+                            const code = storeRecord?.code || returnDelivery.storeCode;
+                            if (brandName || code) {
+                              return [brandName, code].filter(Boolean).join(' ').trim();
+                            }
+                            return returnDelivery.storeName;
+                          })();
+                          const storeNameDisplay = storeRecord?.name || returnDelivery.storeName;
+                          const warehouseName = returnDelivery.warehouseName || (returnDelivery.warehouseId ? warehouses?.find(warehouse => warehouse.id === returnDelivery.warehouseId)?.name : undefined);
+
                           return (
                             <tr 
                               key={returnDelivery.id}
@@ -1521,11 +1820,20 @@ export default function ShippingScreen({
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery)}
-                              >{returnDelivery.storeName}</td>
+                              >
+                                <div className="space-y-0.5">
+                                  <span className="block">{receiverDisplay}</span>
+                                  {storeNameDisplay && receiverDisplay !== storeNameDisplay && (
+                                    <span className="block text-on-surface-variant">{storeNameDisplay}</span>
+                                  )}
+                                </div>
+                              </td>
                               <td 
-                                className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
+                                className="px-4 py-3 body-medium text-on-surface cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery)}
-                              >{returnDelivery.storeCode}</td>
+                              >
+                                {warehouseName || '-'}
+                              </td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery)}
@@ -1763,6 +2071,7 @@ export default function ShippingScreen({
                         showSenderReceiver={true}
                         stores={stores}
                         brands={brands}
+                        warehouses={warehouses}
                       />
                     </div>
                   ))}
@@ -1790,6 +2099,9 @@ export default function ShippingScreen({
                         const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
                         const senderName = relatedOrders[0]?.partnerName;
                         const receiverDisplay = getReceiverDisplay(relatedOrders[0]?.receivingStoreId, relatedOrders[0]?.receivingStoreName);
+                        const storeRecord = relatedOrders[0]?.receivingStoreId ? stores?.find(store => store.id === relatedOrders[0]?.receivingStoreId) : undefined;
+                        const storeNameDisplay = storeRecord?.name || relatedOrders[0]?.receivingStoreName;
+                        const warehouseName = relatedOrders[0]?.warehouseName || (relatedOrders[0]?.warehouseId ? warehouses?.find(warehouse => warehouse.id === relatedOrders[0]?.warehouseId)?.name : undefined);
                         
                         const getStatusBadgeColor = (status: DeliveryNoteStatus) => {
                           switch (status) {
@@ -1821,15 +2133,22 @@ export default function ShippingScreen({
                               className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote)}
                             >
-                              {senderName && receiverDisplay ? (
-                                <>{senderName} → {receiverDisplay}</>
-                              ) : senderName ? (
-                                <>From: {senderName}</>
-                              ) : receiverDisplay ? (
-                                <>To: {receiverDisplay}</>
-                              ) : (
-                                '-'
-                              )}
+                              <div className="space-y-0.5">
+                                {warehouseName && (
+                                  <span className="block">From: {warehouseName}</span>
+                                )}
+                                {!warehouseName && senderName && (
+                                  <span className="block">From: {senderName}</span>
+                                )}
+                                {receiverDisplay ? (
+                                  <span className="block">To: {receiverDisplay}</span>
+                                ) : (
+                                  <span className="block">To: -</span>
+                                )}
+                                {storeNameDisplay && receiverDisplay !== storeNameDisplay && (
+                                  <span className="block text-on-surface-variant">{storeNameDisplay}</span>
+                                )}
+                              </div>
                             </td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
@@ -1916,6 +2235,7 @@ export default function ShippingScreen({
                         showSenderReceiver={true}
                         stores={stores}
                         brands={brands}
+                        warehouses={warehouses}
                       />
                     </div>
                   ))}
@@ -1962,6 +2282,10 @@ export default function ShippingScreen({
                         };
 
                         const isSellpyPending = order.status === 'pending' && order.partnerName === 'Sellpy Operations';
+                        const receiverDisplay = getReceiverDisplay(order.receivingStoreId, order.receivingStoreName);
+                        const storeRecord = order.receivingStoreId ? stores?.find(store => store.id === order.receivingStoreId) : undefined;
+                        const storeNameDisplay = storeRecord?.name || order.receivingStoreName;
+                        const warehouseName = order.warehouseName || (order.warehouseId ? warehouses?.find(warehouse => warehouse.id === order.warehouseId)?.name : undefined);
                         
                         return (
                           <tr 
@@ -2001,15 +2325,22 @@ export default function ShippingScreen({
                                 }
                               }}
                             >
-                              {order.partnerName && order.receivingStoreName ? (
-                                <>{order.partnerName} → {getReceiverDisplay(order.receivingStoreId, order.receivingStoreName)}</>
-                              ) : order.partnerName ? (
-                                <>From: {order.partnerName}</>
-                              ) : order.receivingStoreName ? (
-                                <>To: {getReceiverDisplay(order.receivingStoreId, order.receivingStoreName)}</>
-                              ) : (
-                                '-'
-                              )}
+                              <div className="space-y-0.5">
+                                {warehouseName && (
+                                  <span className="block">From: {warehouseName}</span>
+                                )}
+                                {!warehouseName && order.partnerName && (
+                                  <span className="block">From: {order.partnerName}</span>
+                                )}
+                                {receiverDisplay ? (
+                                  <span className="block">To: {receiverDisplay}</span>
+                                ) : (
+                                  <span className="block">To: -</span>
+                                )}
+                                {storeNameDisplay && receiverDisplay !== storeNameDisplay && (
+                                  <span className="block text-on-surface-variant">{storeNameDisplay}</span>
+                                )}
+                              </div>
                             </td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
@@ -2130,15 +2461,13 @@ export default function ShippingScreen({
                   <h5 className="title-medium text-on-surface">
                     {isChinesePartner && activeTab === 'pending' ? 'No purchase orders found' :
                      activeTab === 'pending' ? 'No orders found' :
-                     activeTab === 'in-transit' ? 'No shipments in transit' :
-                     activeTab === 'delivered' ? 'No deliveries completed' :
+                     activeTab === 'in-transit' ? (shipmentStatusFilter === 'delivered' ? 'No delivered shipments' : shipmentStatusFilter === 'all' ? 'No shipments found' : 'No shipments in transit') :
                      'No items found'}
                   </h5>
                   <p className="body-medium text-on-surface-variant">
                     {isChinesePartner && activeTab === 'pending' ? 'Purchase orders from buyers will appear here' :
                      activeTab === 'pending' ? 'Create your first order to get started' :
-                     activeTab === 'in-transit' ? 'Orders will appear here once they are packaged and shipped' :
-                     activeTab === 'delivered' ? 'Completed deliveries will appear here' :
+                     activeTab === 'in-transit' ? (shipmentStatusFilter === 'delivered' ? 'Delivered shipments will appear here' : 'Orders will appear here once they are packaged and shipped') :
                      'Items will appear here when available'}
                   </p>
                 </div>

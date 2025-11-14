@@ -38,6 +38,12 @@ export interface DeliveryNote {
   status: 'registered' | 'delivered' | 'rejected';
   createdDate: string;
   shipmentDate?: string;
+  partnerId?: string;
+  partnerName?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  storeId?: string;
+  storeCode?: string;
 }
 
 interface BoxManagementScreenProps {

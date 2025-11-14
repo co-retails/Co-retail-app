@@ -4,7 +4,7 @@ import { Screen } from './useAppState';
 interface NavigationHandlersProps {
   currentScreen: Screen;
   setCurrentScreen: (screen: Screen) => void;
-  setShippingInitialTab: (tab: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | undefined) => void;
+  setShippingInitialTab: (tab: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined) => void;
   currentUserRole?: 'store-staff' | 'partner' | 'buyer';
 }
 
@@ -111,9 +111,12 @@ export function useNavigationHandlers({
   }, [setCurrentScreen]);
 
   const handleNavigateToShipping = useCallback(() => {
-    // For partners, default to pending (Orders tab)
-    // For store staff, default to shipments (New tab)
-    setShippingInitialTab(currentUserRole === 'partner' ? 'pending' : 'shipments');
+    // Default to "All" filters for partners unless a specific action overrides later
+    if (currentUserRole === 'partner') {
+      setShippingInitialTab(undefined);
+    } else {
+      setShippingInitialTab('shipments');
+    }
     setCurrentScreen('shipping');
   }, [setCurrentScreen, setShippingInitialTab, currentUserRole]);
 
@@ -132,10 +135,6 @@ export function useNavigationHandlers({
 
   const handleNavigateToPartnerQuotations = useCallback(() => {
     setCurrentScreen('partner-quotations');
-  }, [setCurrentScreen]);
-
-  const handleNavigateToPriceForkCalibration = useCallback(() => {
-    setCurrentScreen('price-fork-calibration');
   }, [setCurrentScreen]);
 
   const handleNavigateToBuyerDashboard = useCallback(() => {
@@ -184,7 +183,6 @@ export function useNavigationHandlers({
     handleNavigateToBuyerQuotations,
     handleNavigateToBuyerShipments,
     handleNavigateToPortalConfig,
-    handleNavigateToSellpyOrders,
-    handleNavigateToPriceForkCalibration
+    handleNavigateToSellpyOrders
   };
 }

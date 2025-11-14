@@ -25,7 +25,11 @@ export const mockDeliveries: Delivery[] = [
     orders: 1,
     items: 150,
     boxes: 4,
-    sender: 'Kinda Kinks'
+    sender: 'Thrifted',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    warehouseId: '2',
+    warehouseName: 'Thrifted Oslo Distribution'
   },
   {
     id: '2',
@@ -35,7 +39,11 @@ export const mockDeliveries: Delivery[] = [
     orders: 2,
     items: 400,
     boxes: 10,
-    sender: 'Sellpy'
+    sender: 'Sellpy',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: '3',
@@ -45,7 +53,11 @@ export const mockDeliveries: Delivery[] = [
     orders: 1,
     items: 75,
     boxes: 3,
-    sender: 'Fashion Hub'
+    sender: 'Sellpy',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   }
 ];
 
@@ -1162,7 +1174,10 @@ export const mockReturnDeliveries: ReturnDelivery[] = [
     storeName: 'Drottninggatan 63',
     storeCode: 'SE0655',
     partnerId: '1',
-    partnerName: 'Sellpy'
+    partnerName: 'Sellpy',
+    storeId: '1',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'RET-002',
@@ -1174,7 +1189,10 @@ export const mockReturnDeliveries: ReturnDelivery[] = [
     storeName: 'Copenhagen Central',
     storeCode: 'DK0123',
     partnerId: '2',
-    partnerName: 'Kinda Kinks'
+    partnerName: 'Thrifted',
+    storeId: '3',
+    warehouseId: '3',
+    warehouseName: 'Thrifted Copenhagen Hub'
   },
   {
     id: 'RET-003',
@@ -1186,7 +1204,10 @@ export const mockReturnDeliveries: ReturnDelivery[] = [
     storeName: 'Oslo Main Street',
     storeCode: 'NO0789',
     partnerId: '1',
-    partnerName: 'Sellpy'
+    partnerName: 'Sellpy',
+    storeId: '4',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   }
 ];
 
@@ -1792,7 +1813,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
     ],
     status: 'delivered',
     createdDate: '2024-12-09',
-    shipmentDate: '2024-12-10'
+    shipmentDate: '2024-12-10',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '1',
+    storeCode: 'SE0655'
   },
   {
     id: 'DN-2024-002',
@@ -1824,7 +1851,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
     ],
     status: 'registered',
     createdDate: '2024-12-06',
-    shipmentDate: '2024-12-07'
+    shipmentDate: '2024-12-07',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '2',
+    storeCode: 'SE0520'
   },
   {
     id: 'DN-2024-003',
@@ -1855,7 +1888,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
     ],
     status: 'registered',
     createdDate: '2024-12-05',
-    shipmentDate: '2024-12-06'
+    shipmentDate: '2024-12-06',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '5',
+    storeCode: 'SE0452'
   },
   {
     id: 'DN-2024-004',
@@ -1922,7 +1961,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
     ],
     status: 'delivered',
     createdDate: '2024-12-10',
-    shipmentDate: '2024-12-11'
+    shipmentDate: '2024-12-11',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '5',
+    storeCode: 'SE0452'
   },
   {
     id: 'DN-2024-005',
@@ -2017,7 +2062,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
     ],
     status: 'registered',
     createdDate: '2024-12-09',
-    shipmentDate: '2024-12-10'
+    shipmentDate: '2024-12-10',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '2',
+    storeCode: 'SE0520'
   }
 ];
 
@@ -2033,7 +2084,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     partnerId: '2',
     partnerName: 'Thrifted',
     receivingStoreId: '4',
-    receivingStoreName: 'Oslo Main Street'
+    receivingStoreName: 'Oslo Main Street',
+    warehouseId: '2',
+    warehouseName: 'Thrifted Oslo Distribution'
   },
   {
     id: 'THR-ORD-2024-002',
@@ -2045,7 +2098,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     partnerId: '2',
     partnerName: 'Thrifted',
     receivingStoreId: '3',
-    receivingStoreName: 'Copenhagen Central'
+    receivingStoreName: 'Copenhagen Central',
+    warehouseId: '3',
+    warehouseName: 'Thrifted Copenhagen Hub'
   },
   {
     id: 'THR-ORD-2024-003',
@@ -2056,7 +2111,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     partnerId: '2',
     partnerName: 'Thrifted',
     receivingStoreId: '1',
-    receivingStoreName: 'Drottninggatan 63'
+    receivingStoreName: 'Drottninggatan 63',
+    warehouseId: '2',
+    warehouseName: 'Thrifted Oslo Distribution'
   },
   // Sellpy orders
   {
@@ -2071,7 +2128,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Drottninggatan 63',
     externalOrderId: 'SLPY-2024-3421',
     orderValue: 2850.00,
-    salesMargin: 42.5
+    salesMargin: 42.5,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-102',
@@ -2086,7 +2145,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Götgatan 25',
     externalOrderId: 'SLPY-2024-3420',
     orderValue: 1920.00,
-    salesMargin: 38.2
+    salesMargin: 38.2,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-103',
@@ -2100,7 +2161,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Drottninggatan 63',
     externalOrderId: 'SLPY-2024-3419',
     orderValue: 1680.00,
-    salesMargin: 45.0
+    salesMargin: 45.0,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-104',
@@ -2115,7 +2178,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Mall of Scandinavia',
     externalOrderId: 'SLPY-2024-3418',
     orderValue: 3120.00,
-    salesMargin: 40.8
+    salesMargin: 40.8,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-105',
@@ -2129,7 +2194,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Nordstan Shopping Center',
     externalOrderId: 'SLPY-2024-3417',
     orderValue: 1080.00,
-    salesMargin: 35.5
+    salesMargin: 35.5,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-106',
@@ -2144,7 +2211,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Drottninggatan 63',
     externalOrderId: 'SLPY-2024-3416',
     orderValue: 2280.00,
-    salesMargin: 43.2
+    salesMargin: 43.2,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-107',
@@ -2158,7 +2227,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Götgatan 25',
     externalOrderId: 'SLPY-2024-3415',
     orderValue: 1440.00,
-    salesMargin: 39.0
+    salesMargin: 39.0,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-108',
@@ -2172,7 +2243,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Triangeln Center',
     externalOrderId: 'SLPY-2024-3414',
     orderValue: 2460.00,
-    salesMargin: 41.5
+    salesMargin: 41.5,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-109',
@@ -2186,7 +2259,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Emporia Shopping',
     externalOrderId: 'SLPY-2024-3413',
     orderValue: 900.00,
-    salesMargin: 37.8
+    salesMargin: 37.8,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-110',
@@ -2201,7 +2276,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Drottninggatan 63',
     externalOrderId: 'SLPY-2024-3412',
     orderValue: 2160.00,
-    salesMargin: 44.0
+    salesMargin: 44.0,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-111',
@@ -2215,7 +2292,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Drottninggatan 63',
     externalOrderId: 'SLPY-2024-3423',
     orderValue: 1320.00,
-    salesMargin: 41.5
+    salesMargin: 41.5,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   },
   {
     id: 'SEL-ORD-2024-112',
@@ -2229,7 +2308,9 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Götgatan 25',
     externalOrderId: 'SLPY-2024-3424',
     orderValue: 1080.00,
-    salesMargin: 39.8
+    salesMargin: 39.8,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   }
 ];
 

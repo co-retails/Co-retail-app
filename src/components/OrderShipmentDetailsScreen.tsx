@@ -51,6 +51,8 @@ interface OrderShipmentDetailsScreenProps {
   storeName?: string;
   storeCode?: string;
   partnerName?: string;
+  warehouseName?: string;
+  receiverLabel?: string;
   onNavigateToRetailerIdScan?: () => void;
   onRegisterOrder?: () => void;
   onCreateDeliveryNote?: (orderId: string) => void;
@@ -153,6 +155,8 @@ export default function OrderShipmentDetailsScreen({
   storeName,
   storeCode,
   partnerName,
+  warehouseName,
+  receiverLabel,
   onNavigateToRetailerIdScan,
   onRegisterOrder,
   onCreateDeliveryNote,
@@ -187,6 +191,7 @@ export default function OrderShipmentDetailsScreen({
     if (type === 'order') {
       const order = data as PartnerOrder;
       switch (order.status) {
+        case 'approval': return 'text-warning';
         case 'pending': return 'text-on-surface-variant';
         case 'registered': return 'text-tertiary';
         case 'in-transit': return 'text-primary';
@@ -218,6 +223,7 @@ export default function OrderShipmentDetailsScreen({
     if (type === 'order') {
       const order = data as PartnerOrder;
       switch (order.status) {
+        case 'approval': return 'Approval';
         case 'pending': return 'Pending';
         case 'registered': return 'Ready for Packaging';
         case 'in-transit': return 'In Transit';
@@ -281,14 +287,21 @@ export default function OrderShipmentDetailsScreen({
   
   // Filter items based on validation status
   const items = allItems.filter(item => {
-    if (validationFilter === 'errors') return item.status === 'error' || !item.retailerItemId;
-    if (validationFilter === 'valid') return item.status === 'valid' && item.retailerItemId;
+    if (validationFilter === 'errors') return item.status === 'error' || !item.retailerItemId || !item.price || item.price <= 0;
+    if (validationFilter === 'valid') return item.status === 'valid' && item.retailerItemId && item.price && item.price > 0;
     return true;
   });
   
   // Count items by validation status
-  const itemsWithErrors = allItems.filter(item => item.status === 'error' || !item.retailerItemId).length;
-  const validItems = allItems.filter(item => item.status === 'valid' && item.retailerItemId).length;
+  const itemsWithErrors = allItems.filter(item => item.status === 'error' || !item.retailerItemId || !item.price || item.price <= 0).length;
+  const validItems = allItems.filter(item => item.status === 'valid' && item.retailerItemId && item.price && item.price > 0).length;
+  
+  // Check if all items are valid for registration (must have retailer ID and price)
+  const canRegister = type === 'order' && allItems.length > 0 && allItems.every(item => 
+    item.retailerItemId && item.retailerItemId.trim() !== '' && 
+    item.price && item.price > 0 && 
+    item.status !== 'error'
+  );
   
   // Initialize editable items on mount
   React.useEffect(() => {
@@ -300,8 +313,11 @@ export default function OrderShipmentDetailsScreen({
   // Check if order is pending (editable)
   const isPendingOrder = type === 'order' && (data as PartnerOrder).status === 'pending';
   
+  // Check if order is in approval status (only Admins can see)
+  const isApprovalOrder = type === 'order' && (data as PartnerOrder).status === 'approval' && isAdmin;
+  
   // Check if this is a Sellpy order (show prices)
-  const isSellpyOrder = partnerName === 'Sellpy Operations';
+  const isSellpyOrder = partnerName === 'Sellpy Operations' || partnerName === 'Sellpy';
   
   // Handler to update item attribute
   const handleUpdateItemAttribute = (itemId: string, field: keyof DetailItem, value: any) => {
@@ -378,13 +394,44 @@ export default function OrderShipmentDetailsScreen({
           <CardContent className="pt-0">
             {/* Sender and Receiver side by side */}
             <div className="grid grid-cols-2 gap-4">
-              {partnerName && (type === 'order' || type === 'shipment') && (
+              {(warehouseName || partnerName) && (type === 'order' || type === 'shipment') && (
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-on-surface-variant">
                     <UserIcon size={16} />
                     <span className="body-small">Sender</span>
                   </div>
-                  <p className="body-medium text-on-surface">{partnerName}</p>
+                  <p className="body-medium text-on-surface">{warehouseName || partnerName}</p>
+                  {warehouseName && partnerName && (
+                    <p className="body-small text-on-surface-variant">{partnerName}</p>
+                  )}
+                </div>
+              )}
+
+              {type === 'return' && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-on-surface-variant">
+                    <UserIcon size={16} />
+                    <span className="body-small">From Warehouse</span>
+                  </div>
+                  <p className="body-medium text-on-surface">
+                    {warehouseName || partnerName || (data as ReturnDelivery).partnerName}
+                  </p>
+                </div>
+              )}
+
+              {(receiverLabel || storeName || storeCode) && (type === 'order' || type === 'shipment') && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-on-surface-variant">
+                    <MapPinIcon size={16} />
+                    <span className="body-small">Receiver</span>
+                  </div>
+                  <p className="body-medium text-on-surface">{receiverLabel || storeName}</p>
+                  {storeName && receiverLabel && receiverLabel !== storeName && (
+                    <p className="body-small text-on-surface-variant">{storeName}</p>
+                  )}
+                  {storeCode && (
+                    <p className="body-small text-on-surface-variant">{storeCode}</p>
+                  )}
                 </div>
               )}
 
@@ -392,37 +439,17 @@ export default function OrderShipmentDetailsScreen({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-on-surface-variant">
                     <MapPinIcon size={16} />
-                    <span className="body-small">From Store</span>
+                    <span className="body-small">To Store</span>
                   </div>
                   <p className="body-medium text-on-surface">
-                    {(data as ReturnDelivery).storeName}
+                    {receiverLabel || (data as ReturnDelivery).storeName}
                   </p>
+                  {(data as ReturnDelivery).storeName && receiverLabel && receiverLabel !== (data as ReturnDelivery).storeName && (
+                    <p className="body-small text-on-surface-variant">{(data as ReturnDelivery).storeName}</p>
+                  )}
                   {(data as ReturnDelivery).storeCode && (
                     <p className="body-small text-on-surface-variant">{(data as ReturnDelivery).storeCode}</p>
                   )}
-                </div>
-              )}
-
-              {storeName && (type === 'order' || type === 'shipment') && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-on-surface-variant">
-                    <MapPinIcon size={16} />
-                    <span className="body-small">Receiver</span>
-                  </div>
-                  <p className="body-medium text-on-surface">{storeName}</p>
-                  {storeCode && (
-                    <p className="body-small text-on-surface-variant">{storeCode}</p>
-                  )}
-                </div>
-              )}
-
-              {type === 'return' && partnerName && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-on-surface-variant">
-                    <MapPinIcon size={16} />
-                    <span className="body-small">To Partner</span>
-                  </div>
-                  <p className="body-medium text-on-surface">{partnerName}</p>
                 </div>
               )}
             </div>
@@ -588,11 +615,11 @@ export default function OrderShipmentDetailsScreen({
               <>
                 <ItemDetailsTable
                   items={items}
-                  showRetailerId={type !== 'shipment'}
-                  showPrice={isSellpyOrder}
-                  showPurchasePrice={isSellpyOrder}
+                  showRetailerId={type !== 'shipment'} // Always show for orders
+                  showPrice={type === 'order'} // Always show price for orders
+                  showPurchasePrice={isApprovalOrder || (isSellpyOrder && isAdmin)} // Show purchase price for Approval orders or Sellpy orders for Admins
                   showStatus={type === 'return'}
-                  isEditable={isPendingOrder && isAdmin}
+                  isEditable={(isPendingOrder || isApprovalOrder) && isAdmin} // Allow editing for pending and approval orders (Admins only)
                   onUpdateItem={handleUpdateItemAttribute}
                 />
               </>
@@ -613,7 +640,7 @@ export default function OrderShipmentDetailsScreen({
         )}
 
         {/* Action Buttons for Sellpy Orders - Fixed bottom bar */}
-        {type === 'order' && partnerName === 'Sellpy Operations' && (
+        {type === 'order' && (partnerName === 'Sellpy Operations' || partnerName === 'Sellpy') && (
           <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant z-20">
             <div className="px-4 md:px-6 py-4 pb-safe">
               {/* Pending status: Add retailer IDs - right aligned on desktop */}
@@ -630,8 +657,27 @@ export default function OrderShipmentDetailsScreen({
                 </div>
               )}
 
+              {/* Approval status: Approve order (Admin only) */}
+              {isApprovalOrder && isAdmin && onRegisterOrder && (
+                <div className="flex justify-start md:justify-end">
+                  <Button 
+                    onClick={() => {
+                      // Approve order - change status from approval to pending
+                      if (onRegisterOrder) {
+                        onRegisterOrder();
+                      }
+                    }}
+                    size="lg"
+                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                  >
+                    <CheckIcon size={20} className="mr-2" />
+                    <span className="label-large">Approve order</span>
+                  </Button>
+                </div>
+              )}
+
               {/* Other action buttons - right aligned on desktop */}
-              {(data as PartnerOrder).status !== 'pending' && (
+              {(data as PartnerOrder).status !== 'pending' && (data as PartnerOrder).status !== 'approval' && (
                 <>
                   {/* Completed status: Register order */}
                   {(data as PartnerOrder).status === 'completed' && onRegisterOrder && (
@@ -675,6 +721,7 @@ export default function OrderShipmentDetailsScreen({
                 {(data as PartnerOrder).status === 'pending' && onRegisterOrder && (
                   <Button 
                     onClick={onRegisterOrder}
+                    disabled={!canRegister}
                     size="lg"
                     className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
                   >

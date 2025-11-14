@@ -35,12 +35,13 @@ import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
 import BoxDetailsSideSheet from './BoxDetailsSideSheet';
 import BoxLabelSideSheet from './BoxLabelSideSheet';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 
 export interface Box {
   id: string;
   qrLabel: string;
   items: OrderItem[];
-  status: 'pending' | 'complete';
+  status: 'pending' | 'registered';
   createdDate: string;
 }
 
@@ -51,6 +52,12 @@ export interface DeliveryNote {
   status: 'pending' | 'registered' | 'in-transit' | 'delivered';
   createdDate: string;
   registeredDate?: string;
+  partnerId?: string;
+  partnerName?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  storeId?: string;
+  storeCode?: string;
 }
 
 interface DeliveryNoteCreationScreenProps {
@@ -62,8 +69,13 @@ interface DeliveryNoteCreationScreenProps {
     name: string;
     code: string;
   };
+  receiverBrand?: string;
   partnerName?: string;
+  warehouseName?: string;
   onOpenBoxDetails?: (box: Box) => void;
+  onSaveAndClose?: () => void;
+  isAdmin?: boolean;
+  onDeleteUnassignedItem?: (itemId: string) => void;
 }
 
 type DialogMode = 'box-label' | 'add-items' | 'scan-item' | null;
@@ -74,8 +86,13 @@ export default function DeliveryNoteCreationScreen({
   orderItems,
   onCreateDeliveryNote,
   receivingStore,
+  receiverBrand,
   partnerName,
-  onOpenBoxDetails
+  warehouseName,
+  onOpenBoxDetails,
+  onSaveAndClose,
+  isAdmin = false,
+  onDeleteUnassignedItem
 }: DeliveryNoteCreationScreenProps) {
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [currentBoxId, setCurrentBoxId] = useState<string | null>(null);
@@ -83,6 +100,7 @@ export default function DeliveryNoteCreationScreen({
   const [manualBoxLabel, setManualBoxLabel] = useState('');
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [scanMode, setScanMode] = useState<'box' | 'item' | null>(null);
+  const [expandedUnassignedItems, setExpandedUnassignedItems] = useState(false);
   
   // Side sheet states
   const [showBoxDetailsSheet, setShowBoxDetailsSheet] = useState(false);
@@ -217,12 +235,12 @@ export default function DeliveryNoteCreationScreen({
       return;
     }
 
-    // Create final box with label
+    // Create final box with label and registered status
     const newBox: Box = {
       id: tempBoxId,
       qrLabel: label,
       items: currentBoxItems,
-      status: 'pending',
+      status: 'registered',
       createdDate: new Date().toISOString()
     };
 
@@ -261,7 +279,7 @@ export default function DeliveryNoteCreationScreen({
         return {
           ...box,
           items: [...box.items, item],
-          status: box.items.length + 1 >= 1 ? 'complete' : 'pending'
+          status: box.status === 'registered' ? 'registered' : (box.items.length + 1 >= 1 ? 'pending' : 'pending')
         };
       }
       return box;
@@ -281,7 +299,7 @@ export default function DeliveryNoteCreationScreen({
         return {
           ...box,
           items: [...box.items, ...itemsToAdd],
-          status: box.items.length + itemsToAdd.length >= 1 ? 'complete' : 'pending'
+          status: box.status === 'registered' ? 'registered' : (box.items.length + itemsToAdd.length >= 1 ? 'pending' : 'pending')
         };
       }
       return box;
@@ -300,7 +318,7 @@ export default function DeliveryNoteCreationScreen({
         return {
           ...box,
           items: newItems,
-          status: newItems.length > 0 ? 'complete' : 'pending'
+          status: box.status === 'registered' ? 'registered' : (newItems.length > 0 ? 'pending' : 'pending')
         };
       }
       return box;
@@ -314,10 +332,10 @@ export default function DeliveryNoteCreationScreen({
     toast.success('Box removed');
   };
 
-  // Unregister box (change status from registered/complete to pending)
+  // Unregister box (change status from registered to pending) - only for admins
   const handleUnregisterBox = (boxId: string) => {
     setBoxes(boxes.map(box => {
-      if (box.id === boxId) {
+      if (box.id === boxId && box.status === 'registered') {
         return { ...box, status: 'pending' };
       }
       return box;
@@ -325,10 +343,46 @@ export default function DeliveryNoteCreationScreen({
     toast.success('Box unregistered');
   };
 
-  // Delete box
+  // Delete box - only pending boxes can be deleted
   const handleDeleteBox = (boxId: string) => {
+    const box = boxes.find(b => b.id === boxId);
+    if (box && box.status !== 'pending') {
+      toast.error('Only pending boxes can be deleted');
+      return;
+    }
     setBoxes(boxes.filter(box => box.id !== boxId));
     toast.success('Box deleted');
+  };
+
+  // Handle delete unassigned item
+  const handleDeleteUnassignedItem = (itemId: string) => {
+    if (onDeleteUnassignedItem) {
+      onDeleteUnassignedItem(itemId);
+    } else {
+      // Fallback: just remove from local state if no handler provided
+      toast.success('Item removed');
+    }
+  };
+
+  // Handle save delivery note and close
+  const handleSaveDeliveryNoteAndClose = () => {
+    if (onSaveAndClose) {
+      onSaveAndClose();
+    } else {
+      // Create delivery note with current state
+      const deliveryNote: DeliveryNote = {
+        id: `DN-${Date.now().toString().slice(-8)}`,
+        orderId,
+        boxes: boxes.map(box => ({
+          ...box,
+          status: box.status === 'registered' ? 'registered' : 'pending'
+        })),
+        status: 'pending',
+        createdDate: new Date().toISOString()
+      };
+      onCreateDeliveryNote(deliveryNote);
+      onBack();
+    }
   };
 
   // Register delivery note
@@ -356,7 +410,7 @@ export default function DeliveryNoteCreationScreen({
       orderId,
       boxes: boxes.map(box => ({
         ...box,
-        status: 'complete'
+        status: box.status === 'registered' ? 'registered' : 'pending'
       })),
       status: 'registered',
       createdDate: new Date().toISOString(),
@@ -376,13 +430,35 @@ export default function DeliveryNoteCreationScreen({
         showBackButton={true}
       />
 
-      <div className="px-4 md:px-6 py-6 space-y-6 pb-32">
-        {/* Order Info */}
-        <Card className="bg-surface-container-low border-outline">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="px-4 md:px-6 py-6 space-y-4 pb-32">
+        {/* Sender and Receiver Info */}
+        {(warehouseName || (receiverBrand && receivingStore)) && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {warehouseName && (
+                  <div>
+                    <p className="label-small text-on-surface-variant mb-1">Sender</p>
+                    <p className="body-medium text-on-surface">{warehouseName}</p>
+                  </div>
+                )}
+                {receiverBrand && receivingStore && (
+                  <div>
+                    <p className="label-small text-on-surface-variant mb-1">Receiver</p>
+                    <p className="body-medium text-on-surface">{receiverBrand} {receivingStore.code}</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Statistics - Compact */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-4 gap-4">
               <div>
-                <p className="label-small text-on-surface-variant mb-1">Total Items</p>
+                <p className="label-small text-on-surface-variant mb-1">Total</p>
                 <p className="title-medium text-on-surface">{totalItems}</p>
               </div>
               <div>
@@ -395,57 +471,35 @@ export default function DeliveryNoteCreationScreen({
               </div>
               <div>
                 <p className="label-small text-on-surface-variant mb-1">Boxes</p>
-                <p className="title-medium text-on-surface">{completeBoxes} / {boxes.length}</p>
+                <p className="title-medium text-on-surface">{boxes.length}</p>
               </div>
             </div>
-            {receivingStore && (
-              <>
-                <div className="mt-4 pt-4 border-t border-outline-variant">
-                  <p className="label-small text-on-surface-variant mb-1">Receiving Store</p>
-                  <p className="body-medium text-on-surface">{receivingStore.name}</p>
-                  <p className="body-small text-on-surface-variant">{receivingStore.code}</p>
-                </div>
-              </>
-            )}
           </CardContent>
         </Card>
 
-        {/* Unassigned Items Alert */}
-        {unassignedItems > 0 && (
-          <Alert>
-            <AlertTriangleIcon className="h-4 w-4" />
-            <AlertDescription className="body-small">
-              {unassignedItems} item(s) need to be assigned to boxes before registration
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Add Box Actions */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="title-medium">Boxes</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAddBox}
-              >
-                <PlusIcon size={16} className="mr-2" />
-                <span className="label-medium">Add box</span>
-              </Button>
-            </div>
-          </CardHeader>
-        </Card>
-
         {/* Boxes List */}
-        {boxes.length > 0 ? (
-          <Section>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="title-medium text-on-surface">Boxes ({boxes.length})</h3>
-            </div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="title-medium text-on-surface">Boxes</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAddBox}
+          >
+            <PlusIcon size={16} className="mr-2" />
+            <span className="label-medium">Add box</span>
+          </Button>
+        </div>
 
-            <div className="space-y-4">
-              {boxes.map((box) => (
+        {boxes.length > 0 ? (
+          <div className="space-y-2">
+            {boxes.map((box) => {
+              const boxDate = new Date(box.createdDate).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                year: 'numeric'
+              });
+              
+              return (
                 <Card 
                   key={box.id} 
                   className="border-outline cursor-pointer hover:bg-surface-container-high transition-colors"
@@ -455,27 +509,40 @@ export default function DeliveryNoteCreationScreen({
                     }
                   }}
                 >
-                  <CardHeader className="pb-3">
+                  <CardContent className="p-4">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 bg-primary-container rounded-lg">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="p-2 bg-primary-container rounded-lg flex-shrink-0">
                           <BoxIcon className="w-5 h-5 text-on-primary-container" />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="title-small text-on-surface">{box.qrLabel}</p>
-                            <Badge 
-                              variant={box.items.length > 0 ? 'default' : 'outline'}
-                              className="body-small"
-                            >
-                              {box.items.length} items
-                            </Badge>
+                        <div className="flex-1 min-w-0">
+                          {/* Date */}
+                          <div className="label-small text-on-surface-variant mb-1">
+                            {boxDate}
                           </div>
-                          {box.items.length === 0 && (
-                            <p className="body-small text-on-surface-variant">
-                              No items added yet
-                            </p>
-                          )}
+                          {/* Box ID + Label */}
+                          <div className="body-medium text-on-surface mb-1">
+                            {box.qrLabel}
+                          </div>
+                          <div className="label-small text-on-surface-variant">
+                            ID: {box.id}
+                          </div>
+                          {/* Items count and status */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="body-small text-on-surface-variant">
+                              {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
+                            </span>
+                            {box.status === 'registered' && (
+                              <Badge variant="secondary" className="bg-success-container text-on-success-container body-small">
+                                Registered
+                              </Badge>
+                            )}
+                            {box.status === 'pending' && (
+                              <Badge variant="outline" className="text-on-surface-variant body-small">
+                                Pending
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <DropdownMenu>
@@ -491,7 +558,7 @@ export default function DeliveryNoteCreationScreen({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {box.status === 'complete' && (
+                          {box.status === 'registered' && (
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
                               handleUnregisterBox(box.id);
@@ -500,7 +567,7 @@ export default function DeliveryNoteCreationScreen({
                               Unregister
                             </DropdownMenuItem>
                           )}
-                          {(box.status === 'pending' || box.status === 'complete') && (
+                          {box.status === 'pending' && (
                             <DropdownMenuItem 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -515,39 +582,18 @@ export default function DeliveryNoteCreationScreen({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                  </CardHeader>
-
-                  <CardContent className="pt-0">
-                    {/* Box summary - no items shown here, click to open box details */}
-                    <div className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="body-small">
-                          {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
-                        </Badge>
-                        {box.status === 'complete' && (
-                          <Badge variant="secondary" className="bg-success-container text-on-success-container">
-                            Registered
-                          </Badge>
-                        )}
-                        {box.status === 'pending' && (
-                          <Badge variant="outline" className="text-on-surface-variant">
-                            Pending
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          </Section>
+              );
+            })}
+          </div>
         ) : (
           <Card>
             <CardContent className="py-12">
               <EmptyState
                 icon={<PackageIcon size={48} className="text-on-surface-variant" />}
                 title="No boxes added yet"
-                description="Scan or enter box labels to start packing items"
+                description="Click Add box to start packing items"
               />
             </CardContent>
           </Card>
@@ -556,27 +602,80 @@ export default function DeliveryNoteCreationScreen({
         {/* Unassigned Items List */}
         {availableItems.length > 0 && (
           <Card className="border-error">
-            <CardHeader>
-              <CardTitle className="title-medium text-error">
-                Unassigned Items ({availableItems.length})
-              </CardTitle>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="title-medium text-error">
+                  Unassigned Items ({availableItems.length})
+                </CardTitle>
+                {availableItems.length > 5 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedUnassignedItems(!expandedUnassignedItems)}
+                  >
+                    <span className="label-medium">
+                      {expandedUnassignedItems ? 'Show less' : 'Show all'}
+                    </span>
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {availableItems.slice(0, 5).map((item) => (
-                  <div key={item.id} className="p-3 bg-error-container/10 rounded-lg border border-error/20">
-                    <p className="title-small text-on-surface">{item.itemId}</p>
-                    <p className="body-small text-on-surface-variant">
-                      {item.brand} • {item.category}
-                      {item.retailerItemId && ` • ${item.retailerItemId}`}
-                    </p>
+                {(expandedUnassignedItems ? availableItems : availableItems.slice(0, 5)).map((item) => (
+                  <div key={item.id} className="flex items-center gap-3 p-3 bg-error-container/10 rounded-lg border border-error/20">
+                    {/* Item Image */}
+                    <div className="flex-shrink-0 w-16 h-16 bg-surface-container rounded-lg overflow-hidden border border-outline-variant">
+                      {item.image || item.thumbnail ? (
+                        <ImageWithFallback
+                          src={item.image || item.thumbnail || ''}
+                          alt={item.itemId || item.partnerItemId || ''}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-surface-variant flex items-center justify-center">
+                          <PackageIcon className="w-6 h-6 text-on-surface-variant" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Item Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="title-small text-on-surface mb-1">{item.itemId || item.partnerItemId}</p>
+                      <p className="body-small text-on-surface-variant mb-1">
+                        {item.brand} • {item.category}
+                        {item.retailerItemId && ` • ${item.retailerItemId}`}
+                      </p>
+                      {item.price && (
+                        <p className="body-medium text-on-surface">
+                          {item.price} SEK
+                        </p>
+                      )}
+                    </div>
+                    {/* Admin Delete Option */}
+                    {isAdmin && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical size={16} className="text-on-surface-variant" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteUnassignedItem(item.id)}
+                            className="text-error focus:text-error"
+                          >
+                            <Trash2Icon className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 ))}
-                {availableItems.length > 5 && (
-                  <p className="body-small text-on-surface-variant text-center pt-2">
-                    + {availableItems.length - 5} more items
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -588,7 +687,7 @@ export default function DeliveryNoteCreationScreen({
         <div className="flex flex-col md:flex-row md:justify-end gap-3 md:px-2">
           <div className="flex items-center gap-2 text-on-surface-variant body-small md:mr-auto">
             <PackageIcon size={16} />
-            <span>{assignedItems} of {totalItems} items in {boxes.length} box(es)</span>
+            <span>{assignedItems} of {totalItems} items in {boxes.length} box{boxes.length !== 1 ? 'es' : ''}</span>
           </div>
           
           <Button
@@ -597,6 +696,14 @@ export default function DeliveryNoteCreationScreen({
             className="w-full md:w-auto"
           >
             <span className="label-large">Cancel</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleSaveDeliveryNoteAndClose}
+            className="w-full md:w-auto"
+          >
+            <span className="label-large">Save & Close</span>
           </Button>
           
           <Button
@@ -778,3 +885,4 @@ export default function DeliveryNoteCreationScreen({
     </div>
   );
 }
+

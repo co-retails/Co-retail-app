@@ -29,6 +29,11 @@ interface DeliveryNoteBoxDetailsScreenProps {
   onBack: () => void;
   onRegisterBox: (boxId: string) => void;
   onSaveAndClose: (boxId: string, items: OrderItem[]) => void;
+  receiverBrand?: string;
+  receiverStoreCode?: string;
+  senderWarehouse?: string;
+  isAdmin?: boolean;
+  onUnregisterBox?: (boxId: string) => void;
 }
 
 export default function DeliveryNoteBoxDetailsScreen({
@@ -36,7 +41,12 @@ export default function DeliveryNoteBoxDetailsScreen({
   orderItems,
   onBack,
   onRegisterBox,
-  onSaveAndClose
+  onSaveAndClose,
+  receiverBrand,
+  receiverStoreCode,
+  senderWarehouse,
+  isAdmin = false,
+  onUnregisterBox
 }: DeliveryNoteBoxDetailsScreenProps) {
   const [boxItems, setBoxItems] = useState<OrderItem[]>(box.items || []);
   const [scannedItemIds, setScannedItemIds] = useState<Set<string>>(
@@ -44,11 +54,11 @@ export default function DeliveryNoteBoxDetailsScreen({
   );
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
 
-  // Determine if box is editable (pending or packing status)
-  const isEditable = box.status === 'pending' || box.status === 'packing';
+  // Determine if box is editable (pending status only - registered boxes cannot be edited)
+  const isEditable = box.status === 'pending';
   
-  // Determine if box is registered/in-transit/delivered (complete maps to registered)
-  const isReadOnly = box.status === 'complete' || box.status === 'registered' || box.status === 'in-transit' || box.status === 'delivered';
+  // Determine if box is registered/in-transit/delivered
+  const isReadOnly = box.status === 'registered' || box.status === 'in-transit' || box.status === 'delivered';
 
   // Get all available items (not yet in any box or in this box)
   const availableItems = orderItems.filter(item => 
@@ -143,10 +153,6 @@ export default function DeliveryNoteBoxDetailsScreen({
     switch (box.status) {
       case 'pending':
         return 'Pending';
-      case 'packing':
-        return 'Packing';
-      case 'complete':
-        return 'Registered'; // 'complete' maps to 'registered'
       case 'registered':
         return 'Registered';
       case 'in-transit':
@@ -161,9 +167,7 @@ export default function DeliveryNoteBoxDetailsScreen({
   const getStatusColor = () => {
     switch (box.status) {
       case 'pending':
-      case 'packing':
         return 'text-on-surface-variant';
-      case 'complete':
       case 'registered':
         return 'text-success';
       case 'in-transit':
@@ -211,6 +215,33 @@ export default function DeliveryNoteBoxDetailsScreen({
                   </div>
                 </div>
               </CardHeader>
+              <CardContent className="pt-0">
+                {/* Receiver and Sender Information */}
+                {(receiverBrand || receiverStoreCode || senderWarehouse) && (
+                  <div className="mt-4 pt-4 border-t border-outline-variant space-y-3">
+                    {receiverBrand && receiverStoreCode && (
+                      <div>
+                        <div className="label-small text-on-surface-variant mb-1">
+                          Receiver
+                        </div>
+                        <div className="body-medium text-on-surface">
+                          {receiverBrand} {receiverStoreCode}
+                        </div>
+                      </div>
+                    )}
+                    {senderWarehouse && (
+                      <div>
+                        <div className="label-small text-on-surface-variant mb-1">
+                          Sender
+                        </div>
+                        <div className="body-medium text-on-surface">
+                          {senderWarehouse}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
             </Card>
 
             {/* Editable Box View - Active Scanner */}
@@ -494,6 +525,25 @@ export default function DeliveryNoteBoxDetailsScreen({
                 <span className="label-large">Register Box</span>
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unregister button for admins on registered boxes */}
+      {!isEditable && box.status === 'registered' && isAdmin && onUnregisterBox && (
+        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant z-20">
+          <div className="px-4 md:px-6 py-4 pb-safe">
+            <Button
+              variant="outline"
+              onClick={() => {
+                onUnregisterBox(box.id);
+                onBack();
+              }}
+              className="w-full"
+              size="lg"
+            >
+              <span className="label-large">Unregister Box</span>
+            </Button>
           </div>
         </div>
       )}
