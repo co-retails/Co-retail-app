@@ -27,6 +27,7 @@ import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './Stat
 import { UserRole } from './ItemCard';
 import { toast } from 'sonner';
 import { Checkbox } from './ui/checkbox';
+import svgPaths from "../imports/svg-7un8q74kd7";
 import { getSekPriceOptions } from '../data/partnerPricing';
 
 export interface ScannedItem extends BaseItem {
@@ -40,6 +41,7 @@ interface ScanScreenProps {
   onNavigateToItems?: () => void;
   onNavigateToSellers?: () => void;
   onNavigateToShipping?: () => void;
+  onNavigateToReturns?: () => void;
   userRole?: UserRole;
   currentPartnerWarehouseSelection?: { partnerId: string; warehouseId: string };
 }
@@ -50,26 +52,9 @@ const getTodayString = () => {
   return separatorIndex === -1 ? iso : iso.slice(0, separatorIndex);
 };
 
-function ScanViewer({ onManualEntry, onScan }: { 
-  onManualEntry: (itemId: string) => void;
+function ScanViewer({ onScan }: { 
   onScan: () => void;
 }) {
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualItemId, setManualItemId] = useState('');
-
-  const handleManualSubmit = () => {
-    if (manualItemId.trim()) {
-      onManualEntry(manualItemId.trim());
-      setManualItemId('');
-      setShowManualEntry(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleManualSubmit();
-    }
-  };
 
   return (
     <div className="sticky top-0 mx-4 md:mx-6 mt-4 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden z-20">
@@ -118,54 +103,14 @@ function ScanViewer({ onManualEntry, onScan }: {
           </button>
         </div>
       </div>
-      
-      {/* Manual Entry Section */}
-      <div className="p-4 border-t border-outline-variant bg-surface">
-        {!showManualEntry ? (
-          <button 
-            className="w-full text-primary hover:bg-primary-container/10 focus:bg-primary-container/10 active:bg-primary-container/20 transition-colors py-2 rounded-md label-medium"
-            onClick={() => setShowManualEntry(true)}
-          >
-            Add box label manually
-          </button>
-        ) : (
-          <div className="space-y-3">
-            <div className="title-small text-on-surface text-center">
-              Enter box label
-            </div>
-            <input
-              type="text"
-              value={manualItemId}
-              onChange={(e) => setManualItemId(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="e.g. BOX-123456"
-              className="w-full px-3 py-2 bg-surface-container border border-outline-variant rounded-md focus:border-primary focus:outline-none text-on-surface body-large"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowManualEntry(false)}
-                className="flex-1 border border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-4 py-2 rounded-lg min-h-[40px] label-large"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleManualSubmit}
-                disabled={!manualItemId.trim()}
-                className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors disabled:opacity-38 disabled:cursor-not-allowed px-4 py-2 rounded-lg min-h-[40px] label-large"
-              >
-                Add box
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
 
-function MultiSelectActions({ selectedCount, onSelectAll, onArchive, onMarkExpired, onBulkEdit, onExport, onBatchStatusUpdate }: {
+function MultiSelectActions({ selectedCount, totalCount, isAllSelected, onSelectAll, onArchive, onMarkExpired, onBulkEdit, onExport, onBatchStatusUpdate }: {
   selectedCount: number;
+  totalCount: number;
+  isAllSelected: boolean;
   onSelectAll: () => void;
   onArchive: () => void;
   onMarkExpired: () => void;
@@ -173,7 +118,10 @@ function MultiSelectActions({ selectedCount, onSelectAll, onArchive, onMarkExpir
   onExport: () => void;
   onBatchStatusUpdate: () => void;
 }) {
-  if (selectedCount === 0) return null;
+  // Don't show if there are no items
+  if (totalCount === 0) return null;
+
+  const hasSelectedItems = selectedCount > 0;
 
   return (
     <div className="bg-surface-container border-t border-outline-variant">
@@ -183,19 +131,35 @@ function MultiSelectActions({ selectedCount, onSelectAll, onArchive, onMarkExpir
           <button 
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
             onClick={onSelectAll}
-            aria-label="Select all items"
+            aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
           >
-            <div className="w-6 h-6 rounded-md border border-outline flex items-center justify-center bg-surface-container-high">
-              <Check className="w-4 h-4 text-on-surface" />
+            <div className="relative w-6 h-6">
+              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
+                <path 
+                  clipRule="evenodd" 
+                  d={isAllSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
+                  fill={isAllSelected ? "var(--primary)" : "var(--outline-variant)"} 
+                  fillRule="evenodd" 
+                />
+              </svg>
+              {isAllSelected && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-on-primary" />
+                </div>
+              )}
             </div>
           </button>
           
           <div className="title-small text-on-surface">
-            {selectedCount} selected
+            {hasSelectedItems 
+              ? `${selectedCount} selected`
+              : `${totalCount} ${totalCount === 1 ? 'item' : 'items'}`
+            }
           </div>
         </div>
         
-        {/* Right side - Actions */}
+        {/* Right side - Actions (only show when items are selected) */}
+        {hasSelectedItems && (
         <div className="flex items-center gap-2">
           {/* More Actions Dropdown */}
           <DropdownMenu>
@@ -235,6 +199,7 @@ function MultiSelectActions({ selectedCount, onSelectAll, onArchive, onMarkExpir
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        )}
       </div>
     </div>
   );
@@ -341,14 +306,22 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   );
 }
 
-function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreActions, onClick, userRole, onSelectAll }: {
+function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreActions, onClick, userRole, onSelectAll, selectedCount, totalCount, isAllSelected, onArchive, onMarkExpired, onBulkEdit, onExport, onBatchStatusUpdate }: {
   items: ScannedItem[];
   onClearItems: () => void;
   onToggleSelect: (itemId: string) => void;
-  onMoreActions: (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status' | 'reject') => void;
+  onMoreActions: (item: BaseItem, action: 'in-store' | 'store-transfer' | 'sold' | 'missing' | 'broken' | 'rejected' | 'in-store-2nd-try') => void;
   onClick: (item: BaseItem) => void;
   userRole: UserRole;
   onSelectAll: () => void;
+  selectedCount: number;
+  totalCount: number;
+  isAllSelected: boolean;
+  onArchive: () => void;
+  onMarkExpired: () => void;
+  onBulkEdit: () => void;
+  onExport: () => void;
+  onBatchStatusUpdate: () => void;
 }) {
   return (
     <div className="flex-1 pb-20">
@@ -370,24 +343,24 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
         </div>
       </div>
       
+      {/* Multi-select Actions */}
+      <MultiSelectActions 
+        selectedCount={selectedCount}
+        totalCount={totalCount}
+        isAllSelected={isAllSelected}
+        onSelectAll={onSelectAll}
+        onArchive={onArchive}
+        onMarkExpired={onMarkExpired}
+        onBulkEdit={onBulkEdit}
+        onExport={onExport}
+        onBatchStatusUpdate={onBatchStatusUpdate}
+      />
+      
       {/* Content Area - M3 Grid: 16px mobile, 24px tablet+ */}
       <div className="pt-4 md:pt-6">
         {/* Items list */}
         {items.length > 0 ? (
           <div className="mx-4 md:mx-6 mb-4">
-            {/* Select All Header */}
-            <div className="bg-surface-container border border-outline-variant rounded-[12px] mb-2 px-4 py-3 flex items-center gap-3">
-              <Checkbox
-                checked={items.length > 0 && items.every(item => item.selected)}
-                onCheckedChange={onSelectAll}
-                className="bg-surface-container-high border-outline data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                aria-label="Select all items"
-              />
-              <span className="label-large text-on-surface">
-                Select all ({items.length} {items.length === 1 ? 'item' : 'items'})
-              </span>
-            </div>
-
             <div className="flex flex-col gap-2">
               {items.map((item) => (
                 <div key={item.id} className="bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden">
@@ -424,7 +397,8 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
 
 export default function ScanScreen({
   userRole = 'store-staff',
-  currentPartnerWarehouseSelection
+  currentPartnerWarehouseSelection,
+  onNavigateToReturns
 }: ScanScreenProps) {
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([
     {
@@ -509,34 +483,49 @@ export default function ScanScreen({
     setScannedItems(prev => prev.map(item => ({ ...item, selected: !allSelected })));
   };
 
-  const handleMoreActions = (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status' | 'reject') => {
+  const handleMoreActions = (item: BaseItem, action: 'in-store' | 'store-transfer' | 'sold' | 'missing' | 'broken' | 'rejected' | 'in-store-2nd-try') => {
+    let newStatus: ScannedItem['status'];
+    let successMessage: string;
+
     switch (action) {
-      case 'edit':
-        setSelectedItemForDetails(item as ScannedItem);
+      case 'in-store':
+        newStatus = 'In Store';
+        successMessage = `Item ${item.itemId || item.id} marked as In Store`;
         break;
-      case 'archive':
-        setScannedItems(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'Archived' } : i
-        ));
-        toast.success('Item archived');
+      case 'store-transfer':
+        newStatus = 'In transit'; // Store transfer might need a different status, using In transit for now
+        successMessage = `Item ${item.itemId || item.id} marked for store transfer`;
         break;
-      case 'mark-expired':
-        setScannedItems(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'Expired' } : i
-        ));
-        toast.success('Item marked as expired');
+      case 'sold':
+        newStatus = 'Sold';
+        successMessage = `Item ${item.itemId || item.id} marked as Sold`;
         break;
-      case 'export':
-        toast.success('Item data exported');
+      case 'missing':
+        newStatus = 'Missing';
+        successMessage = `Item ${item.itemId || item.id} marked as Missing`;
         break;
-      case 'update-status':
-        setItemToUpdateStatus(item as ScannedItem);
-        setShowStatusUpdateDialog(true);
+      case 'broken':
+        newStatus = 'Broken';
+        successMessage = `Item ${item.itemId || item.id} marked as Broken`;
         break;
-      case 'reject':
-        toast.info('Reject flow is available from the items screen.');
+      case 'rejected':
+        // For ScanScreen, we can show a dialog or directly update status
+        // Since reject requires a reason, we'll update status directly
+        newStatus = 'Rejected';
+        successMessage = `Item ${item.itemId || item.id} marked as Rejected`;
         break;
+      case 'in-store-2nd-try':
+        newStatus = 'In Store 2nd try';
+        successMessage = `Item ${item.itemId || item.id} marked as In Store 2nd try`;
+        break;
+      default:
+        return;
     }
+
+    setScannedItems(prev => prev.map(i => 
+      i.id === item.id ? { ...i, status: newStatus } : i
+    ));
+    toast.success(successMessage);
   };
   
   const handleStatusUpdateConfirm = (newStatus: StatusUpdateItemStatus, note?: string) => {
@@ -747,68 +736,22 @@ export default function ScanScreen({
     toast.success(`Scanned: ${newItem.itemId}`);
   };
 
-  const handleManualEntry = (itemId: string) => {
-    // Simulate adding a manually entered item
-    const newItem: ScannedItem = {
-      id: Date.now().toString(),
-      itemId: itemId,
-      status: 'Pending',
-      date: getTodayString(),
-      brand: '-',
-      category: '-',
-      price: 0,
-      selected: false,
-      statusHistory: [
-        { 
-          status: 'Pending', 
-          timestamp: new Date().toLocaleString('sv-SE', { 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit', 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }).replace(',', ''),
-          user: 'Current User',
-          note: 'Manual entry'
-        }
-      ]
-    };
-    
-    setScannedItems(prev => [newItem, ...prev]);
-    toast.success(`Manual entry added: ${itemId}`);
-    
-    // Simulate async lookup of item details
-    setTimeout(() => {
-      setScannedItems(prev => prev.map(item => 
-        item.id === newItem.id 
-          ? {
-              ...item,
-              status: 'In Store',
-              brand: 'Manual Entry',
-              category: 'Unknown',
-              size: 'M',
-              color: 'Unknown',
-              price: Math.floor(Math.random() * 50) + 5
-            }
-          : item
-      ));
-    }, 1500);
+  // Check if return button should be shown based on scanned/selected items status
+  const returnableStatuses = ['In Store', 'Missing', 'Broken', 'Rejected', 'Expired'];
+  const hasReturnableItems = useMemo(() => {
+    const itemsToCheck = selectedItems.length > 0 ? selectedItems : scannedItems;
+    return itemsToCheck.some(item => returnableStatuses.includes(item.status || ''));
+  }, [selectedItems, scannedItems]);
+
+  const handleReturn = () => {
+    if (onNavigateToReturns) {
+      onNavigateToReturns();
+    }
   };
 
   return (
     <div className="bg-surface min-h-screen flex flex-col">
-      <ScanViewer onManualEntry={handleManualEntry} onScan={handleScan} />
-      
-      {/* Multi-select Actions */}
-      <MultiSelectActions 
-        selectedCount={selectedItems.length}
-        onSelectAll={handleSelectAll}
-        onArchive={handleArchiveSelected}
-        onMarkExpired={handleMarkExpired}
-        onBulkEdit={handleBulkEdit}
-        onExport={handleExport}
-        onBatchStatusUpdate={() => setShowBatchStatusUpdate(true)}
-      />
+      <ScanViewer onScan={handleScan} />
       
       <ScannedItemsSection 
         items={scannedItems}
@@ -818,6 +761,14 @@ export default function ScanScreen({
         onClick={handleItemClick}
         userRole={userRole}
         onSelectAll={handleSelectAll}
+        selectedCount={selectedItems.length}
+        totalCount={scannedItems.length}
+        isAllSelected={scannedItems.length > 0 && scannedItems.every(item => item.selected)}
+        onArchive={handleArchiveSelected}
+        onMarkExpired={handleMarkExpired}
+        onBulkEdit={handleBulkEdit}
+        onExport={handleExport}
+        onBatchStatusUpdate={() => setShowBatchStatusUpdate(true)}
       />
 
       {/* Bulk Edit Modal */}
@@ -926,6 +877,18 @@ export default function ScanScreen({
         itemTitle={itemToUpdateStatus?.brand}
         userRole={userRole}
       />
+
+      {/* Bottom Return Action */}
+      {hasReturnableItems && onNavigateToReturns && (
+        <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 z-10">
+          <Button 
+            onClick={handleReturn}
+            className="w-full bg-primary text-on-primary hover:bg-primary/90"
+          >
+            Return
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

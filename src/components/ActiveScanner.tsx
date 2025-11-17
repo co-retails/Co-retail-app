@@ -34,7 +34,7 @@ export default function ActiveScanner({
   };
 
   return (
-    <div className="bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden mx-4">
+    <div className="bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden mx-4 relative h-full">
       {/* Close button */}
       {onClose && (
         <div className="absolute top-4 right-4 z-30">
@@ -49,7 +49,7 @@ export default function ActiveScanner({
       )}
       
       {/* Camera Preview Area - Fixed height to prevent layout shift */}
-      <div className="relative bg-surface-variant h-64 flex items-center justify-center min-h-[16rem]">
+      <div className="relative bg-surface-variant h-full flex items-center justify-center min-h-[16rem] max-h-[16rem]">
         {/* Camera preview placeholder - in real implementation, this would show camera feed */}
         <div className="absolute inset-4 border-2 border-primary rounded-lg flex items-center justify-center">
           <div className="w-16 h-16 border-2 border-primary border-dashed rounded-lg flex items-center justify-center">
@@ -114,6 +114,8 @@ export default function ActiveScanner({
               </div>
               <input
                 type="text"
+                id="manual-item-id"
+                name="manual-item-id"
                 value={manualItemId}
                 onChange={(e) => setManualItemId(e.target.value)}
                 onKeyPress={handleKeyPress}

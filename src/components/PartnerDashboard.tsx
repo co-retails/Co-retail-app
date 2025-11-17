@@ -372,17 +372,16 @@ export default function PartnerDashboard({
         </div>
       </div>
 
-      {/* Main Content - M3 Grid: 16px mobile, 24px tablet+ */}
-      <div className="px-4 md:px-6 py-6 space-y-6">
+      {/* Main Content Container */}
+      <div className="w-full">
+        {/* Main Content */}
+        <div className="px-4 md:px-6 pt-6 pb-8 space-y-8 max-w-5xl mx-auto w-full">
         {/* Partner Overview - Matching Home Screen Button Style */}
         <div className="space-y-4">
           <div className="flex flex-col gap-4">
-            <div
-              className={`flex items-center ${isThriftedOrSellpyPartner ? 'justify-end' : 'justify-between'}`}
-            >
-              {!isThriftedOrSellpyPartner && (
-                <h2 className="title-medium text-on-surface">Partner Overview</h2>
-              )}
+            <div className="flex items-center justify-between">
+              {/* Partner Overview Title */}
+              <h2 className="title-medium text-on-surface">Partner overview</h2>
               
               {/* Filter Button - Mobile & Desktop - Matching ShippingScreen design */}
               <StoreFilterBottomSheet
@@ -516,24 +515,42 @@ export default function PartnerDashboard({
           
         </div>
 
-        {/* Quick Actions */}
-        <div className="space-y-4">
-          {isThriftedOrSellpyPartner ? (
-            <>
-              <div className="flex flex-col md:flex-row md:items-stretch gap-3">
-                <Card
-                  className="p-4 bg-surface-container border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors w-full md:max-w-sm"
-                  onClick={onViewBoxes}
-                >
-                  <div>
-                    <p className="body-small text-on-surface-variant mb-1">Shipments in transit</p>
-                    <p className="headline-small text-on-surface">{activeShipmentsCount}</p>
-                  </div>
-                </Card>
+        {/* Overview Stats - Compact Cards (Thrifted/Sellpy only) */}
+        {isThriftedOrSellpyPartner && (
+          <div className="grid grid-cols-2 gap-3">
+            <Card
+              className="p-4 bg-surface-container border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors"
+              onClick={onViewBoxes}
+            >
+              <div>
+                <p className="body-small text-on-surface-variant mb-1">Shipments in transit</p>
+                <p className="headline-small text-on-surface">{activeShipmentsCount}</p>
               </div>
-              <div className="space-y-3">
-                <h3 className="title-medium text-on-surface">Quick actions</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            </Card>
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        {isThriftedOrSellpyPartner ? (
+          <div>
+            <h2 className="title-medium text-on-surface mb-4">Quick actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button
+                    onClick={onViewOrders}
+                    className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
+                        <ClipboardList className="w-5 h-5 text-on-primary-container" />
+                      </div>
+                      <div>
+                        <p className="title-small text-on-surface">Orders to process</p>
+                        <p className="body-small text-on-surface-variant">{pendingOrdersLabel}</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                  </button>
+
                   <button
                     onClick={onViewRegisteredOrders ?? onViewOrders}
                     className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
@@ -547,22 +564,6 @@ export default function PartnerDashboard({
                         <p className="body-small text-on-surface-variant">
                           {registeredOrdersCount} registered {registeredOrdersCount === 1 ? 'order' : 'orders'}
                         </p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                  </button>
-
-                  <button
-                    onClick={onViewOrders}
-                    className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
-                        <ClipboardList className="w-5 h-5 text-on-primary-container" />
-                      </div>
-                      <div>
-                        <p className="title-small text-on-surface">Process orders</p>
-                        <p className="body-small text-on-surface-variant">{pendingOrdersLabel}</p>
                       </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-on-surface-variant" />
@@ -583,10 +584,11 @@ export default function PartnerDashboard({
                     </div>
                     <ChevronRight className="w-5 h-5 text-on-surface-variant" />
                   </button>
-                </div>
-              </div>
-            </>
-          ) : (
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h2 className="title-medium text-on-surface mb-4">Quick actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Chinese Partner Quick Actions */}
               {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Shenzhen Fashion Manufacturing' ? (
@@ -703,8 +705,8 @@ export default function PartnerDashboard({
                 </>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Latest Quotation Requests - Chinese Partner Only */}
         {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Shenzhen Fashion Manufacturing' && (
@@ -874,6 +876,7 @@ export default function PartnerDashboard({
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
 
       {/* Partner/Warehouse Selector Modal */}

@@ -73,7 +73,7 @@ export const mockPartners: Partner[] = [
     id: '2', 
     name: 'Kinda Kinks',
     connectionStatus: 'connected',
-    itemsToReturn: 8
+    itemsToReturn: 0
   },
   {
     id: '3',
@@ -154,6 +154,63 @@ export const mockReturnItems: ReturnItem[] = [
     canExtend: true,
     scanned: false,
     image: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080'
+  },
+  // Demo items for Kinda Kinks partner - Weekday Sweden Drottninggatan
+  {
+    id: 'kk-1',
+    itemId: 'KK-ITM-001',
+    title: 'Vintage Denim Jacket',
+    size: 'M',
+    color: 'Blue',
+    status: 'In store',
+    partnerItemRef: 'KK-VDJ-001',
+    selected: false,
+    canExtend: false,
+    scanned: false,
+    image: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    thumbnail: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080'
+  },
+  {
+    id: 'kk-2',
+    itemId: 'KK-ITM-002',
+    title: 'Leather Boots',
+    size: '39',
+    color: 'Black',
+    status: 'Broken',
+    partnerItemRef: 'KK-LB-002',
+    selected: false,
+    canExtend: false,
+    scanned: false,
+    image: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080',
+    thumbnail: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080'
+  },
+  {
+    id: 'kk-3',
+    itemId: 'KK-ITM-003',
+    title: 'Cotton Summer Dress',
+    size: 'L',
+    color: 'White',
+    status: 'Rejected',
+    partnerItemRef: 'KK-CSD-003',
+    selected: false,
+    canExtend: false,
+    scanned: false,
+    image: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    thumbnail: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080'
+  },
+  {
+    id: 'kk-4',
+    itemId: 'KK-ITM-004',
+    title: 'Wool Sweater',
+    size: 'S',
+    color: 'Gray',
+    status: 'In transit',
+    partnerItemRef: 'KK-WS-004',
+    selected: false,
+    canExtend: false,
+    scanned: false,
+    image: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080',
+    thumbnail: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080'
   }
 ];
 
@@ -1167,7 +1224,7 @@ export const mockReturnDeliveries: ReturnDelivery[] = [
   {
     id: 'RET-001',
     date: '2024-12-10',
-    status: 'Pending pickup',
+    status: 'Pending',
     deliveryId: 'RET-001-20241210',
     items: 45,
     boxes: 2,
@@ -1208,6 +1265,97 @@ export const mockReturnDeliveries: ReturnDelivery[] = [
     storeId: '4',
     warehouseId: '1',
     warehouseName: 'Stockholm Central Warehouse'
+  },
+  // Weekday Sweden Drottninggatan returns with different statuses
+  {
+    id: 'RET-004',
+    date: '2024-12-11',
+    status: 'Pending',
+    deliveryId: 'RET-004-20241211',
+    items: 28,
+    boxes: 1,
+    storeName: 'Drottninggatan 63',
+    storeCode: 'SE0655',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    storeId: '1',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
+  },
+  {
+    id: 'RET-005',
+    date: '2024-12-10',
+    status: 'In transit',
+    deliveryId: 'RET-005-20241210',
+    items: 52,
+    boxes: 2,
+    storeName: 'Drottninggatan 63',
+    storeCode: 'SE0655',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    storeId: '1',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
+  },
+  {
+    id: 'RET-006',
+    date: '2024-12-09',
+    status: 'In transit',
+    deliveryId: 'RET-006-20241209',
+    items: 35,
+    boxes: 1,
+    storeName: 'Drottninggatan 63',
+    storeCode: 'SE0655',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    storeId: '1',
+    warehouseId: '2',
+    warehouseName: 'Thrifted Oslo Distribution'
+  },
+  {
+    id: 'RET-007',
+    date: '2024-12-07',
+    status: 'Returned',
+    deliveryId: 'RET-007-20241207',
+    items: 42,
+    boxes: 2,
+    storeName: 'Drottninggatan 63',
+    storeCode: 'SE0655',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    storeId: '1',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
+  },
+  {
+    id: 'RET-008',
+    date: '2024-12-06',
+    status: 'Returned',
+    deliveryId: 'RET-008-20241206',
+    items: 19,
+    boxes: 1,
+    storeName: 'Drottninggatan 63',
+    storeCode: 'SE0655',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    storeId: '1',
+    warehouseId: '2',
+    warehouseName: 'Thrifted Oslo Distribution'
+  },
+  {
+    id: 'RET-009',
+    date: '2024-12-12',
+    status: 'Pending',
+    deliveryId: 'RET-009-20241212',
+    items: 67,
+    boxes: 3,
+    storeName: 'Drottninggatan 63',
+    storeCode: 'SE0655',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    storeId: '1',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
   }
 ];
 
@@ -1235,7 +1383,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'M',
         color: 'Blue',
         price: 35.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'VDJ-001',
         retailerItemId: 'RID-ABC123',
         source: 'api-integration'
@@ -1250,7 +1398,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: '42',
         color: 'Black',
         price: 45.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'LBT-002',
         retailerItemId: 'RID-DEF456',
         source: 'api-integration'
@@ -1279,7 +1427,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'L',
         color: 'White',
         price: 28.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'CTD-101',
         retailerItemId: 'RID-GHI789',
         source: 'api-integration'
@@ -1294,7 +1442,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'S',
         color: 'Red',
         price: 15.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'TPP-102',
         source: 'api-integration'
       },
@@ -1337,7 +1485,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'S',
         color: 'Gray',
         price: 32.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WSW-201',
         source: 'api-integration'
       },
@@ -1351,7 +1499,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: '32',
         color: 'Navy',
         price: 38.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'PNT-202',
         source: 'api-integration'
       }
@@ -1379,7 +1527,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'One Size',
         color: 'Multi',
         price: 12.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'SLK-301',
         retailerItemId: 'RID-JKL012',
         source: 'api-integration'
@@ -1408,7 +1556,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'One Size',
         color: 'Brown',
         price: 42.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'VHB-401',
         source: 'api-integration'
       }
@@ -1436,7 +1584,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'M',
         color: 'Black',
         price: 45.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-501',
         source: 'api-integration'
       },
@@ -1450,7 +1598,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'S',
         color: 'White',
         price: 25.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-502',
         source: 'api-integration'
       },
@@ -1464,7 +1612,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'L',
         color: 'Navy',
         price: 30.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-503',
         source: 'api-integration'
       },
@@ -1478,7 +1626,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'One Size',
         color: 'Brown',
         price: 35.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-504',
         source: 'api-integration'
       }
@@ -1506,7 +1654,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'M',
         color: 'Blue',
         price: 40.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-601',
         source: 'api-integration'
       },
@@ -1520,7 +1668,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'XL',
         color: 'Black',
         price: 65.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-602',
         source: 'api-integration'
       },
@@ -1534,7 +1682,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: '38',
         color: 'White',
         price: 50.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-603',
         source: 'api-integration'
       }
@@ -1562,7 +1710,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'S',
         color: 'Pink',
         price: 35.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'MKI-701',
         source: 'api-integration'
       },
@@ -1576,7 +1724,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'M',
         color: 'Yellow',
         price: 22.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'MKI-702',
         source: 'api-integration'
       },
@@ -1590,7 +1738,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'L',
         color: 'Blue',
         price: 28.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'MKI-703',
         source: 'api-integration'
       },
@@ -1604,7 +1752,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'One Size',
         color: 'Silver',
         price: 15.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'MKI-704',
         source: 'api-integration'
       },
@@ -1618,7 +1766,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: '37',
         color: 'Brown',
         price: 32.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'MKI-705',
         source: 'api-integration'
       }
@@ -1646,7 +1794,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: '32',
         color: 'Gray',
         price: 38.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-801',
         source: 'api-integration'
       },
@@ -1660,7 +1808,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'M',
         color: 'Green',
         price: 28.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'WKD-802',
         source: 'api-integration'
       }
@@ -1688,7 +1836,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'M',
         color: 'Beige',
         price: 55.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'COS-901',
         source: 'api-integration'
       },
@@ -1702,7 +1850,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'L',
         color: 'White',
         price: 42.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'COS-902',
         source: 'api-integration'
       },
@@ -1716,7 +1864,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'S',
         color: 'Navy',
         price: 48.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'COS-903',
         source: 'api-integration'
       },
@@ -1730,7 +1878,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'XL',
         color: 'Black',
         price: 85.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'COS-904',
         source: 'api-integration'
       },
@@ -1744,7 +1892,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'One Size',
         color: 'Gray',
         price: 32.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'COS-905',
         source: 'api-integration'
       },
@@ -1758,7 +1906,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         size: 'One Size',
         color: 'Brown',
         price: 62.00,
-        status: 'valid',
+        status: undefined,
         partnerItemId: 'COS-906',
         source: 'api-integration'
       }
@@ -1786,7 +1934,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'M',
             color: 'Blue',
             price: 35.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'VDJ-001',
             retailerItemId: 'RID-ABC123',
             source: 'api-integration'
@@ -1801,7 +1949,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'S',
             color: 'Black',
             price: 28.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'SD-002',
             retailerItemId: 'RID-DEF456',
             source: 'api-integration'
@@ -1839,7 +1987,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'One Size',
             color: 'Multi',
             price: 12.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'SLK-301',
             retailerItemId: 'RID-JKL012',
             source: 'api-integration'
@@ -1877,7 +2025,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'One Size',
             color: 'Brown',
             price: 42.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'VHB-401',
             source: 'api-integration'
           }
@@ -1914,7 +2062,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'M',
             color: 'Blue',
             price: 40.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'WKD-601',
             source: 'api-integration'
           },
@@ -1928,7 +2076,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'XL',
             color: 'Black',
             price: 65.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'WKD-602',
             source: 'api-integration'
           }
@@ -1950,7 +2098,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: '38',
             color: 'White',
             price: 50.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'WKD-603',
             source: 'api-integration'
           }
@@ -1987,7 +2135,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'S',
             color: 'Pink',
             price: 35.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'MKI-701',
             source: 'api-integration'
           },
@@ -2001,7 +2149,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'M',
             color: 'White',
             price: 22.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'MKI-702',
             source: 'api-integration'
           },
@@ -2015,7 +2163,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'M',
             color: 'Black',
             price: 28.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'MKI-703',
             source: 'api-integration'
           }
@@ -2037,7 +2185,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: 'One Size',
             color: 'Gold',
             price: 18.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'MKI-704',
             source: 'api-integration'
           },
@@ -2051,7 +2199,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             size: '37',
             color: 'Brown',
             price: 32.00,
-            status: 'valid',
+            status: undefined,
             partnerItemId: 'MKI-705',
             source: 'api-integration'
           }
@@ -2069,6 +2217,207 @@ export const mockDeliveryNotes: DeliveryNote[] = [
     warehouseName: 'Stockholm Central Warehouse',
     storeId: '2',
     storeCode: 'SE0520'
+  },
+  // Pending delivery notes (Sellpy only)
+  {
+    id: 'DN-2024-006',
+    orderId: 'SEL-ORD-2024-101',
+    boxes: [],
+    status: 'pending',
+    createdDate: '2024-12-11',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '1',
+    storeCode: 'SE0655'
+  },
+  {
+    id: 'DN-2024-007',
+    orderId: 'SEL-ORD-2024-103',
+    boxes: [
+      {
+        id: 'BOX-008',
+        qrLabel: 'QR-20241211-001',
+        items: [
+          {
+            id: 'SEL-ITEM-PEND-001',
+            itemId: 'SEL-ITM-PEND-001',
+            brand: 'WEEKDAY',
+            gender: 'Women',
+            category: 'Clothing',
+            subcategory: 'Tops',
+            size: 'M',
+            color: 'White',
+            price: 35.00,
+            status: undefined,
+            partnerItemId: 'WKD-PEND-001',
+            source: 'api-integration'
+          },
+          {
+            id: 'SEL-ITEM-PEND-002',
+            itemId: 'SEL-ITM-PEND-002',
+            brand: 'H&M',
+            gender: 'Unisex',
+            category: 'Clothing',
+            subcategory: 'Outerwear',
+            size: 'L',
+            color: 'Black',
+            price: 48.00,
+            status: undefined,
+            partnerItemId: 'HM-PEND-002',
+            source: 'api-integration'
+          }
+        ],
+        status: 'pending',
+        createdDate: '2024-12-11'
+      }
+    ],
+    status: 'pending',
+    createdDate: '2024-12-11',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '1',
+    storeCode: 'SE0655'
+  },
+  // Packing delivery notes (Sellpy only)
+  {
+    id: 'DN-2024-008',
+    orderId: 'SEL-ORD-2024-107',
+    boxes: [
+      {
+        id: 'BOX-009',
+        qrLabel: 'QR-20241211-002',
+        items: [
+          {
+            id: 'SEL-ITEM-PACK-001',
+            itemId: 'SEL-ITM-PACK-001',
+            brand: 'WEEKDAY',
+            gender: 'Men',
+            category: 'Clothing',
+            subcategory: 'Tops',
+            size: 'L',
+            color: 'Navy',
+            price: 38.00,
+            status: undefined,
+            partnerItemId: 'WKD-PACK-001',
+            source: 'api-integration'
+          },
+          {
+            id: 'SEL-ITEM-PACK-002',
+            itemId: 'SEL-ITM-PACK-002',
+            brand: 'COS',
+            gender: 'Women',
+            category: 'Clothing',
+            subcategory: 'Dresses',
+            size: 'S',
+            color: 'Beige',
+            price: 52.00,
+            status: undefined,
+            partnerItemId: 'COS-PACK-002',
+            source: 'api-integration'
+          },
+          {
+            id: 'SEL-ITEM-PACK-003',
+            itemId: 'SEL-ITM-PACK-003',
+            brand: 'Monki',
+            gender: 'Women',
+            category: 'Accessories',
+            subcategory: 'Bags',
+            size: 'One Size',
+            color: 'Brown',
+            price: 28.00,
+            status: undefined,
+            partnerItemId: 'MKI-PACK-003',
+            source: 'api-integration'
+          }
+        ],
+        status: 'pending',
+        createdDate: '2024-12-11'
+      },
+      {
+        id: 'BOX-010',
+        qrLabel: 'QR-20241211-003',
+        items: [
+          {
+            id: 'SEL-ITEM-PACK-004',
+            itemId: 'SEL-ITM-PACK-004',
+            brand: 'WEEKDAY',
+            gender: 'Women',
+            category: 'Shoes',
+            subcategory: 'Boots',
+            size: '39',
+            color: 'Black',
+            price: 65.00,
+            status: undefined,
+            partnerItemId: 'WKD-PACK-004',
+            source: 'api-integration'
+          }
+        ],
+        status: 'pending',
+        createdDate: '2024-12-11'
+      }
+    ],
+    status: 'packing',
+    createdDate: '2024-12-11',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '2',
+    storeCode: 'SE0656'
+  },
+  {
+    id: 'DN-2024-009',
+    orderId: 'SEL-ORD-2024-105',
+    boxes: [
+      {
+        id: 'BOX-011',
+        qrLabel: 'QR-20241211-004',
+        items: [
+          {
+            id: 'SEL-ITEM-PACK-005',
+            itemId: 'SEL-ITM-PACK-005',
+            brand: 'H&M',
+            gender: 'Unisex',
+            category: 'Accessories',
+            subcategory: 'Hats',
+            size: 'One Size',
+            color: 'Multi',
+            price: 18.00,
+            status: undefined,
+            partnerItemId: 'HM-PACK-005',
+            source: 'api-integration'
+          },
+          {
+            id: 'SEL-ITEM-PACK-006',
+            itemId: 'SEL-ITM-PACK-006',
+            brand: 'WEEKDAY',
+            gender: 'Men',
+            category: 'Clothing',
+            subcategory: 'Bottoms',
+            size: '32',
+            color: 'Gray',
+            price: 42.00,
+            status: undefined,
+            partnerItemId: 'WKD-PACK-006',
+            source: 'api-integration'
+          }
+        ],
+        status: 'pending',
+        createdDate: '2024-12-11'
+      }
+    ],
+    status: 'packing',
+    createdDate: '2024-12-11',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '4',
+    storeCode: 'NO0789'
   }
 ];
 
@@ -2116,6 +2465,55 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     warehouseName: 'Thrifted Oslo Distribution'
   },
   // Sellpy orders
+  // Approval orders (Sellpy only)
+  {
+    id: 'SEL-ORD-2024-APPROVAL-001',
+    status: 'approval',
+    createdDate: '2024-12-11',
+    itemCount: 38,
+    boxCount: 0,
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    receivingStoreId: '1',
+    receivingStoreName: 'Drottninggatan 63',
+    externalOrderId: 'SLPY-2024-APPROVAL-001',
+    orderValue: 2280.00,
+    salesMargin: 43.0,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
+  },
+  {
+    id: 'SEL-ORD-2024-APPROVAL-002',
+    status: 'approval',
+    createdDate: '2024-12-10',
+    itemCount: 42,
+    boxCount: 0,
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    receivingStoreId: '2',
+    receivingStoreName: 'Södermalm Store',
+    externalOrderId: 'SLPY-2024-APPROVAL-002',
+    orderValue: 2520.00,
+    salesMargin: 40.5,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
+  },
+  {
+    id: 'SEL-ORD-2024-APPROVAL-003',
+    status: 'approval',
+    createdDate: '2024-12-10',
+    itemCount: 31,
+    boxCount: 0,
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    receivingStoreId: '3',
+    receivingStoreName: 'Copenhagen Central',
+    externalOrderId: 'SLPY-2024-APPROVAL-003',
+    orderValue: 1860.00,
+    salesMargin: 38.2,
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse'
+  },
   {
     id: 'SEL-ORD-2024-101',
     status: 'pending',

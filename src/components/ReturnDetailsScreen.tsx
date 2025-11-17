@@ -41,6 +41,7 @@ interface ReturnDetailsScreenProps {
   onAddManually: () => void;
   onSaveAndClose: () => void;
   onReturn: () => void;
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
 }
 
 function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
@@ -121,11 +122,12 @@ function ReturnOrderSummaryCard({ returnOrder }: { returnOrder: ReturnOrderDetai
   );
 }
 
-function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions }: { 
+function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions, userRole = 'store-staff' }: { 
   item: ReturnItemDetail; 
   isScanned: boolean;
   onToggleSelect: (id: string) => void;
   onMoreActions: (id: string) => void;
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
 }) {
   // Extend item with missing fields for M3 compliance
   const extendedItem = {
@@ -141,8 +143,11 @@ function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions }: {
   };
 
   return (
-    <div className="bg-surface-container border-b border-outline-variant last:border-b-0">
-      <div className="flex items-center gap-4 px-4 py-3">
+    <div 
+      className="w-full bg-surface-container hover:bg-surface-container-high"
+      style={{ backgroundColor: 'var(--surface-container)' }}
+    >
+      <div className="flex items-center gap-4 px-1 py-3">
         {/* Leading element - Checkbox */}
         <button 
           className="flex-shrink-0 w-10 h-10 flex items-center justify-center"
@@ -168,28 +173,36 @@ function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions }: {
           </div>
         </button>
         
-        {/* Main content using standardized ItemCard */}
+        {/* Main content using standardized ItemCard - override its background */}
         <div className="flex-1">
-          <ItemCard
-            item={{
-              id: item.id,
-              itemId: item.itemId,
-              title: item.title,
-              brand: extendedItem.brand,
-              category: extendedItem.category,
-              size: item.size,
-              color: item.color,
-              price: extendedItem.price,
-              status: extendedItem.status,
-              date: extendedItem.date,
-              thumbnail: extendedItem.thumbnail,
-              selected: extendedItem.selected,
-              partnerItemRef: item.partnerItemRef
-            } as BaseItem}
-            variant="items-list"
-            showActions={false}
-            showSelection={false}
-          />
+          <div 
+            className="[&>div]:!bg-transparent [&>div]:border-b-0 [&>div]:hover:!bg-transparent"
+            style={{ 
+              '--override-bg': 'transparent' 
+            } as React.CSSProperties}
+          >
+            <ItemCard
+              item={{
+                id: item.id,
+                itemId: item.itemId,
+                title: item.title,
+                brand: extendedItem.brand,
+                category: extendedItem.category,
+                size: item.size,
+                color: item.color,
+                price: extendedItem.price,
+                status: extendedItem.status,
+                date: extendedItem.date,
+                thumbnail: extendedItem.thumbnail,
+                selected: extendedItem.selected,
+                partnerItemRef: item.partnerItemRef
+              } as BaseItem}
+              variant="items-list"
+              showActions={false}
+              showSelection={false}
+              userRole={userRole}
+            />
+          </div>
           {extendedItem.daysRemaining && (
             <div className="ml-4 mt-1">
               <span className="label-small text-on-surface-variant">
@@ -297,30 +310,34 @@ function EmptyState({ type, onScan, onAddManually }: {
   );
 }
 
-function ItemsList({ items, isScanned, onToggleSelect, onMoreActions }: {
+function ItemsList({ items, isScanned, onToggleSelect, onMoreActions, userRole = 'store-staff' }: {
   items: ReturnItemDetail[];
   isScanned: boolean;
   onToggleSelect: (id: string) => void;
   onMoreActions: (id: string) => void;
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
 }) {
   if (items.length === 0) return null;
 
   return (
-    <Card className="mx-4 mb-4 bg-surface border border-outline-variant overflow-hidden">
+    <div className="mx-4 mb-4">
       {items.map((item, index) => (
         <div 
           key={item.id} 
-          className={isScanned ? '' : 'opacity-60'}
+          className={`mb-2 last:mb-0 ${isScanned ? '' : 'opacity-60'}`}
         >
-          <ReturnItemCard 
-            item={item} 
-            isScanned={isScanned}
-            onToggleSelect={onToggleSelect}
-            onMoreActions={onMoreActions}
-          />
+          <div className="border border-outline-variant rounded-lg overflow-hidden">
+            <ReturnItemCard 
+              item={item} 
+              isScanned={isScanned}
+              onToggleSelect={onToggleSelect}
+              onMoreActions={onMoreActions}
+              userRole={userRole}
+            />
+          </div>
         </div>
       ))}
-    </Card>
+    </div>
   );
 }
 
@@ -389,7 +406,8 @@ export default function ReturnDetailsScreen({
   onScan,
   onAddManually,
   onSaveAndClose,
-  onReturn
+  onReturn,
+  userRole = 'store-staff'
 }: ReturnDetailsScreenProps) {
   const [activeTab, setActiveTab] = useState('scanned');
   const hasScannedItems = returnOrder.scannedItems.length > 0;
@@ -457,6 +475,7 @@ export default function ReturnDetailsScreen({
               isScanned={activeTab === 'scanned'}
               onToggleSelect={handleToggleSelect}
               onMoreActions={handleMoreActions}
+              userRole={userRole}
             />
           ) : (
             <EmptyState 

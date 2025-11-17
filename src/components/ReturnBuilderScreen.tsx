@@ -10,8 +10,9 @@ export interface ReturnItem {
   title: string;
   size?: string;
   color?: string;
-  status: 'Expired B2B' | 'Rejected';
+  status: 'Expired B2B' | 'Rejected' | 'Return - In transit' | 'In store' | 'Broken' | 'In transit';
   partnerItemRef: string;
+  partnerId?: string; // Partner ID to ensure items belong to the selected partner
   image?: string; // Full-size product image
   thumbnail?: string; // Thumbnail/fallback image
   selected: boolean;
@@ -222,11 +223,15 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualItemId, setManualItemId] = useState('');
 
-  const scannedItems = items.filter(item => item.scanned);
-  const notScannedItems = items.filter(item => !item.scanned && (item.status === 'Expired B2B' || item.status === 'Rejected'));
+  // Filter items to only show items from the selected partner
+  const partnerItems = items.filter(item => !item.partnerId || item.partnerId === partner.id);
+  
+  const scannedItems = partnerItems.filter(item => item.scanned);
+  // Allow scanning items with any status, not just expired or rejected
+  const notScannedItems = partnerItems.filter(item => !item.scanned);
   
   const filteredItems = activeTab === 'scanned' ? scannedItems : notScannedItems;
-  const selectedItems = items.filter(item => item.selected);
+  const selectedItems = partnerItems.filter(item => item.selected);
   const canCreateReturn = selectedItems.length > 0;
 
   const handleScan = () => {
@@ -378,6 +383,8 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
               <div className="absolute bg-surface-container border border-outline inset-0 rounded-sm" />
               <input
                 type="text"
+                id="return-builder-item-id"
+                name="return-builder-item-id"
                 placeholder="Enter item ID"
                 value={manualItemId}
                 onChange={(e) => setManualItemId(e.target.value)}

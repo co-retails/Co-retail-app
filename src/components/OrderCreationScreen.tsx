@@ -34,7 +34,7 @@ export interface OrderItem {
   color: string;
   price: number;
   purchasePrice?: number;
-  status: 'valid' | 'error';
+  status: 'error';
   errors?: string[];
   partnerItemId?: string; // For API integration orders
   retailerItemId?: string; // For connected retailer items
@@ -125,7 +125,7 @@ export default function OrderCreationScreen({
     const color = item.color?.trim();
     
     if (!itemId) errors.push('Item ID is required');
-    if (!brand) errors.push('Brand is required');
+    if (!brand) errors.push('Item brand is required');
     if (!gender) errors.push('Gender is required');
     if (!category) errors.push('Category is required');
     if (!subcategory) errors.push('Subcategory is required');
@@ -153,7 +153,7 @@ export default function OrderCreationScreen({
       size: currentItem.size || '',
       color: currentItem.color || '',
       price: currentItem.price || 0,
-      status: validation.valid ? 'valid' : 'error',
+      status: validation.valid ? undefined : 'error',
       errors: validation.errors,
       source: source,
       partnerItemId: currentItem.partnerItemId,
@@ -219,7 +219,7 @@ export default function OrderCreationScreen({
   const handleAddRetailerItemId = (itemId: string, retailerItemId: string) => {
     setOrderItems(prev => prev.map(item => 
       item.id === itemId 
-        ? { ...item, retailerItemId, status: 'valid' as const }
+        ? { ...item, retailerItemId, status: undefined }
         : item
     ));
     setScanningItemId(null);
@@ -239,7 +239,7 @@ export default function OrderCreationScreen({
     setScanningItemId(null);
   };
 
-  const validItems = orderItems.filter(item => item.status === 'valid');
+  const validItems = orderItems.filter(item => item.status !== 'error');
   const errorItems = orderItems.filter(item => item.status === 'error');
 
   return (
@@ -614,7 +614,7 @@ export default function OrderCreationScreen({
                               ${item.price.toFixed(2)}
                             </td>
                             <td className="p-3">
-                              {item.status === 'valid' ? (
+                              {item.status !== 'error' ? (
                                 <Badge variant="secondary">
                                   <CheckIcon size={14} className="mr-1" />
                                   Valid
@@ -798,10 +798,10 @@ export default function OrderCreationScreen({
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-2">
                             <h3 className="title-medium text-on-surface">{item.itemId}</h3>
-                            {item.status === 'valid' ? (
+                            {item.status !== 'error' ? (
                               <Badge variant="secondary">
                                 <CheckIcon size={14} className="mr-1" />
-                                Valid
+                                Complete
                               </Badge>
                             ) : (
                               <Badge variant="destructive">

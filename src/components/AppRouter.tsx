@@ -152,6 +152,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
           onNavigateToShipping={handlers.handleNavigateToShipping}
           onNavigateToScan={handlers.handleNavigateToScan}
           onNavigateToSellers={handlers.handleNavigateToSellers}
+          userRole={state.currentUserRole}
         />
       );
 
@@ -162,6 +163,8 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
           onNavigateToItems={handlers.handleNavigateToItems}
           onNavigateToSellers={handlers.handleNavigateToSellers}
           onNavigateToShipping={handlers.handleNavigateToShipping}
+          onNavigateToReturns={() => state.setCurrentScreen('partner-selection')}
+          userRole={state.currentUserRole}
         />
       );
 
@@ -244,8 +247,24 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
               
               state.setPartnerOrders(prev => [...prev, newOrder]);
               
+              // Store order items for the order details screen
+              // We need to store items in a way that can be accessed by OrderShipmentDetailsScreen
+              // For now, we'll pass them through detailsScreenData
+              const store = props.stores?.find(s => s.id === storeSelection.storeId);
+              
+              // Set up details screen data with order and items
+              state.setDetailsScreenData({
+                type: 'order',
+                data: newOrder,
+                storeName: store?.name,
+                storeCode: store?.code,
+                partnerName: currentPartner?.name,
+                warehouseName: props.warehouses?.find(w => w.id === state.currentPartnerWarehouseSelection?.warehouseId)?.name,
+                orderItems: items // Pass items to the details screen
+              });
+              
               // Navigate to order details screen so user can fix validation errors
-              handlers.onViewOrder?.(newOrder);
+              state.setCurrentScreen('order-shipment-details');
             }}
             currentPartner={currentPartner}
             brands={props.brands}
@@ -276,7 +295,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
             // Update both selectedSellpyOrder and sellpyOrders
             const updatedItems = state.selectedSellpyOrder!.items.map(item =>
               item.itemId === itemId
-                ? { ...item, retailerItemId, status: 'valid' as const }
+                ? { ...item, retailerItemId, status: undefined }
                 : item
             );
             
@@ -357,7 +376,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
             // Update both selectedSellpyOrder and sellpyOrders
             const updatedItems = state.selectedSellpyOrder!.items.map(item =>
               item.itemId === itemId
-                ? { ...item, retailerItemId, status: 'valid' as const }
+                ? { ...item, retailerItemId, status: undefined }
                 : item
             );
             
@@ -457,7 +476,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
             color: colors[Math.floor(Math.random() * colors.length)],
             price,
             purchasePrice,
-            status: 'valid' as const
+            status: undefined
           };
         });
       };
@@ -545,7 +564,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
           color: colors[Math.floor(Math.random() * colors.length)],
           price,
           purchasePrice,
-          status: 'valid' as const,
+          status: undefined,
           partnerItemId: `PID-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
           retailerItemId: Math.random() > 0.3 ? `RID-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : undefined,
           source: 'api' as const

@@ -10,7 +10,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { VisuallyHidden } from './ui/visually-hidden';
-import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Camera, Upload } from 'lucide-react';
+import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Camera } from 'lucide-react';
 import svgPaths from '../imports/svg-7un8q74kd7';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Badge } from './ui/badge';
@@ -55,7 +55,7 @@ interface ItemDetailsDialogProps {
   priceCurrency?: string;
 }
 
-type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'deliveryId' | 'source' | null;
+type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'deliveryId' | null;
 
 const AVAILABLE_STATUSES = [
   'In transit',
@@ -510,43 +510,22 @@ export default function ItemDetailsDialog({
           <DialogTitle>Item details</DialogTitle>
           <DialogDescription>View and edit item information</DialogDescription>
         </VisuallyHidden>
-        
-        {/* Header */}
-        <div className="bg-surface-container border-b border-outline-variant flex-shrink-0">
-          <div className="px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="text-on-surface-variant"
-                aria-label="Back"
-              >
-                <ArrowLeft size={20} />
-              </Button>
-              <div className="flex-1">
-                <h1 className="title-large text-on-surface">Item details</h1>
-              </div>
-              {statusHistory.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="text-on-surface-variant"
-                >
-                  <History size={16} className="mr-2" />
-                  History
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {/* Image Section */}
           {displayImage ? (
             <div className="relative w-full aspect-square bg-surface-container-high">
+              {/* Back arrow on top of image */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="absolute top-4 left-4 bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-10"
+                aria-label="Back"
+              >
+                <ArrowLeft size={20} />
+              </Button>
               <ImageWithFallback
                 src={displayImage}
                 alt={item.title || item.brand}
@@ -563,18 +542,22 @@ export default function ItemDetailsDialog({
                   <Camera size={16} className="mr-2" />
                   Take photo
                 </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleUploadImage}
-                  className="bg-surface-container-highest text-on-surface hover:bg-surface-container-high shadow-md"
-                >
-                  <Upload size={16} className="mr-2" />
-                  Upload
-                </Button>
               </div>
             </div>
-          ) : null}
+          ) : (
+            /* No image - back arrow in top left */
+            <div className="relative w-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="absolute top-4 left-4 bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-10"
+                aria-label="Back"
+              >
+                <ArrowLeft size={20} />
+              </Button>
+            </div>
+          )}
 
           {/* Hidden file inputs */}
           <input
@@ -592,34 +575,6 @@ export default function ItemDetailsDialog({
             onChange={handleFileUpload}
             className="hidden"
           />
-
-          {/* Status History */}
-          {showHistory && statusHistory.length > 0 && (
-            <div className="p-4 bg-surface-container-low border-b border-outline-variant">
-              <h3 className="title-medium text-on-surface mb-3">Status history</h3>
-              <div className="space-y-3">
-                {statusHistory.map((entry, index) => (
-                  <div key={index} className="flex gap-3">
-                    <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-primary"></div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <Badge className={`${getStatusColor(entry.status)} px-2 py-0.5 rounded-full`}>
-                          {entry.status}
-                        </Badge>
-                        <span className="label-small text-on-surface-variant">{entry.timestamp}</span>
-                      </div>
-                      {entry.user && (
-                        <p className="body-small text-on-surface-variant">By {entry.user}</p>
-                      )}
-                      {entry.note && (
-                        <p className="body-small text-on-surface mt-1">{entry.note}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Item Information */}
           <div className="p-4 space-y-6">
@@ -646,26 +601,26 @@ export default function ItemDetailsDialog({
                         <Camera size={14} className="mr-2" />
                         Take photo
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleUploadImage}
-                        className="flex-1"
-                      >
-                        <Upload size={14} className="mr-2" />
-                        Upload
-                      </Button>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Title */}
-            <div>
-              <h2 className="title-large text-on-surface mb-1">
-                {item.title || `${item.brand} ${item.category}`}
+            {/* Item ID - Replaces Title */}
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="title-large text-on-surface mb-1 flex-1 min-w-0 break-words">
+                Item ID: {item.itemId}
               </h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowIdScanner(true)}
+                className="flex items-center gap-2 flex-shrink-0"
+              >
+                <QrCode size={14} />
+                Scan
+              </Button>
             </div>
 
             <Separator className="bg-outline-variant" />
@@ -681,26 +636,6 @@ export default function ItemDetailsDialog({
                 type="select"
                 options={AVAILABLE_STATUSES}
               />
-
-              {/* Item ID */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <QrCode className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="label-small text-on-surface-variant mb-1">Item ID</p>
-                    <p className="body-large text-on-surface">{item.itemId}</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowIdScanner(true)}
-                  className="flex items-center gap-2 flex-shrink-0"
-                >
-                  <QrCode size={14} />
-                  Scan
-                </Button>
-              </div>
 
               {/* Price */}
               <EditableField
@@ -802,16 +737,60 @@ export default function ItemDetailsDialog({
               )}
 
               {/* Source */}
-              {(item.source || editingField === 'source') && (
-                <EditableField
-                  field="source"
-                  label="Source"
-                  value={item.source}
-                  icon={Tag}
-                />
+              {item.source && (
+                <div className="flex items-center gap-3">
+                  <Tag className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                  <div>
+                    <p className="label-small text-on-surface-variant">Source</p>
+                    <p className="body-large text-on-surface">{item.source}</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
+
+          {/* Status History Section at Bottom */}
+          {showHistory && statusHistory.length > 0 && (
+            <div className="p-4 bg-surface-container-low border-t border-outline-variant">
+              <h3 className="title-medium text-on-surface mb-3">Status history</h3>
+              <div className="space-y-3">
+                {statusHistory.map((entry, index) => (
+                  <div key={index} className="flex gap-3">
+                    <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-primary"></div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <Badge className={`${getStatusColor(entry.status)} px-2 py-0.5 rounded-full`}>
+                          {entry.status}
+                        </Badge>
+                        <span className="label-small text-on-surface-variant">{entry.timestamp}</span>
+                      </div>
+                      {entry.user && (
+                        <p className="body-small text-on-surface-variant">By {entry.user}</p>
+                      )}
+                      {entry.note && (
+                        <p className="body-small text-on-surface mt-1">{entry.note}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* History Button at Bottom */}
+          {statusHistory.length > 0 && (
+            <div className="p-4 bg-surface-container border-t border-outline-variant flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowHistory(!showHistory)}
+                className="w-full text-on-surface-variant"
+              >
+                <History size={16} className="mr-2" />
+                {showHistory ? 'Hide History' : 'Show History'}
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

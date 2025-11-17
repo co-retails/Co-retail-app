@@ -56,19 +56,21 @@ export default function BoxLabelSideSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {/* Active Scanner - Top portion */}
-          <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-outline-variant" style={{ height: '250px', minHeight: '200px' }}>
-            <ActiveScanner
-              onScan={handleScan}
-              onManualEntry={handleManualEntry}
-              isScanning={false}
-              showManualEntry={true}
-            />
+          <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-outline-variant overflow-hidden">
+            <div className="h-[280px] min-h-[280px] max-h-[280px]">
+              <ActiveScanner
+                onScan={handleScan}
+                onManualEntry={handleManualEntry}
+                isScanning={false}
+                showManualEntry={true}
+              />
+            </div>
           </div>
 
           {/* Manual Entry Section */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="boxLabel">Box Label</Label>

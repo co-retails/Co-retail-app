@@ -251,7 +251,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                   <CardTitle className="title-medium">Scan items</CardTitle>
                 </CardHeader>
                 <CardContent className="pb-4">
-                  <div className="flex-shrink-0" style={{ height: '250px', minHeight: '200px' }}>
+                  <div className="flex-shrink-0 overflow-hidden" style={{ height: '280px', minHeight: '280px', maxHeight: '280px' }}>
                     <ActiveScanner
                       onScan={handleScanItem}
                       onManualEntry={handleManualEntry}
@@ -266,7 +266,7 @@ export default function DeliveryNoteBoxDetailsScreen({
 
           {/* M3 Style Tab Bar - Only for editable boxes */}
           {isEditable && (
-            <div className="bg-surface border-b border-outline-variant -mx-4 md:-mx-6">
+            <div className="bg-surface border-b border-outline-variant -mx-4 md:-mx-6 z-10 relative">
               <div className="flex">
                 <button
                   className={`flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${
@@ -322,7 +322,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                                     size: item.size,
                                     color: item.color,
                                     price: item.price,
-                                    status: item.status === 'valid' ? 'Valid' : 'Invalid',
+                                    status: item.status !== 'error' ? undefined : 'Invalid',
                                     retailerItemId: item.retailerItemId,
                                     partnerItemId: item.partnerItemId,
                                     gender: item.gender,
@@ -384,7 +384,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                                     size: item.size,
                                     color: item.color,
                                     price: item.price,
-                                    status: item.status === 'valid' ? 'Valid' : 'Invalid',
+                                    status: item.status !== 'error' ? undefined : 'Invalid',
                                     retailerItemId: item.retailerItemId,
                                     partnerItemId: item.partnerItemId,
                                     gender: item.gender,
@@ -452,7 +452,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                                   size: item.size,
                                   color: item.color,
                                   price: item.price,
-                                  status: item.status === 'valid' ? 'Valid' : 'Invalid',
+                                  status: item.status !== 'error' ? undefined : 'Invalid',
                                   retailerItemId: item.retailerItemId,
                                   partnerItemId: item.partnerItemId,
                                   gender: item.gender,

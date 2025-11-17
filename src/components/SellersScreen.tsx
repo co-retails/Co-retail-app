@@ -37,6 +37,8 @@ function SearchBar({ searchTerm, onSearchChange }: {
         </div>
         <input
           type="text"
+          id="sellers-search"
+          name="sellers-search"
           placeholder="Search for name, email or phone nr"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}

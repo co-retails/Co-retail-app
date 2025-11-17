@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -10,6 +10,7 @@ import { Section } from './ui/section';
 import { EmptyState } from './ui/empty-state';
 import { Separator } from './ui/separator';
 import { ItemDetailsTable, ItemDetailsTableItem } from './ItemDetailsTable';
+import { ItemCard, BaseItem } from './ItemCard';
 import { toast } from 'sonner@2.0.3';
 import {
   DropdownMenu,
@@ -17,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { Alert, AlertDescription } from './ui/alert';
 import { 
   PackageIcon, 
   TruckIcon,
@@ -32,13 +34,27 @@ import {
   QrCodeIcon,
   MoreVertical,
   Trash2Icon,
-  RotateCcwIcon
+  RotateCcwIcon,
+  UploadIcon,
+  DownloadIcon,
+  FileSpreadsheetIcon,
+  XIcon
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import { PartnerOrder } from './PartnerDashboard';
 import { DeliveryNote, Box } from './BoxManagementScreen';
 import { ReturnDelivery } from './ShippingScreen';
 import ActiveScanner from './ActiveScanner';
+import { 
+  generateThriftedTemplateCSV, 
+  downloadCSV, 
+  parseCSV, 
+  convertToThriftedOrderItems,
+  exportThriftedItemsToCSV,
+  THRIFTED_VALID_VALUES,
+  mapSubcategoryToCategory,
+  getAllThriftedSubcategories
+} from '../utils/spreadsheetUtils';
 
 export type DetailType = 'order' | 'shipment' | 'return';
 
@@ -62,6 +78,10 @@ interface OrderShipmentDetailsScreenProps {
   orderItems?: OrderItem[];
   onUnregisterBox?: (boxId: string) => void;
   onDeleteBox?: (boxId: string) => void;
+  relatedOrders?: Array<{
+    id: string;
+    externalOrderId?: string;
+  }>;
 }
 
 // Valid price points for SEK (Swedish Krona) - Sellpy partner market
@@ -87,7 +107,7 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
     
     // For Thrifted pending orders: all items must be valid (no errors)
     // For Sellpy pending orders: some items should have validation errors
-    let itemStatus: 'valid' | 'error' = 'valid';
+    let itemStatus: 'error' | undefined = undefined;
     let fieldErrors: Record<string, string> | undefined = undefined;
     let errors: string[] | undefined = undefined;
     let retailerItemId: string | undefined = undefined;
@@ -96,7 +116,7 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
       if (isThrifted) {
         // Thrifted pending orders: all items valid, all have retailer IDs
         retailerItemId = `RID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-        itemStatus = 'valid';
+        itemStatus = undefined;
       } else if (isSellpy) {
         // Sellpy pending orders: ~30% of items have validation errors
         const hasError = index % 3 === 0; // Every 3rd item has an error
@@ -104,7 +124,7 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
           itemStatus = 'error';
           // Create realistic validation errors
           const errorTypes = [
-            { field: 'brand', message: 'Brand is required' },
+            { field: 'brand', message: 'Item brand is required' },
             { field: 'category', message: 'Category is required' },
             { field: 'size', message: 'Size is required' },
             { field: 'color', message: 'Color is required' },
@@ -124,7 +144,7 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
     } else {
       // Non-pending orders or other types: default behavior
       retailerItemId = type === 'order' && Math.random() > 0.3 ? `RID-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : undefined;
-      itemStatus = type === 'return' ? 'valid' : (Math.random() > 0.8 ? 'pending' : 'valid');
+      itemStatus = type === 'return' ? undefined : (Math.random() > 0.8 ? 'pending' : undefined);
     }
     
     return {
@@ -165,7 +185,8 @@ export default function OrderShipmentDetailsScreen({
   onOpenBoxDetails,
   orderItems = [],
   onUnregisterBox,
-  onDeleteBox
+  onDeleteBox,
+  relatedOrders = []
 }: OrderShipmentDetailsScreenProps) {
   // State for editable items
   const [editableItems, setEditableItems] = useState<DetailItem[]>([]);
@@ -173,6 +194,12 @@ export default function OrderShipmentDetailsScreen({
   const [showAddBoxDialog, setShowAddBoxDialog] = useState(false);
   const [boxLabel, setBoxLabel] = useState('');
   const [showBoxLabelScan, setShowBoxLabelScan] = useState(false);
+  
+  // State for Thrifted order editing
+  const [showReplaceDialog, setShowReplaceDialog] = useState(false);
+  const [pendingUploadItems, setPendingUploadItems] = useState<OrderItem[]>([]);
+  const [uploadError, setUploadError] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const getTitle = () => {
     switch (type) {
@@ -211,7 +238,7 @@ export default function OrderShipmentDetailsScreen({
     } else {
       const returnData = data as ReturnDelivery;
       switch (returnData.status) {
-        case 'Pending pickup': return 'text-on-surface-variant';
+        case 'Pending': return 'text-on-surface-variant';
         case 'In transit': return 'text-primary';
         case 'Returned': return 'text-success';
         default: return 'text-on-surface-variant';
@@ -234,9 +261,12 @@ export default function OrderShipmentDetailsScreen({
     } else if (type === 'shipment') {
       const shipment = data as DeliveryNote;
       switch (shipment.status) {
-        case 'pending': return 'Pending Shipment';
+        case 'pending': return 'Pending';
+        case 'packing': return 'Packing';
         case 'registered': return 'In Transit';
         case 'delivered': return 'Delivered';
+        case 'partially-delivered': return 'Partially Delivered';
+        case 'cancelled': return 'Cancelled';
         case 'rejected': return 'Rejected';
         default: return shipment.status;
       }
@@ -280,36 +310,6 @@ export default function OrderShipmentDetailsScreen({
     }
   };
 
-  // Generate mock items based on the expected count
-  const orderStatus = type === 'order' ? (data as PartnerOrder).status : undefined;
-  const baseItems = generateMockItems(getItemCount(), type, partnerName, orderStatus);
-  const allItems = editableItems.length > 0 ? editableItems : baseItems;
-  
-  // Filter items based on validation status
-  const items = allItems.filter(item => {
-    if (validationFilter === 'errors') return item.status === 'error' || !item.retailerItemId || !item.price || item.price <= 0;
-    if (validationFilter === 'valid') return item.status === 'valid' && item.retailerItemId && item.price && item.price > 0;
-    return true;
-  });
-  
-  // Count items by validation status
-  const itemsWithErrors = allItems.filter(item => item.status === 'error' || !item.retailerItemId || !item.price || item.price <= 0).length;
-  const validItems = allItems.filter(item => item.status === 'valid' && item.retailerItemId && item.price && item.price > 0).length;
-  
-  // Check if all items are valid for registration (must have retailer ID and price)
-  const canRegister = type === 'order' && allItems.length > 0 && allItems.every(item => 
-    item.retailerItemId && item.retailerItemId.trim() !== '' && 
-    item.price && item.price > 0 && 
-    item.status !== 'error'
-  );
-  
-  // Initialize editable items on mount
-  React.useEffect(() => {
-    if (editableItems.length === 0) {
-      setEditableItems(baseItems);
-    }
-  }, []);
-  
   // Check if order is pending (editable)
   const isPendingOrder = type === 'order' && (data as PartnerOrder).status === 'pending';
   
@@ -319,13 +319,338 @@ export default function OrderShipmentDetailsScreen({
   // Check if this is a Sellpy order (show prices)
   const isSellpyOrder = partnerName === 'Sellpy Operations' || partnerName === 'Sellpy';
   
+  // Check if this is a Thrifted order
+  const isThriftedOrder = partnerName === 'Thrifted';
+  
+  // Check if Thrifted order is editable (pending status)
+  const isThriftedEditable = isThriftedOrder && isPendingOrder;
+
+  // Validation function for Thrifted items
+  // For Thrifted, partners fill in subcategory, category is auto-mapped
+  const validateThriftedItem = (item: DetailItem): boolean => {
+    // Mandatory: SKU
+    if (!item.sku || !item.sku.trim()) return false;
+    
+    // Mandatory: Retailer ID
+    if (!item.retailerItemId || !item.retailerItemId.trim()) return false;
+    
+    // Mandatory: Brand
+    if (!item.brand || !item.brand.trim()) return false;
+    
+          // Mandatory: Category (must be selected first)
+          if (!item.category || !item.category.trim()) return false;
+          if (!THRIFTED_VALID_VALUES.categories.includes(item.category.trim())) return false;
+          
+          // Mandatory: Subcategory (must be valid for selected category)
+          if (!item.subcategory || !item.subcategory.trim()) return false;
+          const validSubcategories = THRIFTED_VALID_VALUES.subcategories[item.category.trim()] || [];
+          if (!validSubcategories.includes(item.subcategory.trim())) return false;
+    
+    // Mandatory: Size
+    if (!item.size || !item.size.trim()) return false;
+    
+    // Mandatory: Color
+    if (!item.color || !item.color.trim()) return false;
+    if (!THRIFTED_VALID_VALUES.colors.includes(item.color.trim())) return false;
+    
+    // Mandatory: Gender
+    if (!item.gender || !item.gender.trim()) return false;
+    if (!THRIFTED_VALID_VALUES.genders.includes(item.gender.trim())) return false;
+    
+    // Mandatory: Price
+    if (!item.price || item.price <= 0) return false;
+    if (!THRIFTED_VALID_VALUES.prices.includes(item.price)) return false;
+    
+    // Check if item has error status
+    if (item.status === 'error') return false;
+    
+    return true;
+  };
+
+  // Generate mock items based on the expected count
+  const orderStatus = type === 'order' ? (data as PartnerOrder).status : undefined;
+  const baseItems = generateMockItems(getItemCount(), type, partnerName, orderStatus);
+  // Use orderItems prop if provided (for Thrifted orders), otherwise use editableItems or baseItems
+  const allItems = orderItems && orderItems.length > 0 
+    ? orderItems.map(item => ({
+        ...item,
+        partnerItemId: item.sku || item.itemId,
+        subcategory: item.gender || '',
+        imageUrl: undefined
+      }))
+    : editableItems.length > 0 
+    ? editableItems 
+    : baseItems;
+  
+  // Filter items based on validation status
+  // For Thrifted orders: validate all mandatory fields
+  // For approval orders, don't validate on Retailer ID (it will be added after approval)
+  const items = allItems.filter(item => {
+    if (isThriftedOrder && isPendingOrder) {
+      // For Thrifted pending orders: validate all mandatory fields
+      if (validationFilter === 'errors') return !validateThriftedItem(item);
+      if (validationFilter === 'valid') return validateThriftedItem(item);
+    } else if (isApprovalOrder) {
+      // For approval orders: validate everything except Retailer ID
+      if (validationFilter === 'errors') return item.status === 'error' || !item.price || item.price <= 0;
+      if (validationFilter === 'valid') return item.status !== 'error' && item.price && item.price > 0;
+    } else {
+      // For other orders: validate including Retailer ID
+      if (validationFilter === 'errors') return item.status === 'error' || !item.retailerItemId || !item.price || item.price <= 0;
+      if (validationFilter === 'valid') return item.status !== 'error' && item.retailerItemId && item.price && item.price > 0;
+    }
+    return true;
+  });
+  
+  // Count items by validation status
+  // For Thrifted orders: validate all mandatory fields
+  // For approval orders, don't validate on Retailer ID
+  const itemsWithErrors = isThriftedOrder && isPendingOrder
+    ? allItems.filter(item => !validateThriftedItem(item)).length
+    : isApprovalOrder
+    ? allItems.filter(item => item.status === 'error' || !item.price || item.price <= 0).length
+    : allItems.filter(item => item.status === 'error' || !item.retailerItemId || !item.price || item.price <= 0).length;
+    
+  const validItems = isThriftedOrder && isPendingOrder
+    ? allItems.filter(item => validateThriftedItem(item)).length
+    : isApprovalOrder
+    ? allItems.filter(item => item.status !== 'error' && item.price && item.price > 0).length
+    : allItems.filter(item => item.status !== 'error' && item.retailerItemId && item.price && item.price > 0).length;
+  
+  // Check if all items are valid for registration
+  // For Thrifted orders: validate all mandatory fields
+  // For approval orders: don't require retailer ID (will be added after approval)
+  // For other orders: require retailer ID and price
+  const canRegister = type === 'order' && allItems.length > 0 && (
+    isThriftedOrder && isPendingOrder
+      ? allItems.every(item => validateThriftedItem(item))
+      : isApprovalOrder
+      ? allItems.every(item => item.price && item.price > 0 && item.status !== 'error')
+      : allItems.every(item => 
+          item.retailerItemId && item.retailerItemId.trim() !== '' && 
+          item.price && item.price > 0 && 
+          item.status !== 'error'
+        )
+  );
+  
+  // Initialize editable items on mount
+  React.useEffect(() => {
+    if (editableItems.length === 0 && orderItems && orderItems.length > 0) {
+      // Initialize with orderItems if provided
+      setEditableItems(orderItems.map(item => ({
+        ...item,
+        partnerItemId: item.sku || item.itemId,
+        subcategory: item.gender || '',
+        imageUrl: undefined
+      })));
+    } else if (editableItems.length === 0) {
+      setEditableItems(baseItems);
+    }
+  }, [orderItems]);
+  
+  // Handler to save changes and close (for Thrifted and approval orders)
+  const handleSaveAndClose = () => {
+    // Save the current editable items state
+    // In a real app, this would persist to backend
+    // For now, we'll just navigate back
+    onBack();
+  };
+  
   // Handler to update item attribute
   const handleUpdateItemAttribute = (itemId: string, field: keyof DetailItem, value: any) => {
-    setEditableItems(prev => 
-      prev.map(item => 
-        item.id === itemId ? { ...item, [field]: value } : item
-      )
-    );
+    setEditableItems(prev => {
+      const updated = prev.map(item => {
+        if (item.id !== itemId) return item;
+        
+        const updatedItem = { ...item, [field]: value };
+        
+        // For Thrifted orders, update validation status
+        if (isThriftedOrder && isPendingOrder) {
+          // When category changes, clear subcategory if it's not valid for the new category
+          if (field === 'category') {
+            const validSubcategories = THRIFTED_VALID_VALUES.subcategories[value] || [];
+            if (updatedItem.subcategory && !validSubcategories.includes(updatedItem.subcategory)) {
+              updatedItem.subcategory = '';
+            }
+          }
+          // Note: We no longer auto-map subcategory to category - user must select category first
+          
+          // Re-validate the item
+          const isValid = validateThriftedItem(updatedItem);
+          updatedItem.status = isValid ? undefined : 'error';
+          
+          // Update field errors with clear marking for mandatory fields
+          const fieldErrors: Record<string, string> = {};
+          if (!updatedItem.sku || !updatedItem.sku.trim()) fieldErrors.sku = 'Required';
+          
+          // Retailer ID is mandatory - mark clearly
+          if (!updatedItem.retailerItemId || !updatedItem.retailerItemId.trim()) {
+            fieldErrors.retailerItemId = 'Required (Mandatory)';
+          }
+          
+          if (!updatedItem.brand || !updatedItem.brand.trim()) fieldErrors.brand = 'Required';
+          
+          // Category is required first
+          if (!updatedItem.category || !updatedItem.category.trim()) {
+            fieldErrors.category = 'Required (select before subcategory)';
+          } else if (!THRIFTED_VALID_VALUES.categories.includes(updatedItem.category.trim())) {
+            fieldErrors.category = 'Invalid category';
+          }
+          
+          // Subcategory is required and must be valid for selected category
+          if (!updatedItem.subcategory || !updatedItem.subcategory.trim()) {
+            fieldErrors.subcategory = 'Required (select category first)';
+          } else if (updatedItem.category) {
+            const validSubcategories = THRIFTED_VALID_VALUES.subcategories[updatedItem.category.trim()] || [];
+            if (!validSubcategories.includes(updatedItem.subcategory.trim())) {
+              fieldErrors.subcategory = 'Invalid subcategory for selected category';
+            }
+          }
+          
+          if (!updatedItem.size || !updatedItem.size.trim()) fieldErrors.size = 'Required';
+          if (!updatedItem.color || !updatedItem.color.trim()) fieldErrors.color = 'Required';
+          else if (!THRIFTED_VALID_VALUES.colors.includes(updatedItem.color.trim())) {
+            fieldErrors.color = 'Invalid color';
+          }
+          
+          if (!updatedItem.gender || !updatedItem.gender.trim()) fieldErrors.gender = 'Required';
+          else if (!THRIFTED_VALID_VALUES.genders.includes(updatedItem.gender.trim())) {
+            fieldErrors.gender = 'Invalid gender';
+          }
+          
+          // Price is mandatory - mark clearly
+          if (!updatedItem.price || updatedItem.price <= 0) {
+            fieldErrors.price = 'Required (Mandatory)';
+          } else if (!THRIFTED_VALID_VALUES.prices.includes(updatedItem.price)) {
+            fieldErrors.price = 'Invalid price';
+          }
+          
+          updatedItem.fieldErrors = Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined;
+          updatedItem.errors = Object.keys(fieldErrors).length > 0 ? Object.values(fieldErrors) : undefined;
+        }
+        
+        return updatedItem;
+      });
+      return updated;
+    });
+  };
+  
+  // CSV import handlers for Thrifted orders
+  const handleDownloadTemplate = () => {
+    const template = generateThriftedTemplateCSV();
+    downloadCSV(template, 'thrifted-order-template.csv');
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const csvRows = parseCSV(content);
+        const { items, errors } = convertToThriftedOrderItems(csvRows);
+        
+        if (items.length === 0) {
+          setUploadError('No valid items found in the file');
+          return;
+        }
+
+        setPendingUploadItems(items);
+        
+        if (allItems.length > 0) {
+          // Show replace dialog if items already exist
+          setShowReplaceDialog(true);
+        } else {
+          // Directly add items
+          setEditableItems(items.map(item => ({
+            ...item,
+            partnerItemId: item.sku || item.itemId,
+            subcategory: item.gender || '',
+            imageUrl: undefined
+          })));
+          setUploadError('');
+        }
+        
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } catch (error) {
+        setUploadError('Error reading file. Please ensure it\'s a valid CSV.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleReplaceItems = () => {
+    setEditableItems(pendingUploadItems.map(item => ({
+      ...item,
+      partnerItemId: item.sku || item.itemId,
+      subcategory: item.gender || '',
+      imageUrl: undefined
+    })));
+    setPendingUploadItems([]);
+    setShowReplaceDialog(false);
+    setUploadError('');
+  };
+
+  const handleAppendItems = () => {
+    setEditableItems(prev => [...prev, ...pendingUploadItems.map(item => ({
+      ...item,
+      partnerItemId: item.sku || item.itemId,
+      subcategory: item.gender || '',
+      imageUrl: undefined
+    }))]);
+    setPendingUploadItems([]);
+    setShowReplaceDialog(false);
+    setUploadError('');
+  };
+  
+  // Handler to add a new row manually
+  const handleAddItem = () => {
+    const newItem: DetailItem = {
+      id: `item-${Date.now()}-${Math.random()}`,
+      itemId: '',
+      sku: '',
+      category: '',
+      subcategory: '', // Partners fill subcategory, category is auto-mapped
+      size: '',
+      brand: '',
+      color: '',
+      gender: '',
+      price: 0,
+      retailerItemId: '',
+      status: 'error',
+      errors: ['Required fields missing'],
+      source: 'manual',
+      fieldErrors: {
+        sku: 'Required',
+        subcategory: 'Required',
+        size: 'Required',
+        brand: 'Required',
+        color: 'Required',
+        gender: 'Required',
+        price: 'Required (Mandatory)',
+        retailerItemId: 'Required (Mandatory)'
+      }
+    };
+    setEditableItems(prev => [...prev, newItem]);
+  };
+  
+  // Handler to remove an item
+  const handleRemoveItem = (itemId: string) => {
+    setEditableItems(prev => prev.filter(item => item.id !== itemId));
+  };
+  
+  // Handler to export items
+  const handleExportItems = () => {
+    const csv = exportThriftedItemsToCSV(editableItems.map(item => ({
+      ...item,
+      sku: item.sku || item.itemId,
+      gender: item.gender || item.subcategory || ''
+    })));
+    downloadCSV(csv, `thrifted-order-items-${Date.now()}.csv`);
   };
 
   // Box management handlers
@@ -454,6 +779,27 @@ export default function OrderShipmentDetailsScreen({
               )}
             </div>
 
+            {/* Order Numbers - Show for shipments */}
+            {type === 'shipment' && relatedOrders.length > 0 && (
+              <>
+                <Separator className="my-4" />
+                <div className="space-y-2">
+                  <div className="label-small text-on-surface-variant">Orders</div>
+                  {relatedOrders.map((order) => (
+                    <div key={order.id} className="body-medium text-on-surface">
+                      {order.externalOrderId ? (
+                        <>
+                          {order.externalOrderId} (Internal: {order.id})
+                        </>
+                      ) : (
+                        order.id
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             {type === 'shipment' && (
               <>
                 <Separator className="my-4" />
@@ -463,11 +809,12 @@ export default function OrderShipmentDetailsScreen({
                       <PackageIcon size={16} />
                       <span className="body-small">Boxes ({(data as DeliveryNote).boxes.length})</span>
                     </div>
-                    {onAddBox && (
+                    {onAddBox && ((data as DeliveryNote).status === 'pending' || (data as DeliveryNote).status === 'packing') && (
                       <Button
-                        variant="outline"
+                        variant="default"
                         size="sm"
                         onClick={() => setShowAddBoxDialog(true)}
+                        className="bg-primary text-on-primary"
                       >
                         <PlusIcon size={16} className="mr-2" />
                         <span className="label-medium">Add box</span>
@@ -491,7 +838,7 @@ export default function OrderShipmentDetailsScreen({
                                   <Badge variant="outline" className="body-small">
                                     {box.qrLabel} ({box.items.length} items)
                                   </Badge>
-                                  {box.status === 'complete' && (
+                                  {box.status === 'registered' && (
                                     <Badge variant="secondary" className="bg-success-container text-on-success-container">
                                       Registered
                                     </Badge>
@@ -516,7 +863,7 @@ export default function OrderShipmentDetailsScreen({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {box.status === 'complete' && onUnregisterBox && (
+                                  {box.status === 'registered' && onUnregisterBox && (
                                     <DropdownMenuItem onClick={(e) => {
                                       e.stopPropagation();
                                       onUnregisterBox(box.id);
@@ -525,7 +872,7 @@ export default function OrderShipmentDetailsScreen({
                                       Unregister
                                     </DropdownMenuItem>
                                   )}
-                                  {(box.status === 'pending' || box.status === 'complete') && onDeleteBox && (
+                                  {box.status === 'pending' && onDeleteBox && (
                                     <DropdownMenuItem 
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -580,54 +927,175 @@ export default function OrderShipmentDetailsScreen({
         {/* Items List - Only show for orders and returns, not for shipments (delivery notes) */}
         {type !== 'shipment' && (
           <Section title="Items">
-            {/* Validation Filter - Show for pending orders */}
-            {type === 'order' && (data as PartnerOrder).status === 'pending' && allItems.length > 0 && (
-              <div className="mb-4 flex flex-wrap gap-2">
-                <Button
-                  variant={validationFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setValidationFilter('all')}
-                >
-                  <span className="label-medium">All ({allItems.length})</span>
-                </Button>
-                {itemsWithErrors > 0 && (
+            {/* Validation Filter - Show for pending and approval orders */}
+            {type === 'order' && ((data as PartnerOrder).status === 'pending' || isApprovalOrder) && allItems.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2 items-center justify-between">
+                <div className="flex flex-wrap gap-2">
                   <Button
-                    variant={validationFilter === 'errors' ? 'default' : 'outline'}
+                    variant={validationFilter === 'all' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setValidationFilter('errors')}
+                    onClick={() => setValidationFilter('all')}
                   >
-                    <AlertTriangleIcon size={14} className="mr-1" />
-                    <span className="label-medium">Missing/Errors ({itemsWithErrors})</span>
+                    <span className="label-medium">All ({allItems.length})</span>
                   </Button>
+                  {itemsWithErrors > 0 && (
+                    <Button
+                      variant={validationFilter === 'errors' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setValidationFilter('errors')}
+                    >
+                      <AlertTriangleIcon size={14} className="mr-1" />
+                      <span className="label-medium">Missing/Errors ({itemsWithErrors})</span>
+                    </Button>
+                  )}
+                  <Button
+                    variant={validationFilter === 'valid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setValidationFilter('valid')}
+                  >
+                    <CheckIcon size={14} className="mr-1" />
+                    <span className="label-medium">Valid ({validItems})</span>
+                  </Button>
+                </div>
+                {isThriftedEditable && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleAddItem}
+                      className="bg-primary text-on-primary gap-2"
+                    >
+                      <PlusIcon size={16} />
+                      <span className="label-large">Add Row</span>
+                    </Button>
+                    <div className="relative">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileSelect}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <UploadIcon size={16} />
+                        <span className="label-large">Re-import CSV</span>
+                      </Button>
+                    </div>
+                    {editableItems.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportItems}
+                        className="gap-2"
+                      >
+                        <DownloadIcon size={16} />
+                        <span className="label-large">Export</span>
+                      </Button>
+                    )}
+                  </div>
                 )}
-                <Button
-                  variant={validationFilter === 'valid' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setValidationFilter('valid')}
-                >
-                  <CheckIcon size={14} className="mr-1" />
-                  <span className="label-medium">Valid ({validItems})</span>
-                </Button>
               </div>
+            )}
+            
+            {/* Show upload error if any */}
+            {isThriftedEditable && uploadError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertTriangleIcon className="h-4 w-4" />
+                <AlertDescription className="body-small">{uploadError}</AlertDescription>
+              </Alert>
             )}
             
             {items.length > 0 ? (
               <>
-                <ItemDetailsTable
-                  items={items}
-                  showRetailerId={type !== 'shipment'} // Always show for orders
-                  showPrice={type === 'order'} // Always show price for orders
-                  showPurchasePrice={isApprovalOrder || (isSellpyOrder && isAdmin)} // Show purchase price for Approval orders or Sellpy orders for Admins
-                  showStatus={type === 'return'}
-                  isEditable={(isPendingOrder || isApprovalOrder) && isAdmin} // Allow editing for pending and approval orders (Admins only)
-                  onUpdateItem={handleUpdateItemAttribute}
-                />
+                {type === 'return' ? (
+                  // For returns: use ItemCard layout like ItemsScreen
+                  <>
+                    <style>{`
+                      .return-item-card-wrapper > div > div.flex {
+                        padding-left: 1rem !important;
+                        padding-right: 1rem !important;
+                      }
+                    `}</style>
+                    <div className="flex flex-col gap-2">
+                      {items.map((item) => {
+                        // Get return delivery status for items
+                        const returnDelivery = data as ReturnDelivery;
+                        const returnStatus = returnDelivery?.status || 'Pending';
+                        
+                        // Map return status to item status
+                        let itemStatus: string | undefined;
+                        if (returnStatus === 'Pending') {
+                          itemStatus = 'Pending';
+                        } else if (returnStatus === 'In transit') {
+                          itemStatus = 'In transit';
+                        } else if (returnStatus === 'Returned') {
+                          itemStatus = 'Returned';
+                        } else {
+                          itemStatus = returnStatus;
+                        }
+                        
+                        // Map DetailItem to BaseItem format
+                        const baseItem: BaseItem = {
+                          id: item.id,
+                          itemId: item.itemId || '',
+                          title: `${item.brand || ''} ${item.category || item.subcategory || ''}`.trim() || 'Item',
+                          brand: item.brand || '',
+                          category: item.category || item.subcategory || '',
+                          size: item.size,
+                          color: item.color,
+                          price: item.price || 0,
+                          status: itemStatus,
+                          date: new Date().toISOString().split('T')[0], // Use current date as fallback
+                          partnerItemId: item.partnerItemId,
+                          retailerItemId: item.retailerItemId
+                        };
+                        
+                        return (
+                          <div key={item.id} className="bg-surface-container border border-outline-variant rounded-lg overflow-hidden return-item-card-wrapper">
+                            <ItemCard
+                              item={baseItem}
+                              variant="items-list"
+                              showActions={false}
+                              showSelection={false}
+                              userRole={isAdmin ? 'admin' : 'store-staff'}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <ItemDetailsTable
+                    items={items.map(item => ({
+                      ...item,
+                      partnerItemId: item.sku || item.itemId,
+                      subcategory: isThriftedOrder ? (item.subcategory || '') : (item.gender || item.subcategory || '')
+                    }))}
+                    showRetailerId={type !== 'shipment' && !isApprovalOrder} // Hide retailer ID for approval orders
+                    showPrice={type === 'order' || type === 'return'} // Always show price for orders and returns (sales price for store-staff/admin)
+                    showPurchasePrice={type !== 'return' && (isApprovalOrder || (isSellpyOrder && isAdmin))} // Show purchase price for Approval orders or Sellpy orders for Admins, but NOT for returns
+                    showMargin={isApprovalOrder} // Show margin % for approval orders
+                    showStatus={type === 'return'}
+                    isEditable={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin)} // Allow editing for Thrifted pending orders or pending/approval orders (Admins only)
+                    onUpdateItem={handleUpdateItemAttribute}
+                    subcategoryOptions={isThriftedOrder ? getAllThriftedSubcategories() : undefined}
+                    subcategoryLabel={isThriftedOrder ? "Subcategory" : undefined}
+                    brandAsInput={isThriftedOrder}
+                    categoryOptions={isThriftedOrder ? THRIFTED_VALID_VALUES.categories : undefined} // Show category dropdown for Thrifted (required before subcategory)
+                    hideCategoryForThrifted={false} // Show category column for cascading dropdown
+                    subcategoriesByCategory={isThriftedOrder ? THRIFTED_VALID_VALUES.subcategories : undefined} // Provide category-to-subcategory mapping
+                  />
+                )}
               </>
             ) : allItems.length > 0 ? (
               <EmptyState
                 icon={<AlertTriangleIcon />}
                 title={`No ${validationFilter === 'errors' ? 'items with errors' : 'valid items'}`}
-                description={`All items are ${validationFilter === 'errors' ? 'valid' : 'missing retailer IDs or have errors'}`}
+                description={`All items are ${validationFilter === 'errors' ? 'complete' : 'missing retailer IDs or have errors'}`}
               />
             ) : (
               <EmptyState
@@ -657,22 +1125,32 @@ export default function OrderShipmentDetailsScreen({
                 </div>
               )}
 
-              {/* Approval status: Approve order (Admin only) */}
-              {isApprovalOrder && isAdmin && onRegisterOrder && (
-                <div className="flex justify-start md:justify-end">
+              {/* Approval status: Save & Close and Approve order (Admin only) */}
+              {isApprovalOrder && isAdmin && (
+                <div className="flex justify-start md:justify-end gap-3">
                   <Button 
-                    onClick={() => {
-                      // Approve order - change status from approval to pending
-                      if (onRegisterOrder) {
-                        onRegisterOrder();
-                      }
-                    }}
+                    onClick={handleSaveAndClose}
+                    variant="outline"
                     size="lg"
-                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                    className="w-full md:w-auto border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[40px]"
                   >
-                    <CheckIcon size={20} className="mr-2" />
-                    <span className="label-large">Approve order</span>
+                    <span className="label-large">Save & Close</span>
                   </Button>
+                  {onRegisterOrder && (
+                    <Button 
+                      onClick={() => {
+                        // Approve order - change status from approval to pending
+                        if (onRegisterOrder) {
+                          onRegisterOrder();
+                        }
+                      }}
+                      size="lg"
+                      className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                    >
+                      <CheckIcon size={20} className="mr-2" />
+                      <span className="label-large">Approve</span>
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -716,22 +1194,55 @@ export default function OrderShipmentDetailsScreen({
         {type === 'order' && partnerName === 'Thrifted' && (
           <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant z-20">
             <div className="px-4 md:px-6 py-4 pb-safe">
+              {/* Validation Summary for Pending Orders */}
+              {isThriftedEditable && allItems.length > 0 && (
+                <div className="mb-3 flex items-center justify-center gap-2">
+                  {validItems === allItems.length ? (
+                    <div className="flex items-center gap-2 text-tertiary">
+                      <CheckIcon size={16} />
+                      <span className="body-small">All {allItems.length} items valid</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-on-surface-variant">
+                      <span className="body-small">{validItems} of {allItems.length} items valid</span>
+                      {itemsWithErrors > 0 && (
+                        <Badge variant="destructive" className="bg-error-container text-on-error-container">
+                          {itemsWithErrors} {itemsWithErrors === 1 ? 'error' : 'errors'}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="flex justify-start md:justify-end gap-3">
-                {/* Pending status: Register order */}
-                {(data as PartnerOrder).status === 'pending' && onRegisterOrder && (
-                  <Button 
-                    onClick={onRegisterOrder}
-                    disabled={!canRegister}
-                    size="lg"
-                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
-                  >
-                    <CheckIcon size={20} className="mr-2" />
-                    <span className="label-large">Register order</span>
-                  </Button>
+                {/* Pending status: Save & Close and Register order */}
+                {isThriftedEditable && (
+                  <>
+                    <Button 
+                      onClick={handleSaveAndClose}
+                      variant="outline"
+                      size="lg"
+                      className="w-full md:w-auto border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                    >
+                      <span className="label-large">Save & Close</span>
+                    </Button>
+                    {onRegisterOrder && (
+                      <Button 
+                        onClick={onRegisterOrder}
+                        disabled={!canRegister}
+                        size="lg"
+                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                      >
+                        <CheckIcon size={20} className="mr-2" />
+                        <span className="label-large">Register order</span>
+                      </Button>
+                    )}
+                  </>
                 )}
 
                 {/* Registered status: Create delivery note */}
-                {(data as PartnerOrder).status === 'registered' && onCreateDeliveryNote && (
+                {!isThriftedEditable && (data as PartnerOrder).status === 'registered' && onCreateDeliveryNote && (
                   <Button 
                     onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
                     size="lg"
@@ -804,22 +1315,72 @@ export default function OrderShipmentDetailsScreen({
             </div>
 
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddBoxDialog(false);
-                  setBoxLabel('');
-                  setShowBoxLabelScan(false);
-                }}
-              >
-                Cancel
-              </Button>
+              {partnerName !== 'Thrifted' && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddBoxDialog(false);
+                    setBoxLabel('');
+                    setShowBoxLabelScan(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
                 onClick={handleAddBox}
                 disabled={!boxLabel.trim()}
                 className="bg-primary text-on-primary"
               >
                 Add Box
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Replace Items Dialog for Thrifted Orders */}
+      {isThriftedEditable && (
+        <Dialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="title-large">Replace or Append Items?</DialogTitle>
+              <DialogDescription className="body-medium">
+                You have {allItems.length} existing items. The uploaded file contains {pendingUploadItems.length} items.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-col gap-3 py-4">
+              <Button
+                onClick={handleReplaceItems}
+                variant="destructive"
+                size="lg"
+                className="w-full"
+              >
+                <XIcon size={20} className="mr-2" />
+                <span className="label-large">Replace All Items</span>
+              </Button>
+
+              <Button
+                onClick={handleAppendItems}
+                variant="default"
+                size="lg"
+                className="w-full bg-primary text-on-primary"
+              >
+                <PlusIcon size={20} className="mr-2" />
+                <span className="label-large">Add to Existing Items</span>
+              </Button>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowReplaceDialog(false);
+                  setPendingUploadItems([]);
+                }}
+              >
+                <span className="label-large">Cancel</span>
               </Button>
             </DialogFooter>
           </DialogContent>

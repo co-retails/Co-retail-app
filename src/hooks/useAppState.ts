@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Delivery, ReturnDelivery } from '../components/ShippingScreen';
 import { Partner } from '../components/PartnerSelectionScreen';
 import { ReturnItem, ReturnOrder } from '../components/ReturnManagementScreen';
+import { ReturnOrderDetails } from '../components/ReturnDetailsScreen';
 import { StoreSelection } from '../components/StoreSelector';
 import { PartnerWarehouseSelection } from '../components/PartnerWarehouseSelector';
 import { RetailerCountrySelection } from '../components/RetailerCountrySelector';
@@ -41,7 +42,9 @@ export type Screen =
   | 'delivery-note-box-details'
   | 'partner-selection' 
   | 'return-management' 
-  | 'return-confirmation' 
+  | 'return-confirmation'
+  | 'return-details'
+  | 'return-shipping-label' 
   | 'items' 
   | 'scan' 
   | 'sellers' 
@@ -140,6 +143,7 @@ export function useAppState() {
   const [returnItems, setReturnItems] = useState<ReturnItem[]>(mockReturnItems);
   const [returnDeliveries, setReturnDeliveries] = useState<ReturnDelivery[]>(mockReturnDeliveries);
   const [currentReturnOrder, setCurrentReturnOrder] = useState<ReturnOrder | null>(null);
+  const [currentReturnOrderDetails, setCurrentReturnOrderDetails] = useState<ReturnOrderDetails | null>(null);
   const [returnOrders, setReturnOrders] = useState<ReturnOrder[]>([]);
   
   // Stock check flow state
@@ -165,6 +169,8 @@ export function useAppState() {
     partnerName?: string;
     warehouseName?: string;
     receiverLabel?: string;
+    orderItems?: OrderItem[]; // Store order items for newly created orders
+    previousScreen?: Screen; // Track where we came from for back navigation
   } | null>(null);
   
   // Digital Showroom state
@@ -243,6 +249,8 @@ export function useAppState() {
     setReturnDeliveries,
     currentReturnOrder,
     setCurrentReturnOrder,
+    currentReturnOrderDetails,
+    setCurrentReturnOrderDetails,
     returnOrders,
     setReturnOrders,
     

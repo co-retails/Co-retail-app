@@ -27,7 +27,7 @@ type ShippingPartnerOrder = ExtendedPartnerOrder & {
 type DeliveryNoteStatus = DeliveryNote['status'] | 'pending';
 type ShippingTab = 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'pending-registered';
 type OrderStatusFilter = 'approval' | 'pending' | 'registered' | 'in-transit' | 'all';
-type ShipmentStatusFilter = 'in-transit' | 'delivered' | 'all';
+type ShipmentStatusFilter = 'packing' | 'in-transit' | 'delivered' | 'all';
 type ReturnStatusFilter = 'in-transit' | 'returned' | 'all';
 type ShippingUserRole = UserRole | 'admin' | 'store-manager' | 'buyer';
 
@@ -65,7 +65,7 @@ export interface Delivery {
 export interface ReturnDelivery {
   id: string;
   date: string;
-  status: 'Pending pickup' | 'In transit' | 'Returned';
+  status: 'Pending' | 'In transit' | 'Returned';
   deliveryId: string;
   items: number;
   boxes: number;
@@ -103,6 +103,7 @@ interface ShippingScreenProps {
   currentWarehouseId?: string;
   onSelectSellpyOrder?: (order: SellpyOrder) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
+  onCancelReturn?: (deliveryId: string) => void;
   onOpenOrderDetails?: (order: ShippingPartnerOrder) => void;
   onOpenShipmentDetails?: (deliveryNote: DeliveryNote) => void;
   onOpenReturnDetails?: (returnDelivery: ReturnDelivery) => void;
@@ -138,7 +139,7 @@ function Tabs({ activeTab, onTabChange, userRole }: {
         { id: 'returns', label: 'Returns' }
       ]
     : [
-        { id: 'shipments', label: 'New' },
+        { id: 'shipments', label: 'Inbound' },
         { id: 'returns', label: 'Returns' },
         { id: 'all', label: 'All' }
       ];
@@ -168,6 +169,15 @@ function Tabs({ activeTab, onTabChange, userRole }: {
 }
 
 function DeliveryItem({ delivery, onSelect }: { delivery: Delivery; onSelect: () => void }) {
+  const getStatusBadgeClass = (status: Delivery['status']) => {
+    if (status === 'Delivered') {
+      return 'bg-success-container text-on-success-container';
+    }
+    return '';
+  };
+
+  const isDelivered = delivery.status === 'Delivered';
+
   return (
     <button
       className="w-full bg-surface-container hover:bg-surface-container-high transition-colors border-b border-outline-variant text-left"
@@ -184,8 +194,15 @@ function DeliveryItem({ delivery, onSelect }: { delivery: Delivery; onSelect: ()
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Top Line - Date and Status in smallest font (consistent with other screens) */}
-          <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5">
-            {delivery.date}, {delivery.status}
+          <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-wrap">
+            <span>{delivery.date},</span>
+            {isDelivered ? (
+              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${getStatusBadgeClass(delivery.status)}`}>
+                {delivery.status}
+              </span>
+            ) : (
+              <span>{delivery.status}</span>
+            )}
           </div>
           
           {/* Primary Line - Delivery ID (prominent) */}
@@ -390,21 +407,25 @@ function PartnerDeliveryNoteItem({
 function ReturnDeliveryComponent({ 
   returnDelivery, 
   onUpdateStatus,
+  onCancel,
   onClick,
   stores,
   brands,
-  warehouses
+  warehouses,
+  userRole
 }: { 
   returnDelivery: ReturnDelivery; 
   onUpdateStatus?: (deliveryId: string, status: 'Returned') => void;
+  onCancel?: (deliveryId: string) => void;
   onClick?: () => void;
   stores?: StoreRecord[];
   brands?: BrandRecord[];
   warehouses?: Warehouse[];
+  userRole?: ShippingUserRole;
 }) {
   const getStatusDisplay = (status: ReturnDelivery['status']) => {
     switch (status) {
-      case 'Pending pickup': return 'Pending pickup';
+      case 'Pending': return 'Pending';
       case 'In transit': return 'In transit';
       case 'Returned': return 'Returned';
       default: return status;
@@ -413,7 +434,7 @@ function ReturnDeliveryComponent({
 
   const getStatusBadgeColor = (status: ReturnDelivery['status']) => {
     switch (status) {
-      case 'Pending pickup': return 'bg-warning-container text-on-warning-container';
+      case 'Pending': return 'bg-warning-container text-on-warning-container';
       case 'In transit': return 'bg-primary-container text-on-primary-container';
       case 'Returned': return 'bg-success-container text-on-success-container';
       default: return 'bg-surface-container-high text-on-surface-variant';
@@ -424,13 +445,20 @@ function ReturnDeliveryComponent({
     (returnDelivery.storeId && stores?.find(store => store.id === returnDelivery.storeId)) ||
     stores?.find(store => store.code === returnDelivery.storeCode);
   const brandRecord = storeRecord ? brands?.find(brand => brand.id === storeRecord.brandId) : undefined;
-  const receiverBrandAndCode = [brandRecord?.name, storeRecord?.code || returnDelivery.storeCode]
+  
+  // Sender: Brand + store code
+  const senderDisplay = [brandRecord?.name, storeRecord?.code || returnDelivery.storeCode]
     .filter(Boolean)
     .join(' ')
-    .trim();
-  const receiverDisplay = receiverBrandAndCode || returnDelivery.storeName;
+    .trim() || returnDelivery.storeName;
+  
+  // Receiver: Partner name + warehouse
   const warehouseRecord = warehouses?.find(warehouse => warehouse.id === returnDelivery.warehouseId);
-  const warehouseDisplay = returnDelivery.warehouseName || warehouseRecord?.name;
+  const warehouseName = returnDelivery.warehouseName || warehouseRecord?.name || '';
+  const receiverDisplay = [returnDelivery.partnerName, warehouseName]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || returnDelivery.partnerName;
 
   const handleMarkAsReturned = () => {
     if (onUpdateStatus) {
@@ -438,8 +466,15 @@ function ReturnDeliveryComponent({
     }
   };
 
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onCancel && confirm('Are you sure you want to cancel this return? This action cannot be undone.')) {
+      onCancel(returnDelivery.id);
+    }
+  };
+
   // Use div wrapper when there are action buttons to avoid nested buttons
-  const hasActionButton = returnDelivery.status !== 'Returned' && onUpdateStatus;
+  const hasActionButton = (returnDelivery.status !== 'Returned' && onUpdateStatus) || (returnDelivery.status === 'Pending' && onCancel);
   const ComponentWrapper = onClick && !hasActionButton ? 'button' : 'div';
   
   return (
@@ -475,20 +510,15 @@ function ReturnDeliveryComponent({
             <span className="block truncate">Delivery: {returnDelivery.deliveryId}</span>
           </div>
           
-          {/* Secondary Line - Store Name */}
+          {/* Secondary Line - Sender (Brand + Store Code) */}
+          <div className="body-small text-on-surface-variant mb-0.5">
+            <span className="block truncate">From: {senderDisplay}</span>
+          </div>
+          
+          {/* Secondary Line - Receiver (Partner + Warehouse) */}
           <div className="body-small text-on-surface-variant mb-0.5">
             <span className="block truncate">To: {receiverDisplay}</span>
           </div>
-          {returnDelivery.storeName && (
-            <div className="label-small text-on-surface-variant mb-0.5">
-              <span className="block truncate">{returnDelivery.storeName}</span>
-            </div>
-          )}
-          {warehouseDisplay && (
-            <div className="body-small text-on-surface-variant mb-0.5">
-              <span className="block truncate">From: {warehouseDisplay}</span>
-            </div>
-          )}
           
           {/* Metadata Line - Items, Boxes, and Store Code */}
           <div className="label-small text-on-surface-variant opacity-90">
@@ -505,8 +535,31 @@ function ReturnDeliveryComponent({
             {getStatusDisplay(returnDelivery.status)}
           </div>
 
-          {/* Mark as Returned button */}
-          {returnDelivery.status !== 'Returned' && onUpdateStatus && (
+          {/* More menu for pending returns */}
+          {returnDelivery.status === 'Pending' && onCancel && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
+                  aria-label="More actions"
+                >
+                  <MoreVertical className="w-5 h-5 text-on-surface-variant" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onClick={handleCancel}
+                  className="text-error focus:text-error focus:bg-error-container"
+                >
+                  Cancel return
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Mark as Returned button - Only show for partners, not store staff */}
+          {returnDelivery.status !== 'Returned' && returnDelivery.status !== 'Pending' && onUpdateStatus && userRole === 'partner' && (
             <button 
               onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                 e.stopPropagation();
@@ -516,6 +569,13 @@ function ReturnDeliveryComponent({
             >
               Mark as returned
             </button>
+          )}
+
+          {/* Navigation Arrow - Show when clickable (on mobile) */}
+          {onClick && (
+            <div className="w-5 h-5 flex items-center justify-center md:hidden">
+              <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+            </div>
           )}
         </div>
       </div>
@@ -942,6 +1002,7 @@ export default function ShippingScreen({
   currentWarehouseId,
   onSelectSellpyOrder,
   onUpdateReturnDeliveryStatus,
+  onCancelReturn,
   onOpenOrderDetails,
   onOpenShipmentDetails,
   onOpenReturnDetails,
@@ -957,6 +1018,7 @@ export default function ShippingScreen({
   onDeleteDeliveryNote,
   onCreateDeliveryNoteForOrder,
   onCreateOrder,
+  currentStoreSelection,
   viewFilter: externalViewFilter,
   onViewFilterChange: externalOnViewFilterChange
 }: ShippingScreenProps) {
@@ -1006,15 +1068,25 @@ export default function ShippingScreen({
   const [orderStatusFilter, setOrderStatusFilter] = useState<OrderStatusFilter>('all');
   const [shipmentStatusFilter, setShipmentStatusFilter] = useState<ShipmentStatusFilter>('all');
   const [returnStatusFilter, setReturnStatusFilter] = useState<ReturnStatusFilter>('all');
-  const orderStatusFilterOptions: Array<{ id: OrderStatusFilter; label: string }> = [
-    { id: 'all', label: 'All' },
-    { id: 'approval', label: 'Approval' },
-    { id: 'pending', label: 'Pending' },
-    { id: 'registered', label: 'Registered' },
-    { id: 'in-transit', label: 'In transit' }
-  ];
+  // Filter out Approval option for Thrifted partner
+  const isThriftedPartnerForFilter = currentPartnerId === '2'; // Thrifted
+  const orderStatusFilterOptions: Array<{ id: OrderStatusFilter; label: string }> = isThriftedPartnerForFilter
+    ? [
+        { id: 'all' as OrderStatusFilter, label: 'All' },
+        { id: 'pending' as OrderStatusFilter, label: 'Pending' },
+        { id: 'registered' as OrderStatusFilter, label: 'Registered' },
+        { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
+      ]
+    : [
+        { id: 'all' as OrderStatusFilter, label: 'All' },
+        { id: 'approval' as OrderStatusFilter, label: 'Approval' },
+        { id: 'pending' as OrderStatusFilter, label: 'Pending' },
+        { id: 'registered' as OrderStatusFilter, label: 'Registered' },
+        { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
+      ];
   const shipmentStatusFilterOptions: Array<{ id: ShipmentStatusFilter; label: string }> = [
     { id: 'all', label: 'All' },
+    { id: 'packing', label: 'Packing' },
     { id: 'in-transit', label: 'In transit' },
     { id: 'delivered', label: 'Delivered' }
   ];
@@ -1157,6 +1229,9 @@ useEffect(() => {
     const matchesWarehouse = role !== 'partner' || !currentWarehouseId || delivery.warehouseId === currentWarehouseId;
     
     return matchesSearch && matchesTab && matchesPartner && matchesWarehouse;
+  }).sort((a, b) => {
+    // Sort by date descending (newest first)
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
   const hasInTransitDelivery = deliveries.some((delivery) => delivery.status === 'In transit');
@@ -1235,6 +1310,9 @@ useEffect(() => {
     })();
     
     return matchesSearch && matchesPartner && matchesWarehouse && matchesStatusFilter;
+  }).sort((a, b) => {
+    // Sort by createdDate descending (newest first)
+    return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
   });
 
   const findSellpyOrder = (orderId: string) =>
@@ -1257,34 +1335,72 @@ useEffect(() => {
       delivery.storeCode.toLowerCase().includes(searchTerm.toLowerCase());
     
     // For partners: only show their return deliveries
-    // For store staff: show all return deliveries
-    const matchesPartner = role === 'store-staff' || 
+    // For store staff and admin: show return deliveries for the selected store
+    const matchesPartner = (role === 'store-staff' || role === 'admin') || 
       delivery.partnerId === currentPartnerId;
-    const matchesWarehouse = role === 'store-staff' || 
+    const matchesWarehouse = (role === 'store-staff' || role === 'admin') || 
       !currentWarehouseId || 
       delivery.warehouseId === currentWarehouseId;
+    
+    // For store staff and admin: filter by selected store if available
+    let matchesStore = true;
+    if ((role === 'store-staff' || role === 'admin') && currentStoreSelection?.storeId) {
+      // Match by storeId directly (convert to string for comparison)
+      const deliveryStoreId = String(delivery.storeId || '');
+      const selectedStoreId = String(currentStoreSelection.storeId);
+      
+      // Also try matching by storeCode
+      const selectedStore = stores?.find(s => String(s.id) === selectedStoreId);
+      const selectedStoreCode = selectedStore?.code;
+      
+      // Match if storeId matches OR storeCode matches
+      matchesStore = deliveryStoreId === selectedStoreId || 
+                     (selectedStoreCode ? delivery.storeCode === selectedStoreCode : false);
+    }
 
-    if (!matchesPartner || !matchesWarehouse) {
+    if (!matchesPartner || !matchesWarehouse || !matchesStore) {
       return false;
     }
 
-    if (role === 'partner' && activeTab === 'returns') {
-      const matchesStatus = (() => {
-        switch (returnStatusFilter) {
-          case 'in-transit':
-            return delivery.status === 'In transit' || delivery.status === 'Pending pickup';
-          case 'returned':
-            return delivery.status === 'Returned';
-          case 'all':
-          default:
-            return true;
+    // For "Returns ongoing" tab: only show Pending and In transit returns
+    if (activeTab === 'returns') {
+      if (role === 'partner') {
+        // For partners: exclude Pending returns
+        if (delivery.status === 'Pending') {
+          return false;
         }
-      })();
-
-      return matchesSearch && matchesStatus;
+        const matchesStatus = (() => {
+          switch (returnStatusFilter) {
+            case 'in-transit':
+              return delivery.status === 'In transit';
+            case 'returned':
+              return delivery.status === 'Returned';
+            case 'all':
+            default:
+              return delivery.status === 'In transit' || delivery.status === 'Returned';
+          }
+        })();
+        return matchesSearch && matchesStatus;
+      } else {
+        // Store staff and admin: show only Pending and In transit in Returns ongoing tab
+        return matchesSearch && (delivery.status === 'Pending' || delivery.status === 'In transit');
+      }
     }
 
-    return matchesSearch;
+    // For "All" tab: show all returns (pending, in transit, delivered/returned)
+    if (activeTab === 'all') {
+      // For partners: exclude Pending returns
+      if (role === 'partner' && delivery.status === 'Pending') {
+        return false;
+      }
+      return matchesSearch;
+    }
+
+    // For other tabs, don't show returns (they're only shown on 'returns' and 'all' tabs)
+    return false;
+  }).sort((a, b) => {
+    // Sort by date descending (newest first)
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
   const filteredDeliveryNotes = deliveryNotes.filter(note => {
@@ -1307,13 +1423,15 @@ useEffect(() => {
 
       const matchesStatusFilter = (() => {
         switch (shipmentStatusFilter) {
+          case 'packing':
+            return noteStatus === 'pending' || noteStatus === 'packing';
           case 'in-transit':
             return noteStatus === 'registered';
           case 'delivered':
-            return noteStatus === 'delivered' || noteStatus === 'rejected';
+            return noteStatus === 'delivered' || noteStatus === 'rejected' || noteStatus === 'partially-delivered' || noteStatus === 'cancelled';
           case 'all':
           default:
-            return ['pending', 'registered', 'delivered', 'rejected'].includes(noteStatus);
+            return ['pending', 'packing', 'registered', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
         }
       })();
 
@@ -1325,6 +1443,9 @@ useEffect(() => {
       (activeTab === 'all' && (noteStatus === 'delivered' || noteStatus === 'rejected'));
     
     return matchesSearch && matchesTab;
+  }).sort((a, b) => {
+    // Sort by createdDate descending (newest first)
+    return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
   });
 
   // Filter showroom orders (purchase orders for Chinese partners)
@@ -1354,6 +1475,9 @@ useEffect(() => {
     })();
     
     return matchesSearch && matchesTab;
+  }).sort((a, b) => {
+    // Sort by createdAt descending (newest first)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
   // Filter Sellpy orders (API integration orders for store staff - no filters needed as selection is done on home screen)
@@ -1363,6 +1487,9 @@ useEffect(() => {
       order.receivingStore.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesSearch;
+  }).sort((a, b) => {
+    // Sort by createdDate descending (newest first)
+    return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
   });
 
   // Determine what to show based on the tab and partner type
@@ -1375,6 +1502,7 @@ useEffect(() => {
   const showReturns = activeTab === 'returns'; // Show returns for both partners and store staff
   // Store staff no longer has an 'orders' tab - removed
   const showSellpyOrders = false;
+  
 
   return (
     <div className="bg-surface relative size-full">
@@ -1530,6 +1658,8 @@ useEffect(() => {
               </div>
               <input
                 type="text"
+                id="shipping-search"
+                name="shipping-search"
                 placeholder={showReturns ? "Search for return delivery ID or store name" : 
                   showSellpyOrders ? "Search for order ID or store name" :
                   role === 'partner' ? "Search for order ID or delivery note" : "Search for delivery ID"
@@ -1566,6 +1696,71 @@ useEffect(() => {
           <div className="mb-4 flex flex-wrap gap-2">
             {orderStatusFilterOptions.map(({ id, label }) => {
               const isActive = orderStatusFilter === id;
+              // Calculate count for this filter
+              const count = (() => {
+                if (!partnerOrdersList || partnerOrdersList.length === 0) return 0;
+                
+                return partnerOrdersList.filter(order => {
+                  // Filter out approval orders for non-admin users
+                  if (order.status === 'approval' && !isAdmin) {
+                    return false;
+                  }
+                  
+                  const matchesSearch = searchTerm === '' || 
+                    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (order.deliveryNote && order.deliveryNote.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                    (order.partnerName && order.partnerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                    (order.receivingStoreName && order.receivingStoreName.toLowerCase().includes(searchTerm.toLowerCase()));
+                  const matchesPartner = !currentPartnerId || order.partnerId === currentPartnerId;
+                  const matchesWarehouse = !currentWarehouseId || order.warehouseId === currentWarehouseId;
+                  
+                  if (!matchesSearch || !matchesPartner || !matchesWarehouse) {
+                    return false;
+                  }
+                  
+                  // Apply brand/country/store filters (for partner portal only)
+                  if (role === 'partner') {
+                    const orderStore = order.receivingStoreId ? stores?.find(s => s.id === order.receivingStoreId) : null;
+                    
+                    // Check brand filter
+                    if (viewFilter.brandIds && viewFilter.brandIds.length > 0) {
+                      if (!orderStore || !viewFilter.brandIds.includes(orderStore.brandId)) {
+                        return false;
+                      }
+                    }
+                    
+                    // Check country filter
+                    if (viewFilter.countryIds && viewFilter.countryIds.length > 0) {
+                      if (!orderStore || !viewFilter.countryIds.includes(orderStore.countryId)) {
+                        return false;
+                      }
+                    }
+                    
+                    // Check store filter
+                    if (viewFilter.storeIds && viewFilter.storeIds.length > 0) {
+                      if (!order.receivingStoreId || !viewFilter.storeIds.includes(order.receivingStoreId)) {
+                        return false;
+                      }
+                    }
+                  }
+                  
+                  // Check status filter
+                  switch (id) {
+                    case 'approval':
+                      return order.status === 'approval';
+                    case 'pending':
+                      return order.status === 'pending';
+                    case 'registered':
+                      return order.status === 'registered';
+                    case 'in-transit':
+                      return order.status === 'in-transit';
+                    case 'all':
+                    default:
+                      return ['approval', 'pending', 'registered', 'in-transit', 'in-review', 'delivered'].includes(order.status);
+                  }
+                }).length;
+              })();
+              
               return (
                 <button
                   key={id}
@@ -1576,7 +1771,7 @@ useEffect(() => {
                       : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
                   }`}
                 >
-                  {label}
+                  {label} ({count})
                 </button>
               );
             })}
@@ -1587,6 +1782,36 @@ useEffect(() => {
           <div className="mb-4 flex flex-wrap gap-2">
             {shipmentStatusFilterOptions.map(({ id, label }) => {
               const isActive = shipmentStatusFilter === id;
+              // Calculate count for this filter
+              const count = (() => {
+                if (!deliveryNotes) return 0;
+                
+                return deliveryNotes.filter(note => {
+                  const matchesSearch = searchTerm === '' || 
+                    note.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    note.orderId.toLowerCase().includes(searchTerm.toLowerCase());
+                  const matchesPartner = !currentPartnerId || note.partnerId === currentPartnerId;
+                  const matchesWarehouse = !currentWarehouseId || note.warehouseId === currentWarehouseId;
+                  
+                  if (!matchesSearch || !matchesPartner || !matchesWarehouse) {
+                    return false;
+                  }
+                  
+                  const noteStatus = note.status || 'pending';
+                  switch (id) {
+                    case 'packing':
+                      return noteStatus === 'pending' || noteStatus === 'packing';
+                    case 'in-transit':
+                      return noteStatus === 'registered';
+                    case 'delivered':
+                      return noteStatus === 'delivered' || noteStatus === 'rejected' || noteStatus === 'partially-delivered' || noteStatus === 'cancelled';
+                    case 'all':
+                    default:
+                      return ['pending', 'packing', 'registered', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
+                  }
+                }).length;
+              })();
+              
               return (
                 <button
                   key={id}
@@ -1597,7 +1822,7 @@ useEffect(() => {
                       : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
                   }`}
                 >
-                  {label}
+                  {label} ({count})
                 </button>
               );
             })}
@@ -1608,6 +1833,46 @@ useEffect(() => {
           <div className="mb-4 flex flex-wrap gap-2">
             {returnStatusFilterOptions.map(({ id, label }) => {
               const isActive = returnStatusFilter === id;
+              // Calculate count for this filter
+              const count = (() => {
+                if (!returnDeliveries || returnDeliveries.length === 0) return 0;
+                
+                return returnDeliveries.filter(delivery => {
+                  // For partners: exclude Pending returns
+                  if (role === 'partner' && delivery.status === 'Pending') {
+                    return false;
+                  }
+                  
+                  const matchesSearch = searchTerm === '' || 
+                    delivery.deliveryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    delivery.storeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    delivery.storeCode.toLowerCase().includes(searchTerm.toLowerCase());
+                  
+                  // For partners: only show their return deliveries
+                  const matchesPartner = !currentPartnerId || delivery.partnerId === currentPartnerId;
+                  const matchesWarehouse = !currentWarehouseId || delivery.warehouseId === currentWarehouseId;
+                  
+                  if (!matchesSearch || !matchesPartner || !matchesWarehouse) {
+                    return false;
+                  }
+                  
+                  // Check status filter
+                  switch (id) {
+                    case 'in-transit':
+                      return delivery.status === 'In transit';
+                    case 'returned':
+                      return delivery.status === 'Returned';
+                    case 'all':
+                    default:
+                      // For partners: only count In transit and Returned
+                      if (role === 'partner') {
+                        return delivery.status === 'In transit' || delivery.status === 'Returned';
+                      }
+                      return true;
+                  }
+                }).length;
+              })();
+              
               return (
                 <button
                   key={id}
@@ -1618,31 +1883,35 @@ useEffect(() => {
                       : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
                   }`}
                 >
-                  {label}
+                  {label} ({count})
                 </button>
               );
             })}
           </div>
         )}
 
-        {/* Count Display */}
-        <div className="mb-3">
-          <span className="body-medium text-on-surface-variant">
-            {showReturns ?
-              `${filteredReturnDeliveries.length} return deliveries` :
-              showSellpyOrders ?
-                `${filteredSellpyOrders.length} orders` :
-              role === 'partner' ? 
-                (showShowroomOrders ?
-                  `${filteredShowroomOrders.length} ${activeTab === 'pending' ? 'purchase orders' : shipmentStatusFilter === 'delivered' ? 'deliveries' : 'shipments'}` :
-                  showDeliveryNotes ? 
-                    `${filteredDeliveryNotes.length} ${shipmentStatusFilter === 'delivered' ? 'deliveries' : 'shipments'}` :
-                    `${filteredPartnerOrders.length} orders`
-                ) :
-                `${filteredDeliveries.length} deliveries`
-            }
-          </span>
-        </div>
+        {/* Count Display - Hidden for partner portal orders, shipments, and returns tabs (counts shown in filter chips) */}
+        {!(role === 'partner' && ((activeTab === 'pending' && showOrders && !isChinesePartner) || (activeTab === 'in-transit' && showDeliveryNotes) || activeTab === 'returns')) && (
+          <div className="mb-3">
+            <span className="body-medium text-on-surface-variant">
+              {showReturns ?
+                `${filteredReturnDeliveries.length} return deliveries` :
+                showSellpyOrders ?
+                  `${filteredSellpyOrders.length} orders` :
+                role === 'partner' ? 
+                  (showShowroomOrders ?
+                    `${filteredShowroomOrders.length} ${activeTab === 'pending' ? 'purchase orders' : shipmentStatusFilter === 'delivered' ? 'deliveries' : 'shipments'}` :
+                    showDeliveryNotes ? 
+                      `${filteredDeliveryNotes.length} ${shipmentStatusFilter === 'delivered' ? 'deliveries' : 'shipments'}` :
+                      `${filteredPartnerOrders.length} orders`
+                  ) :
+                  activeTab === 'all' ?
+                    `${filteredDeliveries.length + filteredReturnDeliveries.length} deliveries` :
+                    `${filteredDeliveries.length} deliveries`
+              }
+            </span>
+          </div>
+        )}
 
         {/* List Content - Role-specific */}
         <div className="space-y-0 mb-4">
@@ -1659,10 +1928,12 @@ useEffect(() => {
                         <ReturnDeliveryComponent 
                           returnDelivery={returnDelivery}
                           onUpdateStatus={onUpdateReturnDeliveryStatus}
+                          onCancel={onCancelReturn}
                           onClick={() => onOpenReturnDetails?.(returnDelivery)}
                           stores={stores}
                           brands={brands}
                           warehouses={warehouses}
+                          userRole={role}
                         />
                       </div>
                     ))}
@@ -1716,7 +1987,7 @@ useEffect(() => {
                                 onClick={() => onOpenReturnDetails?.(returnDelivery)}
                               >
                                 <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${
-                                  returnDelivery.status === 'Pending pickup' ? 'bg-warning-container text-on-warning-container' :
+                                  returnDelivery.status === 'Pending' ? 'bg-warning-container text-on-warning-container' :
                                   returnDelivery.status === 'In transit' ? 'bg-primary-container text-on-primary-container' :
                                   returnDelivery.status === 'Returned' ? 'bg-success-container text-on-success-container' :
                                   'bg-surface-container-high text-on-surface-variant'
@@ -1725,7 +1996,7 @@ useEffect(() => {
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-right">
-                                {returnDelivery.status !== 'Returned' && onUpdateReturnDeliveryStatus && (
+                                {returnDelivery.status !== 'Returned' && onUpdateReturnDeliveryStatus && role === 'partner' && (
                                   <button 
                                     className="px-3 py-1.5 bg-primary text-on-primary rounded-full label-medium hover:bg-primary/90 transition-colors"
                                     onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
@@ -1766,10 +2037,13 @@ useEffect(() => {
                       <div key={returnDelivery.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                         <ReturnDeliveryComponent 
                           returnDelivery={returnDelivery}
+                          onUpdateStatus={onUpdateReturnDeliveryStatus}
+                          onCancel={onCancelReturn}
                           onClick={() => onOpenReturnDetails?.(returnDelivery)}
                           stores={stores}
                           brands={brands}
                           warehouses={warehouses}
+                          userRole={role}
                         />
                       </div>
                     ))}
@@ -1847,7 +2121,7 @@ useEffect(() => {
                                 onClick={() => onOpenReturnDetails?.(returnDelivery)}
                               >
                                 <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${
-                                  returnDelivery.status === 'Pending pickup' ? 'bg-warning-container text-on-warning-container' :
+                                  returnDelivery.status === 'Pending' ? 'bg-warning-container text-on-warning-container' :
                                   returnDelivery.status === 'In transit' ? 'bg-primary-container text-on-primary-container' :
                                   returnDelivery.status === 'Returned' ? 'bg-success-container text-on-success-container' :
                                   'bg-surface-container-high text-on-surface-variant'
@@ -2475,7 +2749,7 @@ useEffect(() => {
             )
           ) : (
             // Store Staff Deliveries View
-            filteredDeliveries.length > 0 ? (
+            (filteredDeliveries.length > 0 || (activeTab === 'all' && filteredReturnDeliveries.length > 0)) ? (
               <>
                 {/* Mobile: Card View */}
                 <div className="flex md:hidden flex-col gap-2">
@@ -2484,6 +2758,20 @@ useEffect(() => {
                       <DeliveryItem 
                         delivery={delivery} 
                         onSelect={() => onSelectDelivery(delivery)} 
+                      />
+                    </div>
+                  ))}
+                  {activeTab === 'all' && filteredReturnDeliveries.map((returnDelivery) => (
+                    <div key={returnDelivery.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                      <ReturnDeliveryComponent 
+                        returnDelivery={returnDelivery}
+                        onUpdateStatus={onUpdateReturnDeliveryStatus}
+                        onCancel={onCancelReturn}
+                        onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                        stores={stores}
+                        brands={brands}
+                        warehouses={warehouses}
+                        userRole={role}
                       />
                     </div>
                   ))}
@@ -2533,6 +2821,52 @@ useEffect(() => {
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.orders}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.items}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.boxes}</td>
+                            <td className="px-4 py-3 text-right">
+                              <ChevronRight className="w-5 h-5 text-on-surface-variant inline-block" />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {activeTab === 'all' && filteredReturnDeliveries.map((returnDelivery) => {
+                        const storeRecord = returnDelivery.storeId
+                          ? stores?.find(store => store.id === returnDelivery.storeId)
+                          : stores?.find(store => store.code === returnDelivery.storeCode);
+                        const brandRecord = storeRecord ? brands?.find(brand => brand.id === storeRecord.brandId) : undefined;
+                        const receiverDisplay = (() => {
+                          const brandName = brandRecord?.name;
+                          const code = storeRecord?.code || returnDelivery.storeCode;
+                          if (brandName || code) {
+                            return [brandName, code].filter(Boolean).join(' ').trim();
+                          }
+                          return returnDelivery.storeName;
+                        })();
+
+                        const getStatusColor = (status: ReturnDelivery['status']) => {
+                          switch (status) {
+                            case 'Pending': return 'text-warning';
+                            case 'In transit': return 'text-primary';
+                            case 'Returned': return 'text-tertiary';
+                            default: return 'text-on-surface-variant';
+                          }
+                        };
+
+                        return (
+                          <tr 
+                            key={returnDelivery.id}
+                            onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                            className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors cursor-pointer"
+                          >
+                            <td className="px-4 py-3 body-medium text-on-surface-variant">{returnDelivery.date}</td>
+                            <td className="px-4 py-3 body-medium text-on-surface">{returnDelivery.deliveryId}</td>
+                            <td className="px-4 py-3">
+                              <span className={`body-medium ${getStatusColor(returnDelivery.status)}`}>
+                                {returnDelivery.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 body-medium text-on-surface">{receiverDisplay}</td>
+                            <td className="px-4 py-3 body-medium text-on-surface text-right">—</td>
+                            <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.items}</td>
+                            <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.boxes}</td>
                             <td className="px-4 py-3 text-right">
                               <ChevronRight className="w-5 h-5 text-on-surface-variant inline-block" />
                             </td>

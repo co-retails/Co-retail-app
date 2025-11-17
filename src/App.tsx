@@ -5,6 +5,8 @@ import ReceiveDeliveryScreen from './components/ReceiveDeliveryScreen';
 import PartnerSelectionScreen, { Partner } from './components/PartnerSelectionScreen';
 import ReturnManagementScreen, { ReturnItem, ReturnOrder } from './components/ReturnManagementScreen';
 import ReturnConfirmationScreen from './components/ReturnConfirmationScreen';
+import ReturnShippingLabelScreen from './components/ReturnShippingLabelScreen';
+import ReturnDetailsScreen, { ReturnOrderDetails, ReturnItemDetail } from './components/ReturnDetailsScreen';
 import ItemsScreen, { Item } from './components/ItemsScreen';
 import ScanScreen from './components/ScanScreen';
 import SellersScreen from './components/SellersScreen';
@@ -192,6 +194,8 @@ export default function App() {
     setReturnDeliveries,
     currentReturnOrder,
     setCurrentReturnOrder,
+    currentReturnOrderDetails,
+    setCurrentReturnOrderDetails,
     setReturnOrders,
     currentStockCheckSession,
     setCurrentStockCheckSession,
@@ -379,10 +383,89 @@ export default function App() {
   // === Return Flow Handlers ===
   const handlePartnerSelect = (partner: Partner) => {
     setSelectedPartner(partner);
+    // Initialize returnItems - for Kinda Kinks, add demo items for testing
+    if (partner.id === '2' && partner.name === 'Kinda Kinks') {
+      const kindaKinksDemoItems: ReturnItem[] = [
+        {
+          id: 'kk-1',
+          itemId: 'KK-ITM-001',
+          title: 'Vintage Denim Jacket',
+          size: 'M',
+          color: 'Blue',
+          status: 'In store',
+          partnerItemRef: 'KK-VDJ-001',
+          partnerId: '2', // Kinda Kinks partner ID
+          selected: false,
+          canExtend: false,
+          scanned: false,
+          image: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080',
+          thumbnail: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080'
+        },
+        {
+          id: 'kk-2',
+          itemId: 'KK-ITM-002',
+          title: 'Leather Boots',
+          size: '39',
+          color: 'Black',
+          status: 'Broken',
+          partnerItemRef: 'KK-LB-002',
+          partnerId: '2', // Kinda Kinks partner ID
+          selected: false,
+          canExtend: false,
+          scanned: false,
+          image: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080',
+          thumbnail: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080'
+        },
+        {
+          id: 'kk-3',
+          itemId: 'KK-ITM-003',
+          title: 'Cotton Summer Dress',
+          size: 'L',
+          color: 'White',
+          status: 'Rejected',
+          partnerItemRef: 'KK-CSD-003',
+          partnerId: '2', // Kinda Kinks partner ID
+          selected: false,
+          canExtend: false,
+          scanned: false,
+          image: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080',
+          thumbnail: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080'
+        },
+        {
+          id: 'kk-4',
+          itemId: 'KK-ITM-004',
+          title: 'Wool Sweater',
+          size: 'S',
+          color: 'Gray',
+          status: 'In transit',
+          partnerItemRef: 'KK-WS-004',
+          partnerId: '2', // Kinda Kinks partner ID
+          selected: false,
+          canExtend: false,
+          scanned: false,
+          image: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080',
+          thumbnail: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080'
+        }
+      ];
+      setReturnItems(kindaKinksDemoItems);
+    } else {
+      // For other partners, initialize as empty array to allow scanning any items
+      setReturnItems([]);
+    }
     setCurrentScreenSafe('return-management');
   };
 
   const handleUpdateReturnItem = (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan') => {
+    // Validate that the item belongs to the selected partner before allowing actions
+    const item = returnItems.find(i => i.id === itemId);
+    if (item && selectedPartner) {
+      // If item has a partnerId, it must match the selected partner
+      if (item.partnerId && item.partnerId !== selectedPartner.id) {
+        toast.error(`This item belongs to a different partner and cannot be added to this return.`);
+        return;
+      }
+    }
+
     setReturnItems(prev => prev.map(item => {
       if (item.id === itemId) {
         switch (action) {
@@ -451,26 +534,81 @@ export default function App() {
   };
 
   const handleCreateReturn = (selectedItems: ReturnItem[]) => {
+    // Validate that all selected items belong to the selected partner
+    if (selectedPartner) {
+      const invalidItems = selectedItems.filter(item => 
+        item.partnerId && item.partnerId !== selectedPartner.id
+      );
+      if (invalidItems.length > 0) {
+        toast.error(`Cannot create return: ${invalidItems.length} item(s) belong to a different partner.`);
+        return;
+      }
+    }
     createReturnOrder(selectedItems, selectedPartner?.id, selectedPartner?.name);
   };
 
   const handleCreateReturnFromItems = (items: Item[]) => {
     if (items.length === 0) return;
 
+    // Group items by seller/partner - use sellerName or source to determine partner
+    // For now, assume all items are from the same seller (first item's seller)
+    const firstItem = items[0];
+    const sellerName = firstItem.sellerName || firstItem.source || 'Unknown';
+    
+    // Find partner by name - try to match with mockPartners first (for ReturnManagementScreen)
+    let partner = mockPartners.find(p => 
+      p.name.toLowerCase() === sellerName.toLowerCase() || 
+      sellerName.toLowerCase().includes(p.name.toLowerCase())
+    );
+    
+    // If not found in mockPartners, try mockWarehousePartners
+    if (!partner) {
+      const warehousePartner = mockWarehousePartners.find(p => 
+        p.name.toLowerCase() === sellerName.toLowerCase() || 
+        sellerName.toLowerCase().includes(p.name.toLowerCase())
+      );
+      if (warehousePartner) {
+        // Convert warehouse partner to Partner format
+        partner = {
+          id: warehousePartner.id,
+          name: warehousePartner.name,
+          connectionStatus: 'connected' as const,
+          itemsToReturn: 0
+        };
+      }
+    }
+    
+    // Fallback to first partner if still not found
+    if (!partner) {
+      partner = mockPartners[0] || {
+        id: '1',
+        name: sellerName,
+        connectionStatus: 'connected' as const,
+        itemsToReturn: 0
+      };
+    }
+
+    // Convert items to ReturnItem format with scanned=true (pre-scanned from items screen)
     const returnItems: ReturnItem[] = items.map((item) => ({
       id: item.id,
       itemId: item.itemId,
-      title: item.title,
+      title: item.title || `${item.brand} ${item.category}`,
       size: item.size,
       color: item.color,
-      status: 'Return - In transit',
+      status: 'Return - In transit' as const,
       partnerItemRef: item.itemId,
+      partnerId: partner.id, // Associate items with the selected partner
       thumbnail: item.thumbnail,
       image: item.thumbnail,
-      selected: false
+      selected: true, // Pre-selected
+      scanned: true, // Pre-scanned
+      canExtend: false
     }));
 
-    createReturnOrder(returnItems);
+    // Set up the return items and partner for ReturnManagementScreen
+    setReturnItems(returnItems);
+    setSelectedPartner(partner);
+    setCurrentScreenSafe('return-management');
   };
 
   const handleExtendReturn = (itemIds: string[]) => {
@@ -575,16 +713,47 @@ export default function App() {
   };
 
   const handleGenerateStockCheckReport = (session: StockCheckSession) => {
+    // Load accumulated items for the same date from localStorage
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const saved = localStorage.getItem(`stockCheckSession_${today}`);
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.items && data.items.length > 0) {
+          // Use accumulated items from all users for today
+          const accumulatedScanned = data.items.filter((item: any) => item.isScanned);
+          session.scannedItems = accumulatedScanned.length;
+          session.items = data.items;
+          session.totalItems = Math.max(session.totalItems, data.items.length);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load accumulated items for report:', e);
+    }
+
     // Add to available sessions
     setAvailableStockCheckSessions(prev => {
-      // Check if session already exists
-      const exists = prev.some(s => s.id === session.id);
-      if (exists) {
-        // Update existing session
-        return prev.map(s => s.id === session.id ? session : s);
+      // Check if session already exists for this date
+      const existingSession = prev.find(s => s.date === session.date);
+      if (existingSession) {
+        // Update existing session with accumulated data
+        return prev.map(s => 
+          s.date === session.date 
+            ? { 
+                ...s, 
+                scannedItems: session.scannedItems,
+                totalItems: session.totalItems,
+                items: session.items,
+                status: 'Completed' as const,
+                reportGenerated: true
+              }
+            : s
+        );
       }
       // Add new session at the beginning (most recent first)
-      return [session, ...prev];
+      return [session, ...prev].sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
     });
     
     setCurrentStockCheckSession(session);
@@ -732,9 +901,12 @@ export default function App() {
         createdDate: new Date().toISOString()
       };
       
+      // Status flow: Pending -> Packing (when a box has been added)
+      const newStatus = deliveryNote.status === 'pending' ? 'packing' : deliveryNote.status;
+      
       setDeliveryNotes(prev => prev.map(note =>
         note.id === deliveryNoteId
-          ? { ...note, boxes: [...note.boxes, newBox] }
+          ? { ...note, boxes: [...note.boxes, newBox], status: newStatus as any }
           : note
       ));
       
@@ -744,7 +916,8 @@ export default function App() {
           ...detailsScreenData,
           data: {
             ...detailsScreenData.data,
-            boxes: [...(detailsScreenData.data as DeliveryNote).boxes, newBox]
+            boxes: [...(detailsScreenData.data as DeliveryNote).boxes, newBox],
+            status: newStatus as any
           }
         });
       }
@@ -798,7 +971,7 @@ export default function App() {
             color: colors[Math.floor(Math.random() * colors.length)],
             price,
             purchasePrice,
-            status: 'valid' as const
+            status: undefined
           };
         });
       };
@@ -887,7 +1060,7 @@ export default function App() {
     }
   };
 
-  const handleViewShipmentDetails = (type: DetailType, data: PartnerOrder | DeliveryNote | ReturnDelivery) => {
+  const handleViewShipmentDetails = (type: DetailType, data: PartnerOrder | DeliveryNote | ReturnDelivery, previousScreen?: Screen) => {
     let metadata: {
       storeName?: string;
       storeCode?: string;
@@ -914,7 +1087,8 @@ export default function App() {
     setDetailsScreenData({
       type,
       data,
-      ...metadata
+      ...metadata,
+      previousScreen: previousScreen || currentScreen // Track where we came from
     });
     setCurrentScreenSafe('order-shipment-details');
   };
@@ -931,6 +1105,12 @@ export default function App() {
         )
       );
     }
+  };
+
+  const handleCancelReturn = (deliveryId: string) => {
+    setReturnDeliveries((prev) => prev.filter((delivery) => delivery.id !== deliveryId));
+    setReturnOrders((prev) => prev.filter((order) => order.id !== deliveryId));
+    toast.success('Return cancelled');
   };
 
   // === Role Management Handlers ===
@@ -1214,6 +1394,7 @@ export default function App() {
     currentScreen !== 'partner-settings' &&
     currentScreen !== 'return-management' &&
     currentScreen !== 'return-confirmation' &&
+    currentScreen !== 'return-shipping-label' &&
     currentScreen !== 'stock-check' &&
     currentScreen !== 'stock-check-report' &&
     currentScreen !== 'stock-check-review' &&
@@ -1274,8 +1455,14 @@ export default function App() {
           deliveryStats={{
             newDeliveries: deliveries.filter(d => d.status === 'In transit').length,
             toReturn: mockPartners.reduce((sum, p) => sum + p.itemsToReturn, 0),
-            returns: returnDeliveries.length
+            returns: returnDeliveries.filter(r => 
+              (r.status === 'Pending' || r.status === 'In transit') &&
+              (r.storeId === currentStoreSelection.storeId || 
+               r.storeCode === mockStores.find(s => s.id === currentStoreSelection.storeId)?.code)
+            ).length
           }}
+          expiredItemsCount={38}
+          itemsToScanCount={289}
           brands={mockBrands}
           countries={mockCountries}
           stores={mockStores}
@@ -1367,6 +1554,7 @@ export default function App() {
             }
           }}
           onUpdateReturnDeliveryStatus={handleUpdateReturnDeliveryStatus}
+          onCancelReturn={handleCancelReturn}
           brands={mockBrands}
           countries={mockCountries}
           stores={mockStores}
@@ -1396,6 +1584,20 @@ export default function App() {
             setDeliveryBoxes(prev => prev.map(b => 
               b.id === boxId ? { ...b, isScanned: true, status: 'Delivered' } : b
             ));
+          }}
+          userRole={currentUserRole}
+          onUpdateDeliveryStatus={(deliveryId, status, reason) => {
+            setDeliveries(prevDeliveries =>
+              prevDeliveries.map(delivery =>
+                delivery.id === deliveryId
+                  ? { ...delivery, status, cancellationReason: reason as 'Missing delivery' | undefined }
+                  : delivery
+              )
+            );
+            // Update selectedDelivery if it's the one being updated
+            if (selectedDelivery.id === deliveryId) {
+              setSelectedDelivery({ ...selectedDelivery, status, cancellationReason: reason as 'Missing delivery' | undefined });
+            }
           }}
         />
       )}
@@ -1512,6 +1714,67 @@ export default function App() {
           onBack={handleBack}
           onUpdateItem={handleUpdateReturnItem}
           onCreateReturn={handleCreateReturn}
+          onContinue={() => {
+            // Navigate to shipping label screen
+            setCurrentScreenSafe('return-shipping-label');
+          }}
+        />
+      )}
+
+      {currentScreen === 'return-shipping-label' && selectedPartner && (
+        <ReturnShippingLabelScreen
+          partner={selectedPartner}
+          items={returnItems}
+          onBack={() => setCurrentScreenSafe('return-management')}
+          onRegisterReturn={(shippingLabel) => {
+            // Create return order with shipping label
+            const scannedItems = returnItems.filter(item => item.scanned);
+            if (scannedItems.length === 0) {
+              toast.error('No scanned items to return');
+              return;
+            }
+
+            const currentStore = mockStores.find((store) => store.id === currentStoreSelection.storeId);
+            const warehouse = mockWarehouses.find((w) => w.id === currentPartnerWarehouseSelection?.warehouseId);
+            
+            // Create return order
+            const returnOrderId = `RET-${Date.now()}`;
+            const returnOrder: ReturnOrder = {
+              id: returnOrderId,
+              partnerId: selectedPartner.id,
+              partnerName: selectedPartner.name,
+              status: 'Return - In transit',
+              createdDate: new Date().toISOString().split('T')[0],
+              items: scannedItems,
+              parcelId: shippingLabel
+            };
+
+            // Create return delivery with status 'Pending'
+            const returnDelivery: ReturnDelivery = {
+              id: returnOrderId,
+              date: returnOrder.createdDate,
+              status: 'Pending',
+              deliveryId: returnOrderId,
+              items: scannedItems.length,
+              boxes: Math.max(1, Math.ceil(scannedItems.length / 10)),
+              storeName: currentStore?.name || 'Current store',
+              storeCode: currentStore?.code || '',
+              partnerId: selectedPartner.id,
+              partnerName: selectedPartner.name,
+              storeId: currentStoreSelection.storeId,
+              warehouseId: currentPartnerWarehouseSelection?.warehouseId,
+              warehouseName: warehouse?.name
+            };
+
+            // Update state
+            setReturnOrders((prev) => [...prev, returnOrder]);
+            setReturnDeliveries((prev) => [returnDelivery, ...prev]);
+            setCurrentReturnOrder(returnOrder);
+            
+            // Navigate to success screen
+            setCurrentScreenSafe('return-confirmation');
+            toast.success('Return registered successfully');
+          }}
         />
       )}
 
@@ -1523,6 +1786,61 @@ export default function App() {
             handleBackToHome();
           }}
           onViewInShipping={handleNavigateToReturnsTab}
+        />
+      )}
+
+      {currentScreen === 'return-details' && currentReturnOrderDetails && (
+        <ReturnDetailsScreen
+          returnOrder={currentReturnOrderDetails}
+          onBack={handleBack}
+          onScan={() => {
+            // TODO: Implement scan functionality
+            toast.info('Scan functionality coming soon');
+          }}
+          onAddManually={() => {
+            // TODO: Implement manual add functionality
+            toast.info('Manual add functionality coming soon');
+          }}
+          onSaveAndClose={() => {
+            setCurrentReturnOrderDetails(null);
+            handleBack();
+          }}
+          userRole={currentUserRole}
+          onReturn={() => {
+            // Register the return - move from pending to in transit
+            if (currentReturnOrderDetails) {
+              const scannedItems = currentReturnOrderDetails.scannedItems;
+              if (scannedItems.length === 0) {
+                toast.error('Please scan at least one item before registering the return');
+                return;
+              }
+
+              // Create return delivery with status 'Pending'
+              const currentStore = mockStores.find((store) => store.id === currentStoreSelection.storeId);
+              const warehouse = mockWarehouses.find((w) => w.id === currentPartnerWarehouseSelection?.warehouseId);
+              
+              const returnDelivery: ReturnDelivery = {
+                id: currentReturnOrderDetails.id,
+                date: currentReturnOrderDetails.createdDate,
+                status: 'Pending',
+                deliveryId: currentReturnOrderDetails.orderNumber,
+                items: scannedItems.length,
+                boxes: Math.max(1, Math.ceil(scannedItems.length / 10)),
+                storeName: currentStore?.name || 'Current store',
+                storeCode: currentStore?.code || '',
+                partnerId: currentReturnOrderDetails.partnerId,
+                partnerName: currentReturnOrderDetails.partnerName,
+                storeId: currentStoreSelection.storeId,
+                warehouseId: currentPartnerWarehouseSelection?.warehouseId,
+                warehouseName: warehouse?.name
+              };
+
+              setReturnDeliveries((prev) => [returnDelivery, ...prev]);
+              setCurrentReturnOrderDetails(null);
+              toast.success('Return registered successfully');
+              handleNavigateToReturnsTab();
+            }
+          }}
         />
       )}
 
@@ -1557,6 +1875,7 @@ export default function App() {
         <StockCheckScreen
           onBack={handleBackToHome}
           onGenerateReport={handleGenerateStockCheckReport}
+          onSaveAndClose={handleBackToHome}
         />
       )}
 
@@ -1633,6 +1952,10 @@ export default function App() {
           }}
           viewFilter={partnerPortalViewFilter}
           onViewFilterChange={setPartnerPortalViewFilter}
+          onOpenOrderDetails={(order) => {
+            setSelectedPartnerOrder(order);
+            handleViewShipmentDetails('order', order, 'partner-dashboard');
+          }}
         />
       )}
 
@@ -1645,7 +1968,7 @@ export default function App() {
             <ThriftedOrderCreationScreen
               onBack={() => setCurrentScreenSafe('partner-dashboard')}
               onCreateOrder={(items, storeSelection, shouldRegister = false) => {
-                // Create a new order with the items
+                // Create a new order with the items (always as pending, user can register later)
                 const newOrder: PartnerOrder = {
                   id: `THR-ORD-${Date.now().toString().slice(-8)}`,
                   status: shouldRegister ? 'registered' : 'pending',
@@ -1667,7 +1990,22 @@ export default function App() {
                   setRegisteredOrderId(newOrder.id);
                   setShowPostRegistrationDialog(true);
                 } else {
-                  setCurrentScreenSafe('partner-dashboard');
+                  // Navigate to order details screen so user can fix validation errors
+                  const store = mockStores?.find(s => s.id === storeSelection.storeId);
+                  
+                  // Set up details screen data with order and items
+                  setDetailsScreenData({
+                    type: 'order',
+                    data: newOrder,
+                    storeName: store?.name,
+                    storeCode: store?.code,
+                    partnerName: currentPartner?.name,
+                    warehouseName: mockWarehouses.find(w => w.id === currentPartnerWarehouseSelection?.warehouseId)?.name,
+                    orderItems: items // Pass items to the details screen
+                  });
+                  
+                  // Navigate to order details screen
+                  setCurrentScreenSafe('order-shipment-details');
                 }
               }}
               currentPartner={currentPartner}
@@ -1734,7 +2072,7 @@ export default function App() {
               color: colors[Math.floor(Math.random() * colors.length)],
               price,
               purchasePrice,
-              status: 'valid' as const
+              status: undefined
             };
           });
         };
@@ -1798,7 +2136,14 @@ export default function App() {
         <OrderShipmentDetailsScreen
           type={detailsScreenData.type}
           data={detailsScreenData.data}
-          onBack={handleBack}
+          onBack={() => {
+            // Navigate back to the previous screen if specified, otherwise use default handleBack
+            if (detailsScreenData.previousScreen) {
+              setCurrentScreenSafe(detailsScreenData.previousScreen);
+            } else {
+              handleBack();
+            }
+          }}
           storeName={detailsScreenData.storeName}
           storeCode={detailsScreenData.storeCode}
           partnerName={detailsScreenData.partnerName}
@@ -1851,6 +2196,21 @@ export default function App() {
           }}
           onAddBox={handleAddBoxToDeliveryNote}
           onOpenBoxDetails={handleOpenBoxDetails}
+          relatedOrders={(() => {
+            if (detailsScreenData?.type === 'shipment') {
+              const shipment = detailsScreenData.data as DeliveryNote;
+              const relatedOrder = partnerOrders.find(order => order.id === shipment.orderId);
+              if (relatedOrder) {
+                // Get external order ID if available (for Sellpy)
+                const shippingOrder = partnerOrders.find(o => o.id === shipment.orderId) as any;
+                return [{
+                  id: relatedOrder.id,
+                  externalOrderId: shippingOrder?.externalOrderId
+                }];
+              }
+            }
+            return [];
+          })()}
           onUnregisterBox={(boxId) => {
             if (detailsScreenData?.type === 'shipment') {
               const shipment = detailsScreenData.data as DeliveryNote;
@@ -1902,6 +2262,11 @@ export default function App() {
             }
           }}
           orderItems={(() => {
+            // If orderItems are provided in detailsScreenData (for newly created orders), use them
+            if (detailsScreenData?.orderItems && detailsScreenData.orderItems.length > 0) {
+              return detailsScreenData.orderItems;
+            }
+            
             if (detailsScreenData?.type === 'shipment') {
               const shipment = detailsScreenData.data as DeliveryNote;
               const relatedOrder = partnerOrders.find(order => order.id === shipment.orderId);
@@ -1928,7 +2293,7 @@ export default function App() {
                       color: colors[Math.floor(Math.random() * colors.length)],
                       price,
                       purchasePrice,
-                      status: 'valid' as const,
+                      status: undefined,
                       gender: 'Unisex',
                       subcategory: '',
                       source: 'manual'
@@ -2028,7 +2393,7 @@ export default function App() {
               color: colors[Math.floor(Math.random() * colors.length)],
               price,
               purchasePrice,
-              status: 'valid' as const
+              status: undefined
             };
           });
         };
@@ -2353,7 +2718,10 @@ export default function App() {
       )}
 
       {currentScreen === 'price-fork-calibration' && (
-        <PriceForkCalibrationScreen partnerId={currentPartnerWarehouseSelection.partnerId} />
+        <PriceForkCalibrationScreen 
+          partnerId={currentPartnerWarehouseSelection.partnerId}
+          onBack={handleBack}
+        />
       )}
 
       {/* Quotation Details Screen */}

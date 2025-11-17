@@ -49,7 +49,7 @@ export interface DeliveryNote {
   id: string;
   orderId: string;
   boxes: Box[];
-  status: 'pending' | 'registered' | 'in-transit' | 'delivered';
+  status: 'pending' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
   createdDate: string;
   registeredDate?: string;
   partnerId?: string;
@@ -401,6 +401,20 @@ export default function DeliveryNoteCreationScreen({
 
     if (unassignedItems > 0) {
       toast.error(`${unassignedItems} item(s) not assigned to any box. Please assign all items.`);
+      return;
+    }
+
+    // Status flow: In transit (only possible to Register if there is at least one registered box and no pending boxes)
+    const registeredBoxes = boxes.filter(box => box.status === 'registered');
+    const pendingBoxes = boxes.filter(box => box.status === 'pending');
+    
+    if (registeredBoxes.length === 0) {
+      toast.error('At least one box must be registered before registering the delivery note');
+      return;
+    }
+    
+    if (pendingBoxes.length > 0) {
+      toast.error('All boxes must be registered. Please register all pending boxes first.');
       return;
     }
 

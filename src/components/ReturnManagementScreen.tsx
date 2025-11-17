@@ -12,8 +12,9 @@ export interface ReturnItem {
   title: string;
   size?: string;
   color?: string;
-  status: 'Expired B2B' | 'Rejected' | 'Return - In transit';
+  status: 'Expired B2B' | 'Rejected' | 'Return - In transit' | 'In store' | 'Broken' | 'In transit';
   partnerItemRef: string;
+  partnerId?: string; // Partner ID to ensure items belong to the selected partner
   image?: string; // Full-size product image
   thumbnail?: string; // Thumbnail/fallback image
   selected: boolean;
@@ -36,6 +37,7 @@ interface ReturnManagementScreenProps {
   items: ReturnItem[];
   onBack: () => void;
   onCreateReturn: (selectedItems: ReturnItem[]) => void;
+  onContinue?: () => void; // New prop for Continue button
   onUpdateItem: (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan') => void;
 }
 
@@ -400,12 +402,19 @@ function ItemsList({
 function BottomActions({ 
   onSaveAndClose, 
   onCreateReturn, 
-  hasSelectedItems 
+  onContinue,
+  hasSelectedItems,
+  hasScannedItems
 }: { 
   onSaveAndClose: () => void; 
   onCreateReturn: () => void; 
+  onContinue?: () => void;
   hasSelectedItems: boolean;
+  hasScannedItems: boolean;
 }) {
+  // Show Continue button if there are scanned items and onContinue is provided
+  const showContinue = hasScannedItems && onContinue;
+  
   return (
     <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4">
       <div className="flex gap-4">
@@ -416,13 +425,23 @@ function BottomActions({
         >
           Save & close
         </Button>
-        <Button 
-          onClick={onCreateReturn}
-          disabled={!hasSelectedItems}
-          className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant"
-        >
-          Return
-        </Button>
+        {showContinue ? (
+          <Button 
+            onClick={onContinue}
+            disabled={!hasScannedItems}
+            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant"
+          >
+            Continue
+          </Button>
+        ) : (
+          <Button 
+            onClick={onCreateReturn}
+            disabled={!hasSelectedItems}
+            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant"
+          >
+            Return
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -433,17 +452,23 @@ export default function ReturnManagementScreen({
   items, 
   onBack, 
   onCreateReturn, 
+  onContinue,
   onUpdateItem 
 }: ReturnManagementScreenProps) {
   const [activeTab, setActiveTab] = useState<'scanned' | 'unscanned'>('scanned');
   const [isScanning, setIsScanning] = useState(false);
 
-  const scannedItems = items.filter(item => item.scanned);
-  const unscannedItems = items.filter(item => !item.scanned && (item.status === 'Expired B2B' || item.status === 'Rejected'));
+  // Filter items to only show items from the selected partner
+  const partnerItems = items.filter(item => !item.partnerId || item.partnerId === partner.id);
+  
+  const scannedItems = partnerItems.filter(item => item.scanned);
+  // Allow scanning items with any status, not just expired or rejected
+  const unscannedItems = partnerItems.filter(item => !item.scanned);
   
   const currentItems = activeTab === 'scanned' ? scannedItems : unscannedItems;
-  const selectedItems = items.filter(item => item.selected);
+  const selectedItems = partnerItems.filter(item => item.selected);
   const hasSelectedItems = selectedItems.length > 0;
+  const hasScannedItems = scannedItems.length > 0;
 
   const handleScan = () => {
     if (unscannedItems.length === 0) {
@@ -556,7 +581,9 @@ export default function ReturnManagementScreen({
       <BottomActions 
         onSaveAndClose={handleSaveAndClose}
         onCreateReturn={handleCreateReturn}
+        onContinue={onContinue}
         hasSelectedItems={hasSelectedItems}
+        hasScannedItems={hasScannedItems}
       />
     </div>
   );

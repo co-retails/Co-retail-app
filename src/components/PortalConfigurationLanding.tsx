@@ -6,13 +6,13 @@ import {
   Settings,
   Database,
   Filter,
-  Eye,
   DollarSign,
   History,
   CheckCircle,
   FileText,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Barcode
 } from 'lucide-react';
 import { UserRole } from './PortalConfigTypes';
 
@@ -45,22 +45,6 @@ export function PortalConfigurationLanding({
       icon: Filter,
       disabled: !isAdmin,
       screen: 'dropdown-values'
-    },
-    {
-      id: 'overrides',
-      title: 'Country overrides',
-      description: 'Brand→Country specific rules',
-      icon: Settings,
-      disabled: !isAdmin,
-      screen: 'country-overrides'
-    },
-    {
-      id: 'effective',
-      title: 'Effective view',
-      description: 'Preview computed configuration',
-      icon: Eye,
-      disabled: false,
-      screen: 'effective-view'
     }
   ];
 
@@ -80,6 +64,25 @@ export function PortalConfigurationLanding({
       icon: DollarSign,
       disabled: false,
       screen: 'partner-pricing'
+    },
+    {
+      id: 'purchase-price-converter',
+      title: 'Purchase price currency converter',
+      description: 'Convert purchase prices from EUR to sales price currency',
+      icon: DollarSign,
+      disabled: !isAdmin,
+      screen: 'purchase-price-converter'
+    }
+  ];
+
+  const mappingSections = [
+    {
+      id: 'gtin-mapping',
+      title: 'GTIN mapping',
+      description: 'Manage GTIN mappings for partner types and individual partners',
+      icon: Barcode,
+      disabled: !isAdmin,
+      screen: 'gtin-mapping'
     }
   ];
 
@@ -206,6 +209,48 @@ export function PortalConfigurationLanding({
                     <div className="flex items-start gap-4 flex-1">
                       <div className="w-12 h-12 rounded-lg bg-tertiary-container flex items-center justify-center flex-shrink-0">
                         <Icon className="w-6 h-6 text-on-tertiary-container" />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <h3 className="title-medium text-on-surface mb-1">{section.title}</h3>
+                        <p className="body-medium text-on-surface-variant">{section.description}</p>
+                      </div>
+                    </div>
+
+                    {!section.disabled && (
+                      <ChevronRight className="w-6 h-6 text-on-surface-variant flex-shrink-0 ml-2" />
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Mapping Section */}
+        <div>
+          <div className="mb-4">
+            <h2 className="title-large text-on-surface mb-1">Mappings</h2>
+            <p className="body-medium text-on-surface-variant">
+              Configure GTIN mappings and other identifier mappings
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {mappingSections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <Card
+                  key={section.id}
+                  className={`p-6 border-outline-variant bg-surface-container hover:bg-surface-container-high transition-colors ${
+                    section.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                  }`}
+                  onClick={() => !section.disabled && onNavigate(section.screen)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className="w-12 h-12 rounded-lg bg-secondary-container flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-6 h-6 text-on-secondary-container" />
                       </div>
 
                       <div className="flex-1 min-w-0">

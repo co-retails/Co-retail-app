@@ -238,6 +238,8 @@ export function CountryOverridesScreen({ onBack }: CountryOverridesScreenProps) 
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant" />
               <input
                 type="text"
+                id="country-overrides-search"
+                name="country-overrides-search"
                 placeholder="Search by brand or country..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}

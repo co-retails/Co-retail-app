@@ -48,7 +48,9 @@ export function useNavigationHandlers({
     } else if (currentScreen === 'delivery-note-creation') {
       setCurrentScreen('partner-dashboard');
     } else if (currentScreen === 'order-shipment-details') {
-      // Go back to shipping screen - determine which tab based on role
+      // Check if we have detailsScreenData with previousScreen to navigate back correctly
+      // This will be handled in App.tsx where we have access to detailsScreenData
+      // For now, default to shipping screen - App.tsx will override if previousScreen is set
       if (currentUserRole === 'partner') {
         // For partners, default to pending (orders) tab
         setShippingInitialTab('pending');

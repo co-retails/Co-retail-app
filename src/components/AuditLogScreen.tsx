@@ -171,6 +171,8 @@ export function AuditLogScreen({ onBack }: AuditLogScreenProps) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant" />
               <input
                 type="text"
+                id="audit-log-search"
+                name="audit-log-search"
                 placeholder="Search by user, entity, or action..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}

@@ -101,7 +101,7 @@ export default function OrderDetailsScreen({
     const validation = validateItem(editingItem);
     const updatedItem = {
       ...editingItem,
-      status: validation.valid ? 'valid' as const : 'error' as const,
+      status: validation.valid ? undefined : 'error' as const,
       errors: validation.errors
     };
     
@@ -113,7 +113,7 @@ export default function OrderDetailsScreen({
   const validateItem = (item: OrderItem): { valid: boolean; errors: string[] } => {
     const errors: string[] = [];
     
-    if (!item.brand) errors.push('Brand is required');
+    if (!item.brand) errors.push('Item brand is required');
     if (!item.gender) errors.push('Gender is required');
     if (!item.category) errors.push('Category is required');
     if (!item.subcategory) errors.push('Subcategory is required');
@@ -406,7 +406,7 @@ export default function OrderDetailsScreen({
                             const baseItem: BaseItem = {
                               ...item,
                               title: `${item.brand} ${item.category}`,
-                              status: item.retailerItemId ? 'valid' : item.status || 'pending'
+                              status: item.status || 'pending'
                             };
                             
                             return (
@@ -704,13 +704,13 @@ export default function OrderDetailsScreen({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-brand">Brand *</Label>
+                <Label htmlFor="edit-brand">Item brand *</Label>
                 <Select
                   value={editingItem.brand}
                   onValueChange={(value) => setEditingItem(prev => prev ? { ...prev, brand: value } : null)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select brand" />
+                    <SelectValue placeholder="Select item brand" />
                   </SelectTrigger>
                   <SelectContent>
                     {brands.map((brand) => (

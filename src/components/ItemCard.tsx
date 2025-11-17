@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Archive, Clock, Edit3, Download, RefreshCw, XCircle } from "lucide-react";
+import { Archive, Clock, Edit3, Download, RefreshCw, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw } from "lucide-react";
 import type { StatusHistoryEntry } from './ItemDetailsDialog';
 
 // Base item interface that works for both Item and OrderItem
@@ -48,7 +48,7 @@ export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | '
 interface ItemCardProps {
   item: BaseItem;
   onToggleSelect?: (itemId: string) => void;
-  onMoreActions?: (item: BaseItem, action: 'archive' | 'edit' | 'export' | 'mark-expired' | 'update-status' | 'reject') => void;
+  onMoreActions?: (item: BaseItem, action: 'in-store' | 'store-transfer' | 'sold' | 'missing' | 'broken' | 'rejected' | 'in-store-2nd-try') => void;
   onEdit?: (item: BaseItem) => void;
   onClick?: (item: BaseItem) => void;
   variant?: 'items-list' | 'order-details';
@@ -105,24 +105,60 @@ export const ItemCard = memo(function ItemCard({
     if (timestamp === undefined) return false;
     return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
   };
-  
-  // Check if user can update status
-  const canUpdateStatus = () => {
-    if (!item.status) return false;
+
+  // Get available actions based on item status
+  const getAvailableActions = () => {
+    if (!onMoreActions || !item.status) return [];
     
-    // Admin and Store Manager can always update
-    if (userRole === 'admin' || userRole === 'store-manager') {
-      return true;
+    const status = item.status.toLowerCase();
+    const isAdmin = userRole === 'admin';
+    const actions: Array<{ action: string; label: string; icon: React.ReactNode; className?: string }> = [];
+
+    // In transit items: In store, Store transfer
+    if (status === 'in transit' || status === 'return - in transit') {
+      actions.push(
+        { action: 'in-store', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
+        { action: 'store-transfer', label: 'Store transfer', icon: <Store className="mr-2 h-4 w-4" /> }
+      );
     }
-    
-    // Store staff can update most statuses, but with restrictions
-    if (userRole === 'store-staff') {
-      const restrictedStatuses = ['To return', 'Archived'];
-      return !restrictedStatuses.includes(item.status);
+    // In store items: Sold (only for Admins), Missing, Broken, Rejected (only visible within 24 hours)
+    else if (status === 'in store') {
+      if (isAdmin) {
+        actions.push({ action: 'sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
+      }
+      actions.push(
+        { action: 'missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
+        { action: 'broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
+      );
+      if (canRejectItem()) {
+        actions.push({ action: 'rejected', label: 'Rejected', icon: <Ban className="mr-2 h-4 w-4" />, className: 'text-error' });
+      }
     }
-    
-    // Partners and buyers cannot update status
-    return false;
+    // Expired items: Sold (only for admins), In store, In store 2nd try, Missing, Broken
+    else if (status === 'expired' || status === 'to return') {
+      if (isAdmin) {
+        actions.push({ action: 'sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
+      }
+      actions.push(
+        { action: 'in-store', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
+        { action: 'in-store-2nd-try', label: 'In store 2nd try', icon: <RotateCcw className="mr-2 h-4 w-4" /> },
+        { action: 'missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
+        { action: 'broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
+      );
+    }
+    // Missing items: In store, Sold (available to all users)
+    else if (status === 'missing') {
+      actions.push(
+        { action: 'in-store', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
+        { action: 'sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> }
+      );
+    }
+    // Sold items: In store
+    else if (status === 'sold') {
+      actions.push({ action: 'in-store', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    }
+
+    return actions;
   };
   const getStatusColor = (status?: string) => {
     if (!status) return 'text-on-surface-variant';
@@ -140,8 +176,6 @@ export const ItemCard = memo(function ItemCard({
         return 'text-on-surface-variant';
       case 'in store 2nd try':
         return 'text-tertiary';
-      case 'valid':
-        return 'text-success';
       case 'error':
         return 'text-error';
       case 'rejected':
@@ -185,7 +219,7 @@ export const ItemCard = memo(function ItemCard({
             {/* Line 1: Status */}
             <div className="flex items-center gap-2 mb-1 min-w-0">
               <div className={`label-small whitespace-nowrap flex-shrink-0 ${
-                item.status === 'valid' || item.retailerItemId ? 'text-success' : 'text-error'
+                item.retailerItemId ? 'text-success' : (item.status === 'error' ? 'text-error' : 'text-on-surface-variant')
               }`}>
                 {item.retailerItemId ? 'Ready' : item.status || 'Pending'}
               </div>
@@ -418,38 +452,16 @@ export const ItemCard = memo(function ItemCard({
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Item actions</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onMoreActions(item, 'edit')}>
-                    <Edit3 className="mr-2 h-4 w-4" />
-                    <span>View details</span>
-                  </DropdownMenuItem>
-                  {canUpdateStatus() && (
-                    <>
-                      <DropdownMenuItem onClick={() => onMoreActions(item, 'update-status')}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        <span>Update status</span>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {canRejectItem() && (
-                    <DropdownMenuItem onClick={() => onMoreActions?.(item, 'reject')} className="text-error">
-                      <XCircle className="mr-2 h-4 w-4" />
-                      <span>Reject item</span>
+                  {getAvailableActions().map((actionItem) => (
+                    <DropdownMenuItem
+                      key={actionItem.action}
+                      onClick={() => onMoreActions?.(item, actionItem.action as any)}
+                      className={actionItem.className}
+                    >
+                      {actionItem.icon}
+                      <span>{actionItem.label}</span>
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onMoreActions(item, 'archive')}>
-                    <Archive className="mr-2 h-4 w-4" />
-                    <span>Archive item</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onMoreActions(item, 'mark-expired')}>
-                    <Clock className="mr-2 h-4 w-4" />
-                    <span>Mark as expired</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onMoreActions(item, 'export')}>
-                    <Download className="mr-2 h-4 w-4" />
-                    <span>Export item data</span>
-                  </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

@@ -85,19 +85,13 @@ export function getNavigationDestinations({
         }
       ];
     } else {
-      // Sellpy or other partners: Dashboard, Items, Shipping
+      // Sellpy or other partners: Dashboard, Shipping
       return [
         {
           id: 'partner-dashboard',
           label: 'Dashboard',
           icon: 'p34769840',
           onClick: handlers.handleNavigateToPartnerDashboard
-        },
-        {
-          id: 'items',
-          label: 'Items',
-          icon: 'p3882d700',
-          onClick: handlers.handleNavigateToItems
         },
         {
           id: 'shipping',
@@ -130,12 +124,6 @@ export function getNavigationDestinations({
       onClick: handlers.handleNavigateToScan
     },
     {
-      id: 'sellers',
-      label: 'Sellers',
-      icon: 'sellers',
-      onClick: handlers.handleNavigateToSellers
-    },
-    {
       id: 'shipping',
       label: 'Shipping',
       icon: 'p20e0b980',
@@ -160,7 +148,6 @@ export function getActiveDestination(currentScreen: string, currentUserRole: str
     if (currentScreen.includes('quotation')) return 'partner-quotations';
     if (currentScreen === 'price-fork-calibration') return 'partner-dashboard';
     if (currentScreen === 'partner-dashboard' || currentScreen === 'order-creation' || currentScreen === 'box-management' || currentScreen === 'sellpy-orders' || currentScreen === 'order-details' || currentScreen === 'retailer-id-scan' || currentScreen === 'order-shipment-details') return 'partner-dashboard';
-    if (currentScreen === 'items') return 'items';
     if (currentScreen === 'scan') return 'scan';
     if (currentScreen.includes('shipping') || currentScreen === 'receive') return 'shipping';
     return 'partner-dashboard';
@@ -170,7 +157,6 @@ export function getActiveDestination(currentScreen: string, currentUserRole: str
   if (currentScreen === 'home' || currentScreen === 'return-management' || currentScreen === 'return-confirmation' || currentScreen === 'partner-selection' || currentScreen === 'stock-check' || currentScreen === 'stock-check-report' || currentScreen === 'stock-check-review' || currentScreen === 'status-update') return 'home';
   if (currentScreen === 'items') return 'items';
   if (currentScreen === 'scan') return 'scan';
-  if (currentScreen === 'sellers') return 'sellers';
   if (currentScreen.includes('shipping') || currentScreen === 'receive') return 'shipping';
   
   return 'home';

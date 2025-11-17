@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { Badge } from './ui/badge';
-import { ArrowLeft, X, MoreVertical, CheckCircle, Circle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, X, MoreVertical, CheckCircle } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { StockItem, StockCheckSession } from './StockCheckScreen';
 import { ItemCard, BaseItem } from './ItemCard';
@@ -62,7 +61,7 @@ function ReviewInstructions({ reportDate }: { reportDate: string }) {
   );
 }
 
-function TabBar({ 
+function FilterChips({ 
   activeTab, 
   onTabChange, 
   counts 
@@ -71,7 +70,7 @@ function TabBar({
   onTabChange: (tab: ReviewTab) => void;
   counts: Record<ReviewTab, number>;
 }) {
-  const tabs: Array<{ id: ReviewTab; label: string }> = [
+  const filters: Array<{ id: ReviewTab; label: string }> = [
     { id: 'not-scanned', label: 'Not scanned' },
     { id: 'not-found', label: 'Not found' },
     { id: 'all-included', label: 'All included' },
@@ -79,22 +78,21 @@ function TabBar({
   ];
 
   return (
-    <div className="bg-surface border-b border-outline-variant">
-      <div className="flex overflow-x-auto scrollbar-hide">
-        {tabs.map((tab) => (
+    <div className="px-4 md:px-6 py-3 bg-surface border-b border-outline-variant">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+        {filters.map((filter) => (
           <button
-            key={tab.id}
-            className="flex-shrink-0 pb-3 pt-4 px-3 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-0"
-            onClick={() => onTabChange(tab.id)}
+            key={filter.id}
+            className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${
+              activeTab === filter.id
+                ? 'bg-secondary-container border-secondary text-on-secondary-container'
+                : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
+            }`}
+            onClick={() => onTabChange(filter.id)}
           >
-            <span className={`title-small whitespace-nowrap ${
-              activeTab === tab.id ? 'text-primary' : 'text-on-surface-variant'
-            }`}>
-              {tab.label}
+            <span className="label-medium">
+              {filter.label} ({counts[filter.id]})
             </span>
-            {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />
-            )}
           </button>
         ))}
       </div>
@@ -104,104 +102,101 @@ function TabBar({
 
 function BulkActionsBar({
   selectedCount,
+  totalCount,
+  isAllSelected,
+  onToggleAll,
   onMarkAsMissing,
   onMarkAsInStore,
   onClearSelection,
   activeTab
 }: {
   selectedCount: number;
+  totalCount: number;
+  isAllSelected: boolean;
+  onToggleAll: () => void;
   onMarkAsMissing: () => void;
   onMarkAsInStore: () => void;
   onClearSelection: () => void;
   activeTab: ReviewTab;
 }) {
-  if (selectedCount === 0) return null;
-
   // Show different actions based on active tab
   const showMarkInStore = activeTab === 'scanned';
   const showMarkMissing = activeTab === 'not-scanned';
+  const hasSelectedItems = selectedCount > 0;
 
   return (
-    <div className="sticky top-16 z-10 bg-primary-container border-b border-outline-variant px-4 py-3">
+    <div className={`sticky top-0 z-10 border-b border-outline-variant px-4 py-3 ${
+      hasSelectedItems ? 'bg-primary-container' : 'bg-surface-container'
+    }`}>
       <div className="flex items-center gap-3">
-        <span className="text-on-primary-container body-medium flex-1">
-          {selectedCount} item{selectedCount > 1 ? 's' : ''} selected
-        </span>
-        {showMarkInStore && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onMarkAsInStore}
-            className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-          >
-            Mark In Store
-          </Button>
-        )}
-        {showMarkMissing && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onMarkAsMissing}
-            className="bg-error-container text-on-error-container border-0 hover:bg-error-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-          >
-            Mark Missing
-          </Button>
-        )}
-        <button
-          onClick={onClearSelection}
-          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-          aria-label="Clear selection"
+        {/* Select all checkbox */}
+        <button 
+          className="flex items-center justify-center hover:opacity-80 focus:opacity-80 active:opacity-60 transition-opacity"
+          onClick={onToggleAll}
+          aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
         >
-          <X className="w-5 h-5 text-on-primary-container" />
+          <div className="relative w-6 h-6 flex-shrink-0">
+            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
+              <path 
+                clipRule="evenodd" 
+                d={isAllSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
+                fill={isAllSelected ? "var(--primary)" : "var(--outline-variant)"} 
+                fillRule="evenodd" 
+              />
+            </svg>
+            {isAllSelected && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+          </div>
         </button>
-      </div>
-    </div>
-  );
-}
 
-function SelectAllCheckbox({
-  isAllSelected,
-  isPartiallySelected,
-  onToggleAll,
-  itemCount
-}: {
-  isAllSelected: boolean;
-  isPartiallySelected: boolean;
-  onToggleAll: () => void;
-  itemCount: number;
-}) {
-  return (
-    <div className="px-4 py-3 bg-surface-container-low border-b border-outline-variant">
-      <button 
-        className="flex items-center gap-3 hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-[8px] px-2 py-1 -ml-2"
-        onClick={onToggleAll}
-      >
-        <div className="relative w-5 h-5 flex-shrink-0">
-          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
-            <path 
-              clipRule="evenodd" 
-              d={isAllSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
-              fill={isAllSelected ? "var(--primary)" : "var(--outline-variant)"} 
-              fillRule="evenodd" 
-            />
-          </svg>
-          {isAllSelected && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-          )}
-          {isPartiallySelected && !isAllSelected && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-2.5 h-0.5 bg-primary rounded-full" />
-            </div>
-          )}
-        </div>
-        <span className="label-large text-on-surface">
-          {isAllSelected ? 'Deselect all' : 'Select all'} ({itemCount})
+        {/* Count */}
+        <span className={`body-medium flex-1 ${
+          hasSelectedItems ? 'text-on-primary-container' : 'text-on-surface'
+        }`}>
+          {hasSelectedItems 
+            ? `${selectedCount} item${selectedCount > 1 ? 's' : ''} selected`
+            : `${totalCount} item${totalCount !== 1 ? 's' : ''}`
+          }
         </span>
-      </button>
+
+        {/* Actions - only show when items are selected */}
+        {hasSelectedItems && (
+          <>
+            {showMarkInStore && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onMarkAsInStore}
+                className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
+              >
+                Mark In Store
+              </Button>
+            )}
+            {showMarkMissing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onMarkAsMissing}
+                className="bg-error-container text-on-error-container border-0 hover:bg-error-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
+              >
+                Mark Missing
+              </Button>
+            )}
+            <button
+              onClick={onClearSelection}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+              aria-label="Clear selection"
+            >
+              <X className="w-5 h-5 text-on-primary-container" />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -223,42 +218,6 @@ function ReviewItemCard({
 }) {
   const [showActions, setShowActions] = useState(false);
 
-  const getStatusIcon = () => {
-    switch (item.status) {
-      case 'Scanned':
-        return <CheckCircle className="w-4 h-4 text-primary" />;
-      case 'Missing':
-        return <AlertTriangle className="w-4 h-4 text-error" />;
-      default:
-        return <Circle className="w-4 h-4 text-outline" />;
-    }
-  };
-
-  const getStatusBadge = () => {
-    switch (item.status) {
-      case 'Scanned':
-        return (
-          <Badge className="bg-primary-container text-on-primary-container border-0">
-            Scanned
-          </Badge>
-        );
-      case 'Missing':
-        return (
-          <Badge className="bg-error-container text-on-error-container border-0">
-            Missing
-          </Badge>
-        );
-      case 'In Store':
-        return (
-          <Badge className="bg-tertiary-container text-on-tertiary-container border-0">
-            In Store
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
-
   // Show different action buttons based on active tab
   const getActionButtons = () => {
     if (activeTab === 'not-scanned') {
@@ -274,16 +233,39 @@ function ReviewItemCard({
         </Button>
       );
     } else if (activeTab === 'scanned') {
-      // Scanned items can be marked as In Store (if they had Expired status)
+      // For scanned items: if status is Missing, allow changing to In Store
+      if (item.status === 'Missing') {
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onUpdateStatus(item.id, 'In Store')}
+            className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
+          >
+            Mark In Store
+          </Button>
+        );
+      }
+      // For scanned items with other statuses, show both options
       return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onUpdateStatus(item.id, 'In Store')}
-          className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-        >
-          Mark In Store
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onUpdateStatus(item.id, 'Missing')}
+            className="bg-error-container text-on-error-container border-0 hover:bg-error-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
+          >
+            Mark Missing
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onUpdateStatus(item.id, 'In Store')}
+            className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
+          >
+            Mark In Store
+          </Button>
+        </>
       );
     } else {
       // All other tabs show both options
@@ -359,11 +341,6 @@ function ReviewItemCard({
             showActions={false}
             showSelection={false}
           />
-          {getStatusBadge() && (
-            <div className="mt-2">
-              {getStatusBadge()}
-            </div>
-          )}
         </div>
         
         {/* Trailing element - Price and actions */}
@@ -422,19 +399,8 @@ function ItemsList({
     );
   }
 
-  // Check if all items in the current list are selected
-  const itemIds = items.map(item => item.id);
-  const isAllSelected = itemIds.length > 0 && itemIds.every(id => selectedItems.has(id));
-  const isPartiallySelected = itemIds.some(id => selectedItems.has(id)) && !isAllSelected;
-
   return (
     <Card className="mx-4 mb-4 bg-surface-container border border-outline-variant overflow-hidden">
-      <SelectAllCheckbox
-        isAllSelected={isAllSelected}
-        isPartiallySelected={isPartiallySelected}
-        onToggleAll={onToggleAll}
-        itemCount={items.length}
-      />
       {items.map((item) => (
         <ReviewItemCard 
           key={item.id}
@@ -613,22 +579,13 @@ export default function StockCheckReviewScreen({
       {/* Top App Bar */}
       <TopAppBar onBack={onBack} />
       
-      {/* Bulk Actions Bar */}
-      <BulkActionsBar
-        selectedCount={selectedItems.size}
-        onMarkAsMissing={handleBulkMarkAsMissing}
-        onMarkAsInStore={handleBulkMarkAsInStore}
-        onClearSelection={() => setSelectedItems(new Set())}
-        activeTab={activeTab}
-      />
-      
       {/* Content */}
       <div className="flex-1">
         {/* Instructions */}
         <ReviewInstructions reportDate={session.date} />
         
-        {/* Tab Bar */}
-        <TabBar 
+        {/* Filter Chips */}
+        <FilterChips 
           activeTab={activeTab} 
           onTabChange={(tab) => {
             setActiveTab(tab);
@@ -638,15 +595,20 @@ export default function StockCheckReviewScreen({
           counts={counts}
         />
         
+        {/* Bulk Actions Bar - moved below tabs */}
+        <BulkActionsBar
+          selectedCount={selectedItems.size}
+          totalCount={currentItems.length}
+          isAllSelected={currentItems.length > 0 && currentItems.every(item => selectedItems.has(item.id))}
+          onToggleAll={handleToggleAll}
+          onMarkAsMissing={handleBulkMarkAsMissing}
+          onMarkAsInStore={handleBulkMarkAsInStore}
+          onClearSelection={() => setSelectedItems(new Set())}
+          activeTab={activeTab}
+        />
+        
         {/* Content Area */}
         <div className="pt-4 md:pt-6">
-          {/* Item count */}
-          <div className="px-4 md:px-6 mb-4">
-            <span className="body-medium text-on-surface-variant">
-              {currentItems.length} items
-            </span>
-          </div>
-          
           {/* Items List */}
           <ItemsList 
             items={currentItems}

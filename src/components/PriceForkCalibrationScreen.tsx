@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  brandTierWeights,
   calibrationParameters,
   mockBrandSegments,
   mockCategoryMappings,
@@ -35,10 +36,11 @@ import {
 } from './ui/table';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
-import { Brain, DownloadCloud, FileText, Loader2, RefreshCw, Sparkles, UploadCloud, Wand2, XCircle } from 'lucide-react';
+import { ArrowLeft, Brain, DownloadCloud, FileText, Loader2, RefreshCw, Sparkles, UploadCloud, Wand2, XCircle } from 'lucide-react';
 
 interface PriceForkCalibrationScreenProps {
   partnerId: string;
+  onBack?: () => void;
   onSaveCalibration?: (state: PriceForkCalibrationState) => void;
 }
 
@@ -88,6 +90,7 @@ const formatWeightLabel = (weight: number) => {
 
 export default function PriceForkCalibrationScreen({
   partnerId,
+  onBack,
   onSaveCalibration
 }: PriceForkCalibrationScreenProps) {
   const [calibrationState, setCalibrationState] = useState<PriceForkCalibrationState>({ ...priceForkDefaultState });
@@ -128,6 +131,28 @@ export default function PriceForkCalibrationScreen({
         return Number(calibrationState.materialSuedeWeight ?? priceForkDefaultState.materialSuedeWeight);
       }
       return 1;
+    },
+    [calibrationState]
+  );
+
+  const getTierWeight = useCallback(
+    (tier: PriceForkTestItem['brandTier']) => {
+      switch (tier) {
+        case 'Haute couture':
+          return Number(calibrationState.tierHauteCoutureWeight ?? priceForkDefaultState.tierHauteCoutureWeight);
+        case 'Premium':
+          return Number(calibrationState.tierPremiumWeight ?? priceForkDefaultState.tierPremiumWeight);
+        case 'High':
+          return Number(calibrationState.tierHighWeight ?? priceForkDefaultState.tierHighWeight);
+        case 'Mid':
+          return Number(calibrationState.tierMidWeight ?? priceForkDefaultState.tierMidWeight);
+        case 'Low':
+          return Number(calibrationState.tierLowWeight ?? priceForkDefaultState.tierLowWeight);
+        case 'Strategic low':
+          return Number(calibrationState.tierStrategicLowWeight ?? priceForkDefaultState.tierStrategicLowWeight);
+        default:
+          return 1.0;
+      }
     },
     [calibrationState]
   );
@@ -214,19 +239,12 @@ export default function PriceForkCalibrationScreen({
     window.setTimeout(() => {
       setTestItems((prev) =>
         prev.map((item) => {
-          const brandWeight = Number(calibrationState.brandWeighting ?? priceForkDefaultState.brandWeighting);
+          const tierWeight = getTierWeight(item.brandTier);
           const marginFloor = Number(calibrationState.marginFloor ?? priceForkDefaultState.marginFloor);
           const materialWeight = getMaterialWeight(item.material);
 
-          const brandMultiplier =
-            item.brandTier === 'Premium'
-              ? 1 + brandWeight * 0.35
-              : item.brandTier === 'Mid'
-              ? 1 + brandWeight * 0.18
-              : 1 - brandWeight * 0.12;
-
           const base = Math.max(item.aiSuggestedPrice, item.purchasePrice * (1 + marginFloor / 100));
-          const candidatePrice = base * brandMultiplier * materialWeight;
+          const candidatePrice = base * tierWeight * materialWeight;
           const pricePoints = getPricePointsForItem(item);
           const snappedPrice = snapToNearestPricePoint(candidatePrice, pricePoints);
 
@@ -261,7 +279,7 @@ export default function PriceForkCalibrationScreen({
                   <Badge
                     variant="secondary"
                     className={cn(
-                      'rounded-full',
+                      'rounded-lg',
                       segment.tier === 'Premium'
                         ? 'bg-primary-container text-on-primary-container'
                         : segment.tier === 'Mid'
@@ -337,7 +355,7 @@ export default function PriceForkCalibrationScreen({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn('rounded-full px-3 py-1 body-small font-medium', badgeClass)}>
+                        <Badge className={cn('rounded-lg px-3 py-1 body-small font-medium', badgeClass)}>
                           {(mapping.confidence * 100).toFixed(0)}%
                         </Badge>
                       </TableCell>
@@ -394,52 +412,64 @@ export default function PriceForkCalibrationScreen({
   }, [activePrompt]);
 
   return (
-    <div className="min-h-screen bg-surface pb-24 md:pb-12">
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 space-y-10">
-        <header className="space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container label-medium">
-            <Sparkles className="w-4 h-4" />
-            AI-powered pricing
+    <div className="min-h-screen bg-surface">
+      {/* Top App Bar */}
+      <div className="sticky top-0 z-10 bg-surface border-b border-outline-variant">
+        <div className="flex items-center h-16 px-4 md:px-6">
+          <button
+            onClick={onBack}
+            className="p-2 -ml-2 rounded-full hover:bg-surface-container-high transition-colors mr-2"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-6 w-6 text-on-surface-variant" />
+          </button>
+          <div className="flex-1">
+            <h1 className="title-large text-on-surface">
+              Price Fork calibration
+              {hasUnsavedChanges && (
+                <span className="ml-2 w-2 h-2 bg-primary rounded-full inline-block" />
+              )}
+            </h1>
+            <p className="body-small text-on-surface-variant">
+              Tune the AI engine, test on real inventory, and surface insights before publishing changes to partners.
+            </p>
           </div>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="display-small text-on-surface">Price Fork Calibration</h1>
-              <p className="body-large text-on-surface-variant max-w-2xl">
-                Tune the AI engine, test on real inventory, and surface insights before publishing changes to partners.
+          <div className="flex items-center gap-2 ml-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReset}
+              disabled={!hasUnsavedChanges}
+              className="rounded-lg"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Reset
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!hasUnsavedChanges}
+              className="rounded-lg"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Save
+            </Button>
+          </div>
+        </div>
+        {hasUnsavedChanges && (
+          <div className="px-4 md:px-6 py-2 bg-warning-container/80 border-t border-warning/20">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-warning animate-spin" />
+              <p className="body-small text-on-warning-container">
+                Unsaved changes. Run tests on updated parameters and save to version the changes.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                className="rounded-full"
-                onClick={handleReset}
-                disabled={!hasUnsavedChanges}
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reset
-              </Button>
-              <Button
-                className="rounded-full"
-                onClick={handleSave}
-                disabled={!hasUnsavedChanges}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Save calibration
-              </Button>
-            </div>
           </div>
-          {hasUnsavedChanges && (
-            <div className="rounded-lg bg-warning-container/80 border border-warning px-4 py-3 flex items-center gap-3">
-              <Loader2 className="w-5 h-5 text-warning animate-spin" />
-              <div>
-                <p className="title-small text-on-warning-container">Unsaved calibration</p>
-                <p className="body-small text-on-warning-container/80">
-                  Run tests on updated parameters and save to version the changes.
-                </p>
-              </div>
-            </div>
-          )}
-        </header>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-8">
 
         <section className="space-y-6">
           <Card className="bg-surface-container-high border border-outline-variant">
@@ -450,7 +480,7 @@ export default function PriceForkCalibrationScreen({
                   Adjust weights and thresholds that guide the AI recommendation engine.
                 </CardDescription>
               </div>
-              <Badge variant="outline" className="rounded-full">
+              <Badge variant="outline" className="rounded-lg">
                 Version 1.4.2
               </Badge>
             </CardHeader>
@@ -470,7 +500,7 @@ export default function PriceForkCalibrationScreen({
                           <p className="body-small text-on-surface-variant mt-1">{parameter.description}</p>
                         )}
                       </div>
-                      <Badge variant="secondary" className="rounded-full px-3">
+                      <Badge variant="secondary" className="rounded-lg px-3">
                         {formattedValue as string}
                       </Badge>
                     </div>
@@ -509,6 +539,44 @@ export default function PriceForkCalibrationScreen({
               <div className="rounded-xl border border-outline-variant/60 bg-surface p-4 md:col-span-2 space-y-4 shadow-xs">
                 <div className="flex items-start justify-between gap-3">
                   <div>
+                    <div className="title-small text-on-surface">Brand tier weights</div>
+                    <p className="body-small text-on-surface-variant mt-1">
+                      Adjust how strongly each brand tier influences the suggested price.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {brandTierWeights.map((tier) => {
+                    const value = calibrationState[tier.id];
+                    const formattedValue = tier.format ? tier.format(value) : value;
+                    return (
+                      <div key={tier.id} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="label-medium text-on-surface">{tier.label}</span>
+                          <Badge variant="outline" className="rounded-lg">
+                            {formattedValue as string}
+                          </Badge>
+                        </div>
+                        <Slider
+                          value={[Number(value)]}
+                          min={tier.min}
+                          max={tier.max}
+                          step={tier.step}
+                          onValueChange={(vals) => handleParameterChange(tier.id, Number(vals[0]))}
+                        />
+                        <div className="flex justify-between text-label-small text-on-surface-variant">
+                          <span>{tier.min}</span>
+                          <span>{tier.max}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-outline-variant/60 bg-surface p-4 md:col-span-2 space-y-4 shadow-xs">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
                     <div className="title-small text-on-surface">Material weights</div>
                     <p className="body-small text-on-surface-variant mt-1">
                       Adjust how strongly material influences the suggested price.
@@ -524,7 +592,7 @@ export default function PriceForkCalibrationScreen({
                     <div key={material.id} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="label-medium text-on-surface">{material.label}</span>
-                        <Badge variant="outline" className="rounded-full">
+                        <Badge variant="outline" className="rounded-lg">
                           {formatWeightLabel(material.value)}
                         </Badge>
                       </div>
@@ -553,7 +621,7 @@ export default function PriceForkCalibrationScreen({
               <Button
                 onClick={handleRunSimulation}
                 disabled={isTesting}
-                className="rounded-full"
+                className="rounded-lg"
               >
                 {isTesting ? (
                   <>
@@ -567,11 +635,11 @@ export default function PriceForkCalibrationScreen({
                   </>
                 )}
               </Button>
-              <Button variant="outline" className="rounded-full">
+              <Button variant="outline" className="rounded-lg">
                 <UploadCloud className="w-4 h-4 mr-2" />
                 Upload sample set (.csv)
               </Button>
-              <Button variant="ghost" className="rounded-full justify-start">
+              <Button variant="ghost" className="rounded-lg justify-start">
                 <DownloadCloud className="w-4 h-4 mr-2" />
                 Export latest calibration
               </Button>
@@ -582,17 +650,17 @@ export default function PriceForkCalibrationScreen({
         <section className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <h2 className="title-large text-on-surface">Test items</h2>
+              <h2 className="title-large text-on-surface mb-1">Test items</h2>
               <p className="body-medium text-on-surface-variant">
                 Validate the suggested price vs. margin impact before publishing.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="rounded-full">
+              <Button variant="outline" size="sm" className="rounded-lg">
                 <FileText className="w-4 h-4 mr-2" />
                 View acceptance log
               </Button>
-              <Button variant="ghost" className="rounded-full">
+              <Button variant="ghost" size="sm" className="rounded-lg">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh data
               </Button>
@@ -630,13 +698,13 @@ export default function PriceForkCalibrationScreen({
                             <div className="space-y-1">
                               <div className="label-medium text-on-surface">{item.title}</div>
                               <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant="outline" className="rounded-full">
+                                <Badge variant="outline" className="rounded-lg">
                                   {item.brand}
                                 </Badge>
-                                <Badge variant="outline" className="rounded-full text-on-surface-variant">
+                                <Badge variant="outline" className="rounded-lg text-on-surface-variant">
                                   {item.condition}
                                 </Badge>
-                                <Badge variant="outline" className="rounded-full text-on-surface-variant">
+                                <Badge variant="outline" className="rounded-lg text-on-surface-variant">
                                   Material: {item.material}
                                 </Badge>
                                 <span className="body-small text-on-surface-variant">
@@ -660,7 +728,7 @@ export default function PriceForkCalibrationScreen({
                           {(margin * 100).toFixed(0)}%
                         </TableCell>
                         <TableCell>
-                          <Badge className={cn('rounded-full px-3 py-1 body-small font-medium', badgeClass)}>
+                          <Badge className={cn('rounded-lg px-3 py-1 body-small font-medium', badgeClass)}>
                             {(item.aiConfidence * 100).toFixed(0)}%
                           </Badge>
                         </TableCell>
@@ -672,7 +740,7 @@ export default function PriceForkCalibrationScreen({
                               handleOverridePrice(item.id, Number.isNaN(parsed) ? undefined : parsed);
                             }}
                           >
-                            <SelectTrigger className="w-40 bg-surface border-outline rounded-lg h-[44px]">
+                            <SelectTrigger className="w-40 bg-surface-container-high border-outline rounded-lg h-[44px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -691,7 +759,7 @@ export default function PriceForkCalibrationScreen({
                                 size="sm"
                                 variant="outline"
                                 className={cn(
-                                  'rounded-full',
+                                  'rounded-lg',
                                   item.status === 'accepted' && 'bg-primary-container text-on-primary-container border-none'
                                 )}
                                 onClick={() => handleAcceptItem(item.id)}
@@ -703,7 +771,7 @@ export default function PriceForkCalibrationScreen({
                                 size="sm"
                                 variant="ghost"
                                 className={cn(
-                                  'rounded-full',
+                                  'rounded-lg',
                                   item.status === 'rejected' && 'bg-error-container/90 text-on-error-container'
                                 )}
                                 onClick={() => handleRejectItem(item.id)}
@@ -712,23 +780,23 @@ export default function PriceForkCalibrationScreen({
                                 Reject
                               </Button>
                             </div>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'rounded-full px-3',
-                                item.status === 'accepted'
-                                  ? 'border-primary text-primary'
-                                  : item.status === 'rejected'
-                                  ? 'border-error text-error'
-                                  : 'border-outline text-on-surface-variant'
-                              )}
-                            >
-                              {item.status === 'accepted'
-                                ? 'Accepted'
-                                : item.status === 'rejected'
-                                ? 'Rejected'
-                                : 'Pending'}
-                            </Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'rounded-lg px-3',
+                            item.status === 'accepted'
+                              ? 'border-primary text-primary'
+                              : item.status === 'rejected'
+                              ? 'border-error text-error'
+                              : 'border-outline text-on-surface-variant'
+                          )}
+                        >
+                          {item.status === 'accepted'
+                            ? 'Accepted'
+                            : item.status === 'rejected'
+                            ? 'Rejected'
+                            : 'Pending'}
+                        </Badge>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -754,9 +822,10 @@ export default function PriceForkCalibrationScreen({
                   <Button
                     key={prompt.id}
                     variant={activePrompt === prompt.id ? 'default' : 'outline'}
+                    size="sm"
                     onClick={() => setActivePrompt(prompt.id)}
                     className={cn(
-                      'rounded-full',
+                      'rounded-lg',
                       activePrompt === prompt.id && 'bg-primary text-on-primary shadow-sm'
                     )}
                   >

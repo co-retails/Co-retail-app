@@ -109,7 +109,7 @@ export default function PartnerSelectionScreen({ partners, onSelectPartner, onBa
         {/* Instructions */}
         <div className="mb-6">
           <div className="body-medium text-on-surface-variant">
-            Select the partner to create a return for expired or rejected items.
+            Select the partner to create a return. You can scan items with any status to add them to the return.
           </div>
         </div>
 

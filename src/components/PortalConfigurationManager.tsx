@@ -5,11 +5,11 @@ import { DropdownValuesScreen } from './DropdownValuesScreen';
 import { SEKPriceLaddersScreen } from './SEKPriceLaddersScreen';
 import { CurrencyMappingScreen } from './CurrencyMappingScreen';
 import { PartnerPricingScreen } from './PartnerPricingScreen';
-import { CountryOverridesScreen } from './CountryOverridesScreen';
-import { EffectiveViewScreen } from './EffectiveViewScreen';
+import { PurchasePriceCurrencyConverterScreen } from './PurchasePriceCurrencyConverterScreen';
 import { PublishingVersionsScreen } from './PublishingVersionsScreen';
 import { ValidationRulesScreen } from './ValidationRulesScreen';
 import { AuditLogScreen } from './AuditLogScreen';
+import { GtinMappingScreen } from './GtinMappingScreen';
 import { UserRole } from './PortalConfigTypes';
 
 interface PortalConfigurationManagerProps {
@@ -54,14 +54,11 @@ export function PortalConfigurationManager({
     case 'partner-pricing':
       return <PartnerPricingScreen onBack={handleBackToLanding} />;
 
+    case 'purchase-price-converter':
+      return <PurchasePriceCurrencyConverterScreen onBack={handleBackToLanding} />;
+
     case 'currency-mapping':
       return <CurrencyMappingScreen onBack={handleBackToLanding} />;
-
-    case 'country-overrides':
-      return <CountryOverridesScreen onBack={handleBackToLanding} />;
-
-    case 'effective-view':
-      return <EffectiveViewScreen onBack={handleBackToLanding} />;
 
     case 'versions':
       return <PublishingVersionsScreen onBack={handleBackToLanding} />;
@@ -71,6 +68,9 @@ export function PortalConfigurationManager({
 
     case 'audit':
       return <AuditLogScreen onBack={handleBackToLanding} />;
+
+    case 'gtin-mapping':
+      return <GtinMappingScreen onBack={handleBackToLanding} />;
 
     default:
       return (

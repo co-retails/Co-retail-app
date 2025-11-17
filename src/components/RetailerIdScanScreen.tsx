@@ -93,7 +93,7 @@ export default function RetailerIdScanScreen({
             ...scanSession.currentItem,
             retailerItemId: mockRetailerItemId,
             itemId: mockRetailerItemId,
-            status: 'valid'
+            status: undefined
           };
           
           setScannedConnections(prev => [...prev, connectedItem]);

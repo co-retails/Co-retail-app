@@ -5,7 +5,7 @@ import svgPaths from "../imports/svg-8iuolkmxl8";
 import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
 import SalesDataDashboard from './SalesDataDashboard';
 import MonthlyGoalTracker, { GoalEditDialog } from './MonthlyGoalTracker';
-import { ChevronDown, Settings, Target, UserIcon, ChevronRight, Search, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { ChevronDown, Settings, Target, UserIcon, ChevronRight, RotateCcw, ClipboardCheck } from 'lucide-react';
 
 interface DeliveryHomeScreenProps {
   onNavigateToShipping: () => void;
@@ -22,6 +22,8 @@ interface DeliveryHomeScreenProps {
     toReturn: number;
     returns: number;
   };
+  expiredItemsCount?: number;
+  itemsToScanCount?: number;
   brands: Brand[];
   countries: Country[];
   stores: Store[];
@@ -125,6 +127,8 @@ export default function DeliveryHomeScreen({
   onNavigateToAdmin,
   onNavigateToRoleSwitcher,
   deliveryStats,
+  expiredItemsCount = 0,
+  itemsToScanCount = 0,
   brands,
   countries,
   stores,
@@ -181,7 +185,7 @@ export default function DeliveryHomeScreen({
               onClick={onNavigateToReturnsTab || onNavigateToReturns}
             >
               <div>
-                <p className="body-small text-on-surface-variant mb-1">Return deliveries</p>
+                <p className="body-small text-on-surface-variant mb-1">Returns ongoing</p>
                 <p className="headline-small text-on-surface">{deliveryStats.returns}</p>
               </div>
             </Card>
@@ -202,7 +206,7 @@ export default function DeliveryHomeScreen({
                   <div>
                     <p className="title-small text-on-surface">Create a return</p>
                     <p className="body-small text-on-surface-variant">
-                      {deliveryStats.toReturn} item{deliveryStats.toReturn === 1 ? '' : 's'} pending
+                      {expiredItemsCount} item{expiredItemsCount === 1 ? '' : 's'} expired
                     </p>
                   </div>
                 </div>
@@ -219,21 +223,9 @@ export default function DeliveryHomeScreen({
                   </div>
                   <div>
                     <p className="title-small text-on-surface">Stock check</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-              </button>
-
-              <button
-                onClick={() => {/* Add find delivery handler */}}
-                className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-tertiary-container shadow-sm ring-1 ring-tertiary/20">
-                    <Search className="w-5 h-5 text-on-tertiary-container" />
-                  </div>
-                  <div>
-                    <p className="title-small text-on-surface">Search deliveries</p>
+                    <p className="body-small text-on-surface-variant">
+                      {itemsToScanCount} item{itemsToScanCount === 1 ? '' : 's'} to scan
+                    </p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-on-surface-variant" />

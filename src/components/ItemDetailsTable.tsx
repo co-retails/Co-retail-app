@@ -14,7 +14,7 @@ import { OrderItem } from './OrderCreationScreen';
 
 export interface ItemDetailsTableItem extends OrderItem {
   id: string;
-  status?: 'valid' | 'pending' | 'scanned' | 'error';
+  status?: 'pending' | 'scanned' | 'error';
   purchasePrice?: number;
   imageUrl?: string;
   errors?: string[];
@@ -26,6 +26,7 @@ interface ItemDetailsTableProps {
   showRetailerId?: boolean;
   showPrice?: boolean;
   showPurchasePrice?: boolean;
+  showMargin?: boolean; // Show margin % per item row
   showStatus?: boolean;
   isEditable?: boolean;
   onUpdateItem?: (itemId: string, field: keyof ItemDetailsTableItem, value: any) => void;
@@ -33,6 +34,8 @@ interface ItemDetailsTableProps {
   subcategoryLabel?: string; // Custom label for subcategory column
   brandAsInput?: boolean; // Use text input instead of dropdown for brand
   categoryOptions?: string[]; // Custom category options
+  hideCategoryForThrifted?: boolean; // Hide category column for Thrifted orders (category is auto-mapped from subcategory)
+  subcategoriesByCategory?: Record<string, string[]>; // Map of category to subcategories for cascading dropdown
 }
 
 // Dropdown options for editable attributes
@@ -51,6 +54,7 @@ export function ItemDetailsTable({
   showRetailerId = true,
   showPrice = false,
   showPurchasePrice = false,
+  showMargin = false,
   showStatus = false,
   isEditable = false,
   onUpdateItem,
@@ -58,6 +62,8 @@ export function ItemDetailsTable({
   subcategoryLabel = 'Subcategory',
   brandAsInput = false,
   categoryOptions = CATEGORY_OPTIONS,
+  hideCategoryForThrifted = false,
+  subcategoriesByCategory,
 }: ItemDetailsTableProps) {
   return (
     <>
@@ -94,7 +100,7 @@ export function ItemDetailsTable({
               {/* Item Details */}
               <div className="flex-1 min-w-0">
                 <div className="body-medium text-on-surface mb-1">
-                  {item.brand} • {item.category}
+                  {item.brand}{!hideCategoryForThrifted && item.category && ` • ${item.category}`}
                 </div>
                 <div className="body-small text-on-surface-variant mb-2">
                   {item.subcategory}{item.size && ` • ${item.size}`} • {item.color}
@@ -114,9 +120,9 @@ export function ItemDetailsTable({
                 </div>
 
                 {/* Price Info */}
-                {(showPrice || showPurchasePrice) && (
+                {(showPrice || showPurchasePrice || showMargin) && (
                   <div className="mt-2 pt-2 border-t border-outline-variant">
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 flex-wrap">
                       {showPurchasePrice && (
                         <div className="label-small">
                           <span className="text-on-surface-variant opacity-70">Purchase:</span>
@@ -133,6 +139,14 @@ export function ItemDetailsTable({
                           </span>
                         </div>
                       )}
+                      {showMargin && item.price && item.purchasePrice && (
+                        <div className="label-small">
+                          <span className="text-on-surface-variant opacity-70">Margin:</span>
+                          <span className="text-primary ml-1">
+                            {item.price > 0 ? (((item.price - item.purchasePrice) / item.price) * 100).toFixed(1) : '0.0'}%
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -140,11 +154,6 @@ export function ItemDetailsTable({
                 {/* Status */}
                 {showStatus && item.status && (
                   <div className="mt-2">
-                    {item.status === 'valid' && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-success-container text-on-success-container label-small">
-                        Valid
-                      </span>
-                    )}
                     {item.status === 'pending' && (
                       <span className="inline-flex items-center px-2 py-1 rounded-full bg-warning-container text-on-warning-container label-small">
                         Pending
@@ -191,18 +200,20 @@ export function ItemDetailsTable({
             </th>
             {showRetailerId && (
               <th className="px-4 py-3 text-left">
-                <span className="label-medium text-on-surface">Retailer ID</span>
+                <span className="label-medium text-on-surface">Retailer ID*</span>
               </th>
             )}
             <th className="px-4 py-3 text-left">
               <span className="label-medium text-on-surface">Partner ID</span>
             </th>
             <th className="px-4 py-3 text-left">
-              <span className="label-medium text-on-surface">Brand</span>
+              <span className="label-medium text-on-surface">Item brand</span>
             </th>
-            <th className="px-4 py-3 text-left">
-              <span className="label-medium text-on-surface">Category</span>
-            </th>
+            {!hideCategoryForThrifted && (
+              <th className="px-4 py-3 text-left">
+                <span className="label-medium text-on-surface">Category</span>
+              </th>
+            )}
             <th className="px-4 py-3 text-left">
               <span className="label-medium text-on-surface">{subcategoryLabel}</span>
             </th>
@@ -219,7 +230,12 @@ export function ItemDetailsTable({
             )}
             {showPrice && (
               <th className="px-4 py-3 text-right">
-                <span className="label-medium text-on-surface">Price</span>
+                <span className="label-medium text-on-surface">Price (SEK)*</span>
+              </th>
+            )}
+            {showMargin && (
+              <th className="px-4 py-3 text-right">
+                <span className="label-medium text-on-surface">Margin %</span>
               </th>
             )}
             {showStatus && (
@@ -262,7 +278,7 @@ export function ItemDetailsTable({
                       <Input
                         value={item.retailerItemId || ''}
                         onChange={(e) => onUpdateItem(item.id, 'retailerItemId', e.target.value)}
-                        placeholder="Enter ID"
+                        placeholder="Enter Retailer ID*"
                         className={`h-9 w-full body-medium ${
                           item.fieldErrors?.retailerItemId 
                             ? 'border-error focus:border-error bg-error-container/10' 
@@ -332,7 +348,7 @@ export function ItemDetailsTable({
                       <Input
                         value={item.brand || ''}
                         onChange={(e) => onUpdateItem(item.id, 'brand', e.target.value)}
-                        placeholder="Enter brand"
+                        placeholder="Enter item brand"
                         className={`h-9 w-full body-medium ${
                           item.fieldErrors?.brand 
                             ? 'border-error focus:border-error bg-error-container/10' 
@@ -349,7 +365,7 @@ export function ItemDetailsTable({
                             ? 'border-error focus:border-error bg-error-container/10' 
                             : 'border-outline-variant focus:border-primary bg-surface-container'
                         }`}>
-                          <SelectValue placeholder="Select brand" />
+                          <SelectValue placeholder="Select item brand" />
                         </SelectTrigger>
                         <SelectContent>
                           {BRAND_OPTIONS.map((brand) => (
@@ -378,68 +394,96 @@ export function ItemDetailsTable({
                 </div>
               </td>
 
-              {/* Category */}
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  {isEditable && onUpdateItem ? (
-                    <Select
-                      value={item.category || undefined}
-                      onValueChange={(value) => onUpdateItem(item.id, 'category', value)}
-                    >
-                      <SelectTrigger className={`h-9 w-full body-medium ${
-                        item.fieldErrors?.category 
-                          ? 'border-error focus:border-error bg-error-container/10' 
-                          : 'border-outline-variant focus:border-primary bg-surface-container'
-                      }`}>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categoryOptions.map((category) => (
-                          <SelectItem key={category} value={category} className="body-medium">
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className="body-medium text-on-surface">{item.category}</span>
-                  )}
-                  {item.fieldErrors?.category && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <AlertCircleIcon className="w-4 h-4 text-error flex-shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="bg-error-container text-on-error-container">
-                          <p className="body-small">{item.fieldErrors.category}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </div>
-              </td>
+              {/* Category - Show for cascading dropdown (required before subcategory) */}
+              {!hideCategoryForThrifted && (
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    {isEditable && onUpdateItem ? (
+                      <Select
+                        value={item.category || undefined}
+                        onValueChange={(value) => {
+                          // When category changes, clear subcategory if it's not valid for the new category
+                          onUpdateItem(item.id, 'category', value);
+                          if (subcategoriesByCategory && item.subcategory) {
+                            const validSubcategories = subcategoriesByCategory[value] || [];
+                            if (!validSubcategories.includes(item.subcategory)) {
+                              onUpdateItem(item.id, 'subcategory', '');
+                            }
+                          }
+                        }}
+                      >
+                        <SelectTrigger className={`h-9 w-full body-medium ${
+                          item.fieldErrors?.category 
+                            ? 'border-error focus:border-error bg-error-container/10' 
+                            : 'border-outline-variant focus:border-primary bg-surface-container'
+                        }`}>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categoryOptions.map((category) => (
+                            <SelectItem key={category} value={category} className="body-medium">
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="body-medium text-on-surface">{item.category}</span>
+                    )}
+                    {item.fieldErrors?.category && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AlertCircleIcon className="w-4 h-4 text-error flex-shrink-0" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="bg-error-container text-on-error-container">
+                            <p className="body-small">{item.fieldErrors.category}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                </td>
+              )}
 
-              {/* Subcategory */}
+              {/* Subcategory - Cascading dropdown (requires category selection first) */}
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   {isEditable && onUpdateItem ? (
                     <Select
                       value={item.subcategory || undefined}
                       onValueChange={(value) => onUpdateItem(item.id, 'subcategory', value)}
+                      disabled={!item.category && !!subcategoriesByCategory}
                     >
                       <SelectTrigger className={`h-9 w-full body-medium ${
                         item.fieldErrors?.subcategory 
                           ? 'border-error focus:border-error bg-error-container/10' 
                           : 'border-outline-variant focus:border-primary bg-surface-container'
-                      }`}>
-                        <SelectValue placeholder={`Select ${subcategoryLabel.toLowerCase()}`} />
+                      } ${!item.category && subcategoriesByCategory ? 'opacity-50' : ''}`}>
+                        <SelectValue placeholder={
+                          !item.category && subcategoriesByCategory 
+                            ? `Select category first` 
+                            : `Select ${subcategoryLabel.toLowerCase()}`
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        {subcategoryOptions.map((subcategory) => (
-                          <SelectItem key={subcategory} value={subcategory} className="body-medium">
-                            {subcategory}
-                          </SelectItem>
-                        ))}
+                        {(() => {
+                          // If subcategoriesByCategory is provided, filter by selected category
+                          if (subcategoriesByCategory && item.category) {
+                            const validSubcategories = subcategoriesByCategory[item.category] || [];
+                            return validSubcategories.map((subcategory) => (
+                              <SelectItem key={subcategory} value={subcategory} className="body-medium">
+                                {subcategory}
+                              </SelectItem>
+                            ));
+                          }
+                          // Otherwise use all subcategoryOptions
+                          return subcategoryOptions.map((subcategory) => (
+                            <SelectItem key={subcategory} value={subcategory} className="body-medium">
+                              {subcategory}
+                            </SelectItem>
+                          ));
+                        })()}
                       </SelectContent>
                     </Select>
                   ) : (
@@ -565,7 +609,7 @@ export function ItemDetailsTable({
                             ? 'border-error focus:border-error bg-error-container/10' 
                             : 'border-outline-variant focus:border-primary bg-surface-container'
                         }`}>
-                          <SelectValue placeholder="Select price">
+                          <SelectValue placeholder="Select price*">
                             {item.price > 0 && <span className="text-right w-full block">{item.price} SEK</span>}
                           </SelectValue>
                         </SelectTrigger>
@@ -598,14 +642,20 @@ export function ItemDetailsTable({
                 </td>
               )}
 
+              {/* Margin % */}
+              {showMargin && (
+                <td className="px-4 py-3 text-right">
+                  <span className="body-medium text-primary">
+                    {item.price && item.purchasePrice && item.price > 0
+                      ? `${(((item.price - item.purchasePrice) / item.price) * 100).toFixed(1)}%`
+                      : '—'}
+                  </span>
+                </td>
+              )}
+
               {/* Status */}
               {showStatus && (
                 <td className="px-4 py-3 text-center">
-                  {item.status === 'valid' && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-success-container text-on-success-container label-small">
-                      Valid
-                    </span>
-                  )}
                   {item.status === 'pending' && (
                     <span className="inline-flex items-center px-2 py-1 rounded-full bg-warning-container text-on-warning-container label-small">
                       Pending

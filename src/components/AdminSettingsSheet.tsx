@@ -5,15 +5,11 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { 
-  HelpCircle, 
   Settings, 
   Users, 
-  BarChart3, 
   Package, 
   Flag, 
   Store, 
-  ContactRound, 
-  CalendarDays,
   ChevronRight,
   LogOut,
   Cog,
@@ -140,13 +136,25 @@ export default function AdminSettingsSheet({
 
   const menuSections: { title: string; items: MenuItem[] }[] = [
     {
-      title: '',
+      title: 'Reports',
       items: [
         {
-          id: 'help',
-          title: 'Help',
-          description: 'Find FAQs, contact support, or watch tutorials',
-          icon: <HelpCircle className="w-6 h-6" />,
+          id: 'stock-check-report',
+          title: 'Stock check report',
+          description: 'Access historical stock check sessions',
+          icon: <Package className="w-6 h-6" />,
+          onClick: handleStockCheckReport
+        }
+      ]
+    },
+    {
+      title: 'Access',
+      items: [
+        {
+          id: 'user-accounts',
+          title: 'User accounts',
+          description: 'View and edit user roles in your market',
+          icon: <Users className="w-6 h-6" />,
           onClick: () => {} // Placeholder for future implementation
         }
       ]
@@ -184,51 +192,6 @@ export default function AdminSettingsSheet({
           icon: <Store className="w-6 h-6" />,
           onClick: handlePartnerSettings,
           adminOnly: true
-        },
-        {
-          id: 'private-seller-settings',
-          title: 'Private seller settings',
-          description: 'View or upload agreements, set commission rates',
-          icon: <ContactRound className="w-6 h-6" />,
-          onClick: () => {} // Placeholder for future implementation
-        },
-        {
-          id: 'calendar-settings',
-          title: 'Store calendar settings',
-          description: 'Manage appointment slots for private sellers',
-          icon: <CalendarDays className="w-6 h-6" />,
-          onClick: () => {} // Placeholder for future implementation
-        }
-      ]
-    },
-    {
-      title: 'Access',
-      items: [
-        {
-          id: 'user-accounts',
-          title: 'User accounts',
-          description: 'View and edit user roles in your market',
-          icon: <Users className="w-6 h-6" />,
-          onClick: () => {} // Placeholder for future implementation
-        }
-      ]
-    },
-    {
-      title: 'Reports',
-      items: [
-        {
-          id: 'stock-check-report',
-          title: 'Stock check report',
-          description: 'Access historical stock check sessions',
-          icon: <Package className="w-6 h-6" />,
-          onClick: handleStockCheckReport
-        },
-        {
-          id: 'sales-dashboard',
-          title: 'Sales dashboard',
-          description: 'View sales performance and analytics',
-          icon: <BarChart3 className="w-6 h-6" />,
-          onClick: () => {} // Placeholder for future implementation
         }
       ]
     }

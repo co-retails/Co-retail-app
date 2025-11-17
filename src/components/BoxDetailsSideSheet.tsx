@@ -92,21 +92,23 @@ export default function BoxDetailsSideSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {/* Active Scanner - Fixed height at top */}
-          <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-outline-variant" style={{ height: '250px', minHeight: '200px' }}>
-            <ActiveScanner
-              onScan={handleScan}
-              onManualEntry={handleManualEntry}
-              isScanning={false}
-              showManualEntry={false}
-            />
+          <div className="flex-shrink-0 px-6 pt-4 pb-4 border-b border-outline-variant overflow-hidden">
+            <div className="h-[280px] min-h-[280px] max-h-[280px]">
+              <ActiveScanner
+                onScan={handleScan}
+                onManualEntry={handleManualEntry}
+                isScanning={false}
+                showManualEntry={false}
+              />
+            </div>
           </div>
 
           {/* Tabs and Items Lists - Scrollable */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'scanned' | 'not-scanned')} className="flex-1 flex flex-col min-h-0">
-              <div className="flex-shrink-0 px-6 pt-4 border-b border-outline-variant">
+              <div className="flex-shrink-0 px-6 pt-4 border-b border-outline-variant bg-surface z-10">
                 <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0">
                   <TabsTrigger value="scanned" className="border border-outline-variant rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
                     Scanned ({scannedItems.length})
@@ -117,7 +119,7 @@ export default function BoxDetailsSideSheet({
                 </TabsList>
               </div>
 
-              <TabsContent value="scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
+              <TabsContent value="scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0 min-h-0">
                 {scannedItems.length > 0 ? (
                   <div className="space-y-2">
                     {scannedItems.map((item) => (
@@ -132,7 +134,7 @@ export default function BoxDetailsSideSheet({
                               size: item.size,
                               color: item.color,
                               price: item.price,
-                              status: item.status === 'valid' ? 'Valid' : 'Invalid',
+                              status: item.status !== 'error' ? undefined : 'Invalid',
                               retailerItemId: item.retailerItemId,
                               partnerItemId: item.partnerItemId,
                               gender: item.gender,
@@ -155,7 +157,7 @@ export default function BoxDetailsSideSheet({
                 )}
               </TabsContent>
 
-              <TabsContent value="not-scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
+              <TabsContent value="not-scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0 min-h-0">
                 {notScannedItems.length > 0 ? (
                   <>
                     {/* Bulk Action Button */}
@@ -186,7 +188,7 @@ export default function BoxDetailsSideSheet({
                                     size: item.size,
                                     color: item.color,
                                     price: item.price,
-                                    status: item.status === 'valid' ? 'Valid' : 'Invalid',
+                                    status: item.status !== 'error' ? undefined : 'Invalid',
                                     retailerItemId: item.retailerItemId,
                                     partnerItemId: item.partnerItemId,
                                     gender: item.gender,

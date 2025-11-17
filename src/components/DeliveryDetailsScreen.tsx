@@ -1,6 +1,6 @@
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { ArrowLeft, QrCode, Package, Truck, MoreVertical } from 'lucide-react';
+import { ArrowLeft, QrCode, Package, Truck, MoreVertical, CheckCircle2, XCircle } from 'lucide-react';
 import { Delivery } from './ShippingScreen';
 import { Box } from './ReceiveDeliveryScreen';
 import {
@@ -11,6 +11,8 @@ import {
 } from './ui/dropdown-menu';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 
+type DeliveryDetailsUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+
 interface DeliveryDetailsScreenProps {
   delivery: Delivery;
   boxes: Box[];
@@ -18,9 +20,36 @@ interface DeliveryDetailsScreenProps {
   onScanToReceive: () => void;
   onSelectBox: (box: Box) => void;
   onMarkBoxScanned: (boxId: string) => void;
+  userRole?: DeliveryDetailsUserRole;
+  onUpdateDeliveryStatus?: (deliveryId: string, status: Delivery['status'], reason?: string) => void;
 }
 
-function TopAppBar({ onBack }: { onBack: () => void }) {
+function TopAppBar({ 
+  onBack, 
+  delivery, 
+  userRole, 
+  onUpdateDeliveryStatus 
+}: { 
+  onBack: () => void;
+  delivery: Delivery;
+  userRole?: DeliveryDetailsUserRole;
+  onUpdateDeliveryStatus?: (deliveryId: string, status: Delivery['status'], reason?: string) => void;
+}) {
+  const isAdmin = userRole === 'admin';
+  const canUpdateStatus = isAdmin && delivery.status === 'In transit' && onUpdateDeliveryStatus;
+
+  const handleMarkDelivered = () => {
+    if (onUpdateDeliveryStatus) {
+      onUpdateDeliveryStatus(delivery.id, 'Delivered');
+    }
+  };
+
+  const handleMarkCancelled = () => {
+    if (onUpdateDeliveryStatus) {
+      onUpdateDeliveryStatus(delivery.id, 'Cancelled', 'Missing delivery');
+    }
+  };
+
   return (
     <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
       <div className="flex items-center h-16 px-4 md:px-6">
@@ -37,6 +66,36 @@ function TopAppBar({ onBack }: { onBack: () => void }) {
         <h1 className="title-large text-on-surface flex-1">
           Delivery details
         </h1>
+
+        {/* More menu for admins on In transit deliveries */}
+        {canUpdateStatus && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="w-12 h-12 ml-2 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                aria-label="Delivery actions"
+              >
+                <MoreVertical className="w-5 h-5 text-on-surface-variant" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
+              <DropdownMenuItem
+                onClick={handleMarkDelivered}
+                className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                <span className="body-medium text-on-surface">Mark as Delivered</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleMarkCancelled}
+                className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                <span className="body-medium">Mark as Cancelled</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );
@@ -46,6 +105,15 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
   const statusDisplay = delivery.status === 'Cancelled' && delivery.cancellationReason
     ? `${delivery.status} • ${delivery.cancellationReason}`
     : delivery.status;
+  
+  const getStatusBadgeClass = (status: Delivery['status']) => {
+    if (status === 'Delivered') {
+      return 'bg-success-container text-on-success-container';
+    }
+    return '';
+  };
+
+  const isDelivered = delivery.status === 'Delivered';
 
   return (
     <Card className="mx-4 md:mx-6 mb-6 bg-surface-container border border-outline-variant">
@@ -60,7 +128,14 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
           <div className="flex-1 min-w-0">
             {/* Supporting text - Date and Status */}
             <div className="label-small text-on-surface-variant mb-2">
-              <span>{delivery.date}, New - {statusDisplay}</span>
+              <span>{delivery.date}, New - </span>
+              {isDelivered ? (
+                <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeClass(delivery.status)}`}>
+                  {statusDisplay}
+                </span>
+              ) : (
+                <span>{statusDisplay}</span>
+              )}
             </div>
             
             {/* Primary text - Delivery ID */}
@@ -92,22 +167,24 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
 function BoxCard({ 
   box, 
   onSelect,
-  onMarkScanned,
+  onMarkDelivered,
   isScanned,
-  canScan
+  canScan,
+  isAdmin = false
 }: { 
   box: Box; 
   onSelect: () => void;
-  onMarkScanned: () => void;
+  onMarkDelivered?: () => void;
   isScanned: boolean;
   canScan: boolean;
+  isAdmin?: boolean;
 }) {
   let statusLabel = 'In transit';
   let statusClass = 'label-small text-on-surface-variant px-2 py-1 bg-surface-container rounded-[8px]';
 
   if (box.status === 'Delivered') {
     statusLabel = 'Delivered';
-    statusClass = 'label-small text-on-secondary-container px-2 py-1 bg-secondary-container rounded-[8px]';
+    statusClass = 'label-small text-on-success-container px-2 py-1 bg-success-container rounded-[8px]';
   } else if (box.status === 'Cancelled') {
     statusLabel = `Cancelled${box.cancellationReason ? ` • ${box.cancellationReason}` : ''}`;
     statusClass = 'label-small text-error px-2 py-1 bg-error-container rounded-[8px]';
@@ -116,10 +193,21 @@ function BoxCard({
     statusClass = 'label-small text-primary px-2 py-1 bg-primary-container rounded-[8px]';
   }
 
+  const showMarkDelivered = isAdmin && canScan && box.status === 'In transit' && onMarkDelivered;
+  const showMenu = showMarkDelivered;
+
   return (
-    <button
+    <div
       onClick={onSelect}
-      className="w-full flex items-center gap-3 px-4 py-3 text-left bg-surface-container hover:bg-surface-container-high transition-colors"
+      className="w-full flex items-center gap-3 px-4 py-3 text-left bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       {/* Leading Element - Box Icon */}
       <div className="flex-shrink-0 w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center">
@@ -147,7 +235,7 @@ function BoxCard({
       {/* Trailing Element - More menu or status */}
       <div className="flex-shrink-0 flex items-center gap-2">
         <div className={statusClass}>{statusLabel}</div>
-        {!isScanned && canScan && box.status !== 'Delivered' && box.status !== 'Cancelled' && (
+        {showMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button 
@@ -162,30 +250,32 @@ function BoxCard({
               <DropdownMenuItem 
                 onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                   e.stopPropagation();
-                  onMarkScanned();
+                  onMarkDelivered?.();
                 }}
                 className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
               >
-                <span className="body-medium text-on-surface">Mark as scanned</span>
+                <span className="body-medium text-on-surface">Mark as delivered</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
       </div>
-    </button>
+    </div>
   );
 }
 
 function BoxesList({ 
   boxes,
   onSelectBox,
-  onMarkBoxScanned,
-  canScan
+  onMarkBoxDelivered,
+  canScan,
+  isAdmin = false
 }: { 
   boxes: Box[];
   onSelectBox: (box: Box) => void;
-  onMarkBoxScanned: (boxId: string) => void;
+  onMarkBoxDelivered?: (boxId: string) => void;
   canScan: boolean;
+  isAdmin?: boolean;
 }) {
   if (boxes.length === 0) {
     return (
@@ -209,9 +299,10 @@ function BoxesList({
             key={box.id}
             box={box} 
             onSelect={() => onSelectBox(box)}
-            onMarkScanned={() => onMarkBoxScanned(box.id)}
+            onMarkDelivered={onMarkBoxDelivered ? () => onMarkBoxDelivered(box.id) : undefined}
             isScanned={box.isScanned}
             canScan={canScan}
+            isAdmin={isAdmin}
           />
         ))}
       </div>
@@ -225,15 +316,30 @@ export default function DeliveryDetailsScreen({
   onBack, 
   onScanToReceive,
   onSelectBox,
-  onMarkBoxScanned
+  onMarkBoxScanned,
+  userRole,
+  onUpdateDeliveryStatus
 }: DeliveryDetailsScreenProps) {
   const scannedBoxes = boxes.filter(b => b.isScanned);
   const canScan = delivery.status === 'In transit';
+  const isAdmin = userRole === 'admin';
+
+  const handleMarkBoxDelivered = (boxId: string) => {
+    // Update box status to Delivered
+    // Note: This would typically update the box in the parent component
+    // For now, we'll just mark it as scanned which is the closest equivalent
+    onMarkBoxScanned(boxId);
+  };
 
   return (
     <div className="bg-surface min-h-screen flex flex-col">
       {/* Top App Bar */}
-      <TopAppBar onBack={onBack} />
+      <TopAppBar 
+        onBack={onBack} 
+        delivery={delivery}
+        userRole={userRole}
+        onUpdateDeliveryStatus={onUpdateDeliveryStatus}
+      />
       
       {/* Content */}
       <div className="flex-1 pt-6">
@@ -260,8 +366,9 @@ export default function DeliveryDetailsScreen({
         <BoxesList 
           boxes={boxes}
           onSelectBox={onSelectBox}
-          onMarkBoxScanned={onMarkBoxScanned}
+          onMarkBoxDelivered={isAdmin && canScan ? handleMarkBoxDelivered : undefined}
           canScan={canScan}
+          isAdmin={isAdmin}
         />
       </div>
       
