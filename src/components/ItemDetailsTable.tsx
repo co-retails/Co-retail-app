@@ -109,12 +109,12 @@ export function ItemDetailsTable({
                 <div className="grid grid-cols-2 gap-2 label-small text-on-surface-variant">
                   {showRetailerId && (
                     <div>
-                      <span className="opacity-70">Retailer ID:</span>
+                      <span className="opacity-70">Item ID:</span>
                       <div className="text-on-surface">{item.retailerItemId || '—'}</div>
                     </div>
                   )}
                   <div>
-                    <span className="opacity-70">Partner ID:</span>
+                    <span className="opacity-70">External ID:</span>
                     <div className="text-on-surface">{item.partnerItemId || '—'}</div>
                   </div>
                 </div>
@@ -200,11 +200,11 @@ export function ItemDetailsTable({
             </th>
             {showRetailerId && (
               <th className="px-4 py-3 text-left">
-                <span className="label-medium text-on-surface">Retailer ID*</span>
+                <span className="label-medium text-on-surface">Item ID*</span>
               </th>
             )}
             <th className="px-4 py-3 text-left">
-              <span className="label-medium text-on-surface">Partner ID</span>
+              <span className="label-medium text-on-surface">External ID</span>
             </th>
             <th className="px-4 py-3 text-left">
               <span className="label-medium text-on-surface">Item brand</span>
@@ -278,7 +278,7 @@ export function ItemDetailsTable({
                       <Input
                         value={item.retailerItemId || ''}
                         onChange={(e) => onUpdateItem(item.id, 'retailerItemId', e.target.value)}
-                        placeholder="Enter Retailer ID*"
+                        placeholder="Enter Item ID*"
                         className={`h-9 w-full body-medium ${
                           item.fieldErrors?.retailerItemId 
                             ? 'border-error focus:border-error bg-error-container/10' 
@@ -308,7 +308,7 @@ export function ItemDetailsTable({
                 </td>
               )}
 
-              {/* Partner ID */}
+              {/* External ID */}
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   {isEditable && onUpdateItem && brandAsInput ? (

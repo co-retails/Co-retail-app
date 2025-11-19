@@ -19,7 +19,7 @@ export interface Box {
   orderNumber: string;
   externalOrder: string;
   items: number;
-  status: 'In transit' | 'Delivered' | 'Cancelled';
+  status: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected';
   date: string;
   isScanned: boolean;
   deliveryId?: string;

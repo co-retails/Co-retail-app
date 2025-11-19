@@ -54,11 +54,11 @@ export default function DeliveryNoteBoxDetailsScreen({
   );
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
 
-  // Determine if box is editable (pending status only - registered boxes cannot be edited)
+  // Determine if box is editable (pending/Packing status only - other boxes cannot be edited)
   const isEditable = box.status === 'pending';
   
-  // Determine if box is registered/in-transit/delivered
-  const isReadOnly = box.status === 'registered' || box.status === 'in-transit' || box.status === 'delivered';
+  // Determine if box is registered/in-transit/delivered/rejected/cancelled (read-only)
+  const isReadOnly = box.status === 'registered' || box.status === 'in-transit' || box.status === 'delivered' || box.status === 'rejected' || box.status === 'cancelled';
 
   // Get all available items (not yet in any box or in this box)
   const availableItems = orderItems.filter(item => 
@@ -152,13 +152,17 @@ export default function DeliveryNoteBoxDetailsScreen({
   const getStatusDisplay = () => {
     switch (box.status) {
       case 'pending':
-        return 'Pending';
+        return 'Packing';
       case 'registered':
         return 'Registered';
       case 'in-transit':
         return 'In Transit';
       case 'delivered':
         return 'Delivered';
+      case 'rejected':
+        return 'Rejected';
+      case 'cancelled':
+        return 'Cancelled';
       default:
         return box.status;
     }
@@ -174,6 +178,10 @@ export default function DeliveryNoteBoxDetailsScreen({
         return 'text-primary';
       case 'delivered':
         return 'text-success';
+      case 'rejected':
+        return 'text-error';
+      case 'cancelled':
+        return 'text-error';
       default:
         return 'text-on-surface-variant';
     }
@@ -189,80 +197,21 @@ export default function DeliveryNoteBoxDetailsScreen({
       />
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Fixed sections: Box Info, Scanner, Tabs */}
+        {/* Fixed sections: Scanner, Tabs */}
         <div className="flex-shrink-0">
-          <div className="px-4 md:px-6 py-4 md:py-6 space-y-6">
-            {/* Box Info Card */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 p-2 bg-primary-container rounded-lg">
-                    <PackageIcon size={24} className="text-on-primary-container" />
-                  </div>
-                  <div className="flex-1">
-                    <CardTitle className="title-medium text-on-surface">
-                      {box.qrLabel}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="body-small text-on-surface-variant">
-                        {boxItems.length} item{boxItems.length !== 1 ? 's' : ''}
-                      </span>
-                      <span className="text-on-surface-variant">•</span>
-                      <span className={`body-small ${getStatusColor()}`}>
-                        {getStatusDisplay()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {/* Receiver and Sender Information */}
-                {(receiverBrand || receiverStoreCode || senderWarehouse) && (
-                  <div className="mt-4 pt-4 border-t border-outline-variant space-y-3">
-                    {receiverBrand && receiverStoreCode && (
-                      <div>
-                        <div className="label-small text-on-surface-variant mb-1">
-                          Receiver
-                        </div>
-                        <div className="body-medium text-on-surface">
-                          {receiverBrand} {receiverStoreCode}
-                        </div>
-                      </div>
-                    )}
-                    {senderWarehouse && (
-                      <div>
-                        <div className="label-small text-on-surface-variant mb-1">
-                          Sender
-                        </div>
-                        <div className="body-medium text-on-surface">
-                          {senderWarehouse}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Editable Box View - Active Scanner */}
-            {isEditable && (
-              <Card className="border-primary">
-                <CardHeader>
-                  <CardTitle className="title-medium">Scan items</CardTitle>
-                </CardHeader>
-                <CardContent className="pb-4">
-                  <div className="flex-shrink-0 overflow-hidden" style={{ height: '280px', minHeight: '280px', maxHeight: '280px' }}>
-                    <ActiveScanner
-                      onScan={handleScanItem}
-                      onManualEntry={handleManualEntry}
-                      isScanning={false}
-                      showManualEntry={true}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          {/* Editable Box View - Active Scanner */}
+          {isEditable && (
+            <div className="px-4 md:px-6 pt-4 pb-4 border-b border-outline-variant">
+              <div className="flex-shrink-0 overflow-hidden" style={{ height: '280px', minHeight: '280px', maxHeight: '280px' }}>
+                <ActiveScanner
+                  onScan={handleScanItem}
+                  onManualEntry={handleManualEntry}
+                  isScanning={false}
+                  showManualEntry={true}
+                />
+              </div>
+            </div>
+          )}
 
           {/* M3 Style Tab Bar - Only for editable boxes */}
           {isEditable && (

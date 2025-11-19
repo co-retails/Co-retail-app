@@ -440,7 +440,7 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
 
   // Export to Excel
   const handleExport = () => {
-    const headers = ['Partner Type', 'Partner ID', 'Partner Name', 'Category', 'GTIN', 'Article Number', 'Source'];
+    const headers = ['Partner Type', 'External ID', 'Partner Name', 'Category', 'GTIN', 'Article Number', 'Source'];
     const rows = displayedMappings.map(m => [
       m.partnerType,
       m.partnerId || '',

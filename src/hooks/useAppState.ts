@@ -171,6 +171,7 @@ export function useAppState() {
     receiverLabel?: string;
     orderItems?: OrderItem[]; // Store order items for newly created orders
     previousScreen?: Screen; // Track where we came from for back navigation
+    previousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered'; // Track which tab was active
   } | null>(null);
   
   // Digital Showroom state

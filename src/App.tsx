@@ -888,6 +888,7 @@ export default function App() {
     receiverBrand?: string;
     receiverStoreCode?: string;
     senderWarehouse?: string;
+    previousScreen?: Screen; // Track which screen we came from
   } | null>(null);
 
   const handleAddBoxToDeliveryNote = (deliveryNoteId: string, boxLabel: string) => {
@@ -983,7 +984,8 @@ export default function App() {
         orderItems,
         receiverBrand,
         receiverStoreCode,
-        senderWarehouse
+        senderWarehouse,
+        previousScreen: currentScreen // Track which screen we came from
       });
       setCurrentScreenSafe('delivery-note-box-details');
     }
@@ -1043,24 +1045,26 @@ export default function App() {
         
         // Update detailsScreenData if we're viewing this delivery note
         if (detailsScreenData?.type === 'shipment' && detailsScreenData.data.id === deliveryNote.id) {
+          const updatedBoxes = (detailsScreenData.data as DeliveryNote).boxes.map(b =>
+            b.id === boxId ? { ...b, items } : b
+          );
           setDetailsScreenData({
             ...detailsScreenData,
             data: {
               ...detailsScreenData.data,
-              boxes: (detailsScreenData.data as DeliveryNote).boxes.map(b =>
-                b.id === boxId ? { ...b, items } : b
-              )
+              boxes: updatedBoxes
             }
           });
         }
       }
       
+      const previousScreen = selectedDeliveryNoteBox.previousScreen || 'order-shipment-details';
       setSelectedDeliveryNoteBox(null);
-      setCurrentScreenSafe('order-shipment-details');
+      setCurrentScreenSafe(previousScreen);
     }
   };
 
-  const handleViewShipmentDetails = (type: DetailType, data: PartnerOrder | DeliveryNote | ReturnDelivery, previousScreen?: Screen) => {
+  const handleViewShipmentDetails = (type: DetailType, data: PartnerOrder | DeliveryNote | ReturnDelivery, previousScreen?: Screen, previousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered') => {
     let metadata: {
       storeName?: string;
       storeCode?: string;
@@ -1088,7 +1092,8 @@ export default function App() {
       type,
       data,
       ...metadata,
-      previousScreen: previousScreen || currentScreen // Track where we came from
+      previousScreen: previousScreen || currentScreen, // Track where we came from
+      previousTab: previousTab // Track which tab was active
     });
     setCurrentScreenSafe('order-shipment-details');
   };
@@ -1536,15 +1541,74 @@ export default function App() {
             setSelectedSellpyOrder(order);
             setCurrentScreenSafe('order-details');
           }}
-          onOpenOrderDetails={(order) => {
+          onOpenOrderDetails={(order, activeTab) => {
             setSelectedPartnerOrder(order);
-            handleViewShipmentDetails('order', order);
+            handleViewShipmentDetails('order', order, 'shipping', activeTab);
           }}
-          onOpenShipmentDetails={(deliveryNote) => {
-            handleViewShipmentDetails('shipment', deliveryNote);
+          onOpenShipmentDetails={(deliveryNote, activeTab) => {
+            // For pending/packing delivery notes, show the delivery note creation screen
+            if (deliveryNote.status === 'pending' || deliveryNote.status === 'packing') {
+              // Find the related order to get order items
+              const relatedOrder = partnerOrders.find(order => order.id === deliveryNote.orderId);
+              if (relatedOrder) {
+                // Generate order items (in real app, these would come from the order)
+                const generateOrderItems = (count: number): OrderItem[] => {
+                  const brands = ['WEEKDAY', 'COS', 'Monki', 'H&M'];
+                  const categories = ['Clothing', 'Shoes', 'Accessories'];
+                  const colors = ['Black', 'White', 'Blue', 'Red', 'Gray'];
+                  const sizes = ['XS', 'S', 'M', 'L', 'XL'];
+                  
+                  return Array.from({ length: count }, (_, index) => {
+                    const price = parseFloat((Math.random() * 150 + 20).toFixed(2));
+                    const purchasePrice = parseFloat((price * (0.4 + Math.random() * 0.3)).toFixed(2));
+                    
+                    return {
+                      id: `item-${deliveryNote.orderId}-${index + 1}`,
+                      partnerItemId: `PID-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
+                      retailerItemId: index < 2 ? `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : undefined,
+                      itemId: `ITEM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+                      brand: brands[Math.floor(Math.random() * brands.length)],
+                      category: categories[Math.floor(Math.random() * categories.length)],
+                      size: sizes[Math.floor(Math.random() * sizes.length)],
+                      color: colors[Math.floor(Math.random() * colors.length)],
+                      price,
+                      purchasePrice,
+                      status: undefined,
+                      gender: 'Unisex',
+                      subcategory: '',
+                      source: 'manual'
+                    };
+                  });
+                };
+                const orderItems = generateOrderItems(relatedOrder.itemCount);
+                
+                // Get receiver brand and warehouse info
+                const receivingStoreId = deliveryNote.storeId;
+                const receivingStoreCode = deliveryNote.storeCode || '';
+                const store = receivingStoreId ? mockStores.find(s => s.id === receivingStoreId) : undefined;
+                const receiverBrand = store ? mockBrands.find(b => b.id === store.brandId)?.name : undefined;
+                const warehouseName = resolveWarehouseName(deliveryNote.warehouseId, deliveryNote.warehouseName);
+                
+                setDetailsScreenData({
+                  type: 'shipment',
+                  data: deliveryNote,
+                  storeName: deliveryNote.storeName,
+                  storeCode: deliveryNote.storeCode,
+                  partnerName: deliveryNote.partnerName,
+                  warehouseName: warehouseName,
+                  orderItems: orderItems,
+                  previousScreen: 'shipping',
+                  previousTab: activeTab
+                });
+                setCurrentScreenSafe('delivery-note-creation');
+                return;
+              }
+            }
+            // For other statuses, use the regular details screen
+            handleViewShipmentDetails('shipment', deliveryNote, 'shipping', activeTab);
           }}
-          onOpenReturnDetails={(returnDelivery) => {
-            handleViewShipmentDetails('return', returnDelivery);
+          onOpenReturnDetails={(returnDelivery, activeTab) => {
+            handleViewShipmentDetails('return', returnDelivery, 'shipping', activeTab);
           }}
           onViewShowroomOrder={(orderId) => {
             const order = showroomOrders.find(o => o.id === orderId);
@@ -2137,6 +2201,11 @@ export default function App() {
           type={detailsScreenData.type}
           data={detailsScreenData.data}
           onBack={() => {
+            // Restore the tab if we came from shipping screen
+            if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
+              setShippingInitialTab(detailsScreenData.previousTab);
+            }
+            
             // Navigate back to the previous screen if specified, otherwise use default handleBack
             if (detailsScreenData.previousScreen) {
               setCurrentScreenSafe(detailsScreenData.previousScreen);
@@ -2267,6 +2336,30 @@ export default function App() {
               return detailsScreenData.orderItems;
             }
             
+            // For Sellpy pending orders, try to find items from mockSellpyOrders
+            if (detailsScreenData?.type === 'order' && detailsScreenData?.partnerName === 'Sellpy') {
+              const order = detailsScreenData.data as PartnerOrder;
+              // Try to find matching Sellpy order by externalOrderId or by matching order ID pattern
+              const sellpyOrder = sellpyOrders.find(so => {
+                // Try matching by externalOrderId if available
+                if (order.externalOrderId && so.id.includes(order.externalOrderId)) {
+                  return true;
+                }
+                // Try matching by order ID pattern (SEL-ORD-2024-XXX might map to SEL-2024-XXX)
+                const orderIdMatch = order.id.match(/SEL-ORD-(\d{4})-(\d+)/);
+                if (orderIdMatch) {
+                  const year = orderIdMatch[1];
+                  const num = orderIdMatch[2];
+                  return so.id === `SEL-${year}-${num.padStart(3, '0')}`;
+                }
+                return false;
+              });
+              
+              if (sellpyOrder && sellpyOrder.items && sellpyOrder.items.length > 0) {
+                return sellpyOrder.items;
+              }
+            }
+            
             if (detailsScreenData?.type === 'shipment') {
               const shipment = detailsScreenData.data as DeliveryNote;
               const relatedOrder = partnerOrders.find(order => order.id === shipment.orderId);
@@ -2305,6 +2398,77 @@ export default function App() {
             }
             return [];
           })()}
+          onSaveAndClose={(() => {
+            if (detailsScreenData?.type === 'shipment') {
+              const shipment = detailsScreenData.data as DeliveryNote;
+              if (shipment.status === 'pending' || shipment.status === 'packing') {
+                return () => {
+                  // Update delivery note in state
+                  setDeliveryNotes(prev => prev.map(note =>
+                    note.id === shipment.id ? { ...note, ...shipment } : note
+                  ));
+                  
+                  // Update detailsScreenData
+                  setDetailsScreenData({
+                    ...detailsScreenData,
+                    data: shipment
+                  });
+                  
+                  toast.success('Delivery note saved');
+                  handleBack();
+                };
+              }
+            }
+            return undefined;
+          })()}
+          onRegisterDelivery={(() => {
+            if (detailsScreenData?.type === 'shipment') {
+              const shipment = detailsScreenData.data as DeliveryNote;
+              if (shipment.status === 'pending' || shipment.status === 'packing') {
+                return () => {
+                  const registeredBoxes = shipment.boxes.filter(box => box.status === 'registered');
+                  const pendingBoxes = shipment.boxes.filter(box => box.status === 'pending');
+                  
+                  if (registeredBoxes.length === 0) {
+                    toast.error('At least one box must be registered before registering the delivery note');
+                    return;
+                  }
+                  
+                  // Update delivery note status to registered
+                  const updatedShipment: DeliveryNote = {
+                    ...shipment,
+                    boxes: shipment.boxes.map(box => ({
+                      ...box,
+                      status: box.status === 'registered' ? 'registered' : 'pending'
+                    })),
+                    status: 'registered',
+                    registeredDate: new Date().toISOString()
+                  };
+                  
+                  setDeliveryNotes(prev => prev.map(note =>
+                    note.id === shipment.id ? updatedShipment : note
+                  ));
+                  
+                  // Update detailsScreenData
+                  setDetailsScreenData({
+                    ...detailsScreenData,
+                    data: updatedShipment
+                  });
+                  
+                  // Update order status to in-transit if all boxes are registered
+                  const relatedOrder = partnerOrders.find(order => order.id === shipment.orderId);
+                  if (relatedOrder && pendingBoxes.length === 0) {
+                    setPartnerOrders(prev => prev.map(order =>
+                      order.id === shipment.orderId ? { ...order, status: 'in-transit' as const } : order
+                    ));
+                  }
+                  
+                  toast.success('Delivery note registered successfully');
+                };
+              }
+            }
+            return undefined;
+          })()}
         />
       )}
 
@@ -2318,8 +2482,9 @@ export default function App() {
           senderWarehouse={selectedDeliveryNoteBox.senderWarehouse}
           isAdmin={currentUserRole === 'admin'}
           onBack={() => {
+            const previousScreen = selectedDeliveryNoteBox?.previousScreen || 'order-shipment-details';
             setSelectedDeliveryNoteBox(null);
-            setCurrentScreenSafe('order-shipment-details');
+            setCurrentScreenSafe(previousScreen);
           }}
           onRegisterBox={handleRegisterBox}
           onSaveAndClose={handleSaveBoxAndClose}
@@ -2368,8 +2533,10 @@ export default function App() {
       )}
 
       {/* Delivery Note Creation Screen */}
-      {currentScreen === 'delivery-note-creation' && detailsScreenData && detailsScreenData.type === 'order' && (() => {
-        const orderData = detailsScreenData.data as PartnerOrder;
+      {currentScreen === 'delivery-note-creation' && detailsScreenData && (detailsScreenData.type === 'order' || (detailsScreenData.type === 'shipment' && ((detailsScreenData.data as DeliveryNote).status === 'pending' || (detailsScreenData.data as DeliveryNote).status === 'packing'))) && (() => {
+        const isShipment = detailsScreenData.type === 'shipment';
+        const orderData = isShipment ? null : detailsScreenData.data as PartnerOrder;
+        const deliveryNoteData = isShipment ? detailsScreenData.data as DeliveryNote : null;
         
         // Generate order items from order data
         const generateOrderItems = (count: number): OrderItem[] => {
@@ -2398,57 +2565,127 @@ export default function App() {
           });
         };
         
-        const orderItems = generateOrderItems(orderData.itemCount);
+        // Get order items - use from detailsScreenData if available (for shipments), otherwise generate
+        const orderItems = detailsScreenData.orderItems || (orderData ? generateOrderItems(orderData.itemCount) : []);
+        
+        // Get order ID - use from delivery note if shipment, otherwise from order
+        const orderId = isShipment && deliveryNoteData ? deliveryNoteData.orderId : (orderData ? orderData.id : '');
         
         // Get receiver brand and warehouse info
-        const receivingStoreId = orderData.receivingStoreId || detailsScreenData.storeId;
-        const receivingStoreCode = orderData.receivingStoreId || detailsScreenData.storeCode || '';
+        const receivingStoreId = isShipment && deliveryNoteData 
+          ? deliveryNoteData.storeId 
+          : (orderData ? (orderData.receivingStoreId || detailsScreenData.storeId) : undefined);
+        const receivingStoreCode = isShipment && deliveryNoteData
+          ? deliveryNoteData.storeCode || ''
+          : (orderData ? (orderData.receivingStoreId || detailsScreenData.storeCode || '') : '');
         const store = receivingStoreId ? mockStores.find(s => s.id === receivingStoreId) : undefined;
-        const receiverBrand = store ? mockBrands.find(b => b.id === store.brandId)?.name : undefined;
-        const warehouseName = resolveWarehouseName(orderData.warehouseId, orderData.warehouseName);
+        const receiverBrand = store ? mockBrands.find(b => b.id === store.brandId)?.name : (detailsScreenData.receiverBrand || undefined);
+        const warehouseName = isShipment && deliveryNoteData
+          ? resolveWarehouseName(deliveryNoteData.warehouseId, deliveryNoteData.warehouseName)
+          : (orderData ? resolveWarehouseName(orderData.warehouseId, orderData.warehouseName) : detailsScreenData.warehouseName);
 
         return (
           <DeliveryNoteCreationScreen
-            onBack={handleBack}
-            orderId={orderData.id}
+            onBack={() => {
+              // Restore the tab if we came from shipping screen
+              if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
+                setShippingInitialTab(detailsScreenData.previousTab);
+              }
+              handleBack();
+            }}
+            orderId={orderId}
             orderItems={orderItems}
             onCreateDeliveryNote={(deliveryNote) => {
-              // Add delivery note to state
-              setDeliveryNotes(prev => [...prev, deliveryNote]);
-              
-              // Update order status based on delivery note status
-              if (deliveryNote.status === 'registered') {
-                setPartnerOrders(prev =>
-                  prev.map(order =>
-                    order.id === orderData.id
-                      ? { ...order, status: 'in-transit' as const }
-                      : order
-                  )
-                );
+              if (isShipment && deliveryNoteData) {
+                // Update existing delivery note, preserving other fields
+                setDeliveryNotes(prev => prev.map(note =>
+                  note.id === deliveryNoteData.id 
+                    ? { 
+                        ...note, 
+                        ...deliveryNote,
+                        createdDate: note.createdDate, // Preserve original created date
+                        storeId: note.storeId,
+                        storeCode: note.storeCode,
+                        storeName: note.storeName,
+                        warehouseId: note.warehouseId,
+                        warehouseName: note.warehouseName,
+                        partnerId: note.partnerId,
+                        partnerName: note.partnerName
+                      } 
+                    : note
+                ));
+                
+                // Update order status based on delivery note status
+                if (deliveryNote.status === 'registered') {
+                  const relatedOrder = partnerOrders.find(order => order.id === deliveryNote.orderId);
+                  if (relatedOrder) {
+                    setPartnerOrders(prev =>
+                      prev.map(order =>
+                        order.id === deliveryNote.orderId
+                          ? { ...order, status: 'in-transit' as const }
+                          : order
+                      )
+                    );
+                  }
+                }
+              } else if (orderData) {
+                // Add new delivery note to state
+                setDeliveryNotes(prev => [...prev, deliveryNote]);
+                
+                // Update order status based on delivery note status
+                if (deliveryNote.status === 'registered') {
+                  setPartnerOrders(prev =>
+                    prev.map(order =>
+                      order.id === orderData.id
+                        ? { ...order, status: 'in-transit' as const }
+                        : order
+                    )
+                  );
+                }
               }
               
               // Show success message
               toast.success('Delivery note saved successfully');
               
-              // Navigate back to partner dashboard or shipping screen
-              if (currentUserRole === 'partner') {
+              // Navigate back - restore tab if from shipping screen
+              if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
+                setShippingInitialTab(detailsScreenData.previousTab);
+                setCurrentScreenSafe('shipping');
+              } else if (currentUserRole === 'partner') {
                 setCurrentScreenSafe('partner-dashboard');
               } else {
                 setCurrentScreenSafe('shipping');
               }
             }}
-            onSaveAndClose={() => {
-              // Create delivery note with pending status
-              const deliveryNote: DeliveryNoteCreationDeliveryNote = {
-                id: `DN-${Date.now().toString().slice(-8)}`,
-                orderId: orderData.id,
-                boxes: [],
-                status: 'pending',
-                createdDate: new Date().toISOString()
-              };
-              setDeliveryNotes(prev => [...prev, deliveryNote]);
-              toast.success('Delivery note saved');
-              if (currentUserRole === 'partner') {
+            onSaveAndClose={(savedBoxes) => {
+              if (isShipment && deliveryNoteData) {
+                // Update existing delivery note with current boxes
+                if (savedBoxes) {
+                  setDeliveryNotes(prev => prev.map(note =>
+                    note.id === deliveryNoteData.id
+                      ? { ...note, boxes: savedBoxes }
+                      : note
+                  ));
+                }
+                toast.success('Delivery note saved');
+              } else if (orderData) {
+                // Create delivery note with pending status
+                const deliveryNote: DeliveryNoteCreationDeliveryNote = {
+                  id: `DN-${Date.now().toString().slice(-8)}`,
+                  orderId: orderData.id,
+                  boxes: [],
+                  status: 'pending',
+                  createdDate: new Date().toISOString()
+                };
+                setDeliveryNotes(prev => [...prev, deliveryNote]);
+                toast.success('Delivery note saved');
+              }
+              
+              // Navigate back - restore tab if from shipping screen
+              if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
+                setShippingInitialTab(detailsScreenData.previousTab);
+                setCurrentScreenSafe('shipping');
+              } else if (currentUserRole === 'partner') {
                 setCurrentScreenSafe('partner-dashboard');
               } else {
                 setCurrentScreenSafe('shipping');
@@ -2456,26 +2693,43 @@ export default function App() {
             }}
             onOpenBoxDetails={(box) => {
               // Set selected box and navigate to box details
-              setSelectedDeliveryNoteBox({ box, orderItems: orderItems });
+              // Track that we came from delivery-note-creation screen
+              setSelectedDeliveryNoteBox({ 
+                box, 
+                orderItems: orderItems,
+                previousScreen: 'delivery-note-creation'
+              });
               setCurrentScreenSafe('delivery-note-box-details');
             }}
             receivingStore={
-              orderData.receivingStoreName
-                ? {
-                    name: orderData.receivingStoreName,
-                    code: receivingStoreCode
-                  }
-                : detailsScreenData.storeName
-                  ? {
-                      name: detailsScreenData.storeName,
-                      code: receivingStoreCode
-                    }
-                  : undefined
+              isShipment && deliveryNoteData
+                ? (deliveryNoteData.storeName
+                    ? {
+                        name: deliveryNoteData.storeName,
+                        code: receivingStoreCode
+                      }
+                    : undefined)
+                : (orderData?.receivingStoreName
+                    ? {
+                        name: orderData.receivingStoreName,
+                        code: receivingStoreCode
+                      }
+                    : detailsScreenData.storeName
+                      ? {
+                          name: detailsScreenData.storeName,
+                          code: receivingStoreCode
+                        }
+                      : undefined)
             }
             receiverBrand={receiverBrand}
             warehouseName={warehouseName}
-            partnerName={orderData.partnerName || detailsScreenData.partnerName}
+            partnerName={isShipment && deliveryNoteData 
+              ? deliveryNoteData.partnerName 
+              : (orderData?.partnerName || detailsScreenData.partnerName)}
             isAdmin={currentUserRole === 'admin'}
+            initialBoxes={isShipment && deliveryNoteData ? (detailsScreenData.data as DeliveryNote).boxes : undefined}
+            deliveryNoteId={isShipment && deliveryNoteData ? deliveryNoteData.id : undefined}
+            existingCreatedDate={isShipment && deliveryNoteData ? deliveryNoteData.createdDate : undefined}
             onDeleteUnassignedItem={(itemId) => {
               // Remove item from order items
               toast.success('Item removed');

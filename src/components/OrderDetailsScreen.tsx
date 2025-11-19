@@ -284,7 +284,7 @@ export default function OrderDetailsScreen({
             <AlertDescription className="text-on-tertiary-container">
               <span className="title-small">Order ready to register</span>
               <p className="body-small mt-1">
-                All {orderItems.length} items have retailer IDs and valid attributes.
+                All {orderItems.length} items have item IDs and valid attributes.
               </p>
             </AlertDescription>
           </Alert>
@@ -310,7 +310,7 @@ export default function OrderDetailsScreen({
             <AlertDescription className="text-on-error-container">
               <span className="title-small">{itemsWithErrors.length} item{itemsWithErrors.length > 1 ? 's' : ''} {itemsWithErrors.length > 1 ? 'have' : 'has'} validation errors</span>
               <p className="body-small mt-1">
-                Fix validation errors before adding retailer IDs.
+                Fix validation errors before adding item IDs.
               </p>
             </AlertDescription>
           </Alert>
@@ -445,7 +445,7 @@ export default function OrderDetailsScreen({
                                 <span className="label-medium text-on-surface">Partner ID</span>
                               </th>
                               <th className="px-4 py-3 text-left">
-                                <span className="label-medium text-on-surface">Retailer ID</span>
+                                <span className="label-medium text-on-surface">Item ID</span>
                               </th>
                               <th className="px-4 py-3 text-left">
                                 <span className="label-medium text-on-surface">Brand</span>
@@ -547,7 +547,7 @@ export default function OrderDetailsScreen({
                                 <span className="label-medium text-on-surface">Partner ID</span>
                               </th>
                               <th className="px-4 py-3 text-left">
-                                <span className="label-medium text-on-surface">Retailer ID</span>
+                                <span className="label-medium text-on-surface">Item ID</span>
                               </th>
                               <th className="px-4 py-3 text-left">
                                 <span className="label-medium text-on-surface">Brand</span>
@@ -636,7 +636,7 @@ export default function OrderDetailsScreen({
         {/* Action Buttons - Fixed at Bottom */}
         {orderItems.length > 0 && (
           <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant px-4 md:px-6 py-4 z-20 md:pl-24 flex flex-col md:flex-row gap-3 md:justify-end">
-            {/* Pending status: Add retailer IDs */}
+            {/* Pending status: Add item IDs */}
             {order.status === 'pending' && canAddRetailerIds && (
               <Button 
                 onClick={handleStartScanning} 
@@ -644,7 +644,7 @@ export default function OrderDetailsScreen({
                 size="lg"
               >
                 <QrCodeIcon size={20} className="mr-2 flex-shrink-0" />
-                <span className="label-large">Add retailer IDs ({itemsNeedingRetailerIds.length} items)</span>
+                <span className="label-large">Add item IDs ({itemsNeedingRetailerIds.length} items)</span>
               </Button>
             )}
             
@@ -819,7 +819,7 @@ export default function OrderDetailsScreen({
         </DialogContent>
       </Dialog>
 
-      {/* Scan Retailer IDs Full-Screen Dialog */}
+      {/* Scan Item IDs Full-Screen Dialog */}
       <FullScreenDialog open={showScanDialog} onOpenChange={setShowScanDialog}>
         <FullScreenDialogContent className="flex flex-col">
           {/* Header */}
@@ -834,12 +834,12 @@ export default function OrderDetailsScreen({
                   </FullScreenDialogClose>
                   <div>
                     <FullScreenDialogTitle className="headline-small text-on-surface">
-                      Add Retailer IDs
+                      Add Item IDs
                     </FullScreenDialogTitle>
                     <FullScreenDialogDescription className="body-small text-on-surface-variant">
                       {scanSession.step === 'scan-partner-qr' 
                         ? 'Scan partner QR code to start' 
-                        : 'Scan retailer item ID to connect'}
+                        : 'Scan item ID to connect'}
                     </FullScreenDialogDescription>
                   </div>
                 </div>
@@ -897,7 +897,7 @@ export default function OrderDetailsScreen({
                       </div>
                       <div className="flex-1">
                         <p className="title-small text-on-primary-container mb-1">
-                          Step 2: Scan Retailer Item ID
+                          Step 2: Scan Item ID
                         </p>
                         <p className="body-small text-on-primary-container mb-2">
                           Connecting this item:

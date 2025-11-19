@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -82,6 +82,8 @@ interface OrderShipmentDetailsScreenProps {
     id: string;
     externalOrderId?: string;
   }>;
+  onSaveAndClose?: () => void;
+  onRegisterDelivery?: () => void;
 }
 
 // Valid price points for SEK (Swedish Krona) - Sellpy partner market
@@ -119,13 +121,13 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
         itemStatus = undefined;
       } else if (isSellpy) {
         // Sellpy pending orders: ~30% of items have validation errors
+        // Note: Category and subcategory are ALWAYS filled in for Sellpy (AI price fork suggests them)
         const hasError = index % 3 === 0; // Every 3rd item has an error
         if (hasError) {
           itemStatus = 'error';
-          // Create realistic validation errors
+          // Create realistic validation errors (category/subcategory are never errors for Sellpy)
           const errorTypes = [
             { field: 'brand', message: 'Item brand is required' },
-            { field: 'category', message: 'Category is required' },
             { field: 'size', message: 'Size is required' },
             { field: 'color', message: 'Color is required' },
             { field: 'price', message: 'Select valid price' }
@@ -147,19 +149,37 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
       itemStatus = type === 'return' ? undefined : (Math.random() > 0.8 ? 'pending' : undefined);
     }
     
+    // For Sellpy orders, ALWAYS generate partnerItemId (External ID)
+    // For other partners, also generate it but it's optional
+    const selectedBrand = itemStatus === 'error' && fieldErrors?.brand ? brands[0] : brands[Math.floor(Math.random() * brands.length)];
+    const partnerItemId = isSellpy 
+      ? `${selectedBrand.substring(0, 2).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${index + 1}`
+      : `${selectedBrand.substring(0, 2).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    
+    // For Sellpy orders, category and subcategory are ALWAYS filled in (AI price fork suggests them)
+    // For other partners, category/subcategory may be empty if there's an error
+    const selectedCategory = categories[Math.floor(Math.random() * categories.length)];
+    const selectedSubcategory = subcategories[Math.floor(Math.random() * subcategories.length)];
+    const category = isSellpy 
+      ? selectedCategory  // Always filled for Sellpy
+      : (itemStatus === 'error' && fieldErrors?.category ? '' : selectedCategory);
+    const subcategory = isSellpy 
+      ? selectedSubcategory  // Always filled for Sellpy
+      : subcategories[Math.floor(Math.random() * subcategories.length)];
+    
     return {
       id: `item-${type}-${index + 1}`,
       itemId: type === 'return' ? `RET-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : '',
-      brand: itemStatus === 'error' && fieldErrors?.brand ? '' : brands[Math.floor(Math.random() * brands.length)],
+      brand: itemStatus === 'error' && fieldErrors?.brand ? '' : selectedBrand,
       gender: Math.random() > 0.5 ? 'Women' : 'Men',
-      category: itemStatus === 'error' && fieldErrors?.category ? '' : categories[Math.floor(Math.random() * categories.length)],
-      subcategory: subcategories[Math.floor(Math.random() * subcategories.length)],
+      category: category,
+      subcategory: subcategory,
       size: itemStatus === 'error' && fieldErrors?.size ? undefined : (Math.random() > 0.7 ? undefined : sizes[Math.floor(Math.random() * sizes.length)]),
       color: itemStatus === 'error' && fieldErrors?.color ? '' : colors[Math.floor(Math.random() * colors.length)],
       price: itemStatus === 'error' && fieldErrors?.price ? 0 : price,
       purchasePrice: purchasePrice,
       status: itemStatus,
-      partnerItemId: `${brands[Math.floor(Math.random() * brands.length)].substring(0, 2)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      partnerItemId: partnerItemId,
       retailerItemId: retailerItemId,
       source: 'detail-mock' as const,
       fieldErrors: fieldErrors,
@@ -186,7 +206,9 @@ export default function OrderShipmentDetailsScreen({
   orderItems = [],
   onUnregisterBox,
   onDeleteBox,
-  relatedOrders = []
+  relatedOrders = [],
+  onSaveAndClose,
+  onRegisterDelivery
 }: OrderShipmentDetailsScreenProps) {
   // State for editable items
   const [editableItems, setEditableItems] = useState<DetailItem[]>([]);
@@ -368,14 +390,19 @@ export default function OrderShipmentDetailsScreen({
   };
 
   // Generate mock items based on the expected count
+  // Use useMemo to stabilize baseItems and prevent recalculation on every render
   const orderStatus = type === 'order' ? (data as PartnerOrder).status : undefined;
-  const baseItems = generateMockItems(getItemCount(), type, partnerName, orderStatus);
+  const itemCount = getItemCount();
+  const baseItems = useMemo(() => {
+    return generateMockItems(itemCount, type, partnerName, orderStatus);
+  }, [itemCount, type, partnerName, orderStatus]);
+  
   // Use orderItems prop if provided (for Thrifted orders), otherwise use editableItems or baseItems
   const allItems = orderItems && orderItems.length > 0 
     ? orderItems.map(item => ({
         ...item,
-        partnerItemId: item.sku || item.itemId,
-        subcategory: item.gender || '',
+        partnerItemId: item.partnerItemId || item.sku || item.itemId,
+        subcategory: item.subcategory || '', // Preserve subcategory, don't use gender as fallback
         imageUrl: undefined
       }))
     : editableItems.length > 0 
@@ -439,14 +466,16 @@ export default function OrderShipmentDetailsScreen({
       // Initialize with orderItems if provided
       setEditableItems(orderItems.map(item => ({
         ...item,
-        partnerItemId: item.sku || item.itemId,
-        subcategory: item.gender || '',
+        partnerItemId: item.partnerItemId || item.sku || item.itemId,
+        subcategory: item.subcategory || '', // Preserve subcategory, don't use gender as fallback
         imageUrl: undefined
       })));
-    } else if (editableItems.length === 0) {
+    } else if (editableItems.length === 0 && (!orderItems || orderItems.length === 0)) {
+      // Initialize with baseItems (generated mock items) if no orderItems provided
+      // Only initialize once when editableItems is empty
       setEditableItems(baseItems);
     }
-  }, [orderItems]);
+  }, [orderItems]); // Remove baseItems from dependencies to avoid infinite loops
   
   // Handler to save changes and close (for Thrifted and approval orders)
   const handleSaveAndClose = () => {
@@ -567,7 +596,7 @@ export default function OrderShipmentDetailsScreen({
           setEditableItems(items.map(item => ({
             ...item,
             partnerItemId: item.sku || item.itemId,
-            subcategory: item.gender || '',
+            subcategory: item.subcategory || '',
             imageUrl: undefined
           })));
           setUploadError('');
@@ -586,8 +615,8 @@ export default function OrderShipmentDetailsScreen({
   const handleReplaceItems = () => {
     setEditableItems(pendingUploadItems.map(item => ({
       ...item,
-      partnerItemId: item.sku || item.itemId,
-      subcategory: item.gender || '',
+      partnerItemId: item.partnerItemId || item.sku || item.itemId,
+      subcategory: item.subcategory || '', // Preserve subcategory, don't use gender as fallback
       imageUrl: undefined
     })));
     setPendingUploadItems([]);
@@ -598,8 +627,8 @@ export default function OrderShipmentDetailsScreen({
   const handleAppendItems = () => {
     setEditableItems(prev => [...prev, ...pendingUploadItems.map(item => ({
       ...item,
-      partnerItemId: item.sku || item.itemId,
-      subcategory: item.gender || '',
+      partnerItemId: item.partnerItemId || item.sku || item.itemId,
+      subcategory: item.subcategory || '', // Preserve subcategory, don't use gender as fallback
       imageUrl: undefined
     }))]);
     setPendingUploadItems([]);
@@ -1072,8 +1101,8 @@ export default function OrderShipmentDetailsScreen({
                   <ItemDetailsTable
                     items={items.map(item => ({
                       ...item,
-                      partnerItemId: item.sku || item.itemId,
-                      subcategory: isThriftedOrder ? (item.subcategory || '') : (item.gender || item.subcategory || '')
+                      partnerItemId: item.partnerItemId || item.sku || item.itemId,
+                      subcategory: item.subcategory || '' // Preserve subcategory for all orders
                     }))}
                     showRetailerId={type !== 'shipment' && !isApprovalOrder} // Hide retailer ID for approval orders
                     showPrice={type === 'order' || type === 'return'} // Always show price for orders and returns (sales price for store-staff/admin)
@@ -1385,6 +1414,52 @@ export default function OrderShipmentDetailsScreen({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Action Buttons for Pending/Packing Shipments - Fixed bottom bar */}
+      {type === 'shipment' && ((data as DeliveryNote).status === 'pending' || (data as DeliveryNote).status === 'packing') && (
+        <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4 z-20 pb-safe">
+          <div className="flex flex-col md:flex-row md:justify-end gap-3 md:px-2">
+            {(() => {
+              const shipment = data as DeliveryNote;
+              const totalItems = orderItems.length;
+              const assignedItems = shipment.boxes.flatMap(box => box.items).length;
+              const unassignedItems = totalItems - assignedItems;
+              
+              return (
+                <>
+                  <div className="flex items-center gap-2 text-on-surface-variant body-small md:mr-auto">
+                    <PackageIcon size={16} />
+                    <span>{assignedItems} of {totalItems} items in {shipment.boxes.length} box{shipment.boxes.length !== 1 ? 'es' : ''}</span>
+                  </div>
+                  
+                  {onSaveAndClose && (
+                    <Button
+                      variant="outline"
+                      onClick={onSaveAndClose}
+                      className="w-full md:w-auto"
+                      size="lg"
+                    >
+                      <span className="label-large">Save & Close</span>
+                    </Button>
+                  )}
+                  
+                  {onRegisterDelivery && (
+                    <Button
+                      onClick={onRegisterDelivery}
+                      disabled={shipment.boxes.length === 0 || unassignedItems > 0 || shipment.boxes.some(box => box.items.length === 0)}
+                      className="w-full md:w-auto bg-primary text-on-primary"
+                      size="lg"
+                    >
+                      <CheckIcon size={20} className="mr-2" />
+                      <span className="label-large">Register Delivery</span>
+                    </Button>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
       )}
     </div>
   );

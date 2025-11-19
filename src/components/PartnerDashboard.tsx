@@ -803,8 +803,8 @@ export default function PartnerDashboard({
                   <Package size={48} className="mx-auto text-on-surface-variant/50 mb-4" />
                   {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Sellpy Operations' ? (
                     <>
-                      <p className="body-large text-on-surface-variant">No items need retailer IDs</p>
-                      <p className="body-medium text-on-surface-variant">Items from API integration will appear here when they need retailer item IDs</p>
+                      <p className="body-large text-on-surface-variant">No items need item IDs</p>
+                      <p className="body-medium text-on-surface-variant">Items from API integration will appear here when they need item IDs</p>
                       <Button onClick={onCreateOrder} className="mt-4">
                         <QrCodeIcon size={16} className="mr-2" />
                         Check for Items

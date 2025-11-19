@@ -1457,7 +1457,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         color: 'Brown',
         price: 20.00,
         status: 'error',
-        errors: ['Category is required', 'Price is required'],
+        errors: ['Price is required'],
         partnerItemId: 'BAG-103',
         source: 'api-integration'
       }

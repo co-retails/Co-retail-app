@@ -86,7 +86,7 @@ export default function RetailerIdScanScreen({
           });
         }
       } else if (scanSession.step === 'scan-retailer-id') {
-        // Complete the connection with retailer ID
+        // Complete the connection with item ID
         if (scanSession.currentItem) {
           const mockRetailerItemId = `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
           const connectedItem: OrderItem = {
@@ -116,11 +116,11 @@ export default function RetailerIdScanScreen({
   };
 
   const handleRegisterOrder = () => {
-    // Check if there are items without retailer IDs
+    // Check if there are items without item IDs
     if (itemsNeedingRetailerIds.length > 0) {
       setShowRegisterDialog(true);
     } else {
-      // All items have retailer IDs, proceed with registration
+      // All items have item IDs, proceed with registration
       if (onRegisterOrder) {
         onRegisterOrder();
       }
@@ -151,11 +151,11 @@ export default function RetailerIdScanScreen({
   };
 
   const handleCreateDeliveryNote = () => {
-    // Check if there are items without retailer IDs
+    // Check if there are items without item IDs
     if (itemsNeedingRetailerIds.length > 0) {
       setShowDeliveryNoteDialog(true);
     } else {
-      // All items have retailer IDs, proceed with delivery note creation
+      // All items have item IDs, proceed with delivery note creation
       if (onCreateDeliveryNote) {
         onCreateDeliveryNote(orderId, scannedConnections);
       }
@@ -177,7 +177,7 @@ export default function RetailerIdScanScreen({
       case 'scan-partner-qr':
         return 'Scan Partner QR Code';
       case 'scan-retailer-id':
-        return 'Scan Retailer Item ID';
+        return 'Scan Item ID';
       default:
         return 'Scan QR Code';
     }
@@ -188,7 +188,7 @@ export default function RetailerIdScanScreen({
       case 'scan-partner-qr':
         return 'Scan partner tag';
       case 'scan-retailer-id':
-        return 'Scan retailer tag';
+        return 'Scan item tag';
       default:
         return 'Point at QR code';
     }
@@ -333,7 +333,7 @@ export default function RetailerIdScanScreen({
                 {/* Mobile Layout: Compact */}
                 <div className="block md:hidden space-y-2">
                   <div>
-                    <p className="body-small text-on-surface-variant">Partner Item ID</p>
+                    <p className="body-small text-on-surface-variant">External ID</p>
                     <p className="title-small text-on-surface">{scanSession.currentItem.partnerItemId}</p>
                   </div>
                   <div>
@@ -361,7 +361,7 @@ export default function RetailerIdScanScreen({
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <div>
-                        <p className="body-small text-on-surface-variant">Partner Item ID</p>
+                        <p className="body-small text-on-surface-variant">External ID</p>
                         <p className="title-small text-on-surface">{scanSession.currentItem.partnerItemId}</p>
                       </div>
                       <div>
@@ -447,7 +447,7 @@ export default function RetailerIdScanScreen({
               <CardHeader className="pb-3">
                 <CardTitle className="title-small">Scanned Items ({scannedConnections.length})</CardTitle>
                 <p className="body-small text-on-surface-variant">
-                  Connected with retailer IDs
+                  Connected with item IDs
                 </p>
               </CardHeader>
               <CardContent className="p-0">
@@ -538,7 +538,7 @@ export default function RetailerIdScanScreen({
           <AlertDialogHeader>
             <AlertDialogTitle className="title-medium text-on-surface">Incomplete Order</AlertDialogTitle>
             <AlertDialogDescription className="body-medium text-on-surface-variant">
-              {itemsNeedingRetailerIds.length} item{itemsNeedingRetailerIds.length !== 1 ? 's' : ''} still need retailer IDs. What would you like to do?
+              {itemsNeedingRetailerIds.length} item{itemsNeedingRetailerIds.length !== 1 ? 's' : ''} still need item IDs. What would you like to do?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-4">

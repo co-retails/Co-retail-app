@@ -27,7 +27,7 @@ export interface Box {
   id: string;
   qrLabel: string;
   items: OrderItem[];
-  status: 'pending' | 'registered';
+  status: 'pending' | 'registered' | 'in-transit' | 'delivered' | 'rejected' | 'cancelled';
   createdDate: string;
 }
 
@@ -257,7 +257,7 @@ export default function BoxManagementScreen({
 
   const handleScanRetailerId = () => {
     if (!scannedRetailerId.trim()) {
-      toast.error('Please scan or enter a retailer ID');
+      toast.error('Please scan or enter an item ID');
       return;
     }
 
@@ -689,7 +689,7 @@ export default function BoxManagementScreen({
                               return;
                             }
 
-                            // Simulate scanning by generating a mock retailer ID
+                            // Simulate scanning by generating a mock item ID
                             const mockRetailerId = `RID-${Math.random().toString(36).substring(2, 5).toUpperCase()}${Math.floor(Math.random() * 900) + 100}`;
                             
                             // Automatically select the first available unboxed item for consistent demo experience
@@ -706,7 +706,7 @@ export default function BoxManagementScreen({
                                 return;
                               }
 
-                              // Add item to box automatically with the scanned retailer ID
+                              // Add item to box automatically with the scanned item ID
                               handleAddItemToBox({ ...matchingItem, retailerItemId: mockRetailerId });
                               toast.success(`Scanned and added: ${mockRetailerId} - ${matchingItem.brand} ${matchingItem.category}`);
                               setScannedRetailerId(''); // Clear the input
@@ -716,7 +716,7 @@ export default function BoxManagementScreen({
                           }}
                         >
                           <div className="bg-primary/90 backdrop-blur-sm rounded-lg px-4 py-2 opacity-0 hover:opacity-100 transition-opacity">
-                            <span className="label-medium text-on-primary">Scan retailer ID</span>
+                            <span className="label-medium text-on-primary">Scan item ID</span>
                           </div>
                         </div>
                       </button>
@@ -739,7 +739,7 @@ export default function BoxManagementScreen({
                       <Input
                         value={scannedRetailerId}
                         onChange={(e) => setScannedRetailerId(e.target.value)}
-                        placeholder="Scan or enter retailer ID"
+                        placeholder="Scan or enter item ID"
                         className="flex-1"
                       />
                       <Button
