@@ -3,74 +3,6 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
-const manualChunks = (id: string) => {
-  const normalizedId = id.replace(/\\/g, '/');
-
-  if (normalizedId.includes('node_modules')) {
-    // Keep React and React-DOM together to prevent loading order issues
-    if (
-      normalizedId.includes('/react/') ||
-      normalizedId.includes('/react-dom/') ||
-      normalizedId.includes('/scheduler/')
-    ) {
-      return 'vendor-react';
-    }
-    
-    // Ensure React is loaded before other dependencies that need it
-    if (normalizedId.includes('react/jsx-runtime') || normalizedId.includes('react/jsx-dev-runtime')) {
-      return 'vendor-react';
-    }
-
-    if (normalizedId.includes('@radix-ui')) {
-      return 'vendor-radix';
-    }
-
-    if (normalizedId.includes('recharts')) {
-      return 'vendor-recharts';
-    }
-
-    if (normalizedId.includes('embla-carousel')) {
-      return 'vendor-embla';
-    }
-
-    if (normalizedId.includes('lucide-react')) {
-      return 'vendor-icons';
-    }
-
-    if (normalizedId.includes('sonner')) {
-      return 'vendor-notifications';
-    }
-
-    return 'vendor';
-  }
-
-  if (normalizedId.includes('/components/Showroom')) {
-    return 'feature-showroom';
-  }
-
-  if (normalizedId.includes('/components/Buyer')) {
-    return 'feature-buyer';
-  }
-
-  if (
-    normalizedId.includes('/components/Partner') ||
-    normalizedId.includes('/components/Portal')
-  ) {
-    return 'feature-partner';
-  }
-
-  if (
-    normalizedId.includes('/components/Delivery') ||
-    normalizedId.includes('/components/Return') ||
-    normalizedId.includes('/components/Shipping') ||
-    normalizedId.includes('/components/Stock')
-  ) {
-    return 'feature-operations';
-  }
-
-  return undefined;
-};
-
 export default defineConfig({
   base: '/',
   plugins: [react()],
@@ -146,22 +78,6 @@ export default defineConfig({
     target: 'esnext',
     outDir: 'dist',
     chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          // Ensure React and React-DOM are always in the same chunk and load first
-          if (id.includes('node_modules/react/') || 
-              id.includes('node_modules/react-dom/') ||
-              id.includes('node_modules/scheduler/') ||
-              id.includes('react/jsx-runtime') ||
-              id.includes('react/jsx-dev-runtime')) {
-            return 'vendor-react';
-          }
-          // Use the existing manualChunks function for everything else
-          return manualChunks(id);
-        },
-      },
-    },
   },
   server: {
     port: 3000,
