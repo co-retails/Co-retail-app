@@ -66,6 +66,7 @@ const manualChunks = (id: string) => {
 };
 
 export default defineConfig({
+  base: '/',
   plugins: [react()],
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
