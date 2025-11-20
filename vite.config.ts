@@ -148,13 +148,17 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks,
-        // Ensure proper chunk ordering - React must load first
-        chunkFileNames: (chunkInfo) => {
-          if (chunkInfo.name === 'vendor-react') {
-            return 'assets/vendor-react-[hash].js';
+        manualChunks: (id) => {
+          // Ensure React and React-DOM are always in the same chunk and load first
+          if (id.includes('node_modules/react/') || 
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/scheduler/') ||
+              id.includes('react/jsx-runtime') ||
+              id.includes('react/jsx-dev-runtime')) {
+            return 'vendor-react';
           }
-          return 'assets/[name]-[hash].js';
+          // Use the existing manualChunks function for everything else
+          return manualChunks(id);
         },
       },
     },
