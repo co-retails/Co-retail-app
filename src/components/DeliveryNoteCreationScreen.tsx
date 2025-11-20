@@ -41,7 +41,7 @@ export interface Box {
   id: string;
   qrLabel: string;
   items: OrderItem[];
-  status: 'pending' | 'registered';
+  status: 'pending' | 'registered' | 'in-transit' | 'delivered' | 'rejected' | 'cancelled';
   createdDate: string;
 }
 
@@ -73,9 +73,12 @@ interface DeliveryNoteCreationScreenProps {
   partnerName?: string;
   warehouseName?: string;
   onOpenBoxDetails?: (box: Box) => void;
-  onSaveAndClose?: () => void;
+  onSaveAndClose?: (boxes?: Box[]) => void;
   isAdmin?: boolean;
   onDeleteUnassignedItem?: (itemId: string) => void;
+  initialBoxes?: Box[]; // For editing existing delivery notes
+  deliveryNoteId?: string; // For updating existing delivery notes
+  existingCreatedDate?: string; // For preserving createdDate when updating
 }
 
 type DialogMode = 'box-label' | 'add-items' | 'scan-item' | null;
@@ -92,9 +95,19 @@ export default function DeliveryNoteCreationScreen({
   onOpenBoxDetails,
   onSaveAndClose,
   isAdmin = false,
-  onDeleteUnassignedItem
+  onDeleteUnassignedItem,
+  initialBoxes,
+  deliveryNoteId,
+  existingCreatedDate
 }: DeliveryNoteCreationScreenProps) {
-  const [boxes, setBoxes] = useState<Box[]>([]);
+  const [boxes, setBoxes] = useState<Box[]>(initialBoxes || []);
+  
+  // Update boxes when initialBoxes changes (e.g., when navigating back from box details)
+  React.useEffect(() => {
+    if (initialBoxes) {
+      setBoxes(initialBoxes);
+    }
+  }, [initialBoxes]);
   const [currentBoxId, setCurrentBoxId] = useState<string | null>(null);
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [manualBoxLabel, setManualBoxLabel] = useState('');
@@ -263,7 +276,7 @@ export default function DeliveryNoteCreationScreen({
   const handleItemScannedOld = (code: string) => {
     if (!currentBoxId) return;
 
-    // Find item by retailer ID or item ID
+    // Find item by item ID or item ID
     const item = availableItems.find(
       item => item.retailerItemId === code || item.itemId === code || item.partnerItemId === code
     );
@@ -367,7 +380,7 @@ export default function DeliveryNoteCreationScreen({
   // Handle save delivery note and close
   const handleSaveDeliveryNoteAndClose = () => {
     if (onSaveAndClose) {
-      onSaveAndClose();
+      onSaveAndClose(boxes);
     } else {
       // Create delivery note with current state
       const deliveryNote: DeliveryNote = {
@@ -418,16 +431,16 @@ export default function DeliveryNoteCreationScreen({
       return;
     }
 
-    // Create delivery note
+    // Create or update delivery note
     const deliveryNote: DeliveryNote = {
-      id: `DN-${Date.now().toString().slice(-8)}`,
+      id: deliveryNoteId || `DN-${Date.now().toString().slice(-8)}`,
       orderId,
       boxes: boxes.map(box => ({
         ...box,
         status: box.status === 'registered' ? 'registered' : 'pending'
       })),
       status: 'registered',
-      createdDate: new Date().toISOString(),
+      createdDate: deliveryNoteId && existingCreatedDate ? existingCreatedDate : new Date().toISOString(),
       registeredDate: new Date().toISOString()
     };
 
@@ -438,7 +451,7 @@ export default function DeliveryNoteCreationScreen({
   return (
     <div className="min-h-screen bg-surface">
       <SharedHeader 
-        title="Create Delivery Note"
+        title="Delivery details"
         subtitle={`Order ${orderId}`}
         onBack={onBack}
         showBackButton={true}
@@ -553,7 +566,27 @@ export default function DeliveryNoteCreationScreen({
                             )}
                             {box.status === 'pending' && (
                               <Badge variant="outline" className="text-on-surface-variant body-small">
-                                Pending
+                                Packing
+                              </Badge>
+                            )}
+                            {box.status === 'in-transit' && (
+                              <Badge variant="secondary" className="bg-primary-container text-on-primary-container body-small">
+                                In Transit
+                              </Badge>
+                            )}
+                            {box.status === 'delivered' && (
+                              <Badge variant="secondary" className="bg-success-container text-on-success-container body-small">
+                                Delivered
+                              </Badge>
+                            )}
+                            {box.status === 'rejected' && (
+                              <Badge variant="secondary" className="bg-error-container text-on-error-container body-small">
+                                Rejected
+                              </Badge>
+                            )}
+                            {box.status === 'cancelled' && (
+                              <Badge variant="secondary" className="bg-error-container text-on-error-container body-small">
+                                Cancelled
                               </Badge>
                             )}
                           </div>
@@ -703,14 +736,6 @@ export default function DeliveryNoteCreationScreen({
             <PackageIcon size={16} />
             <span>{assignedItems} of {totalItems} items in {boxes.length} box{boxes.length !== 1 ? 'es' : ''}</span>
           </div>
-          
-          <Button
-            variant="outline"
-            onClick={onBack}
-            className="w-full md:w-auto"
-          >
-            <span className="label-large">Cancel</span>
-          </Button>
           
           <Button
             variant="outline"

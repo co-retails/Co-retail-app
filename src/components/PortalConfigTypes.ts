@@ -130,6 +130,7 @@ export type PartnerType = 'Main Partner' | 'Premium Partner' | 'Sellpy';
 
 export interface GtinMapping {
   id: string;
+  brandId?: string;
   partnerType: PartnerType;
   partnerId?: string; // Only for overrides
   category?: string; // Only for US partners

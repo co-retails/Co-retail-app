@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, X, QrCode, ClipboardListIcon } from 'lucide-react';
+import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, X, QrCode, ClipboardListIcon, ArrowUp, ArrowDown } from 'lucide-react';
 import { UserRole } from './RoleSwitcher';
 import type { ExtendedPartnerOrder } from './PartnerDashboard';
 import { DeliveryNote } from './BoxManagementScreen';
@@ -48,7 +48,7 @@ export interface SellpyOrder {
 export interface Delivery {
   id: string;
   date: string;
-  status: 'In transit' | 'Delivered' | 'Partially Delivered' | 'Cancelled';
+  status: 'In transit' | 'Delivered' | 'Partially Delivered' | 'Cancelled' | 'Rejected';
   deliveryId: string;
   orders: number;
   items: number;
@@ -104,9 +104,9 @@ interface ShippingScreenProps {
   onSelectSellpyOrder?: (order: SellpyOrder) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
   onCancelReturn?: (deliveryId: string) => void;
-  onOpenOrderDetails?: (order: ShippingPartnerOrder) => void;
-  onOpenShipmentDetails?: (deliveryNote: DeliveryNote) => void;
-  onOpenReturnDetails?: (returnDelivery: ReturnDelivery) => void;
+  onOpenOrderDetails?: (order: ShippingPartnerOrder, activeTab?: ShippingTab) => void;
+  onOpenShipmentDetails?: (deliveryNote: DeliveryNote, activeTab?: ShippingTab) => void;
+  onOpenReturnDetails?: (returnDelivery: ReturnDelivery, activeTab?: ShippingTab) => void;
   showroomOrders?: ShowroomOrder[];
   onViewShowroomOrder?: (orderId: string) => void;
   sellpyOrders?: SellpyOrder[];
@@ -718,10 +718,10 @@ function PartnerOrderItem({
             </div>
           )}
           
-          {/* Add Retailer IDs Hint for Sellpy Pending Orders Only */}
+          {/* Add Item IDs Hint for Sellpy Pending Orders Only */}
           {isClickable && isSellpyPending && (
             <div className="label-small text-primary mt-1">
-              Tap to add retailer IDs
+              Tap to add item IDs
             </div>
           )}
         </div>
@@ -1068,6 +1068,21 @@ export default function ShippingScreen({
   const [orderStatusFilter, setOrderStatusFilter] = useState<OrderStatusFilter>('all');
   const [shipmentStatusFilter, setShipmentStatusFilter] = useState<ShipmentStatusFilter>('all');
   const [returnStatusFilter, setReturnStatusFilter] = useState<ReturnStatusFilter>('all');
+  
+  // Sorting state
+  type SortDirection = 'asc' | 'desc' | null;
+  type OrderSortField = 'date' | 'id' | 'externalId' | 'senderReceiver' | 'items' | 'orderValue' | 'salesMargin' | 'status';
+  type ShipmentSortField = 'date' | 'id' | 'senderReceiver' | 'orders' | 'items' | 'boxes' | 'status';
+  type ReturnSortField = 'date' | 'id' | 'receiver' | 'warehouse' | 'items' | 'boxes' | 'status';
+  
+  const [orderSort, setOrderSort] = useState<{ field: OrderSortField; direction: SortDirection }>({ field: 'date', direction: 'desc' });
+  const [shipmentSort, setShipmentSort] = useState<{ field: ShipmentSortField; direction: SortDirection }>({ field: 'date', direction: 'desc' });
+  const [returnSort, setReturnSort] = useState<{ field: ReturnSortField; direction: SortDirection }>({ field: 'date', direction: 'desc' });
+  
+  // Pagination state for "All" tabs
+  const [loadedItemsCount, setLoadedItemsCount] = useState(50);
+  const ITEMS_PER_PAGE = 50;
+  
   // Filter out Approval option for Thrifted partner
   const isThriftedPartnerForFilter = currentPartnerId === '2'; // Thrifted
   const orderStatusFilterOptions: Array<{ id: OrderStatusFilter; label: string }> = isThriftedPartnerForFilter
@@ -1216,6 +1231,180 @@ useEffect(() => {
     return `${brandName} ${storeCode}`;
   };
 
+  // Helper function to check if search term matches any value in an object
+  const matchesSearchTerm = (searchTerm: string, values: (string | number | undefined | null)[]): boolean => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return values.some(val => {
+      if (val === undefined || val === null) return false;
+      return String(val).toLowerCase().includes(searchLower);
+    });
+  };
+
+  // Sorting helper functions
+  const sortOrders = (orders: ShippingPartnerOrder[], sortField: OrderSortField, direction: SortDirection) => {
+    if (!direction) return orders;
+    
+    return [...orders].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+      
+      switch (sortField) {
+        case 'date':
+          aVal = new Date(a.createdDate).getTime();
+          bVal = new Date(b.createdDate).getTime();
+          break;
+        case 'id':
+          aVal = a.id.toLowerCase();
+          bVal = b.id.toLowerCase();
+          break;
+        case 'externalId':
+          aVal = (a.externalOrderId || '').toLowerCase();
+          bVal = (b.externalOrderId || '').toLowerCase();
+          break;
+        case 'senderReceiver':
+          const aStore = a.receivingStoreId ? stores?.find(s => s.id === a.receivingStoreId) : null;
+          const aBrand = aStore && brands ? brands.find(b => b.id === aStore.brandId) : null;
+          aVal = `${a.warehouseName || ''} ${aBrand?.name || ''} ${aStore?.code || ''} ${a.receivingStoreName || ''}`.toLowerCase();
+          const bStore = b.receivingStoreId ? stores?.find(s => s.id === b.receivingStoreId) : null;
+          const bBrand = bStore && brands ? brands.find(b => b.id === bStore.brandId) : null;
+          bVal = `${b.warehouseName || ''} ${bBrand?.name || ''} ${bStore?.code || ''} ${b.receivingStoreName || ''}`.toLowerCase();
+          break;
+        case 'items':
+          aVal = a.itemCount || 0;
+          bVal = b.itemCount || 0;
+          break;
+        case 'orderValue':
+          aVal = a.orderValue || 0;
+          bVal = b.orderValue || 0;
+          break;
+        case 'salesMargin':
+          aVal = a.salesMargin || 0;
+          bVal = b.salesMargin || 0;
+          break;
+        case 'status':
+          aVal = a.status;
+          bVal = b.status;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+    });
+  };
+
+  const sortShipments = (shipments: DeliveryNote[], sortField: ShipmentSortField, direction: SortDirection) => {
+    if (!direction) return shipments;
+    
+    return [...shipments].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+      
+      switch (sortField) {
+        case 'date':
+          aVal = new Date(a.createdDate).getTime();
+          bVal = new Date(b.createdDate).getTime();
+          break;
+        case 'id':
+          aVal = a.id.toLowerCase();
+          bVal = b.id.toLowerCase();
+          break;
+        case 'senderReceiver':
+          const aOrders = partnerOrdersList.filter(o => o.deliveryNote === a.id);
+          const aWarehouse = aOrders[0]?.warehouseName || (aOrders[0]?.warehouseId ? warehouses?.find(w => w.id === aOrders[0]?.warehouseId)?.name : '');
+          const aReceiver = getReceiverDisplay(aOrders[0]?.receivingStoreId, aOrders[0]?.receivingStoreName);
+          aVal = `${aWarehouse} ${aReceiver}`.toLowerCase();
+          const bOrders = partnerOrdersList.filter(o => o.deliveryNote === b.id);
+          const bWarehouse = bOrders[0]?.warehouseName || (bOrders[0]?.warehouseId ? warehouses?.find(w => w.id === bOrders[0]?.warehouseId)?.name : '');
+          const bReceiver = getReceiverDisplay(bOrders[0]?.receivingStoreId, bOrders[0]?.receivingStoreName);
+          bVal = `${bWarehouse} ${bReceiver}`.toLowerCase();
+          break;
+        case 'orders':
+          aVal = partnerOrdersList.filter(o => o.deliveryNote === a.id).length;
+          bVal = partnerOrdersList.filter(o => o.deliveryNote === b.id).length;
+          break;
+        case 'items':
+          const aOrderItems = partnerOrdersList.filter(o => o.deliveryNote === a.id).reduce((sum, o) => sum + (o.itemCount || 0), 0);
+          const bOrderItems = partnerOrdersList.filter(o => o.deliveryNote === b.id).reduce((sum, o) => sum + (o.itemCount || 0), 0);
+          aVal = aOrderItems;
+          bVal = bOrderItems;
+          break;
+        case 'boxes':
+          aVal = a.boxes?.length || 0;
+          bVal = b.boxes?.length || 0;
+          break;
+        case 'status':
+          aVal = a.status || '';
+          bVal = b.status || '';
+          break;
+        default:
+          return 0;
+      }
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+    });
+  };
+
+  const sortReturns = (returns: ReturnDelivery[], sortField: ReturnSortField, direction: SortDirection) => {
+    if (!direction) return returns;
+    
+    return [...returns].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+      
+      switch (sortField) {
+        case 'date':
+          aVal = new Date(a.date).getTime();
+          bVal = new Date(b.date).getTime();
+          break;
+        case 'id':
+          aVal = a.deliveryId.toLowerCase();
+          bVal = b.deliveryId.toLowerCase();
+          break;
+        case 'receiver':
+          const aStore = a.storeId ? stores?.find(s => s.id === a.storeId) : stores?.find(s => s.code === a.storeCode);
+          const aBrand = aStore && brands ? brands.find(b => b.id === aStore.brandId) : null;
+          aVal = `${aBrand?.name || ''} ${aStore?.code || ''} ${a.storeName || ''}`.toLowerCase();
+          const bStore = b.storeId ? stores?.find(s => s.id === b.storeId) : stores?.find(s => s.code === b.storeCode);
+          const bBrand = bStore && brands ? brands.find(b => b.id === bStore.brandId) : null;
+          bVal = `${bBrand?.name || ''} ${bStore?.code || ''} ${b.storeName || ''}`.toLowerCase();
+          break;
+        case 'warehouse':
+          const aWarehouse = a.warehouseId && warehouses ? warehouses.find(w => w.id === a.warehouseId) : null;
+          aVal = (a.warehouseName || aWarehouse?.name || '').toLowerCase();
+          const bWarehouse = b.warehouseId && warehouses ? warehouses.find(w => w.id === b.warehouseId) : null;
+          bVal = (b.warehouseName || bWarehouse?.name || '').toLowerCase();
+          break;
+        case 'items':
+          aVal = a.items || 0;
+          bVal = b.items || 0;
+          break;
+        case 'boxes':
+          aVal = a.boxes || 0;
+          bVal = b.boxes || 0;
+          break;
+        case 'status':
+          aVal = a.status;
+          bVal = b.status;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+    });
+  };
+
   const filteredDeliveries = deliveries.filter(delivery => {
     const matchesSearch = searchTerm === '' || 
       delivery.deliveryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1240,11 +1429,25 @@ useEffect(() => {
   const partnerOrdersList = partnerOrders ?? [];
 
   const filteredPartnerOrders = partnerOrdersList.filter(order => {
-    const matchesSearch = searchTerm === '' || 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.deliveryNote && order.deliveryNote.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (order.partnerName && order.partnerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (order.receivingStoreName && order.receivingStoreName.toLowerCase().includes(searchTerm.toLowerCase()));
+    // Comprehensive search across all fields
+    const orderStore = order.receivingStoreId ? stores?.find(s => s.id === order.receivingStoreId) : null;
+    const orderBrand = orderStore ? brands?.find(b => b.id === orderStore.brandId) : null;
+    const matchesSearch = matchesSearchTerm(searchTerm, [
+      order.id,
+      order.externalOrderId,
+      order.deliveryNote,
+      order.partnerName,
+      order.receivingStoreName,
+      orderStore?.name,
+      orderStore?.code,
+      orderBrand?.name,
+      order.warehouseName,
+      order.itemCount,
+      order.orderValue,
+      order.salesMargin,
+      order.status,
+      order.createdDate
+    ]);
     
     // Filter out approval orders for non-admin users
     if (order.status === 'approval' && !isAdmin) {
@@ -1310,10 +1513,18 @@ useEffect(() => {
     })();
     
     return matchesSearch && matchesPartner && matchesWarehouse && matchesStatusFilter;
-  }).sort((a, b) => {
-    // Sort by createdDate descending (newest first)
-    return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
   });
+  
+  // Apply sorting to orders
+  const sortedPartnerOrders = role === 'partner' 
+    ? sortOrders(filteredPartnerOrders, orderSort.field, orderSort.direction)
+    : filteredPartnerOrders;
+  
+  // Pagination for "All" tabs - only show first N items
+  const isAllTab = activeTab === 'all';
+  const paginatedPartnerOrders = isAllTab 
+    ? sortedPartnerOrders.slice(0, loadedItemsCount)
+    : sortedPartnerOrders;
 
   const findSellpyOrder = (orderId: string) =>
     sellpyOrders.find(order => order.id === orderId);
@@ -1329,10 +1540,24 @@ useEffect(() => {
 
   // Filter return deliveries based on search and role
   const filteredReturnDeliveries = returnDeliveries.filter(delivery => {
-    const matchesSearch = searchTerm === '' || 
-      delivery.deliveryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      delivery.storeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      delivery.storeCode.toLowerCase().includes(searchTerm.toLowerCase());
+    // Comprehensive search across all fields
+    const deliveryStore = delivery.storeId ? stores?.find(s => s.id === delivery.storeId) : stores?.find(s => s.code === delivery.storeCode);
+    const deliveryBrand = deliveryStore ? brands?.find(b => b.id === deliveryStore.brandId) : null;
+    const deliveryWarehouse = delivery.warehouseName || (delivery.warehouseId ? warehouses?.find(w => w.id === delivery.warehouseId)?.name : '');
+    const matchesSearch = matchesSearchTerm(searchTerm, [
+      delivery.deliveryId,
+      delivery.storeName,
+      delivery.storeCode,
+      deliveryStore?.name,
+      deliveryStore?.code,
+      deliveryBrand?.name,
+      deliveryWarehouse,
+      delivery.items,
+      delivery.boxes,
+      delivery.status,
+      delivery.date,
+      delivery.partnerName
+    ]);
     
     // For partners: only show their return deliveries
     // For store staff and admin: show return deliveries for the selected store
@@ -1398,15 +1623,139 @@ useEffect(() => {
 
     // For other tabs, don't show returns (they're only shown on 'returns' and 'all' tabs)
     return false;
-  }).sort((a, b) => {
-    // Sort by date descending (newest first)
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
+  
+  // Apply sorting to returns
+  const sortedReturnDeliveries = role === 'partner'
+    ? sortReturns(filteredReturnDeliveries, returnSort.field, returnSort.direction)
+    : filteredReturnDeliveries;
+  
+  // Pagination for "All" tabs
+  const paginatedReturnDeliveries = isAllTab
+    ? sortedReturnDeliveries.slice(0, loadedItemsCount)
+    : sortedReturnDeliveries;
+  
+  // Reset loaded items count when tab or filters change
+  useEffect(() => {
+    setLoadedItemsCount(ITEMS_PER_PAGE);
+  }, [activeTab, orderStatusFilter, shipmentStatusFilter, returnStatusFilter, searchTerm]);
+  
+  // Handle scroll to load more items
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (activeTab !== 'all') return;
+    
+    const target = e.currentTarget;
+    const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    
+    // Load more when within 200px of bottom
+    if (scrollBottom < 200) {
+      let totalItems = 0;
+      if (role === ('partner' as any)) {
+        // For "All" tab, we need to determine which list is being shown
+        // This depends on what's visible in the current view
+        // For now, use the largest of the three lists
+        totalItems = Math.max(
+          sortedPartnerOrders.length,
+          sortedDeliveryNotes.length,
+          sortedReturnDeliveries.length
+        );
+      } else {
+        totalItems = sortedReturnDeliveries.length + filteredDeliveries.length;
+      }
+      
+      if (loadedItemsCount < totalItems) {
+        setLoadedItemsCount(prev => Math.min(prev + ITEMS_PER_PAGE, totalItems));
+      }
+    }
+  };
+  
+  // Sort handlers
+  const handleOrderSort = (field: string) => {
+    setOrderSort(prev => ({
+      field: field as OrderSortField,
+      direction: prev.field === field 
+        ? (prev.direction === 'asc' ? 'desc' : prev.direction === 'desc' ? null : 'asc')
+        : 'asc'
+    }));
+  };
+
+  const handleShipmentSort = (field: string) => {
+    setShipmentSort(prev => ({
+      field: field as ShipmentSortField,
+      direction: prev.field === field 
+        ? (prev.direction === 'asc' ? 'desc' : prev.direction === 'desc' ? null : 'asc')
+        : 'asc'
+    }));
+  };
+
+  const handleReturnSort = (field: string) => {
+    setReturnSort(prev => ({
+      field: field as ReturnSortField,
+      direction: prev.field === field 
+        ? (prev.direction === 'asc' ? 'desc' : prev.direction === 'desc' ? null : 'asc')
+        : 'asc'
+    }));
+  };
+  
+  // Sortable header component
+  const SortableHeader = ({ 
+    field, 
+    label, 
+    currentSort, 
+    onSort, 
+    align = 'left' 
+  }: { 
+    field: OrderSortField | ShipmentSortField | ReturnSortField; 
+    label: string; 
+    currentSort: { field: string; direction: SortDirection }; 
+    onSort: (field: string) => void;
+    align?: 'left' | 'right';
+  }) => {
+    const isActive = currentSort.field === field;
+    const direction = isActive ? currentSort.direction : null;
+    
+    return (
+      <th 
+        className={`px-4 py-3 ${align === 'right' ? 'text-right' : 'text-left'} title-small text-on-surface cursor-pointer hover:bg-surface-container transition-colors`}
+        onClick={() => onSort(field)}
+      >
+        <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
+          <span>{label}</span>
+          <div className="flex flex-col">
+            <ArrowUp 
+              size={12} 
+              className={direction === 'asc' ? 'text-primary' : 'text-on-surface-variant opacity-30'} 
+            />
+            <ArrowDown 
+              size={12} 
+              className={direction === 'desc' ? 'text-primary' : 'text-on-surface-variant opacity-30'} 
+              style={{ marginTop: '-4px' }}
+            />
+          </div>
+        </div>
+      </th>
+    );
+  };
 
   const filteredDeliveryNotes = deliveryNotes.filter(note => {
-    const matchesSearch = searchTerm === '' || 
-      note.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.orderId.toLowerCase().includes(searchTerm.toLowerCase());
+    // Comprehensive search across all fields
+    const relatedOrders = partnerOrdersList.filter(o => o.deliveryNote === note.id);
+    const noteWarehouse = relatedOrders[0]?.warehouseName || (relatedOrders[0]?.warehouseId ? warehouses?.find(w => w.id === relatedOrders[0]?.warehouseId)?.name : '');
+    const noteReceiver = getReceiverDisplay(relatedOrders[0]?.receivingStoreId, relatedOrders[0]?.receivingStoreName);
+    const totalItems = relatedOrders.reduce((sum, o) => sum + (o.itemCount || 0), 0);
+    const matchesSearch = matchesSearchTerm(searchTerm, [
+      note.id,
+      note.orderId,
+      note.status,
+      note.createdDate,
+      noteWarehouse,
+      noteReceiver,
+      relatedOrders.length,
+      totalItems,
+      note.boxes?.length,
+      ...relatedOrders.map(o => o.id),
+      ...relatedOrders.map(o => o.externalOrderId).filter(Boolean)
+    ]);
 
     const noteStatus = note.status as DeliveryNoteStatus;
     
@@ -1443,10 +1792,17 @@ useEffect(() => {
       (activeTab === 'all' && (noteStatus === 'delivered' || noteStatus === 'rejected'));
     
     return matchesSearch && matchesTab;
-  }).sort((a, b) => {
-    // Sort by createdDate descending (newest first)
-    return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
   });
+  
+  // Apply sorting to shipments
+  const sortedDeliveryNotes = role === 'partner'
+    ? sortShipments(filteredDeliveryNotes, shipmentSort.field, shipmentSort.direction)
+    : filteredDeliveryNotes;
+  
+  // Pagination for "All" tabs
+  const paginatedDeliveryNotes = isAllTab
+    ? sortedDeliveryNotes.slice(0, loadedItemsCount)
+    : sortedDeliveryNotes;
 
   // Filter showroom orders (purchase orders for Chinese partners)
   const filteredShowroomOrders = showroomOrders.filter(order => {
@@ -1923,13 +2279,13 @@ useEffect(() => {
                 <>
                   {/* Mobile: Card View */}
                   <div className="flex md:hidden flex-col gap-2">
-                    {filteredReturnDeliveries.map((returnDelivery) => (
+                    {sortedReturnDeliveries.map((returnDelivery) => (
                       <div key={returnDelivery.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                         <ReturnDeliveryComponent 
                           returnDelivery={returnDelivery}
                           onUpdateStatus={onUpdateReturnDeliveryStatus}
                           onCancel={onCancelReturn}
-                          onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                          onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                           stores={stores}
                           brands={brands}
                           warehouses={warehouses}
@@ -1940,22 +2296,40 @@ useEffect(() => {
                   </div>
                   
                   {/* Desktop: Table View */}
-                  <div className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                  <div 
+                    className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden"
+                    onScroll={handleScroll}
+                    style={{ maxHeight: isAllTab ? '70vh' : 'auto', overflowY: isAllTab ? 'auto' : 'visible' }}
+                  >
                     <table className="w-full">
-                      <thead className="bg-surface-container-high border-b border-outline-variant">
+                      <thead className="bg-surface-container-high border-b border-outline-variant sticky top-0 z-10">
                         <tr>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Receiver</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Warehouse</th>
-                          <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
-                          <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
-                          <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                          {(role === 'partner' as any) ? (
+                            <>
+                              <SortableHeader field="date" label="Date" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="id" label="Delivery ID" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="receiver" label="Receiver" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="warehouse" label="Warehouse" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="items" label="Items" currentSort={returnSort} onSort={handleReturnSort} align="right" />
+                              <SortableHeader field="boxes" label="Boxes" currentSort={returnSort} onSort={handleReturnSort} align="right" />
+                              <SortableHeader field="status" label="Status" currentSort={returnSort} onSort={handleReturnSort} align="right" />
+                            </>
+                          ) : (
+                            <>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Receiver</th>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Warehouse</th>
+                              <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
+                              <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
+                              <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                            </>
+                          )}
                           <th className="px-4 py-3 text-right title-small text-on-surface"></th>
                         </tr>
                       </thead>
                       <tbody>
-                      {filteredReturnDeliveries.map((returnDelivery) => {
+                      {paginatedReturnDeliveries.map((returnDelivery) => {
                           return (
                             <tr 
                               key={returnDelivery.id}
@@ -1964,27 +2338,27 @@ useEffect(() => {
                               <td className="px-4 py-3 body-small text-on-surface-variant">{returnDelivery.date}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.deliveryId}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.storeName}</td>
                               <td 
                                 className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.storeCode}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.items}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.boxes}</td>
                               <td 
                                 className="px-4 py-3 text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >
                                 <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${
                                   returnDelivery.status === 'Pending' ? 'bg-warning-container text-on-warning-container' :
@@ -2033,13 +2407,13 @@ useEffect(() => {
                 <>
                   {/* Mobile: Card View */}
                   <div className="flex md:hidden flex-col gap-2">
-                    {filteredReturnDeliveries.map((returnDelivery) => (
+                    {sortedReturnDeliveries.map((returnDelivery) => (
                       <div key={returnDelivery.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                         <ReturnDeliveryComponent 
                           returnDelivery={returnDelivery}
                           onUpdateStatus={onUpdateReturnDeliveryStatus}
                           onCancel={onCancelReturn}
-                          onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                          onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                           stores={stores}
                           brands={brands}
                           warehouses={warehouses}
@@ -2050,22 +2424,40 @@ useEffect(() => {
                   </div>
                   
                   {/* Desktop: Table View */}
-                  <div className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                  <div 
+                    className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden"
+                    onScroll={handleScroll}
+                    style={{ maxHeight: isAllTab ? '70vh' : 'auto', overflowY: isAllTab ? 'auto' : 'visible' }}
+                  >
                     <table className="w-full">
-                      <thead className="bg-surface-container-high border-b border-outline-variant">
+                      <thead className="bg-surface-container-high border-b border-outline-variant sticky top-0 z-10">
                         <tr>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Receiver</th>
-                          <th className="px-4 py-3 text-left title-small text-on-surface">Warehouse</th>
-                          <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
-                          <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
-                          <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                          {(role === 'partner' as any) ? (
+                            <>
+                              <SortableHeader field="date" label="Date" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="id" label="Delivery ID" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="receiver" label="Receiver" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="warehouse" label="Warehouse" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="items" label="Items" currentSort={returnSort} onSort={handleReturnSort} align="right" />
+                              <SortableHeader field="boxes" label="Boxes" currentSort={returnSort} onSort={handleReturnSort} align="right" />
+                              <SortableHeader field="status" label="Status" currentSort={returnSort} onSort={handleReturnSort} align="right" />
+                            </>
+                          ) : (
+                            <>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Receiver</th>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Warehouse</th>
+                              <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
+                              <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
+                              <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                            </>
+                          )}
                           <th className="px-4 py-3 text-right title-small text-on-surface"></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredReturnDeliveries.map((returnDelivery) => {
+                        {paginatedReturnDeliveries.map((returnDelivery) => {
                           const storeRecord = returnDelivery.storeId
                             ? stores?.find(store => store.id === returnDelivery.storeId)
                             : stores?.find(store => store.code === returnDelivery.storeCode);
@@ -2089,11 +2481,11 @@ useEffect(() => {
                               <td className="px-4 py-3 body-small text-on-surface-variant">{returnDelivery.date}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.deliveryId}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >
                                 <div className="space-y-0.5">
                                   <span className="block">{receiverDisplay}</span>
@@ -2104,21 +2496,21 @@ useEffect(() => {
                               </td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >
                                 {warehouseName || '-'}
                               </td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.items}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.boxes}</td>
                               <td 
                                 className="px-4 py-3 text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >
                                 <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${
                                   returnDelivery.status === 'Pending' ? 'bg-warning-container text-on-warning-container' :
@@ -2334,12 +2726,12 @@ useEffect(() => {
               <>
                 {/* Mobile: Card View */}
                 <div className="flex md:hidden flex-col gap-2">
-                  {filteredDeliveryNotes.map((deliveryNote) => (
+                  {sortedDeliveryNotes.map((deliveryNote) => (
                     <div key={deliveryNote.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <PartnerDeliveryNoteItem 
                         deliveryNote={deliveryNote}
                         orders={partnerOrdersList}
-                        onClick={() => onOpenShipmentDetails?.(deliveryNote)}
+                        onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                         isAdmin={isAdmin}
                         onDelete={onDeleteDeliveryNote}
                         showSenderReceiver={true}
@@ -2352,22 +2744,40 @@ useEffect(() => {
                 </div>
                 
                 {/* Desktop: Table View */}
-                <div className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                <div 
+                  className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden"
+                  onScroll={handleScroll}
+                  style={{ maxHeight: isAllTab ? '70vh' : 'auto', overflowY: isAllTab ? 'auto' : 'visible' }}
+                >
                   <table className="w-full">
-                    <thead className="bg-surface-container-high border-b border-outline-variant">
+                    <thead className="bg-surface-container-high border-b border-outline-variant sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Sender / Receiver</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Orders</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                        {role === 'partner' ? (
+                          <>
+                            <SortableHeader field="date" label="Date" currentSort={shipmentSort} onSort={handleShipmentSort} />
+                            <SortableHeader field="id" label="Delivery ID" currentSort={shipmentSort} onSort={handleShipmentSort} />
+                            <SortableHeader field="senderReceiver" label="Sender / Receiver" currentSort={shipmentSort} onSort={handleShipmentSort} />
+                            <SortableHeader field="orders" label="Orders" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
+                            <SortableHeader field="items" label="Items" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
+                            <SortableHeader field="boxes" label="Boxes" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
+                            <SortableHeader field="status" label="Status" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
+                          </>
+                        ) : (
+                          <>
+                            <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
+                            <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
+                            <th className="px-4 py-3 text-left title-small text-on-surface">Sender / Receiver</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface">Orders</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                          </>
+                        )}
                         <th className="px-4 py-3 text-right title-small text-on-surface"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredDeliveryNotes.map((deliveryNote) => {
+                      {paginatedDeliveryNotes.map((deliveryNote) => {
                         const noteStatus = deliveryNote.status as DeliveryNoteStatus;
                         const relatedOrders = partnerOrdersList.filter(order => order.deliveryNote === deliveryNote.id);
                         const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
@@ -2401,11 +2811,11 @@ useEffect(() => {
                             <td className="px-4 py-3 body-small text-on-surface-variant">{deliveryNote.createdDate}</td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                             >{deliveryNote.id}</td>
                             <td 
                               className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                             >
                               <div className="space-y-0.5">
                                 {warehouseName && (
@@ -2426,19 +2836,19 @@ useEffect(() => {
                             </td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                             >{relatedOrders.length}</td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                             >{totalItems}</td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                             >{deliveryNote.boxes?.length || 0}</td>
                             <td 
                               className="px-4 py-3 text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                             >
                               <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(noteStatus)}`}>
                                 {getStatusDisplay(noteStatus)}
@@ -2472,7 +2882,7 @@ useEffect(() => {
                               ) : (
                                 <button 
                                   className="p-2 text-on-surface-variant cursor-pointer"
-                                  onClick={() => onOpenShipmentDetails?.(deliveryNote)}
+                                  onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                                 >
                                   <ChevronRight className="w-5 h-5" />
                                 </button>
@@ -2490,7 +2900,7 @@ useEffect(() => {
               <>
                 {/* Mobile: Card View */}
                 <div className="flex md:hidden flex-col gap-2">
-                  {filteredPartnerOrders.map((order) => (
+                  {sortedPartnerOrders.map((order) => (
                     <div key={order.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <PartnerOrderItem 
                         order={order}
@@ -2498,7 +2908,7 @@ useEffect(() => {
                           if (order.status === 'pending' && order.partnerName === 'Sellpy Operations') {
                             handleSellpyOrderSelect(order.id);
                           } else if (onOpenOrderDetails) {
-                            onOpenOrderDetails(order);
+                            onOpenOrderDetails(order, activeTab);
                           }
                         }}
                         isClickable={true}
@@ -2516,23 +2926,42 @@ useEffect(() => {
                 </div>
                 
                 {/* Desktop: Table View */}
-                <div className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                <div 
+                  className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden"
+                  onScroll={handleScroll}
+                  style={{ maxHeight: isAllTab ? '70vh' : 'auto', overflowY: isAllTab ? 'auto' : 'visible' }}
+                >
                   <table className="w-full">
-                    <thead className="bg-surface-container-high border-b border-outline-variant">
+                    <thead className="bg-surface-container-high border-b border-outline-variant sticky top-0 z-10">
                       <tr>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Order ID</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">External Order ID</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Sender / Receiver</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Order Value</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Sales Margin %</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                        {role === 'partner' ? (
+                          <>
+                            <SortableHeader field="date" label="Date" currentSort={orderSort} onSort={handleOrderSort} />
+                            <SortableHeader field="id" label="Order ID" currentSort={orderSort} onSort={handleOrderSort} />
+                            <SortableHeader field="externalId" label="External Order ID" currentSort={orderSort} onSort={handleOrderSort} />
+                            <SortableHeader field="senderReceiver" label="Sender / Receiver" currentSort={orderSort} onSort={handleOrderSort} />
+                            <SortableHeader field="items" label="Items" currentSort={orderSort} onSort={handleOrderSort} align="right" />
+                            <SortableHeader field="orderValue" label="Order Value" currentSort={orderSort} onSort={handleOrderSort} align="right" />
+                            <SortableHeader field="salesMargin" label="Sales Margin %" currentSort={orderSort} onSort={handleOrderSort} align="right" />
+                            <SortableHeader field="status" label="Status" currentSort={orderSort} onSort={handleOrderSort} align="right" />
+                          </>
+                        ) : (
+                          <>
+                            <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
+                            <th className="px-4 py-3 text-left title-small text-on-surface">Order ID</th>
+                            <th className="px-4 py-3 text-left title-small text-on-surface">External Order ID</th>
+                            <th className="px-4 py-3 text-left title-small text-on-surface">Sender / Receiver</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface">Order Value</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface">Sales Margin %</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                          </>
+                        )}
                         <th className="px-4 py-3 text-right title-small text-on-surface"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredPartnerOrders.map((order) => {
+                      {paginatedPartnerOrders.map((order) => {
                         const getStatusDisplay = (status: ShippingPartnerOrder['status']) => {
                           switch (status) {
                             case 'pending': return 'Pending';
@@ -2712,7 +3141,7 @@ useEffect(() => {
                                       handleSellpyOrderSelect(order.id);
                                     } else {
                                       if (onOpenOrderDetails) {
-                                        onOpenOrderDetails(order);
+                                        onOpenOrderDetails(order, activeTab);
                                       }
                                     }
                                   }}
@@ -2761,13 +3190,13 @@ useEffect(() => {
                       />
                     </div>
                   ))}
-                  {activeTab === 'all' && filteredReturnDeliveries.map((returnDelivery) => (
+                  {activeTab === 'all' && sortedReturnDeliveries.map((returnDelivery) => (
                     <div key={returnDelivery.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <ReturnDeliveryComponent 
                         returnDelivery={returnDelivery}
                         onUpdateStatus={onUpdateReturnDeliveryStatus}
                         onCancel={onCancelReturn}
-                        onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                        onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                         stores={stores}
                         brands={brands}
                         warehouses={warehouses}
@@ -2784,25 +3213,27 @@ useEffect(() => {
                       <tr>
                         <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
                         <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Status</th>
                         <th className="px-4 py-3 text-left title-small text-on-surface">Sender</th>
                         <th className="px-4 py-3 text-right title-small text-on-surface">Orders</th>
                         <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
                         <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
+                        <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
                         <th className="px-4 py-3 text-right title-small text-on-surface"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredDeliveries.map((delivery) => {
-                        const getStatusColor = (status: Delivery['status']) => {
+                        const getStatusBadgeColor = (status: Delivery['status']) => {
                           switch (status) {
-                            case 'In transit': return 'text-primary';
-                            case 'Delivered': return 'text-tertiary';
-                            case 'Partially Delivered': return 'text-warning';
-                            case 'Cancelled': return 'text-error';
-                            default: return 'text-on-surface-variant';
+                            case 'Delivered': return 'bg-success-container text-on-success-container';
+                            case 'In transit': return 'bg-primary-container text-on-primary-container';
+                            case 'Partially Delivered': return 'bg-warning-container text-on-warning-container';
+                            case 'Cancelled': return 'bg-error-container text-on-error-container';
+                            default: return 'bg-surface-container-high text-on-surface-variant';
                           }
                         };
+                        
+                        const shouldHighlightStatus = delivery.status === 'Delivered' || delivery.status === 'In transit';
                         
                         return (
                           <tr 
@@ -2812,22 +3243,28 @@ useEffect(() => {
                           >
                             <td className="px-4 py-3 body-medium text-on-surface-variant">{delivery.date}</td>
                             <td className="px-4 py-3 body-medium text-on-surface">{delivery.deliveryId}</td>
-                            <td className="px-4 py-3">
-                              <span className={`body-medium ${getStatusColor(delivery.status)}`}>
-                                {delivery.status}
-                              </span>
-                            </td>
                             <td className="px-4 py-3 body-medium text-on-surface">{delivery.sender}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.orders}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.items}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.boxes}</td>
+                            <td className="px-4 py-3 text-right">
+                              {shouldHighlightStatus ? (
+                                <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(delivery.status)}`}>
+                                  {delivery.status}
+                                </div>
+                              ) : (
+                                <span className={`body-medium ${delivery.status === 'In transit' ? 'text-primary' : delivery.status === 'Partially Delivered' ? 'text-warning' : delivery.status === 'Cancelled' ? 'text-error' : 'text-on-surface-variant'}`}>
+                                  {delivery.status}
+                                </span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-right">
                               <ChevronRight className="w-5 h-5 text-on-surface-variant inline-block" />
                             </td>
                           </tr>
                         );
                       })}
-                      {activeTab === 'all' && filteredReturnDeliveries.map((returnDelivery) => {
+                      {activeTab === 'all' && paginatedReturnDeliveries.map((returnDelivery) => {
                         const storeRecord = returnDelivery.storeId
                           ? stores?.find(store => store.id === returnDelivery.storeId)
                           : stores?.find(store => store.code === returnDelivery.storeCode);
@@ -2841,32 +3278,40 @@ useEffect(() => {
                           return returnDelivery.storeName;
                         })();
 
-                        const getStatusColor = (status: ReturnDelivery['status']) => {
+                        const getStatusBadgeColor = (status: ReturnDelivery['status']) => {
                           switch (status) {
-                            case 'Pending': return 'text-warning';
-                            case 'In transit': return 'text-primary';
-                            case 'Returned': return 'text-tertiary';
-                            default: return 'text-on-surface-variant';
+                            case 'Pending': return 'bg-warning-container text-on-warning-container';
+                            case 'In transit': return 'bg-primary-container text-on-primary-container';
+                            case 'Returned': return 'bg-success-container text-on-success-container';
+                            default: return 'bg-surface-container-high text-on-surface-variant';
                           }
                         };
+
+                        const shouldHighlightStatus = returnDelivery.status === 'Pending' || returnDelivery.status === 'In transit' || returnDelivery.status === 'Returned';
 
                         return (
                           <tr 
                             key={returnDelivery.id}
-                            onClick={() => onOpenReturnDetails?.(returnDelivery)}
+                            onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                             className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-3 body-medium text-on-surface-variant">{returnDelivery.date}</td>
                             <td className="px-4 py-3 body-medium text-on-surface">{returnDelivery.deliveryId}</td>
-                            <td className="px-4 py-3">
-                              <span className={`body-medium ${getStatusColor(returnDelivery.status)}`}>
-                                {returnDelivery.status}
-                              </span>
-                            </td>
                             <td className="px-4 py-3 body-medium text-on-surface">{receiverDisplay}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">—</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.items}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.boxes}</td>
+                            <td className="px-4 py-3 text-right">
+                              {shouldHighlightStatus ? (
+                                <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(returnDelivery.status)}`}>
+                                  {returnDelivery.status}
+                                </div>
+                              ) : (
+                                <span className={`body-medium ${returnDelivery.status === 'Pending' ? 'text-warning' : returnDelivery.status === 'In transit' ? 'text-primary' : 'text-on-surface-variant'}`}>
+                                  {returnDelivery.status}
+                                </span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-right">
                               <ChevronRight className="w-5 h-5 text-on-surface-variant inline-block" />
                             </td>

@@ -22,6 +22,7 @@ interface DeliveryDetailsScreenProps {
   onMarkBoxScanned: (boxId: string) => void;
   userRole?: DeliveryDetailsUserRole;
   onUpdateDeliveryStatus?: (deliveryId: string, status: Delivery['status'], reason?: string) => void;
+  onUpdateBoxStatus?: (boxId: string, status: Box['status']) => void;
 }
 
 function TopAppBar({ 
@@ -47,6 +48,12 @@ function TopAppBar({
   const handleMarkCancelled = () => {
     if (onUpdateDeliveryStatus) {
       onUpdateDeliveryStatus(delivery.id, 'Cancelled', 'Missing delivery');
+    }
+  };
+
+  const handleMarkRejected = () => {
+    if (onUpdateDeliveryStatus) {
+      onUpdateDeliveryStatus(delivery.id, 'Rejected');
     }
   };
 
@@ -85,6 +92,13 @@ function TopAppBar({
               >
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 <span className="body-medium text-on-surface">Mark as Delivered</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleMarkRejected}
+                className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                <span className="body-medium">Mark as Rejected</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleMarkCancelled}
@@ -168,6 +182,7 @@ function BoxCard({
   box, 
   onSelect,
   onMarkDelivered,
+  onMarkRejected,
   isScanned,
   canScan,
   isAdmin = false
@@ -175,6 +190,7 @@ function BoxCard({
   box: Box; 
   onSelect: () => void;
   onMarkDelivered?: () => void;
+  onMarkRejected?: () => void;
   isScanned: boolean;
   canScan: boolean;
   isAdmin?: boolean;
@@ -185,6 +201,9 @@ function BoxCard({
   if (box.status === 'Delivered') {
     statusLabel = 'Delivered';
     statusClass = 'label-small text-on-success-container px-2 py-1 bg-success-container rounded-[8px]';
+  } else if (box.status === 'Rejected') {
+    statusLabel = 'Rejected';
+    statusClass = 'label-small text-on-error-container px-2 py-1 bg-error-container rounded-[8px]';
   } else if (box.status === 'Cancelled') {
     statusLabel = `Cancelled${box.cancellationReason ? ` • ${box.cancellationReason}` : ''}`;
     statusClass = 'label-small text-error px-2 py-1 bg-error-container rounded-[8px]';
@@ -194,7 +213,8 @@ function BoxCard({
   }
 
   const showMarkDelivered = isAdmin && canScan && box.status === 'In transit' && onMarkDelivered;
-  const showMenu = showMarkDelivered;
+  const showMarkRejected = isAdmin && canScan && box.status === 'In transit' && onMarkRejected;
+  const showMenu = showMarkDelivered || showMarkRejected;
 
   return (
     <div
@@ -247,15 +267,29 @@ function BoxCard({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2">
-              <DropdownMenuItem 
-                onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
-                  e.stopPropagation();
-                  onMarkDelivered?.();
-                }}
-                className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-              >
-                <span className="body-medium text-on-surface">Mark as delivered</span>
-              </DropdownMenuItem>
+              {showMarkDelivered && (
+                <DropdownMenuItem 
+                  onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
+                    e.stopPropagation();
+                    onMarkDelivered?.();
+                  }}
+                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                >
+                  <span className="body-medium text-on-surface">Mark as delivered</span>
+                </DropdownMenuItem>
+              )}
+              {showMarkRejected && (
+                <DropdownMenuItem 
+                  onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
+                    e.stopPropagation();
+                    onMarkRejected?.();
+                  }}
+                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  <span className="body-medium">Mark as Rejected</span>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -268,12 +302,14 @@ function BoxesList({
   boxes,
   onSelectBox,
   onMarkBoxDelivered,
+  onMarkBoxRejected,
   canScan,
   isAdmin = false
 }: { 
   boxes: Box[];
   onSelectBox: (box: Box) => void;
   onMarkBoxDelivered?: (boxId: string) => void;
+  onMarkBoxRejected?: (boxId: string) => void;
   canScan: boolean;
   isAdmin?: boolean;
 }) {
@@ -300,6 +336,7 @@ function BoxesList({
             box={box} 
             onSelect={() => onSelectBox(box)}
             onMarkDelivered={onMarkBoxDelivered ? () => onMarkBoxDelivered(box.id) : undefined}
+            onMarkRejected={onMarkBoxRejected ? () => onMarkBoxRejected(box.id) : undefined}
             isScanned={box.isScanned}
             canScan={canScan}
             isAdmin={isAdmin}
@@ -318,17 +355,26 @@ export default function DeliveryDetailsScreen({
   onSelectBox,
   onMarkBoxScanned,
   userRole,
-  onUpdateDeliveryStatus
+  onUpdateDeliveryStatus,
+  onUpdateBoxStatus
 }: DeliveryDetailsScreenProps) {
   const scannedBoxes = boxes.filter(b => b.isScanned);
   const canScan = delivery.status === 'In transit';
   const isAdmin = userRole === 'admin';
 
   const handleMarkBoxDelivered = (boxId: string) => {
-    // Update box status to Delivered
-    // Note: This would typically update the box in the parent component
-    // For now, we'll just mark it as scanned which is the closest equivalent
-    onMarkBoxScanned(boxId);
+    if (onUpdateBoxStatus) {
+      onUpdateBoxStatus(boxId, 'Delivered');
+    } else {
+      // Fallback: mark as scanned
+      onMarkBoxScanned(boxId);
+    }
+  };
+
+  const handleMarkBoxRejected = (boxId: string) => {
+    if (onUpdateBoxStatus) {
+      onUpdateBoxStatus(boxId, 'Rejected');
+    }
   };
 
   return (
@@ -367,6 +413,7 @@ export default function DeliveryDetailsScreen({
           boxes={boxes}
           onSelectBox={onSelectBox}
           onMarkBoxDelivered={isAdmin && canScan ? handleMarkBoxDelivered : undefined}
+          onMarkBoxRejected={isAdmin && canScan ? handleMarkBoxRejected : undefined}
           canScan={canScan}
           isAdmin={isAdmin}
         />

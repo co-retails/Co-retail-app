@@ -48,12 +48,9 @@ export default function BoxLabelSideSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col p-0 max-h-screen">
+      <SheetContent side="right" className="flex flex-col p-0 max-h-screen w-full sm:max-w-full">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-outline-variant flex-shrink-0">
           <SheetTitle className="title-large">Add Box Label</SheetTitle>
-          <SheetDescription className="body-medium">
-            Scan the box label or enter it manually
-          </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -64,7 +61,7 @@ export default function BoxLabelSideSheet({
                 onScan={handleScan}
                 onManualEntry={handleManualEntry}
                 isScanning={false}
-                showManualEntry={true}
+                showManualEntry={false}
               />
             </div>
           </div>

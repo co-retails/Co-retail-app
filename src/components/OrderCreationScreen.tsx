@@ -260,7 +260,7 @@ export default function OrderCreationScreen({
               <div>
                 <h1 className="headline-small text-on-surface">
                   {isApiIntegratedPartner 
-                    ? 'Add Retailer Item IDs' 
+                    ? 'Add Item IDs' 
                     : orderId 
                       ? 'Register Order' 
                       : 'Create New Order'
@@ -312,13 +312,13 @@ export default function OrderCreationScreen({
 
         {!orderId ? (
           <>
-            {/* Add Retailer Item ID Section (For API Integrated Partners like Sellpy) */}
+            {/* Add Item ID Section (For API Integrated Partners like Sellpy) */}
             {isApiIntegratedPartner && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="title-medium">Add Retailer Item ID to Existing Items</CardTitle>
+                  <CardTitle className="title-medium">Add Item ID to Existing Items</CardTitle>
                   <p className="body-medium text-on-surface-variant">
-                    Items from API integration need retailer item IDs to complete the connection
+                    Items from API integration need item IDs to complete the connection
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -344,7 +344,7 @@ export default function OrderCreationScreen({
                           <div className="flex items-center justify-between">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
                               <div>
-                                <p className="body-small text-on-surface-variant">Partner Item ID</p>
+                                <p className="body-small text-on-surface-variant">External ID</p>
                                 <p className="title-small text-on-surface">{item.partnerItemId || 'N/A'}</p>
                               </div>
                               <div>
@@ -356,7 +356,7 @@ export default function OrderCreationScreen({
                                 <p className="title-small text-on-surface">{item.size} • {item.color}</p>
                               </div>
                               <div>
-                                <p className="body-small text-on-surface-variant">Retailer Item ID</p>
+                                <p className="body-small text-on-surface-variant">Item ID</p>
                                 {item.retailerItemId ? (
                                   <div className="flex items-center gap-2">
                                     <CheckIcon size={16} className="text-success" />
@@ -384,7 +384,7 @@ export default function OrderCreationScreen({
                                 ) : (
                                   <>
                                     <QrCodeIcon size={16} className="mr-2" />
-                                    Add Retailer ID
+                                    Add Item ID
                                   </>
                                 )}
                               </Button>
