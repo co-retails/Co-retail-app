@@ -7,11 +7,17 @@ const manualChunks = (id: string) => {
   const normalizedId = id.replace(/\\/g, '/');
 
   if (normalizedId.includes('node_modules')) {
+    // Keep React and React-DOM together to prevent loading order issues
     if (
       normalizedId.includes('/react/') ||
       normalizedId.includes('/react-dom/') ||
       normalizedId.includes('/scheduler/')
     ) {
+      return 'vendor-react';
+    }
+    
+    // Ensure React is loaded before other dependencies that need it
+    if (normalizedId.includes('react/jsx-runtime') || normalizedId.includes('react/jsx-dev-runtime')) {
       return 'vendor-react';
     }
 
@@ -143,6 +149,13 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks,
+        // Ensure proper chunk ordering - React must load first
+        chunkFileNames: (chunkInfo) => {
+          if (chunkInfo.name === 'vendor-react') {
+            return 'assets/vendor-react-[hash].js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
       },
     },
   },
