@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Checkbox } from './ui/checkbox';
-import { ArrowLeft, MoreVertical, Package, XCircle } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Package, XCircle, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Delivery } from './ShippingScreen';
 import ActiveScanner from './ActiveScanner';
@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import svgPaths from "../imports/svg-7un8q74kd7";
 
 export interface Box {
   id: string;
@@ -227,7 +228,7 @@ function BoxCard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button 
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors"
+                className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
                 aria-label="More actions"
               >
                 <MoreVertical className="w-4 h-4 text-on-surface-variant" />
@@ -340,7 +341,7 @@ function BottomActions({
       <Button 
         onClick={onRegister}
         disabled={!canRegister}
-        className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center label-large"
+        className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
       >
         Register
       </Button>
@@ -610,21 +611,62 @@ export default function ReceiveDeliveryScreen({
           </div>
 
           {canScan && activeTab === 'not-scanned' && notScannedBoxes.length > 0 && (
-            <div className="px-4 md:px-6 mb-3 flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSelectAllNotScanned}
-              >
-                {selectedBoxIds.length === notScannedBoxes.length ? 'Clear selection' : 'Select all'}
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleBulkMarkScanned}
-                disabled={selectedBoxIds.length === 0}
-              >
-                Mark selected as scanned
-              </Button>
+            <div className="bg-surface-container border-t border-outline-variant">
+              <div className="flex items-center justify-between px-4 md:px-6 py-3">
+                {/* Left side - Select all checkbox and count */}
+                <div className="flex items-center gap-3">
+                  <button 
+                    className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                    onClick={handleSelectAllNotScanned}
+                    aria-label={selectedBoxIds.length === notScannedBoxes.length ? "Deselect all boxes" : "Select all boxes"}
+                  >
+                    <div className="relative w-6 h-6">
+                      <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
+                        <path 
+                          clipRule="evenodd" 
+                          d={selectedBoxIds.length === notScannedBoxes.length ? svgPaths.p181a1800 : svgPaths.p3e435600} 
+                          fill={selectedBoxIds.length === notScannedBoxes.length ? "var(--primary)" : "var(--outline-variant)"} 
+                          fillRule="evenodd" 
+                        />
+                      </svg>
+                      {selectedBoxIds.length === notScannedBoxes.length && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Check className="w-4 h-4 text-on-primary" />
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                  
+                  <div className="title-small text-on-surface">
+                    {selectedBoxIds.length > 0 
+                      ? `${selectedBoxIds.length} selected`
+                      : `${notScannedBoxes.length} ${notScannedBoxes.length === 1 ? 'box' : 'boxes'}`
+                    }
+                  </div>
+                </div>
+                
+                {/* Right side - More Actions Menu (only show when boxes are selected) */}
+                {selectedBoxIds.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button 
+                          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                          aria-label="More actions"
+                        >
+                          <MoreVertical className="w-5 h-5 text-on-surface" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={handleBulkMarkScanned}>
+                          <Package className="mr-2 h-4 w-4" />
+                          <span>Mark as scanned</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           

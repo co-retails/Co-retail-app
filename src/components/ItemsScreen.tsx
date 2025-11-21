@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import svgPaths from "../imports/svg-7un8q74kd7";
+import svgPathsNew from "../imports/svg-9jzmb4i3sv";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -415,8 +416,8 @@ function MultiSelectActions({
                 className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
                 aria-label="More actions"
               >
-                <svg className="w-5 h-5" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                  <path d={svgPaths.p1aa02900} fill="var(--on-surface)" />
+                <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                  <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
                 </svg>
               </button>
             </DropdownMenuTrigger>

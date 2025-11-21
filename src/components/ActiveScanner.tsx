@@ -126,14 +126,14 @@ export default function ActiveScanner({
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowManualEntry(false)}
-                  className="flex-1 border border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-4 py-2 rounded-lg min-h-[40px] label-large"
+                  className="flex-1 border border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-4 py-2 rounded-lg min-h-[48px] label-large"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleManualSubmit}
                   disabled={!manualItemId.trim()}
-                  className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors disabled:opacity-38 disabled:cursor-not-allowed px-4 py-2 rounded-lg min-h-[40px] label-large"
+                  className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors disabled:opacity-38 disabled:cursor-not-allowed px-4 py-2 rounded-lg min-h-[48px] label-large"
                 >
                   Add box
                 </button>

@@ -14,6 +14,8 @@ import { Shipment } from '../components/BuyerShipmentsScreen';
 import { BuyerStats } from '../components/BuyerDashboard';
 import { UserAccount } from '../components/AdminSettingsSheet';
 import { ShowroomMessage } from '../components/ShowroomTypes';
+import { SalesDataPoint } from '../components/PartnerSalesReport';
+import { StockReportData } from '../components/PartnerStockReport';
 
 // Deliveries mock data
 export const mockDeliveries: Delivery[] = [
@@ -2714,3 +2716,255 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
 
 // Note: For brevity, large mock data arrays (partnerOrders, deliveryNotes, etc.)
 // are truncated. Add them from the original App.tsx as needed.
+
+// Sales Report mock data
+export const mockSalesReportData: SalesDataPoint[] = [
+  {
+    month: '2024-08',
+    totalSold: 1245,
+    byStore: [
+      { storeId: '1', storeName: 'Drottninggatan 63', sold: 456 },
+      { storeId: '2', storeName: 'Götgatan 25', sold: 389 },
+      { storeId: '3', storeName: 'Kungsgatan 18', sold: 400 }
+    ],
+    byBrand: [
+      { brandId: '1', brandName: 'WEEKDAY', sold: 312 },
+      { brandId: '2', brandName: 'COS', sold: 289 },
+      { brandId: '3', brandName: 'ARKET', sold: 267 },
+      { brandId: '4', brandName: 'Monki', sold: 198 },
+      { brandId: '5', brandName: 'H&M', sold: 179 }
+    ]
+  },
+  {
+    month: '2024-09',
+    totalSold: 1389,
+    byStore: [
+      { storeId: '1', storeName: 'Drottninggatan 63', sold: 512 },
+      { storeId: '2', storeName: 'Götgatan 25', sold: 445 },
+      { storeId: '3', storeName: 'Kungsgatan 18', sold: 432 }
+    ],
+    byBrand: [
+      { brandId: '1', brandName: 'WEEKDAY', sold: 356 },
+      { brandId: '2', brandName: 'COS', sold: 312 },
+      { brandId: '3', brandName: 'ARKET', sold: 298 },
+      { brandId: '4', brandName: 'Monki', sold: 223 },
+      { brandId: '5', brandName: 'H&M', sold: 200 }
+    ]
+  },
+  {
+    month: '2024-10',
+    totalSold: 1523,
+    byStore: [
+      { storeId: '1', storeName: 'Drottninggatan 63', sold: 567 },
+      { storeId: '2', storeName: 'Götgatan 25', sold: 489 },
+      { storeId: '3', storeName: 'Kungsgatan 18', sold: 467 }
+    ],
+    byBrand: [
+      { brandId: '1', brandName: 'WEEKDAY', sold: 389 },
+      { brandId: '2', brandName: 'COS', sold: 345 },
+      { brandId: '3', brandName: 'ARKET', sold: 323 },
+      { brandId: '4', brandName: 'Monki', sold: 245 },
+      { brandId: '5', brandName: 'H&M', sold: 221 }
+    ]
+  },
+  {
+    month: '2024-11',
+    totalSold: 1678,
+    byStore: [
+      { storeId: '1', storeName: 'Drottninggatan 63', sold: 623 },
+      { storeId: '2', storeName: 'Götgatan 25', sold: 534 },
+      { storeId: '3', storeName: 'Kungsgatan 18', sold: 521 }
+    ],
+    byBrand: [
+      { brandId: '1', brandName: 'WEEKDAY', sold: 423 },
+      { brandId: '2', brandName: 'COS', sold: 378 },
+      { brandId: '3', brandName: 'ARKET', sold: 356 },
+      { brandId: '4', brandName: 'Monki', sold: 267 },
+      { brandId: '5', brandName: 'H&M', sold: 254 }
+    ]
+  },
+  {
+    month: '2024-12',
+    totalSold: 1456,
+    byStore: [
+      { storeId: '1', storeName: 'Drottninggatan 63', sold: 542 },
+      { storeId: '2', storeName: 'Götgatan 25', sold: 467 },
+      { storeId: '3', storeName: 'Kungsgatan 18', sold: 447 }
+    ],
+    byBrand: [
+      { brandId: '1', brandName: 'WEEKDAY', sold: 367 },
+      { brandId: '2', brandName: 'COS', sold: 323 },
+      { brandId: '3', brandName: 'ARKET', sold: 301 },
+      { brandId: '4', brandName: 'Monki', sold: 234 },
+      { brandId: '5', brandName: 'H&M', sold: 231 }
+    ]
+  }
+];
+
+// Stock Report mock data
+export const mockStockReportData: StockReportData = {
+  daily: [
+    { category: 'Tops', storeId: '1', storeName: 'Drottninggatan 63', inStock: 45, sold: 12 },
+    { category: 'Tops', storeId: '2', storeName: 'Götgatan 25', inStock: 38, sold: 8 },
+    { category: 'Tops', storeId: '3', storeName: 'Kungsgatan 18', inStock: 42, sold: 10 },
+    { category: 'Jeans', storeId: '1', storeName: 'Drottninggatan 63', inStock: 32, sold: 15 },
+    { category: 'Jeans', storeId: '2', storeName: 'Götgatan 25', inStock: 28, sold: 12 },
+    { category: 'Jeans', storeId: '3', storeName: 'Kungsgatan 18', inStock: 35, sold: 14 },
+    { category: 'Dresses', storeId: '1', storeName: 'Drottninggatan 63', inStock: 25, sold: 8 },
+    { category: 'Dresses', storeId: '2', storeName: 'Götgatan 25', inStock: 22, sold: 6 },
+    { category: 'Dresses', storeId: '3', storeName: 'Kungsgatan 18', inStock: 28, sold: 9 },
+    { category: 'Shoes', storeId: '1', storeName: 'Drottninggatan 63', inStock: 18, sold: 5 },
+    { category: 'Shoes', storeId: '2', storeName: 'Götgatan 25', inStock: 15, sold: 4 },
+    { category: 'Shoes', storeId: '3', storeName: 'Kungsgatan 18', inStock: 20, sold: 6 },
+    { category: 'Jackets', storeId: '1', storeName: 'Drottninggatan 63', inStock: 12, sold: 3 },
+    { category: 'Jackets', storeId: '2', storeName: 'Götgatan 25', inStock: 10, sold: 2 },
+    { category: 'Jackets', storeId: '3', storeName: 'Kungsgatan 18', inStock: 14, sold: 4 },
+    { category: 'Trousers', storeId: '1', storeName: 'Drottninggatan 63', inStock: 28, sold: 9 },
+    { category: 'Trousers', storeId: '2', storeName: 'Götgatan 25', inStock: 24, sold: 7 },
+    { category: 'Trousers', storeId: '3', storeName: 'Kungsgatan 18', inStock: 30, sold: 10 },
+    { category: 'Shorts', storeId: '1', storeName: 'Drottninggatan 63', inStock: 15, sold: 4 },
+    { category: 'Shorts', storeId: '2', storeName: 'Götgatan 25', inStock: 12, sold: 3 },
+    { category: 'Shorts', storeId: '3', storeName: 'Kungsgatan 18', inStock: 18, sold: 5 },
+    { category: 'Skirts', storeId: '1', storeName: 'Drottninggatan 63', inStock: 20, sold: 6 },
+    { category: 'Skirts', storeId: '2', storeName: 'Götgatan 25', inStock: 17, sold: 5 },
+    { category: 'Skirts', storeId: '3', storeName: 'Kungsgatan 18', inStock: 22, sold: 7 },
+    { category: 'Coats', storeId: '1', storeName: 'Drottninggatan 63', inStock: 8, sold: 2 },
+    { category: 'Coats', storeId: '2', storeName: 'Götgatan 25', inStock: 7, sold: 1 },
+    { category: 'Coats', storeId: '3', storeName: 'Kungsgatan 18', inStock: 10, sold: 3 },
+    { category: 'Hoodies', storeId: '1', storeName: 'Drottninggatan 63', inStock: 22, sold: 7 },
+    { category: 'Hoodies', storeId: '2', storeName: 'Götgatan 25', inStock: 19, sold: 6 },
+    { category: 'Hoodies', storeId: '3', storeName: 'Kungsgatan 18', inStock: 25, sold: 8 },
+    { category: 'Sweaters', storeId: '1', storeName: 'Drottninggatan 63', inStock: 30, sold: 10 },
+    { category: 'Sweaters', storeId: '2', storeName: 'Götgatan 25', inStock: 26, sold: 8 },
+    { category: 'Sweaters', storeId: '3', storeName: 'Kungsgatan 18', inStock: 33, sold: 11 },
+    { category: 'Accessories', storeId: '1', storeName: 'Drottninggatan 63', inStock: 35, sold: 11 },
+    { category: 'Accessories', storeId: '2', storeName: 'Götgatan 25', inStock: 30, sold: 9 },
+    { category: 'Accessories', storeId: '3', storeName: 'Kungsgatan 18', inStock: 38, sold: 12 },
+    { category: 'Other', storeId: '1', storeName: 'Drottninggatan 63', inStock: 10, sold: 3 },
+    { category: 'Other', storeId: '2', storeName: 'Götgatan 25', inStock: 8, sold: 2 },
+    { category: 'Other', storeId: '3', storeName: 'Kungsgatan 18', inStock: 12, sold: 4 }
+  ],
+  sevenDays: [
+    { category: 'Tops', storeId: '1', storeName: 'Drottninggatan 63', inStock: 125, sold: 89 },
+    { category: 'Tops', storeId: '2', storeName: 'Götgatan 25', inStock: 108, sold: 67 },
+    { category: 'Tops', storeId: '3', storeName: 'Kungsgatan 18', inStock: 118, sold: 72 },
+    { category: 'Jeans', storeId: '1', storeName: 'Drottninggatan 63', inStock: 95, sold: 112 },
+    { category: 'Jeans', storeId: '2', storeName: 'Götgatan 25', inStock: 82, sold: 98 },
+    { category: 'Jeans', storeId: '3', storeName: 'Kungsgatan 18', inStock: 102, sold: 105 },
+    { category: 'Dresses', storeId: '1', storeName: 'Drottninggatan 63', inStock: 68, sold: 54 },
+    { category: 'Dresses', storeId: '2', storeName: 'Götgatan 25', inStock: 59, sold: 48 },
+    { category: 'Dresses', storeId: '3', storeName: 'Kungsgatan 18', inStock: 75, sold: 62 },
+    { category: 'Shoes', storeId: '1', storeName: 'Drottninggatan 63', inStock: 52, sold: 38 },
+    { category: 'Shoes', storeId: '2', storeName: 'Götgatan 25', inStock: 45, sold: 32 },
+    { category: 'Shoes', storeId: '3', storeName: 'Kungsgatan 18', inStock: 58, sold: 42 },
+    { category: 'Jackets', storeId: '1', storeName: 'Drottninggatan 63', inStock: 35, sold: 28 },
+    { category: 'Jackets', storeId: '2', storeName: 'Götgatan 25', inStock: 29, sold: 22 },
+    { category: 'Jackets', storeId: '3', storeName: 'Kungsgatan 18', inStock: 42, sold: 31 },
+    { category: 'Trousers', storeId: '1', storeName: 'Drottninggatan 63', inStock: 78, sold: 65 },
+    { category: 'Trousers', storeId: '2', storeName: 'Götgatan 25', inStock: 68, sold: 58 },
+    { category: 'Trousers', storeId: '3', storeName: 'Kungsgatan 18', inStock: 84, sold: 72 },
+    { category: 'Shorts', storeId: '1', storeName: 'Drottninggatan 63', inStock: 42, sold: 28 },
+    { category: 'Shorts', storeId: '2', storeName: 'Götgatan 25', inStock: 36, sold: 24 },
+    { category: 'Shorts', storeId: '3', storeName: 'Kungsgatan 18', inStock: 50, sold: 35 },
+    { category: 'Skirts', storeId: '1', storeName: 'Drottninggatan 63', inStock: 56, sold: 42 },
+    { category: 'Skirts', storeId: '2', storeName: 'Götgatan 25', inStock: 48, sold: 36 },
+    { category: 'Skirts', storeId: '3', storeName: 'Kungsgatan 18', inStock: 62, sold: 48 },
+    { category: 'Coats', storeId: '1', storeName: 'Drottninggatan 63', inStock: 22, sold: 18 },
+    { category: 'Coats', storeId: '2', storeName: 'Götgatan 25', inStock: 19, sold: 15 },
+    { category: 'Coats', storeId: '3', storeName: 'Kungsgatan 18', inStock: 28, sold: 22 },
+    { category: 'Hoodies', storeId: '1', storeName: 'Drottninggatan 63', inStock: 62, sold: 49 },
+    { category: 'Hoodies', storeId: '2', storeName: 'Götgatan 25', inStock: 54, sold: 42 },
+    { category: 'Hoodies', storeId: '3', storeName: 'Kungsgatan 18', inStock: 70, sold: 56 },
+    { category: 'Sweaters', storeId: '1', storeName: 'Drottninggatan 63', inStock: 84, sold: 68 },
+    { category: 'Sweaters', storeId: '2', storeName: 'Götgatan 25', inStock: 73, sold: 59 },
+    { category: 'Sweaters', storeId: '3', storeName: 'Kungsgatan 18', inStock: 92, sold: 77 },
+    { category: 'Accessories', storeId: '1', storeName: 'Drottninggatan 63', inStock: 98, sold: 78 },
+    { category: 'Accessories', storeId: '2', storeName: 'Götgatan 25', inStock: 85, sold: 68 },
+    { category: 'Accessories', storeId: '3', storeName: 'Kungsgatan 18', inStock: 106, sold: 84 },
+    { category: 'Other', storeId: '1', storeName: 'Drottninggatan 63', inStock: 28, sold: 22 },
+    { category: 'Other', storeId: '2', storeName: 'Götgatan 25', inStock: 24, sold: 19 },
+    { category: 'Other', storeId: '3', storeName: 'Kungsgatan 18', inStock: 34, sold: 28 }
+  ],
+  fourteenDays: [
+    { category: 'Tops', storeId: '1', storeName: 'Drottninggatan 63', inStock: 245, sold: 178 },
+    { category: 'Tops', storeId: '2', storeName: 'Götgatan 25', inStock: 212, sold: 134 },
+    { category: 'Tops', storeId: '3', storeName: 'Kungsgatan 18', inStock: 231, sold: 145 },
+    { category: 'Jeans', storeId: '1', storeName: 'Drottninggatan 63', inStock: 189, sold: 224 },
+    { category: 'Jeans', storeId: '2', storeName: 'Götgatan 25', inStock: 164, sold: 196 },
+    { category: 'Jeans', storeId: '3', storeName: 'Kungsgatan 18', inStock: 204, sold: 210 },
+    { category: 'Dresses', storeId: '1', storeName: 'Drottninggatan 63', inStock: 136, sold: 108 },
+    { category: 'Dresses', storeId: '2', storeName: 'Götgatan 25', inStock: 118, sold: 96 },
+    { category: 'Dresses', storeId: '3', storeName: 'Kungsgatan 18', inStock: 150, sold: 124 },
+    { category: 'Shoes', storeId: '1', storeName: 'Drottninggatan 63', inStock: 104, sold: 76 },
+    { category: 'Shoes', storeId: '2', storeName: 'Götgatan 25', inStock: 90, sold: 64 },
+    { category: 'Shoes', storeId: '3', storeName: 'Kungsgatan 18', inStock: 116, sold: 84 },
+    { category: 'Jackets', storeId: '1', storeName: 'Drottninggatan 63', inStock: 70, sold: 56 },
+    { category: 'Jackets', storeId: '2', storeName: 'Götgatan 25', inStock: 58, sold: 44 },
+    { category: 'Jackets', storeId: '3', storeName: 'Kungsgatan 18', inStock: 84, sold: 62 },
+    { category: 'Trousers', storeId: '1', storeName: 'Drottninggatan 63', inStock: 156, sold: 130 },
+    { category: 'Trousers', storeId: '2', storeName: 'Götgatan 25', inStock: 136, sold: 116 },
+    { category: 'Trousers', storeId: '3', storeName: 'Kungsgatan 18', inStock: 168, sold: 144 },
+    { category: 'Shorts', storeId: '1', storeName: 'Drottninggatan 63', inStock: 84, sold: 56 },
+    { category: 'Shorts', storeId: '2', storeName: 'Götgatan 25', inStock: 72, sold: 48 },
+    { category: 'Shorts', storeId: '3', storeName: 'Kungsgatan 18', inStock: 100, sold: 70 },
+    { category: 'Skirts', storeId: '1', storeName: 'Drottninggatan 63', inStock: 112, sold: 84 },
+    { category: 'Skirts', storeId: '2', storeName: 'Götgatan 25', inStock: 96, sold: 72 },
+    { category: 'Skirts', storeId: '3', storeName: 'Kungsgatan 18', inStock: 124, sold: 96 },
+    { category: 'Coats', storeId: '1', storeName: 'Drottninggatan 63', inStock: 44, sold: 36 },
+    { category: 'Coats', storeId: '2', storeName: 'Götgatan 25', inStock: 38, sold: 30 },
+    { category: 'Coats', storeId: '3', storeName: 'Kungsgatan 18', inStock: 56, sold: 44 },
+    { category: 'Hoodies', storeId: '1', storeName: 'Drottninggatan 63', inStock: 124, sold: 98 },
+    { category: 'Hoodies', storeId: '2', storeName: 'Götgatan 25', inStock: 108, sold: 84 },
+    { category: 'Hoodies', storeId: '3', storeName: 'Kungsgatan 18', inStock: 140, sold: 112 },
+    { category: 'Sweaters', storeId: '1', storeName: 'Drottninggatan 63', inStock: 168, sold: 136 },
+    { category: 'Sweaters', storeId: '2', storeName: 'Götgatan 25', inStock: 146, sold: 118 },
+    { category: 'Sweaters', storeId: '3', storeName: 'Kungsgatan 18', inStock: 184, sold: 154 },
+    { category: 'Accessories', storeId: '1', storeName: 'Drottninggatan 63', inStock: 196, sold: 156 },
+    { category: 'Accessories', storeId: '2', storeName: 'Götgatan 25', inStock: 170, sold: 136 },
+    { category: 'Accessories', storeId: '3', storeName: 'Kungsgatan 18', inStock: 212, sold: 168 },
+    { category: 'Other', storeId: '1', storeName: 'Drottninggatan 63', inStock: 56, sold: 44 },
+    { category: 'Other', storeId: '2', storeName: 'Götgatan 25', inStock: 48, sold: 38 },
+    { category: 'Other', storeId: '3', storeName: 'Kungsgatan 18', inStock: 68, sold: 56 }
+  ],
+  thirtyDays: [
+    { category: 'Tops', storeId: '1', storeName: 'Drottninggatan 63', inStock: 512, sold: 367 },
+    { category: 'Tops', storeId: '2', storeName: 'Götgatan 25', inStock: 445, sold: 289 },
+    { category: 'Tops', storeId: '3', storeName: 'Kungsgatan 18', inStock: 487, sold: 312 },
+    { category: 'Jeans', storeId: '1', storeName: 'Drottninggatan 63', inStock: 389, sold: 456 },
+    { category: 'Jeans', storeId: '2', storeName: 'Götgatan 25', inStock: 338, sold: 401 },
+    { category: 'Jeans', storeId: '3', storeName: 'Kungsgatan 18', inStock: 423, sold: 432 },
+    { category: 'Dresses', storeId: '1', storeName: 'Drottninggatan 63', inStock: 278, sold: 223 },
+    { category: 'Dresses', storeId: '2', storeName: 'Götgatan 25', inStock: 241, sold: 198 },
+    { category: 'Dresses', storeId: '3', storeName: 'Kungsgatan 18', inStock: 312, sold: 256 },
+    { category: 'Shoes', storeId: '1', storeName: 'Drottninggatan 63', inStock: 215, sold: 156 },
+    { category: 'Shoes', storeId: '2', storeName: 'Götgatan 25', inStock: 187, sold: 132 },
+    { category: 'Shoes', storeId: '3', storeName: 'Kungsgatan 18', inStock: 241, sold: 174 },
+    { category: 'Jackets', storeId: '1', storeName: 'Drottninggatan 63', inStock: 145, sold: 112 },
+    { category: 'Jackets', storeId: '2', storeName: 'Götgatan 25', inStock: 126, sold: 98 },
+    { category: 'Jackets', storeId: '3', storeName: 'Kungsgatan 18', inStock: 178, sold: 134 },
+    { category: 'Trousers', storeId: '1', storeName: 'Drottninggatan 63', inStock: 325, sold: 268 },
+    { category: 'Trousers', storeId: '2', storeName: 'Götgatan 25', inStock: 282, sold: 241 },
+    { category: 'Trousers', storeId: '3', storeName: 'Kungsgatan 18', inStock: 348, sold: 298 },
+    { category: 'Shorts', storeId: '1', storeName: 'Drottninggatan 63', inStock: 175, sold: 118 },
+    { category: 'Shorts', storeId: '2', storeName: 'Götgatan 25', inStock: 152, sold: 102 },
+    { category: 'Shorts', storeId: '3', storeName: 'Kungsgatan 18', inStock: 208, sold: 145 },
+    { category: 'Skirts', storeId: '1', storeName: 'Drottninggatan 63', inStock: 234, sold: 176 },
+    { category: 'Skirts', storeId: '2', storeName: 'Götgatan 25', inStock: 203, sold: 152 },
+    { category: 'Skirts', storeId: '3', storeName: 'Kungsgatan 18', inStock: 258, sold: 198 },
+    { category: 'Coats', storeId: '1', storeName: 'Drottninggatan 63', inStock: 92, sold: 75 },
+    { category: 'Coats', storeId: '2', storeName: 'Götgatan 25', inStock: 80, sold: 63 },
+    { category: 'Coats', storeId: '3', storeName: 'Kungsgatan 18', inStock: 116, sold: 92 },
+    { category: 'Hoodies', storeId: '1', storeName: 'Drottninggatan 63', inStock: 258, sold: 204 },
+    { category: 'Hoodies', storeId: '2', storeName: 'Götgatan 25', inStock: 224, sold: 176 },
+    { category: 'Hoodies', storeId: '3', storeName: 'Kungsgatan 18', inStock: 292, sold: 234 },
+    { category: 'Sweaters', storeId: '1', storeName: 'Drottninggatan 63', inStock: 348, sold: 282 },
+    { category: 'Sweaters', storeId: '2', storeName: 'Götgatan 25', inStock: 302, sold: 245 },
+    { category: 'Sweaters', storeId: '3', storeName: 'Kungsgatan 18', inStock: 382, sold: 318 },
+    { category: 'Accessories', storeId: '1', storeName: 'Drottninggatan 63', inStock: 408, sold: 325 },
+    { category: 'Accessories', storeId: '2', storeName: 'Götgatan 25', inStock: 354, sold: 283 },
+    { category: 'Accessories', storeId: '3', storeName: 'Kungsgatan 18', inStock: 442, sold: 352 },
+    { category: 'Other', storeId: '1', storeName: 'Drottninggatan 63', inStock: 116, sold: 92 },
+    { category: 'Other', storeId: '2', storeName: 'Götgatan 25', inStock: 101, sold: 80 },
+    { category: 'Other', storeId: '3', storeName: 'Kungsgatan 18', inStock: 142, sold: 116 }
+  ]
+};

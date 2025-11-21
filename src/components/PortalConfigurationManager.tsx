@@ -10,16 +10,34 @@ import { PublishingVersionsScreen } from './PublishingVersionsScreen';
 import { ValidationRulesScreen } from './ValidationRulesScreen';
 import { AuditLogScreen } from './AuditLogScreen';
 import { GtinMappingScreen } from './GtinMappingScreen';
+import { MarketStoreManagementScreen } from './MarketStoreManagementScreen';
+import PartnerWarehouseManagementScreen from './PartnerWarehouseManagementScreen';
+import PriceForkCalibrationScreen from './PriceForkCalibrationScreen';
 import { UserRole } from './PortalConfigTypes';
+import { Partner, Warehouse } from './PartnerWarehouseSelector';
 
 interface PortalConfigurationManagerProps {
   userRole: UserRole;
   onBack: () => void;
+  partners?: Partner[];
+  warehouses?: Warehouse[];
+  onSavePartner?: (partner: Partner) => void;
+  onDeletePartner?: (partnerId: string) => void;
+  onSaveWarehouse?: (warehouse: Warehouse) => void;
+  onDeleteWarehouse?: (warehouseId: string) => void;
+  currentPartnerId?: string;
 }
 
 export function PortalConfigurationManager({
   userRole,
-  onBack
+  onBack,
+  partners = [],
+  warehouses = [],
+  onSavePartner = () => {},
+  onDeletePartner = () => {},
+  onSaveWarehouse = () => {},
+  onDeleteWarehouse = () => {},
+  currentPartnerId = '2'
 }: PortalConfigurationManagerProps) {
   const [currentScreen, setCurrentScreen] = useState<string>('landing');
 
@@ -57,6 +75,14 @@ export function PortalConfigurationManager({
     case 'purchase-price-converter':
       return <PurchasePriceCurrencyConverterScreen onBack={handleBackToLanding} />;
 
+    case 'price-fork-calibration':
+      return (
+        <PriceForkCalibrationScreen
+          partnerId={currentPartnerId}
+          onBack={handleBackToLanding}
+        />
+      );
+
     case 'currency-mapping':
       return <CurrencyMappingScreen onBack={handleBackToLanding} />;
 
@@ -71,6 +97,22 @@ export function PortalConfigurationManager({
 
     case 'gtin-mapping':
       return <GtinMappingScreen onBack={handleBackToLanding} />;
+
+    case 'markets-stores':
+      return <MarketStoreManagementScreen onBack={handleBackToLanding} />;
+
+    case 'partner-warehouse-management':
+      return (
+        <PartnerWarehouseManagementScreen
+          onBack={handleBackToLanding}
+          partners={partners}
+          warehouses={warehouses}
+          onSavePartner={onSavePartner}
+          onDeletePartner={onDeletePartner}
+          onSaveWarehouse={onSaveWarehouse}
+          onDeleteWarehouse={onDeleteWarehouse}
+        />
+      );
 
     default:
       return (

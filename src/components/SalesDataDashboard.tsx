@@ -7,49 +7,63 @@ interface CategoryData {
   percentage: number;
 }
 
+interface PeriodData {
+  categories: CategoryData[];
+  totalSoldItems: number;
+}
+
 interface SalesData {
-  yesterday: CategoryData[];
-  sevenDays: CategoryData[];
-  thirtyDays: CategoryData[];
+  yesterday: PeriodData;
+  sevenDays: PeriodData;
+  thirtyDays: PeriodData;
 }
 
 const mockSalesData: SalesData = {
-  yesterday: [
-    { name: 'Jeans', value: 55, percentage: 100 },
-    { name: 'Hoodies & Sweatshirts', value: 49, percentage: 89 },
-    { name: 'Tops', value: 45, percentage: 82 },
-    { name: 'Jackets & Coats', value: 45, percentage: 82 },
-    { name: 'Pants', value: 35, percentage: 64 },
-    { name: 'Dresses', value: 32, percentage: 58 },
-    { name: 'Shoes', value: 28, percentage: 51 },
-    { name: 'Accessories', value: 25, percentage: 45 },
-    { name: 'Skirts', value: 22, percentage: 40 },
-    { name: 'Bags', value: 18, percentage: 33 }
-  ],
-  sevenDays: [
-    { name: 'Jeans', value: 312, percentage: 100 },
-    { name: 'Tops', value: 287, percentage: 92 },
-    { name: 'Hoodies & Sweatshirts', value: 268, percentage: 86 },
-    { name: 'Shoes', value: 245, percentage: 78 },
-    { name: 'Jackets & Coats', value: 223, percentage: 71 },
-    { name: 'Pants', value: 198, percentage: 63 },
-    { name: 'Dresses', value: 176, percentage: 56 },
-    { name: 'Accessories', value: 154, percentage: 49 },
-    { name: 'Bags', value: 132, percentage: 42 },
-    { name: 'Skirts', value: 108, percentage: 35 }
-  ],
-  thirtyDays: [
-    { name: 'Jeans', value: 1456, percentage: 100 },
-    { name: 'Tops', value: 1298, percentage: 89 },
-    { name: 'Shoes', value: 1187, percentage: 81 },
-    { name: 'Hoodies & Sweatshirts', value: 1089, percentage: 75 },
-    { name: 'Jackets & Coats', value: 987, percentage: 68 },
-    { name: 'Pants', value: 876, percentage: 60 },
-    { name: 'Dresses', value: 743, percentage: 51 },
-    { name: 'Accessories', value: 654, percentage: 45 },
-    { name: 'Bags', value: 532, percentage: 37 },
-    { name: 'Skirts', value: 421, percentage: 29 }
-  ]
+  yesterday: {
+    categories: [
+      { name: 'Jeans', value: 55, percentage: 100 },
+      { name: 'Hoodies & Sweatshirts', value: 49, percentage: 89 },
+      { name: 'Tops', value: 45, percentage: 82 },
+      { name: 'Jackets & Coats', value: 45, percentage: 82 },
+      { name: 'Pants', value: 35, percentage: 64 },
+      { name: 'Dresses', value: 32, percentage: 58 },
+      { name: 'Shoes', value: 28, percentage: 51 },
+      { name: 'Accessories', value: 25, percentage: 45 },
+      { name: 'Skirts', value: 22, percentage: 40 },
+      { name: 'Bags', value: 18, percentage: 33 }
+    ],
+    totalSoldItems: 425
+  },
+  sevenDays: {
+    categories: [
+      { name: 'Jeans', value: 312, percentage: 100 },
+      { name: 'Tops', value: 287, percentage: 92 },
+      { name: 'Hoodies & Sweatshirts', value: 268, percentage: 86 },
+      { name: 'Shoes', value: 245, percentage: 78 },
+      { name: 'Jackets & Coats', value: 223, percentage: 71 },
+      { name: 'Pants', value: 198, percentage: 63 },
+      { name: 'Dresses', value: 176, percentage: 56 },
+      { name: 'Accessories', value: 154, percentage: 49 },
+      { name: 'Bags', value: 132, percentage: 42 },
+      { name: 'Skirts', value: 108, percentage: 35 }
+    ],
+    totalSoldItems: 2780
+  },
+  thirtyDays: {
+    categories: [
+      { name: 'Jeans', value: 1456, percentage: 100 },
+      { name: 'Tops', value: 1298, percentage: 89 },
+      { name: 'Shoes', value: 1187, percentage: 81 },
+      { name: 'Hoodies & Sweatshirts', value: 1089, percentage: 75 },
+      { name: 'Jackets & Coats', value: 987, percentage: 68 },
+      { name: 'Pants', value: 876, percentage: 60 },
+      { name: 'Dresses', value: 743, percentage: 51 },
+      { name: 'Accessories', value: 654, percentage: 45 },
+      { name: 'Bags', value: 532, percentage: 37 },
+      { name: 'Skirts', value: 421, percentage: 29 }
+    ],
+    totalSoldItems: 11250
+  }
 };
 
 type TimePeriod = 'yesterday' | 'sevenDays' | 'thirtyDays';
@@ -139,9 +153,21 @@ export default function SalesDataDashboard() {
             </div>
           </div>
           
+          {/* Total Sold Items - Below tabs */}
+          <div className="px-4 pt-3 pb-2">
+            <div className="flex items-baseline gap-2">
+              <span className="title-small text-on-surface">
+                {currentData.totalSoldItems.toLocaleString()}
+              </span>
+              <span className="body-small text-on-surface-variant">
+                total sold items
+              </span>
+            </div>
+          </div>
+          
           {/* Chart */}
           <div className="p-4 space-y-3">
-            {currentData.map((category, index) => (
+            {currentData.categories.map((category, index) => (
               <CategoryBar key={index} category={category} />
             ))}
           </div>

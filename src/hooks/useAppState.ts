@@ -4,7 +4,7 @@ import { Partner } from '../components/PartnerSelectionScreen';
 import { ReturnItem, ReturnOrder } from '../components/ReturnManagementScreen';
 import { ReturnOrderDetails } from '../components/ReturnDetailsScreen';
 import { StoreSelection } from '../components/StoreSelector';
-import { PartnerWarehouseSelection } from '../components/PartnerWarehouseSelector';
+import { PartnerWarehouseSelection, Partner as WarehousePartner, Warehouse } from '../components/PartnerWarehouseSelector';
 import { RetailerCountrySelection } from '../components/RetailerCountrySelector';
 import { ExtendedPartnerOrder } from '../components/PartnerDashboard';
 import { DeliveryNote } from '../components/BoxManagementScreen';
@@ -30,7 +30,9 @@ import {
   mockSellpyOrders,
   mockDeliveryNotes,
   mockReturnDeliveries,
-  mockPartnerOrders
+  mockPartnerOrders,
+  mockWarehousePartners,
+  mockWarehouses
 } from '../data/mockData';
 
 export type Screen = 
@@ -82,7 +84,10 @@ export type Screen =
   | 'buyer-orders' 
   | 'buyer-order-details' 
   | 'portal-configuration'
-  | 'partner-settings';
+  | 'partner-settings'
+  | 'store-user-access'
+  | 'partner-user-access'
+  | 'partner-reports';
 
 /**
  * Central state management hook for the entire application
@@ -129,6 +134,8 @@ export function useAppState() {
   const [partnerOrders, setPartnerOrders] = useState<ExtendedPartnerOrder[]>(mockPartnerOrders);
   const [currentOrder, setCurrentOrder] = useState<{ id: string; items: OrderItem[] } | null>(null);
   const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNote[]>(mockDeliveryNotes);
+  const [partners, setPartners] = useState<WarehousePartner[]>(mockWarehousePartners);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>(mockWarehouses);
   
   // Sellpy flow state
   const [sellpyOrders, setSellpyOrders] = useState<SellpyOrder[]>(mockSellpyOrders);
@@ -226,6 +233,10 @@ export function useAppState() {
     setCurrentOrder,
     deliveryNotes,
     setDeliveryNotes,
+    partners,
+    setPartners,
+    warehouses,
+    setWarehouses,
     
     // Sellpy flow
     sellpyOrders,

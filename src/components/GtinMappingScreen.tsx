@@ -31,7 +31,7 @@ interface GtinMappingScreenProps {
 }
 
 type ViewTab = 'overrides' | 'merged' | 'inherited';
-type MainTab = 'gtin-mapping' | 'partner-types';
+type MainTab = 'partner-types-master' | 'main-mapping' | 'overview-overrides';
 type FilterChip = 'all' | 'inherited' | 'overrides';
 
 // All available partners (without type assignment)
@@ -111,17 +111,6 @@ const initialPartnerTypeDefaults: GtinMapping[] = [];
 // Initial mock data - Partner Overrides
 const initialPartnerOverrides: GtinMapping[] = [
   {
-    id: '4',
-    brandId: 'hm',
-    partnerType: 'Main Partner',
-    partnerId: '2',
-    gtin: '9999999999999',
-    articleNumber: 'ART-OVR-001',
-    source: 'override',
-    lastEdited: '2024-01-20T14:30:00Z',
-    lastEditedBy: 'Admin User'
-  },
-  {
     id: '5',
     brandId: 'hm',
     partnerType: 'Main Partner',
@@ -136,7 +125,7 @@ const initialPartnerOverrides: GtinMapping[] = [
 ];
 
 export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
-  const [mainTab, setMainTab] = useState<MainTab>('partner-types');
+  const [mainTab, setMainTab] = useState<MainTab>('partner-types-master');
   const [filterChip, setFilterChip] = useState<FilterChip>('all');
   // Partner Type Configurations - the source of truth for inherited mappings
   const [partnerTypeConfigs, setPartnerTypeConfigs] = useState<PartnerTypeConfig[]>(initialPartnerTypeConfigs);
@@ -152,6 +141,8 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
   const [isAddPartnerDialogOpen, setIsAddPartnerDialogOpen] = useState(false);
   const [addingPartnerToTypeId, setAddingPartnerToTypeId] = useState<string | null>(null);
   const [newPartnerTypeName, setNewPartnerTypeName] = useState('');
+  const [editingPartnerTypeName, setEditingPartnerTypeName] = useState<string | null>(null);
+  const [editingPartnerTypeValue, setEditingPartnerTypeValue] = useState<string>('');
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [editingMapping, setEditingMapping] = useState<GtinMapping | null>(null);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
@@ -252,40 +243,39 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
   const allMappings = useMemo(() => {
     const merged: GtinMapping[] = [];
     const overrideMap = new Map<string, GtinMapping>();
+    const partnersWithNonCategoryOverrides = new Set<string>();
 
     // Build override map - key is partnerType-partnerId or partnerType-partnerId-category
+    // Track which partners have overrides WITHOUT category (these replace inherited)
     partnerOverrides.forEach(override => {
       if (override.partnerId) {
         const key = override.category 
           ? `${override.partnerType}-${override.partnerId}-${override.category}`
           : `${override.partnerType}-${override.partnerId}`;
         overrideMap.set(key, override);
+        // Track partners with overrides WITHOUT category (these replace inherited)
+        if (!override.category) {
+          partnersWithNonCategoryOverrides.add(`${override.partnerType}-${override.partnerId}`);
+        }
       }
     });
 
-    // Add all inherited defaults first (these don't have categories)
+    // Add all inherited defaults, but skip if there's an override WITHOUT category for that partner
+    // (overrides WITH category are in addition to inherited, not replacing)
     partnerTypeDefaults.forEach(defaultMapping => {
       if (defaultMapping.partnerId) {
-        // Check if there's an override for this partner (without category)
-        const key = `${defaultMapping.partnerType}-${defaultMapping.partnerId}`;
-        const override = overrideMap.get(key);
-        
-        if (!override) {
-          // No override, add the inherited mapping
+        const partnerKey = `${defaultMapping.partnerType}-${defaultMapping.partnerId}`;
+        // Skip inherited only if there's an override WITHOUT category for this partner
+        if (!partnersWithNonCategoryOverrides.has(partnerKey)) {
           merged.push(defaultMapping);
         }
-        // If there's an override, we'll add it separately below
       }
     });
 
-    // Add all overrides (these may have categories)
+    // Add all overrides
     partnerOverrides.forEach(override => {
       if (override.partnerId) {
-        // Check if this override already exists in merged (to avoid duplicates)
-        const exists = merged.some(m => m.id === override.id);
-        if (!exists) {
-          merged.push(override);
-        }
+        merged.push(override);
       }
     });
 
@@ -967,11 +957,24 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
         <div className="flex gap-2 border-b border-outline-variant">
           <button
             onClick={() => {
-              setMainTab('partner-types');
+              setMainTab('partner-types-master');
               setSelectedRows(new Set());
             }}
             className={`px-4 py-3 label-large transition-colors border-b-2 ${
-              mainTab === 'partner-types'
+              mainTab === 'partner-types-master'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-on-surface-variant hover:text-on-surface'
+            }`}
+          >
+            Partner types
+          </button>
+          <button
+            onClick={() => {
+              setMainTab('main-mapping');
+              setSelectedRows(new Set());
+            }}
+            className={`px-4 py-3 label-large transition-colors border-b-2 ${
+              mainTab === 'main-mapping'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-on-surface-variant hover:text-on-surface'
             }`}
@@ -980,11 +983,11 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
           </button>
           <button
             onClick={() => {
-              setMainTab('gtin-mapping');
+              setMainTab('overview-overrides');
               setSelectedRows(new Set());
             }}
             className={`px-4 py-3 label-large transition-colors border-b-2 ${
-              mainTab === 'gtin-mapping'
+              mainTab === 'overview-overrides'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-on-surface-variant hover:text-on-surface'
             }`}
@@ -995,7 +998,7 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
       </div>
 
       {/* GTIN Mapping Tab Content */}
-      {mainTab === 'gtin-mapping' && (
+      {mainTab === 'overview-overrides' && (
         <>
           {/* Filter Chips */}
           <div className="px-4 md:px-6 py-4 flex flex-wrap gap-2">
@@ -1032,13 +1035,109 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
       )}
 
       {/* Partner Types Tab Content */}
-      {mainTab === 'partner-types' && (
+      {/* Partner Types Master Tab */}
+      {mainTab === 'partner-types-master' && (
         <div className="px-4 md:px-6 pb-6">
           <div className="mb-6 mt-4 flex gap-2">
             <Button onClick={() => setIsAddPartnerTypeDialogOpen(true)} variant="outline" className="gap-2">
               <Plus className="w-4 h-4" />
               Add partner type
             </Button>
+          </div>
+          
+          <Card className="border-outline-variant overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-surface-container-high border-b border-outline-variant">
+                  <tr>
+                    <th className="px-4 py-3 text-left title-small text-on-surface">Partner Type</th>
+                    <th className="px-4 py-3 text-right title-small text-on-surface">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {availablePartnerTypes.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-8 text-center body-medium text-on-surface-variant">
+                        No partner types configured. Click "Add partner type" to get started.
+                      </td>
+                    </tr>
+                  ) : (
+                    availablePartnerTypes.map(partnerType => (
+                      <tr
+                        key={partnerType}
+                        className="border-b border-outline-variant hover:bg-surface-container-high transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          {editingPartnerTypeName === partnerType ? (
+                            <Input
+                              value={editingPartnerTypeValue}
+                              onChange={(e) => setEditingPartnerTypeValue(e.target.value)}
+                              className="w-64"
+                              placeholder="Partner type name"
+                            />
+                          ) : (
+                            <span className="body-medium text-on-surface">{partnerType}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {editingPartnerTypeName === partnerType ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleSaveEditPartnerType}
+                                className="gap-1"
+                              >
+                                <Save className="w-4 h-4" />
+                                Save
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleCancelEditPartnerType}
+                                className="gap-1"
+                              >
+                                <X className="w-4 h-4" />
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleStartEditPartnerType(partnerType)}
+                                className="gap-1"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeletePartnerType(partnerType)}
+                                className="gap-1 text-error"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Main Mapping Tab */}
+      {mainTab === 'main-mapping' && (
+        <div className="px-4 md:px-6 pb-6">
+          <div className="mb-6 mt-4 flex gap-2">
             <Button onClick={() => setIsAddGtinMappingDialogOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" />
               Add GTIN mapping
@@ -1289,7 +1388,7 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
       )}
 
       {/* GTIN Mapping Table */}
-      {mainTab === 'gtin-mapping' && (
+      {mainTab === 'overview-overrides' && (
         <div className="px-4 md:px-6 pb-6">
           <Card className="border-outline-variant overflow-hidden">
             <div className="overflow-x-auto">
@@ -1546,35 +1645,40 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
                             </div>
                           ) : (
                             <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleStartEdit(mapping)}
-                                className="gap-1"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                                Edit
-                              </Button>
                               {mapping.source === 'override' && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    if (confirm(`Are you sure you want to delete this override?`)) {
-                                      setPartnerOverrides(prev => prev.filter(m => m.id !== mapping.id));
-                                      setSelectedRows(prev => {
-                                        const newSet = new Set(prev);
-                                        newSet.delete(mapping.id);
-                                        return newSet;
-                                      });
-                                      toast.success('Override deleted');
-                                    }
-                                  }}
-                                  className="gap-1 text-error"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Delete
-                                </Button>
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStartEdit(mapping)}
+                                    className="gap-1"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (confirm(`Are you sure you want to delete this override?`)) {
+                                        setPartnerOverrides(prev => prev.filter(m => m.id !== mapping.id));
+                                        setSelectedRows(prev => {
+                                          const newSet = new Set(prev);
+                                          newSet.delete(mapping.id);
+                                          return newSet;
+                                        });
+                                        toast.success('Override deleted');
+                                      }
+                                    }}
+                                    className="gap-1 text-error"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete
+                                  </Button>
+                                </>
+                              )}
+                              {mapping.source === 'inherited' && (
+                                <span className="text-sm text-on-surface-variant">Read-only</span>
                               )}
                             </div>
                           )}

@@ -12,7 +12,11 @@ import {
   FileText,
   ChevronRight,
   ArrowLeft,
-  Barcode
+  Barcode,
+  Globe,
+  Store as StoreIcon,
+  Building2,
+  Sparkles
 } from 'lucide-react';
 import { UserRole } from './PortalConfigTypes';
 
@@ -66,6 +70,14 @@ export function PortalConfigurationLanding({
       screen: 'partner-pricing'
     },
     {
+      id: 'price-fork-calibration',
+      title: 'Price Fork calibration',
+      description: 'Adjust AI pricing parameters for API-integrated order creation',
+      icon: Sparkles,
+      disabled: false,
+      screen: 'price-fork-calibration'
+    },
+    {
       id: 'purchase-price-converter',
       title: 'Purchase price currency converter',
       description: 'Convert purchase prices from EUR to sales price currency',
@@ -83,6 +95,25 @@ export function PortalConfigurationLanding({
       icon: Barcode,
       disabled: !isAdmin,
       screen: 'gtin-mapping'
+    }
+  ];
+
+  const systemSections = [
+    {
+      id: 'markets-stores',
+      title: 'Markets & Stores',
+      description: 'Enable brands, markets, and stores for Store App and Partner Portal',
+      icon: Globe,
+      disabled: !isAdmin,
+      screen: 'markets-stores'
+    },
+    {
+      id: 'partner-warehouse-management',
+      title: 'Partners & Warehouses',
+      description: 'Add and manage partners and their warehouse locations',
+      icon: Building2,
+      disabled: !isAdmin,
+      screen: 'partner-warehouse-management'
     }
   ];
 
@@ -268,6 +299,46 @@ export function PortalConfigurationLanding({
             })}
           </div>
         </div>
+
+        {/* System Configuration Section */}
+        {isAdmin && (
+          <div>
+            <div className="mb-4">
+              <h2 className="title-large text-on-surface mb-1">System configuration</h2>
+              <p className="body-medium text-on-surface-variant">
+                Manage system-wide settings for brands, markets, and stores
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {systemSections.map((section) => {
+                const Icon = section.icon;
+                return (
+                  <Card
+                    key={section.id}
+                    className="p-6 border-outline-variant bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
+                    onClick={() => onNavigate(section.screen)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="w-12 h-12 rounded-lg bg-error-container flex items-center justify-center flex-shrink-0">
+                          <Icon className="w-6 h-6 text-on-error-container" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className="title-medium text-on-surface mb-1">{section.title}</h3>
+                          <p className="body-medium text-on-surface-variant">{section.description}</p>
+                        </div>
+                      </div>
+
+                      <ChevronRight className="w-6 h-6 text-on-surface-variant flex-shrink-0 ml-2" />
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Admin Tools Section */}
         {isAdmin && (

@@ -405,7 +405,7 @@ export default function AdvancedSearchDialog({
               <Button
                 variant="ghost"
                 onClick={handleReset}
-                className="text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-4 py-2 rounded-[16px] min-h-[36px]"
+                className="text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-4 py-2 rounded-[16px] min-h-[48px]"
               >
                 Reset all filters
               </Button>
@@ -416,13 +416,13 @@ export default function AdvancedSearchDialog({
             <Button 
               variant="outline"
               onClick={handleCancel}
-              className="flex-1 border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-6 py-3 rounded-lg min-h-[40px] label-large uppercase"
+              className="flex-1 border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-6 py-3 rounded-lg min-h-[48px] label-large uppercase"
             >
               Cancel
             </Button>
             <Button 
               onClick={handleSearch}
-              className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] label-large uppercase"
+              className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] label-large uppercase"
             >
               Search
             </Button>

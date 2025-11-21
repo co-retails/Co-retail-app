@@ -151,7 +151,7 @@ function ItemResultCard({
           <Button
             variant="outline"
             onClick={() => onChangeStatus(item)}
-            className="border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-4 py-2 rounded-[16px] min-h-[36px] label-medium"
+            className="border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-4 py-2 rounded-[16px] min-h-[48px] label-medium"
           >
             Change status
           </Button>
@@ -373,7 +373,7 @@ function ItemNotFoundCard({ searchValue }: { searchValue: string }) {
         </p>
         <Button
           variant="outline"
-          className="border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-4 py-2 rounded-[16px] min-h-[36px]"
+          className="border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-4 py-2 rounded-[16px] min-h-[48px]"
         >
           Try again
         </Button>

@@ -464,7 +464,7 @@ export default function OrderCreationScreen({
                               value={currentItem.itemId || ''}
                               onChange={(e) => setCurrentItem(prev => ({ ...prev, itemId: e.target.value }))}
                               placeholder="Enter item ID"
-                              className="h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary"
+                              className="h-12 md:h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary min-h-[48px] md:min-h-0"
                             />
                           </td>
                           <td className="p-2">
@@ -472,7 +472,7 @@ export default function OrderCreationScreen({
                               value={currentItem.brand || ''}
                               onValueChange={(value) => setCurrentItem(prev => ({ ...prev, brand: value }))}
                             >
-                              <SelectTrigger className="h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary">
+                              <SelectTrigger className="h-12 md:h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary min-h-[48px] md:min-h-0">
                                 <SelectValue placeholder="Brand" />
                               </SelectTrigger>
                               <SelectContent>
@@ -487,7 +487,7 @@ export default function OrderCreationScreen({
                               value={currentItem.gender || ''}
                               onValueChange={(value) => setCurrentItem(prev => ({ ...prev, gender: value }))}
                             >
-                              <SelectTrigger className="h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary">
+                              <SelectTrigger className="h-12 md:h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary min-h-[48px] md:min-h-0">
                                 <SelectValue placeholder="Gender" />
                               </SelectTrigger>
                               <SelectContent>
@@ -502,7 +502,7 @@ export default function OrderCreationScreen({
                               value={currentItem.category || ''}
                               onValueChange={(value) => setCurrentItem(prev => ({ ...prev, category: value, subcategory: '' }))}
                             >
-                              <SelectTrigger className="h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary">
+                              <SelectTrigger className="h-12 md:h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary min-h-[48px] md:min-h-0">
                                 <SelectValue placeholder="Category" />
                               </SelectTrigger>
                               <SelectContent>
@@ -518,7 +518,7 @@ export default function OrderCreationScreen({
                               onValueChange={(value) => setCurrentItem(prev => ({ ...prev, subcategory: value }))}
                               disabled={!currentItem.category}
                             >
-                              <SelectTrigger className="h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary">
+                              <SelectTrigger className="h-12 md:h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary min-h-[48px] md:min-h-0">
                                 <SelectValue placeholder="Subcategory" />
                               </SelectTrigger>
                               <SelectContent>
@@ -533,7 +533,7 @@ export default function OrderCreationScreen({
                               value={currentItem.size || ''}
                               onValueChange={(value) => setCurrentItem(prev => ({ ...prev, size: value }))}
                             >
-                              <SelectTrigger className="h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary">
+                              <SelectTrigger className="h-12 md:h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary min-h-[48px] md:min-h-0">
                                 <SelectValue placeholder="Size" />
                               </SelectTrigger>
                               <SelectContent>
@@ -548,7 +548,7 @@ export default function OrderCreationScreen({
                               value={currentItem.color || ''}
                               onValueChange={(value) => setCurrentItem(prev => ({ ...prev, color: value }))}
                             >
-                              <SelectTrigger className="h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary">
+                              <SelectTrigger className="h-12 md:h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary min-h-[48px] md:min-h-0">
                                 <SelectValue placeholder="Color" />
                               </SelectTrigger>
                               <SelectContent>
@@ -565,7 +565,7 @@ export default function OrderCreationScreen({
                               value={currentItem.price || ''}
                               onChange={(e) => setCurrentItem(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                               placeholder="0.00"
-                              className="h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary"
+                              className="h-12 md:h-10 body-medium border-0 bg-transparent focus:ring-2 focus:ring-primary min-h-[48px] md:min-h-0"
                             />
                           </td>
                           <td className="p-2">
@@ -577,7 +577,7 @@ export default function OrderCreationScreen({
                             <Button
                               onClick={() => handleAddItem('manual')}
                               size="sm"
-                              className="h-10 w-full"
+                              className="h-12 md:h-10 w-full min-h-[48px] md:min-h-0"
                             >
                               <PlusIcon size={16} />
                             </Button>
@@ -670,7 +670,7 @@ export default function OrderCreationScreen({
                             value={currentItem.brand || ''}
                             onValueChange={(value) => setCurrentItem(prev => ({ ...prev, brand: value }))}
                           >
-                            <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary">
+                            <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary min-h-[48px]">
                               <SelectValue placeholder="Select brand" />
                             </SelectTrigger>
                             <SelectContent>
@@ -687,7 +687,7 @@ export default function OrderCreationScreen({
                             value={currentItem.gender || ''}
                             onValueChange={(value) => setCurrentItem(prev => ({ ...prev, gender: value }))}
                           >
-                            <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary">
+                            <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary min-h-[48px]">
                               <SelectValue placeholder="Select gender" />
                             </SelectTrigger>
                             <SelectContent>
@@ -704,7 +704,7 @@ export default function OrderCreationScreen({
                             value={currentItem.category || ''}
                             onValueChange={(value) => setCurrentItem(prev => ({ ...prev, category: value, subcategory: '' }))}
                           >
-                            <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary">
+                            <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary min-h-[48px]">
                               <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -740,7 +740,7 @@ export default function OrderCreationScreen({
                               value={currentItem.size || ''}
                               onValueChange={(value) => setCurrentItem(prev => ({ ...prev, size: value }))}
                             >
-                              <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary">
+                              <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary min-h-[48px]">
                                 <SelectValue placeholder="Select size" />
                               </SelectTrigger>
                               <SelectContent>
@@ -756,7 +756,7 @@ export default function OrderCreationScreen({
                               value={currentItem.color || ''}
                               onValueChange={(value) => setCurrentItem(prev => ({ ...prev, color: value }))}
                             >
-                              <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary">
+                              <SelectTrigger className="h-12 body-medium bg-surface-container border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary min-h-[48px]">
                                 <SelectValue placeholder="Select color" />
                               </SelectTrigger>
                               <SelectContent>

@@ -170,13 +170,13 @@ function ActionButtons({
         <Button 
           variant="outline"
           onClick={onReviewItems}
-          className="flex-1 border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center label-large"
+          className="flex-1 border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
         >
           Review Items
         </Button>
         <Button 
           onClick={onDone}
-          className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center label-large"
+          className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
         >
           Done
         </Button>
@@ -186,7 +186,7 @@ function ActionButtons({
       <Button 
         variant="ghost"
         onClick={onExport}
-        className="w-full text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-6 py-2 rounded-lg min-h-[40px] flex items-center justify-center"
+        className="w-full text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-6 py-2 rounded-lg min-h-[48px] flex items-center justify-center"
       >
         <Download className="w-4 h-4 mr-2" />
         <span className="label-medium">Export Report</span>

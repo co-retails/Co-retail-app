@@ -203,14 +203,14 @@ export function StatusUpdateDialog({
           <Button
             variant="outline"
             onClick={handleClose}
-            className="min-h-[40px]"
+            className="min-h-[48px]"
           >
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={!selectedStatus}
-            className="min-h-[40px]"
+            className="min-h-[48px]"
           >
             Update status
           </Button>

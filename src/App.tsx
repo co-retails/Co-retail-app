@@ -26,7 +26,6 @@ import AdminSettingsSheet from './components/AdminSettingsSheet';
 import PartnerDashboard, { PartnerOrder } from './components/PartnerDashboard';
 import OrderCreationScreen, { OrderItem } from './components/OrderCreationScreen';
 import ThriftedOrderCreationScreen from './components/ThriftedOrderCreationScreen';
-import PriceForkCalibrationScreen from './components/PriceForkCalibrationScreen';
 import BoxManagementScreen, { DeliveryNote } from './components/BoxManagementScreen';
 import DeliveryNoteCreationScreen, { DeliveryNote as DeliveryNoteCreationDeliveryNote } from './components/DeliveryNoteCreationScreen';
 import OrderDetailsScreen from './components/OrderDetailsScreen';
@@ -63,6 +62,13 @@ const BuyerOrderDetailsScreen = React.lazy(() => import('./components/BuyerOrder
 const PortalConfigurationManager = React.lazy(() => import('./components/PortalConfigurationManager').then(module => ({ default: module.PortalConfigurationManager })));
 const PartnerSettingsScreen = React.lazy(() => import('./components/PartnerSettingsScreen').then(module => ({ default: module.default })));
 
+// User Access Management Components - Lazy loaded
+const StoreUserAccessScreen = React.lazy(() => import('./components/StoreUserAccessScreen').then(module => ({ default: module.default })));
+const PartnerUserAccessScreen = React.lazy(() => import('./components/PartnerUserAccessScreen').then(module => ({ default: module.default })));
+
+// Reports Components - Lazy loaded
+const PartnerReportsScreen = React.lazy(() => import('./components/PartnerReportsScreen'));
+
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
 import { mockShowroomAnalytics } from './components/ShowroomMockData';
@@ -95,7 +101,9 @@ import {
   mockPartnerStats,
   mockPartners,
   mockReturnItems,
-  mockDeliveryNotes
+  mockDeliveryNotes,
+  mockSalesReportData,
+  mockStockReportData
 } from './data/mockData';
 
 export default function App() {
@@ -125,7 +133,10 @@ export default function App() {
     'buyer-orders',
     'buyer-order-details',
     'portal-configuration',
-    'partner-settings'
+    'partner-settings',
+    'store-user-access',
+    'partner-user-access',
+    'partner-reports'
   ];
 
   // Wrapper for setCurrentScreen that uses startTransition for lazy-loaded screens
@@ -174,6 +185,10 @@ export default function App() {
     setCurrentOrder,
     deliveryNotes,
     setDeliveryNotes,
+    partners,
+    setPartners,
+    warehouses,
+    setWarehouses,
     sellpyOrders,
     setSellpyOrders,
     selectedSellpyOrder,
@@ -353,9 +368,6 @@ export default function App() {
     };
   };
 
-  const handleNavigateToPriceForkCalibration = React.useCallback(() => {
-    setCurrentScreenSafe('price-fork-calibration');
-  }, [setCurrentScreenSafe]);
 
   // Buyer-specific state
   const [wishlistProductIds, setWishlistProductIds] = React.useState<string[]>([]);
@@ -631,6 +643,41 @@ export default function App() {
     setCurrentScreenSafe('home');
   };
 
+  // === Partner & Warehouse Management Handlers ===
+  const handleSavePartner = (partner: any) => {
+    const existingIndex = partners.findIndex(p => p.id === partner.id);
+    if (existingIndex >= 0) {
+      // Update existing partner
+      const updated = [...partners];
+      updated[existingIndex] = partner;
+      setPartners(updated);
+    } else {
+      // Add new partner
+      setPartners([...partners, partner]);
+    }
+  };
+
+  const handleDeletePartner = (partnerId: string) => {
+    setPartners(partners.filter(p => p.id !== partnerId));
+  };
+
+  const handleSaveWarehouse = (warehouse: any) => {
+    const existingIndex = warehouses.findIndex(w => w.id === warehouse.id);
+    if (existingIndex >= 0) {
+      // Update existing warehouse
+      const updated = [...warehouses];
+      updated[existingIndex] = warehouse;
+      setWarehouses(updated);
+    } else {
+      // Add new warehouse
+      setWarehouses([...warehouses, warehouse]);
+    }
+  };
+
+  const handleDeleteWarehouse = (warehouseId: string) => {
+    setWarehouses(warehouses.filter(w => w.id !== warehouseId));
+  };
+
   // === Stock Check Handlers ===
   const handleStartStockCheck = (category: string, location: string) => {
     const session = {
@@ -768,7 +815,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateStockItemStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned') => {
+  const handleUpdateStockItemStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => {
     // Update the item status in the current session
     // In a real app, this would update the backend
     // TODO: Implement backend update
@@ -1110,12 +1157,41 @@ export default function App() {
         )
       );
     }
+    
+    // Update detailsScreenData if we're viewing this return
+    if (detailsScreenData?.type === 'return' && detailsScreenData.data.id === deliveryId) {
+      setDetailsScreenData({
+        ...detailsScreenData,
+        data: {
+          ...detailsScreenData.data,
+          status
+        }
+      });
+    }
+    
+    toast.success('Return marked as returned');
   };
 
-  const handleCancelReturn = (deliveryId: string) => {
-    setReturnDeliveries((prev) => prev.filter((delivery) => delivery.id !== deliveryId));
+  const handleCancelReturn = (deliveryId: string, reason?: string) => {
+    setReturnDeliveries((prev) => prev.map((delivery) => 
+      delivery.id === deliveryId 
+        ? { ...delivery, status: 'Cancelled' as any, cancellationReason: reason || 'Missing return' }
+        : delivery
+    ));
     setReturnOrders((prev) => prev.filter((order) => order.id !== deliveryId));
-    toast.success('Return cancelled');
+    toast.success(`Return cancelled${reason ? `: ${reason}` : ''}`);
+    
+    // Update detailsScreenData if we're viewing this return
+    if (detailsScreenData?.type === 'return' && detailsScreenData.data.id === deliveryId) {
+      setDetailsScreenData({
+        ...detailsScreenData,
+        data: {
+          ...detailsScreenData.data,
+          status: 'Cancelled' as any,
+          cancellationReason: reason || 'Missing return'
+        }
+      });
+    }
   };
 
   // === Role Management Handlers ===
@@ -1397,6 +1473,8 @@ export default function App() {
     currentScreen !== 'role-switcher' &&
     currentScreen !== 'portal-configuration' &&
     currentScreen !== 'partner-settings' &&
+    currentScreen !== 'store-user-access' &&
+    currentScreen !== 'partner-user-access' &&
     currentScreen !== 'return-management' &&
     currentScreen !== 'return-confirmation' &&
     currentScreen !== 'return-shipping-label' &&
@@ -2020,7 +2098,22 @@ export default function App() {
             setSelectedPartnerOrder(order);
             handleViewShipmentDetails('order', order, 'partner-dashboard');
           }}
+          onNavigateToReports={() => setCurrentScreenSafe('partner-reports')}
         />
+      )}
+
+      {currentScreen === 'partner-reports' && (
+        <React.Suspense fallback={<LoadingFallback />}>
+          <PartnerReportsScreen
+            onBack={() => setCurrentScreenSafe('partner-dashboard')}
+            salesData={mockSalesReportData}
+            stockData={mockStockReportData}
+            stores={mockStores}
+            brands={mockBrands}
+            countries={mockCountries}
+            partnerId={currentPartnerWarehouseSelection.partnerId}
+          />
+        </React.Suspense>
       )}
 
       {currentScreen === 'order-creation' && (() => {
@@ -2216,7 +2309,12 @@ export default function App() {
           storeName={detailsScreenData.storeName}
           storeCode={detailsScreenData.storeCode}
           partnerName={detailsScreenData.partnerName}
+          warehouseName={detailsScreenData.warehouseName}
+          receiverLabel={detailsScreenData.receiverLabel}
           isAdmin={mockUserAccount.role.name === 'Admin'}
+          currentUserRole={currentUserRole === 'partner' ? 'partner' : currentUserRole === 'admin' ? 'admin' : 'store-staff'}
+          onUpdateReturnDeliveryStatus={detailsScreenData.type === 'return' ? handleUpdateReturnDeliveryStatus : undefined}
+          onCancelReturn={detailsScreenData.type === 'return' ? handleCancelReturn : undefined}
           onNavigateToRetailerIdScan={() => {
             if (detailsScreenData.type === 'order') {
               handleNavigateToRetailerIdScan((detailsScreenData.data as PartnerOrder).id);
@@ -2971,13 +3069,6 @@ export default function App() {
         />
       )}
 
-      {currentScreen === 'price-fork-calibration' && (
-        <PriceForkCalibrationScreen 
-          partnerId={currentPartnerWarehouseSelection.partnerId}
-          onBack={handleBack}
-        />
-      )}
-
       {/* Quotation Details Screen */}
       {currentScreen === 'quotation-details' && selectedShowroomOrder && (
         <QuotationDetailsScreen 
@@ -3101,6 +3192,13 @@ export default function App() {
             setIsAdminSettingsSheetOpen(false);
             setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
           }}
+          partners={partners}
+          warehouses={warehouses}
+          onSavePartner={handleSavePartner}
+          onDeletePartner={handleDeletePartner}
+          onSaveWarehouse={handleSaveWarehouse}
+          onDeleteWarehouse={handleDeleteWarehouse}
+          currentPartnerId={currentPartnerWarehouseSelection.partnerId}
         />
         </Suspense>
       )}
@@ -3117,6 +3215,46 @@ export default function App() {
             partners={mockWarehousePartners}
             countries={mockCountries}
             currentUserRole={currentUserRole === 'admin' ? 'Admin' : currentUserRole === 'partner' ? 'Partner Admin' : 'Store Manager'}
+          />
+        </Suspense>
+      )}
+
+      {/* Store User Access Management */}
+      {currentScreen === 'store-user-access' && (
+        <Suspense fallback={<LoadingFallback />}>
+          <StoreUserAccessScreen
+            onBack={() => {
+              setIsAdminSettingsSheetOpen(false);
+              setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+            }}
+            brands={mockBrands}
+            countries={mockCountries}
+            stores={mockStores}
+            currentUserRole={currentUserRole === 'admin' ? 'Admin' : 'Brand Admin'}
+            currentUserBrandId={currentUserRole === 'admin' ? undefined : currentStoreSelection.brandId}
+          />
+        </Suspense>
+      )}
+
+      {/* Partner User Access Management */}
+      {currentScreen === 'partner-user-access' && (
+        <Suspense fallback={<LoadingFallback />}>
+          <PartnerUserAccessScreen
+            onBack={() => {
+              setIsAdminSettingsSheetOpen(false);
+              setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+            }}
+            brands={mockBrands}
+            partners={mockWarehousePartners}
+            currentUserRole={
+              currentUserRole === 'admin' 
+                ? 'Admin' 
+                : currentUserRole === 'partner' 
+                  ? 'Partner Admin' 
+                  : 'Brand Admin'
+            }
+            currentUserBrandId={currentUserRole === 'admin' ? undefined : currentStoreSelection.brandId}
+            currentUserPartnerId={currentUserRole === 'partner' ? currentPartnerWarehouseSelection.partnerId : undefined}
           />
         </Suspense>
       )}
@@ -3147,6 +3285,10 @@ export default function App() {
         onLogout={handleLogout}
         onSwitchToAdmin={currentUserRole === 'admin' ? undefined : () => handleRoleChange('admin')}
         onNavigateToStockCheckReport={handleNavigateToStockCheckReports}
+        onNavigateToPartnerReports={() => {
+          setIsAdminSettingsSheetOpen(false);
+          setCurrentScreenSafe('partner-reports');
+        }}
         onNavigateToPortalConfiguration={() => {
           setIsAdminSettingsSheetOpen(false);
           setCurrentScreenSafe('portal-configuration');
@@ -3155,9 +3297,13 @@ export default function App() {
           setIsAdminSettingsSheetOpen(false);
           setCurrentScreenSafe('partner-settings');
         }}
-        onNavigateToPriceForkCalibration={() => {
+        onNavigateToStoreUserAccess={() => {
           setIsAdminSettingsSheetOpen(false);
-          setCurrentScreenSafe('price-fork-calibration');
+          setCurrentScreenSafe('store-user-access');
+        }}
+        onNavigateToPartnerUserAccess={() => {
+          setIsAdminSettingsSheetOpen(false);
+          setCurrentScreenSafe('partner-user-access');
         }}
       />
 

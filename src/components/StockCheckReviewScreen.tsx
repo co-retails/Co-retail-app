@@ -6,11 +6,17 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { StockItem, StockCheckSession } from './StockCheckScreen';
 import { ItemCard, BaseItem } from './ItemCard';
 import svgPaths from "../imports/svg-7un8q74kd7";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 interface StockCheckReviewScreenProps {
   session: StockCheckSession;
   onBack: () => void;
-  onUpdateItemStatus: (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned') => void;
+  onUpdateItemStatus: (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => void;
 }
 
 type ReviewTab = 'not-scanned' | 'not-found' | 'all-included' | 'scanned';
@@ -105,8 +111,7 @@ function BulkActionsBar({
   totalCount,
   isAllSelected,
   onToggleAll,
-  onMarkAsMissing,
-  onMarkAsInStore,
+  onBulkAction,
   onClearSelection,
   activeTab
 }: {
@@ -114,15 +119,41 @@ function BulkActionsBar({
   totalCount: number;
   isAllSelected: boolean;
   onToggleAll: () => void;
-  onMarkAsMissing: () => void;
-  onMarkAsInStore: () => void;
+  onBulkAction: (status: 'Missing' | 'In Store' | 'In Store 2nd try' | 'Broken') => void;
   onClearSelection: () => void;
   activeTab: ReviewTab;
 }) {
-  // Show different actions based on active tab
-  const showMarkInStore = activeTab === 'scanned';
-  const showMarkMissing = activeTab === 'not-scanned';
   const hasSelectedItems = selectedCount > 0;
+  
+  // Don't show multiselect for 'all-included' tab
+  if (activeTab === 'all-included') {
+    return null;
+  }
+
+  // Get menu options based on active tab
+  const getMenuOptions = () => {
+    switch (activeTab) {
+      case 'not-scanned':
+        return [
+          { label: 'Missing', status: 'Missing' as const, className: 'text-error' }
+        ];
+      case 'not-found':
+        return [
+          { label: 'In store', status: 'In Store' as const, className: 'text-on-surface' },
+          { label: 'In store 2nd try', status: 'In Store 2nd try' as const, className: 'text-on-surface' }
+        ];
+      case 'scanned':
+        return [
+          { label: 'In store', status: 'In Store' as const, className: 'text-on-surface' },
+          { label: 'In store 2nd try', status: 'In Store 2nd try' as const, className: 'text-on-surface' },
+          { label: 'Broken', status: 'Broken' as const, className: 'text-error' }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const menuOptions = getMenuOptions();
 
   return (
     <div className={`sticky top-0 z-10 border-b border-outline-variant px-4 py-3 ${
@@ -164,35 +195,48 @@ function BulkActionsBar({
           }
         </span>
 
-        {/* Actions - only show when items are selected */}
-        {hasSelectedItems && (
+        {/* More menu - only show when items are selected and menu has options */}
+        {hasSelectedItems && menuOptions.length > 0 && (
           <>
-            {showMarkInStore && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onMarkAsInStore}
-                className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-              >
-                Mark In Store
-              </Button>
-            )}
-            {showMarkMissing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onMarkAsMissing}
-                className="bg-error-container text-on-error-container border-0 hover:bg-error-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-              >
-                Mark Missing
-              </Button>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0 ${
+                    hasSelectedItems 
+                      ? 'hover:bg-on-primary-container/10 focus:bg-on-primary-container/10 active:bg-on-primary-container/20'
+                      : 'hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
+                  }`}
+                  aria-label="More actions"
+                >
+                  <MoreVertical className={`w-5 h-5 ${
+                    hasSelectedItems ? 'text-on-primary-container' : 'text-on-surface'
+                  }`} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-surface-container border border-outline-variant rounded-lg shadow-lg">
+                {menuOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.status}
+                    onClick={() => onBulkAction(option.status)}
+                    className={`cursor-pointer hover:bg-surface-container-high focus:bg-surface-container-high px-4 py-2 label-medium ${option.className}`}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button
               onClick={onClearSelection}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+              className={`w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0 ${
+                hasSelectedItems 
+                  ? 'hover:bg-on-primary-container/10 focus:bg-on-primary-container/10 active:bg-on-primary-container/20'
+                  : 'hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
+              }`}
               aria-label="Clear selection"
             >
-              <X className="w-5 h-5 text-on-primary-container" />
+              <X className={`w-5 h-5 ${
+                hasSelectedItems ? 'text-on-primary-container' : 'text-on-surface'
+              }`} />
             </button>
           </>
         )}
@@ -210,97 +254,49 @@ function ReviewItemCard({
   activeTab
 }: { 
   item: StockItem; 
-  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'In Store') => void;
+  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => void;
   onMoreActions: (itemId: string) => void;
   isSelected: boolean;
   onToggleSelect: (itemId: string) => void;
   activeTab: ReviewTab;
 }) {
-  const [showActions, setShowActions] = useState(false);
-
-  // Show different action buttons based on active tab
-  const getActionButtons = () => {
-    if (activeTab === 'not-scanned') {
-      // Not scanned items can be marked as Missing
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onUpdateStatus(item.id, 'Missing')}
-          className="bg-error-container text-on-error-container border-0 hover:bg-error-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-        >
-          Mark Missing
-        </Button>
-      );
-    } else if (activeTab === 'scanned') {
-      // For scanned items: if status is Missing, allow changing to In Store
-      if (item.status === 'Missing') {
-        return (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onUpdateStatus(item.id, 'In Store')}
-            className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-          >
-            Mark In Store
-          </Button>
-        );
-      }
-      // For scanned items with other statuses, show both options
-      return (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onUpdateStatus(item.id, 'Missing')}
-            className="bg-error-container text-on-error-container border-0 hover:bg-error-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-          >
-            Mark Missing
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onUpdateStatus(item.id, 'In Store')}
-            className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-          >
-            Mark In Store
-          </Button>
-        </>
-      );
-    } else {
-      // All other tabs show both options
-      return (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onUpdateStatus(item.id, 'Missing')}
-            className="bg-error-container text-on-error-container border-0 hover:bg-error-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-          >
-            Mark Missing
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onUpdateStatus(item.id, 'In Store')}
-            className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 px-3 py-2 rounded-[16px] min-h-[32px] label-medium"
-          >
-            Mark In Store
-          </Button>
-        </>
-      );
+  // Get menu options based on active tab
+  const getMenuOptions = () => {
+    switch (activeTab) {
+      case 'not-scanned':
+        return [
+          { label: 'Missing', status: 'Missing' as const, className: 'text-error' }
+        ];
+      case 'not-found':
+        return [
+          { label: 'In store', status: 'In Store' as const, className: 'text-on-surface' },
+          { label: 'In store 2nd try', status: 'In Store 2nd try' as const, className: 'text-on-surface' }
+        ];
+      case 'scanned':
+        return [
+          { label: 'In store', status: 'In Store' as const, className: 'text-on-surface' },
+          { label: 'In store 2nd try', status: 'In Store 2nd try' as const, className: 'text-on-surface' },
+          { label: 'Broken', status: 'Broken' as const, className: 'text-error' }
+        ];
+      case 'all-included':
+        return [];
+      default:
+        return [];
     }
   };
+
+  const menuOptions = getMenuOptions();
 
   return (
     <div className="bg-surface-container border-b border-outline-variant last:border-b-0">
       <div className="flex items-center gap-4 px-4 py-4">
-        {/* Leading element - Checkbox for bulk selection */}
-        <button 
-          className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full"
-          onClick={() => onToggleSelect(item.id)}
-          aria-label={isSelected ? 'Deselect item' : 'Select item'}
-        >
+        {/* Leading element - Checkbox for bulk selection (hidden for all-included tab) */}
+        {activeTab !== 'all-included' && (
+          <button 
+            className="flex-shrink-0 w-12 h-12 md:w-8 md:h-8 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
+            onClick={() => onToggleSelect(item.id)}
+            aria-label={isSelected ? 'Deselect item' : 'Select item'}
+          >
           <div className="relative w-5 h-5">
             <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
               <path 
@@ -319,6 +315,7 @@ function ReviewItemCard({
             )}
           </div>
         </button>
+        )}
         
         {/* Main content using standardized ItemCard */}
         <div className="flex-1">
@@ -348,22 +345,31 @@ function ReviewItemCard({
           <span className="body-small text-on-surface">
             €{item.price}
           </span>
-          <button 
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-            onClick={() => setShowActions(!showActions)}
-            aria-label="More actions"
-          >
-            <MoreVertical className="w-4 h-4 text-on-surface-variant" />
-          </button>
+          {menuOptions.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button 
+                  className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
+                  aria-label="More actions"
+                >
+                  <MoreVertical className="w-4 h-4 text-on-surface-variant" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-surface-container border border-outline-variant rounded-lg shadow-lg">
+                {menuOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.status}
+                    onClick={() => onUpdateStatus(item.id, option.status)}
+                    className={`cursor-pointer hover:bg-surface-container-high focus:bg-surface-container-high px-4 py-2 label-medium ${option.className}`}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
-
-      {/* Action buttons */}
-      {showActions && (
-        <div className="flex gap-2 px-4 pb-3">
-          {getActionButtons()}
-        </div>
-      )}
     </div>
   );
 }
@@ -378,7 +384,7 @@ function ItemsList({
   activeTab
 }: {
   items: StockItem[];
-  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'In Store') => void;
+  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => void;
   onMoreActions: (itemId: string) => void;
   selectedItems: Set<string>;
   onToggleSelect: (itemId: string) => void;
@@ -433,7 +439,7 @@ export default function StockCheckReviewScreen({
     // Fallback to mock items for demonstration
     const mockItems: StockItem[] = [];
     const brands = ['H&M', 'Weekday', 'COS', 'Monki'];
-    const statuses: Array<StockItem['status']> = ['In Store', 'Missing', 'Scanned'];
+    const statuses: Array<StockItem['status']> = ['In Store', 'Missing', 'Scanned', 'Broken', 'In Store 2nd try'];
     
     for (let i = 1; i <= 20; i++) {
       mockItems.push({
@@ -514,15 +520,15 @@ export default function StockCheckReviewScreen({
     }
   };
 
-  const handleBulkMarkAsMissing = () => {
+  const handleBulkAction = (status: 'Missing' | 'In Store' | 'In Store 2nd try' | 'Broken') => {
     setReviewItems(prev => prev.map(item => {
       if (selectedItems.has(item.id)) {
         const updatedItem = {
           ...item,
-          status: 'Missing' as const,
-          isScanned: false
-        };
-        onUpdateItemStatus(item.id, 'Missing');
+          status: status,
+          isScanned: status === 'In Store' || status === 'In Store 2nd try'
+        } as StockItem;
+        onUpdateItemStatus(item.id, status);
         return updatedItem;
       }
       return item;
@@ -530,38 +536,24 @@ export default function StockCheckReviewScreen({
     setSelectedItems(new Set());
   };
 
-  const handleBulkMarkAsInStore = () => {
-    setReviewItems(prev => prev.map(item => {
-      if (selectedItems.has(item.id)) {
-        const updatedItem = {
-          ...item,
-          status: 'In Store' as const,
-          isScanned: true
-        };
-        onUpdateItemStatus(item.id, 'Scanned');
-        return updatedItem;
-      }
-      return item;
-    }));
-    setSelectedItems(new Set());
-  };
-
-  const handleUpdateStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'In Store') => {
+  const handleUpdateStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => {
     setReviewItems(prev => prev.map(item => {
       if (item.id === itemId) {
         const updatedItem = {
           ...item,
           status: newStatus,
-          isScanned: newStatus === 'Scanned' || newStatus === 'Found' || newStatus === 'In Store'
+          isScanned: newStatus === 'Scanned' || newStatus === 'Found' || newStatus === 'In Store' || newStatus === 'In Store 2nd try'
         } as StockItem;
         return updatedItem;
       }
       return item;
     }));
 
-    // Call parent handler - convert 'Found' and 'In Store' to appropriate status
-    const parentStatus = newStatus === 'Found' || newStatus === 'In Store' ? 'Scanned' : newStatus;
-    onUpdateItemStatus(itemId, parentStatus as 'Missing' | 'Found' | 'Scanned');
+    // Call parent handler - convert statuses appropriately
+    const parentStatus = newStatus === 'Found' || newStatus === 'In Store' || newStatus === 'In Store 2nd try' 
+      ? 'Scanned' 
+      : newStatus;
+    onUpdateItemStatus(itemId, parentStatus as 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken');
   };
 
   const handleMoreActions = (itemId: string) => {
@@ -601,8 +593,7 @@ export default function StockCheckReviewScreen({
           totalCount={currentItems.length}
           isAllSelected={currentItems.length > 0 && currentItems.every(item => selectedItems.has(item.id))}
           onToggleAll={handleToggleAll}
-          onMarkAsMissing={handleBulkMarkAsMissing}
-          onMarkAsInStore={handleBulkMarkAsInStore}
+          onBulkAction={handleBulkAction}
           onClearSelection={() => setSelectedItems(new Set())}
           activeTab={activeTab}
         />
@@ -624,3 +615,4 @@ export default function StockCheckReviewScreen({
     </div>
   );
 }
+

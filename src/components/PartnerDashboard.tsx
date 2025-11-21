@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Settings, UserIcon, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, Truck, Package, Plus } from 'lucide-react';
+import { Settings, UserIcon, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, Truck, Package, Plus, BarChart3 } from 'lucide-react';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import type { Store, Country, Brand } from './StoreSelector';
@@ -64,6 +64,7 @@ interface PartnerDashboardProps {
   onNavigateToQuotations?: () => void;
   onViewQuotationDetails?: (quotationId: string) => void;
   onOpenOrderDetails?: (order: ExtendedPartnerOrder) => void;
+  onNavigateToReports?: () => void;
   // Shared filter state for partner portal
   viewFilter: ViewFilter;
   onViewFilterChange: (filter: ViewFilter) => void;
@@ -94,7 +95,8 @@ export default function PartnerDashboard({
   onViewQuotationDetails,
   viewFilter,
   onViewFilterChange,
-  onOpenOrderDetails
+  onOpenOrderDetails,
+  onNavigateToReports
 }: PartnerDashboardProps) {
   const [isPartnerWarehouseSelectorOpen, setIsPartnerWarehouseSelectorOpen] = useState(false);
   
@@ -398,7 +400,7 @@ export default function PartnerDashboard({
               >
                 <button 
                   className={`
-                    h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
+                    h-12 md:h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px] min-h-[48px] touch-manipulation
                     ${((viewFilter.storeIds?.length || 0) > 0 || 
                       (viewFilter.brandIds?.length || 0) > 0 || 
                       (viewFilter.countryIds?.length || 0) > 0)
@@ -438,7 +440,7 @@ export default function PartnerDashboard({
                     brands.filter(b => viewFilter.brandIds!.includes(b.id)).map(brand => (
                       <div 
                         key={`brand-${brand.id}`} 
-                        className="inline-flex items-center gap-2 h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px]"
+                        className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
                       >
                         <span className="label-small">{brand.name}</span>
                         <button
@@ -460,7 +462,7 @@ export default function PartnerDashboard({
                     countries.filter(c => viewFilter.countryIds!.includes(c.id)).map(country => (
                       <div 
                         key={`country-${country.id}`} 
-                        className="inline-flex items-center gap-2 h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px]"
+                        className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
                       >
                         <span className="label-small">{country.name}</span>
                         <button
@@ -482,7 +484,7 @@ export default function PartnerDashboard({
                     stores.filter(s => viewFilter.storeIds!.includes(s.id)).map(store => (
                       <div 
                         key={`store-${store.id}`} 
-                        className="inline-flex items-center gap-2 h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px]"
+                        className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
                       >
                         <span className="label-small">{store.name} ({store.code})</span>
                         <button
@@ -502,7 +504,7 @@ export default function PartnerDashboard({
                   {/* Clear All Filters Button */}
                   <button
                     onClick={handleViewAllStores}
-                    className="inline-flex items-center h-8 px-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors rounded-[8px]"
+                    className="inline-flex items-center h-10 md:h-8 px-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
                   >
                     <span className="label-small">Clear all</span>
                   </button>
@@ -584,6 +586,25 @@ export default function PartnerDashboard({
                     </div>
                     <ChevronRight className="w-5 h-5 text-on-surface-variant" />
                   </button>
+
+                  {/* Reports */}
+                  {onNavigateToReports && (
+                    <button
+                      onClick={onNavigateToReports}
+                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
+                          <BarChart3 className="w-5 h-5 text-on-primary-container" />
+                        </div>
+                        <div>
+                          <p className="title-small text-on-surface">View reports</p>
+                          <p className="body-small text-on-surface-variant">Sales & Stock analytics</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                    </button>
+                  )}
             </div>
           </div>
         ) : (
@@ -683,6 +704,25 @@ export default function PartnerDashboard({
                     </div>
                     <ChevronRight className="w-5 h-5 text-on-surface-variant" />
                   </button>
+
+                  {/* Reports */}
+                  {onNavigateToReports && (
+                    <button
+                      onClick={onNavigateToReports}
+                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
+                          <BarChart3 className="w-5 h-5 text-on-primary-container" />
+                        </div>
+                        <div>
+                          <p className="title-small text-on-surface">View reports</p>
+                          <p className="body-small text-on-surface-variant">Sales & Stock analytics</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                    </button>
+                  )}
 
                   {/* Digital Showroom - Only for white-label partners */}
                   {onNavigateToShowroom && 

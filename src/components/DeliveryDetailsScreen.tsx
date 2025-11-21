@@ -259,7 +259,7 @@ function BoxCard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button 
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors"
+                className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
                 onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
                 aria-label="More actions"
               >
@@ -424,7 +424,7 @@ export default function DeliveryDetailsScreen({
         <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 md:p-6">
           <Button 
             onClick={onScanToReceive}
-          className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center label-large"
+          className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
           >
             <QrCode className="w-4 h-4 mr-2" />
             Scan to receive

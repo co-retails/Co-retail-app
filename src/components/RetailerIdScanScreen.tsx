@@ -304,7 +304,7 @@ export default function RetailerIdScanScreen({
                 variant="ghost"
                 size="icon"
                 onClick={handleCancelScanning}
-                className="w-8 h-8 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high flex-shrink-0"
+                className="w-12 h-12 md:w-8 md:h-8 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high flex-shrink-0 touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
                 aria-label="Cancel current item"
               >
                 <XIcon size={16} />
