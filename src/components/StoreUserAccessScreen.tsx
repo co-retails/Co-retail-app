@@ -208,14 +208,14 @@ export default function StoreUserAccessScreen({
 
           {/* Search and Stats */}
           <div className="space-y-3">
-            <div className="relative">
+            <div className="relative flex-1 md:flex-none md:w-[576px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant" />
               <Input
-                type="text"
+                type="search"
                 placeholder="Search by name, email, or store..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-surface-container-highest border-outline"
+                className="pl-10 bg-surface-container border-outline"
               />
             </div>
 
@@ -254,30 +254,29 @@ export default function StoreUserAccessScreen({
 
       {/* Filters */}
       <div className="bg-surface-container-low border-b border-outline-variant">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-on-surface-variant" />
-            <span className="label-large text-on-surface">Filters</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-on-surface-variant" />
+              <span className="label-large text-on-surface">Filters:</span>
+            </div>
+
             {/* Brand Filter */}
-            {currentUserRole === 'Admin' && (
-              <Select value={filterBrandId} onValueChange={setFilterBrandId}>
-                <SelectTrigger className="bg-surface-container-highest border-outline">
-                  <SelectValue placeholder="All brands" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All brands</SelectItem>
-                  {availableBrands.map(brand => (
-                    <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <Select value={filterBrandId} onValueChange={setFilterBrandId}>
+              <SelectTrigger className="bg-surface-container-highest border-outline w-[180px]">
+                <SelectValue placeholder="All brands" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All brands</SelectItem>
+                {availableBrands.map(brand => (
+                  <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {/* Country Filter */}
             <Select value={filterCountryId} onValueChange={setFilterCountryId}>
-              <SelectTrigger className="bg-surface-container-highest border-outline">
+              <SelectTrigger className="bg-surface-container-highest border-outline w-[180px]">
                 <SelectValue placeholder="All countries" />
               </SelectTrigger>
               <SelectContent>
@@ -290,7 +289,7 @@ export default function StoreUserAccessScreen({
 
             {/* Role Filter */}
             <Select value={filterRole} onValueChange={setFilterRole}>
-              <SelectTrigger className="bg-surface-container-highest border-outline">
+              <SelectTrigger className="bg-surface-container-highest border-outline w-[180px]">
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
@@ -308,7 +307,7 @@ export default function StoreUserAccessScreen({
 
             {/* Store Filter */}
             <Select value={filterStoreId} onValueChange={setFilterStoreId}>
-              <SelectTrigger className="bg-surface-container-highest border-outline">
+              <SelectTrigger className="bg-surface-container-highest border-outline w-[240px]">
                 <SelectValue placeholder="All stores" />
               </SelectTrigger>
               <SelectContent>
