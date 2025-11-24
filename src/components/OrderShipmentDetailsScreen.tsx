@@ -84,6 +84,9 @@ interface OrderShipmentDetailsScreenProps {
   }>;
   onSaveAndClose?: () => void;
   onRegisterDelivery?: () => void;
+  onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
+  onCancelReturn?: (deliveryId: string, reason: string) => void;
+  currentUserRole?: 'partner' | 'store-staff' | 'admin';
 }
 
 // Valid price points for SEK (Swedish Krona) - Sellpy partner market
@@ -208,7 +211,10 @@ export default function OrderShipmentDetailsScreen({
   onDeleteBox,
   relatedOrders = [],
   onSaveAndClose,
-  onRegisterDelivery
+  onRegisterDelivery,
+  onUpdateReturnDeliveryStatus,
+  onCancelReturn,
+  currentUserRole
 }: OrderShipmentDetailsScreenProps) {
   // State for editable items
   const [editableItems, setEditableItems] = useState<DetailItem[]>([]);
@@ -263,6 +269,7 @@ export default function OrderShipmentDetailsScreen({
         case 'Pending': return 'text-on-surface-variant';
         case 'In transit': return 'text-primary';
         case 'Returned': return 'text-success';
+        case 'Cancelled': return 'text-error';
         default: return 'text-on-surface-variant';
       }
     }
@@ -709,12 +716,56 @@ export default function OrderShipmentDetailsScreen({
     }
   };
 
+  // Check if this is an in transit return
+  const isInTransitReturn = type === 'return' && (data as ReturnDelivery).status === 'In transit';
+  const returnDelivery = type === 'return' ? (data as ReturnDelivery) : null;
+
+  // Handler for cancel return (admin only)
+  const handleCancelReturn = () => {
+    if (!returnDelivery || !onCancelReturn) return;
+    if (confirm('Are you sure you want to cancel this return? This action cannot be undone.')) {
+      onCancelReturn(returnDelivery.id, 'Missing return');
+    }
+  };
+
+  // Handler for mark as returned (partner only)
+  const handleMarkAsReturned = () => {
+    if (!returnDelivery || !onUpdateReturnDeliveryStatus) return;
+    onUpdateReturnDeliveryStatus(returnDelivery.id, 'Returned');
+  };
+
+  // Right element for header - cancel button for admins on in transit returns
+  const headerRightElement = type === 'return' && isInTransitReturn && isAdmin && onCancelReturn ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-on-surface-variant"
+          aria-label="More actions"
+        >
+          <MoreVertical size={20} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem
+          onClick={handleCancelReturn}
+          className="text-error focus:text-error focus:bg-error-container"
+        >
+          <XIcon className="mr-2 h-4 w-4" />
+          Cancel return
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : undefined;
+
   return (
     <div className="min-h-screen bg-surface">
       <SharedHeader 
         title={getTitle()}
         onBack={onBack}
         showBackButton={true}
+        rightElement={headerRightElement}
       />
 
       <div className="w-full px-4 md:px-6 py-4 md:py-6 pb-32 space-y-6">
@@ -816,7 +867,7 @@ export default function OrderShipmentDetailsScreen({
                   <div className="label-small text-on-surface-variant">Orders</div>
                   {relatedOrders.map((order) => (
                     <div key={order.id} className="body-medium text-on-surface">
-                      {order.externalOrderId ? (
+                      {order.externalOrderId && !isThriftedOrder ? (
                         <>
                           {order.externalOrderId} (Internal: {order.id})
                         </>
@@ -1146,7 +1197,7 @@ export default function OrderShipmentDetailsScreen({
                   <Button 
                     onClick={onNavigateToRetailerIdScan}
                     size="lg"
-                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px]"
                   >
                     <PackageIcon size={20} className="mr-2" />
                     <span className="label-large">Add retailer IDs</span>
@@ -1161,7 +1212,7 @@ export default function OrderShipmentDetailsScreen({
                     onClick={handleSaveAndClose}
                     variant="outline"
                     size="lg"
-                    className="w-full md:w-auto border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                    className="w-full md:w-auto border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[48px]"
                   >
                     <span className="label-large">Save & Close</span>
                   </Button>
@@ -1174,7 +1225,7 @@ export default function OrderShipmentDetailsScreen({
                         }
                       }}
                       size="lg"
-                      className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                      className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[48px]"
                     >
                       <CheckIcon size={20} className="mr-2" />
                       <span className="label-large">Approve</span>
@@ -1192,7 +1243,7 @@ export default function OrderShipmentDetailsScreen({
                       <Button 
                         onClick={onRegisterOrder}
                         size="lg"
-                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px]"
                       >
                         <CheckIcon size={20} className="mr-2" />
                         <span className="label-large">Register order</span>
@@ -1206,7 +1257,7 @@ export default function OrderShipmentDetailsScreen({
                       <Button 
                         onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
                         size="lg"
-                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px]"
                       >
                         <PackageIcon size={20} className="mr-2" />
                         <span className="label-large">Create delivery note</span>
@@ -1252,7 +1303,7 @@ export default function OrderShipmentDetailsScreen({
                       onClick={handleSaveAndClose}
                       variant="outline"
                       size="lg"
-                      className="w-full md:w-auto border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                      className="w-full md:w-auto border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[48px]"
                     >
                       <span className="label-large">Save & Close</span>
                     </Button>
@@ -1261,7 +1312,7 @@ export default function OrderShipmentDetailsScreen({
                         onClick={onRegisterOrder}
                         disabled={!canRegister}
                         size="lg"
-                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px]"
                       >
                         <CheckIcon size={20} className="mr-2" />
                         <span className="label-large">Register order</span>
@@ -1275,7 +1326,7 @@ export default function OrderShipmentDetailsScreen({
                   <Button 
                     onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
                     size="lg"
-                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[40px]"
+                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px]"
                   >
                     <PackageIcon size={20} className="mr-2" />
                     <span className="label-large">Create delivery note</span>
@@ -1458,6 +1509,22 @@ export default function OrderShipmentDetailsScreen({
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons for In Transit Returns - Fixed bottom bar (Partner only) */}
+      {type === 'return' && isInTransitReturn && currentUserRole === 'partner' && onUpdateReturnDeliveryStatus && (
+        <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4 z-20 pb-safe">
+          <div className="flex flex-col md:flex-row md:justify-end gap-3 md:px-2">
+            <Button
+              onClick={handleMarkAsReturned}
+              className="w-full md:w-auto bg-primary text-on-primary"
+              size="lg"
+            >
+              <CheckIcon size={20} className="mr-2" />
+              <span className="label-large">Mark as returned</span>
+            </Button>
           </div>
         </div>
       )}

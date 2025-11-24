@@ -70,14 +70,25 @@ export interface PriceForkComparisonSample {
 
 export const calibrationParameters: CalibrationParameterDefinition[] = [
   {
-    id: 'marginFloor',
-    label: 'Margin floor',
-    description: 'Minimum gross margin percentage the AI must respect.',
+    id: 'marginFloorItem',
+    label: 'Margin floor (item level)',
+    description: 'Minimum gross margin percentage per item the AI must respect.',
     type: 'number',
     min: 15,
     max: 60,
     step: 1,
     defaultValue: 32,
+    format: (value) => `${value}%`
+  },
+  {
+    id: 'marginFloorOrder',
+    label: 'Margin floor (order level)',
+    description: 'Minimum gross margin percentage for the total order the AI must respect.',
+    type: 'number',
+    min: 15,
+    max: 60,
+    step: 1,
+    defaultValue: 30,
     format: (value) => `${value}%`
   }
 ];
@@ -152,7 +163,8 @@ export const brandTierWeights: CalibrationParameterDefinition[] = [
 ];
 
 export const priceForkDefaultState: PriceForkCalibrationState = {
-  marginFloor: calibrationParameters.find((param) => param.id === 'marginFloor')?.defaultValue ?? 32,
+  marginFloorItem: calibrationParameters.find((param) => param.id === 'marginFloorItem')?.defaultValue ?? 32,
+  marginFloorOrder: calibrationParameters.find((param) => param.id === 'marginFloorOrder')?.defaultValue ?? 30,
   tierHauteCoutureWeight: brandTierWeights.find((param) => param.id === 'tierHauteCoutureWeight')?.defaultValue ?? 1.5,
   tierPremiumWeight: brandTierWeights.find((param) => param.id === 'tierPremiumWeight')?.defaultValue ?? 1.35,
   tierHighWeight: brandTierWeights.find((param) => param.id === 'tierHighWeight')?.defaultValue ?? 1.15,

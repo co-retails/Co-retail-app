@@ -102,7 +102,7 @@ function EmptyState({ onShowAllSellers }: { onShowAllSellers: () => void }) {
         <div className="space-y-3">
           {/* M3 Filled Button */}
           <button 
-            className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] w-full label-large"
+            className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] w-full label-large"
             onClick={onShowAllSellers}
           >
             Show all sellers

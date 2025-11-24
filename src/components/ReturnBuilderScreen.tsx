@@ -123,7 +123,7 @@ function ReturnItemComponent({ item, onUpdateItem }: { item: ReturnItem; onUpdat
             <div className="flex items-center gap-3 px-3 py-2">
               {/* Leading Element - Checkbox */}
               <button 
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
+                className="flex-shrink-0 w-12 h-12 md:w-8 md:h-8 flex items-center justify-center touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
                 onClick={() => onUpdateItem(item.id, item.selected ? 'deselect' : 'select')}
                 aria-label={item.selected ? 'Deselect item' : 'Select item'}
               >
@@ -457,7 +457,7 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
       <div className="absolute bg-surface bottom-0 box-border content-stretch flex gap-[16px] items-center justify-center left-0 px-0 py-[20px] w-[375px]">
         <div className="absolute border-outline-variant border-[1px_0px_0px] border-solid inset-0 pointer-events-none" />
         
-        <button className="bg-surface cursor-pointer h-[42px] relative rounded-lg shrink-0 w-[160px] border border-outline hover:bg-surface-container-high transition-colors">
+        <button className="bg-surface cursor-pointer h-[48px] md:h-[42px] relative rounded-lg shrink-0 w-[160px] border border-outline hover:bg-surface-container-high transition-colors min-h-[48px] md:min-h-0">
           <div className="flex flex-row items-center justify-center relative size-full">
             <div className="box-border content-stretch flex gap-[15px] h-[42px] items-center justify-center p-[30px] relative w-[160px]">
               <div className="label-large text-on-surface text-center text-nowrap relative shrink-0 uppercase">
@@ -468,7 +468,7 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
         </button>
         
         <button
-          className={`bg-primary cursor-pointer h-[42px] relative rounded-lg shrink-0 w-[160px] ${
+          className={`bg-primary cursor-pointer h-[48px] md:h-[42px] relative rounded-lg shrink-0 w-[160px] min-h-[48px] md:min-h-0 ${
             !canCreateReturn ? 'opacity-50' : 'hover:bg-primary/90 transition-colors'
           }`}
           onClick={canCreateReturn ? handleCreateReturn : undefined}

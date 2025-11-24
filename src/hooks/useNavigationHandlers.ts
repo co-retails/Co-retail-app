@@ -91,6 +91,8 @@ export function useNavigationHandlers({
       setCurrentScreen('partner-dashboard');
     } else if (currentScreen === 'portal-configuration') {
       setCurrentScreen('home');
+    } else if (currentScreen === 'store-user-access' || currentScreen === 'partner-user-access') {
+      setCurrentScreen('home');
     } else {
       setCurrentScreen('home');
     }
@@ -168,6 +170,14 @@ export function useNavigationHandlers({
     setCurrentScreen('shipping');
   }, [setCurrentScreen, setShippingInitialTab]);
 
+  const handleNavigateToStoreUserAccess = useCallback(() => {
+    setCurrentScreen('store-user-access');
+  }, [setCurrentScreen]);
+
+  const handleNavigateToPartnerUserAccess = useCallback(() => {
+    setCurrentScreen('partner-user-access');
+  }, [setCurrentScreen]);
+
   return {
     handleBack,
     handleBackToHome,
@@ -185,6 +195,8 @@ export function useNavigationHandlers({
     handleNavigateToBuyerQuotations,
     handleNavigateToBuyerShipments,
     handleNavigateToPortalConfig,
-    handleNavigateToSellpyOrders
+    handleNavigateToSellpyOrders,
+    handleNavigateToStoreUserAccess,
+    handleNavigateToPartnerUserAccess
   };
 }

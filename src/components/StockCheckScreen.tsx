@@ -21,7 +21,7 @@ export interface StockItem {
   size?: string;
   color?: string;
   price: number;
-  status: 'In Store' | 'Missing' | 'Scanned' | 'Broken';
+  status: 'In Store' | 'Missing' | 'Scanned' | 'Broken' | 'In Store 2nd try';
   orderNumber: string;
   date: string;
   thumbnail?: string;
@@ -89,16 +89,12 @@ function TabBar({
   onTabChange, 
   scannedCount, 
   notScannedCount,
-  onAddManually,
-  showManualAdd,
   totalCount 
 }: { 
   activeTab: string; 
   onTabChange: (tab: string) => void;
   scannedCount: number;
   notScannedCount: number;
-  onAddManually: () => void;
-  showManualAdd: boolean;
   totalCount: number;
 }) {
   const tabs = [
@@ -131,22 +127,6 @@ function TabBar({
           </button>
         ))}
         
-        {/* Compromised Manual Add Button */}
-        <button
-          onClick={onAddManually}
-          className={`pb-3 pt-2 px-3 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors border-l border-outline-variant ${
-            showManualAdd ? 'bg-primary-container' : ''
-          }`}
-        >
-          <span className={`label-medium ${
-            showManualAdd ? 'text-on-primary-container' : 'text-primary'
-          }`}>
-            Add
-          </span>
-          {showManualAdd && (
-            <div className="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />
-          )}
-        </button>
       </div>
     </div>
   );
@@ -174,7 +154,7 @@ function StockItemCard({
         {/* Leading Element - Checkbox (only for scanned items) */}
         {showCheckboxAndMenu && (
           <button 
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full"
+            className="flex-shrink-0 w-12 h-12 md:w-8 md:h-8 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
             onClick={() => onToggleSelect(item.id)}
             aria-label={isSelected ? 'Deselect item' : 'Select item'}
           >
@@ -227,7 +207,7 @@ function StockItemCard({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button 
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                  className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
                   aria-label="More actions"
                 >
                   <MoreVertical className="w-5 h-5 text-on-surface" />
@@ -674,8 +654,6 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
           scannedCount={scannedItems.length}
           notScannedCount={notScannedItems.length}
           totalCount={stockItems.length}
-          onAddManually={() => setShowManualAdd(!showManualAdd)}
-          showManualAdd={showManualAdd}
         />
         
         {/* Content Area */}

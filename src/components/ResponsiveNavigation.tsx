@@ -88,7 +88,7 @@ function NavigationBar({ activeDestination, destinations }: ResponsiveNavigation
           return (
             <button
               key={destination.id}
-              className={`flex-1 flex flex-col items-center justify-center py-3 px-2 transition-colors ${
+              className={`flex-1 flex flex-col items-center justify-center py-3 px-2 transition-colors min-h-[56px] touch-manipulation ${
                 !isActive ? 'hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest' : ''
               }`}
               onClick={destination.onClick}

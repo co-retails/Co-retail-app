@@ -65,7 +65,7 @@ export interface Delivery {
 export interface ReturnDelivery {
   id: string;
   date: string;
-  status: 'Pending' | 'In transit' | 'Returned';
+  status: 'Pending' | 'In transit' | 'Returned' | 'Cancelled';
   deliveryId: string;
   items: number;
   boxes: number;
@@ -76,6 +76,7 @@ export interface ReturnDelivery {
   storeId?: string;
   warehouseId?: string;
   warehouseName?: string;
+  cancellationReason?: string;
 }
 
 export interface StoreSelection {
@@ -103,7 +104,7 @@ interface ShippingScreenProps {
   currentWarehouseId?: string;
   onSelectSellpyOrder?: (order: SellpyOrder) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
-  onCancelReturn?: (deliveryId: string) => void;
+  onCancelReturn?: (deliveryId: string, reason?: string) => void;
   onOpenOrderDetails?: (order: ShippingPartnerOrder, activeTab?: ShippingTab) => void;
   onOpenShipmentDetails?: (deliveryNote: DeliveryNote, activeTab?: ShippingTab) => void;
   onOpenReturnDetails?: (returnDelivery: ReturnDelivery, activeTab?: ShippingTab) => void;
@@ -2033,7 +2034,7 @@ useEffect(() => {
           <div className="flex justify-end mb-4">
             <Button
               onClick={handleScanClick}
-              className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[40px] flex items-center justify-center gap-2"
+              className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center gap-2"
             >
               <QrCode className="w-5 h-5" />
               <span className="label-large">Scan to receive</span>
@@ -2938,22 +2939,30 @@ useEffect(() => {
                           <>
                             <SortableHeader field="date" label="Date" currentSort={orderSort} onSort={handleOrderSort} />
                             <SortableHeader field="id" label="Order ID" currentSort={orderSort} onSort={handleOrderSort} />
-                            <SortableHeader field="externalId" label="External Order ID" currentSort={orderSort} onSort={handleOrderSort} />
+                            {!isThriftedPartner && (
+                              <SortableHeader field="externalId" label="External Order ID" currentSort={orderSort} onSort={handleOrderSort} />
+                            )}
                             <SortableHeader field="senderReceiver" label="Sender / Receiver" currentSort={orderSort} onSort={handleOrderSort} />
                             <SortableHeader field="items" label="Items" currentSort={orderSort} onSort={handleOrderSort} align="right" />
                             <SortableHeader field="orderValue" label="Order Value" currentSort={orderSort} onSort={handleOrderSort} align="right" />
-                            <SortableHeader field="salesMargin" label="Sales Margin %" currentSort={orderSort} onSort={handleOrderSort} align="right" />
+                            {!isThriftedPartner && (
+                              <SortableHeader field="salesMargin" label="Sales Margin %" currentSort={orderSort} onSort={handleOrderSort} align="right" />
+                            )}
                             <SortableHeader field="status" label="Status" currentSort={orderSort} onSort={handleOrderSort} align="right" />
                           </>
                         ) : (
                           <>
                             <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
                             <th className="px-4 py-3 text-left title-small text-on-surface">Order ID</th>
-                            <th className="px-4 py-3 text-left title-small text-on-surface">External Order ID</th>
+                            {!isThriftedPartner && (
+                              <th className="px-4 py-3 text-left title-small text-on-surface">External Order ID</th>
+                            )}
                             <th className="px-4 py-3 text-left title-small text-on-surface">Sender / Receiver</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Order Value</th>
-                            <th className="px-4 py-3 text-right title-small text-on-surface">Sales Margin %</th>
+                            {!isThriftedPartner && (
+                              <th className="px-4 py-3 text-right title-small text-on-surface">Sales Margin %</th>
+                            )}
                             <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
                           </>
                         )}
@@ -3006,18 +3015,20 @@ useEffect(() => {
                                 }
                               }}
                             >{order.id}</td>
-                            <td 
-                              className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
-                              onClick={() => {
-                                if (isSellpyPending) {
-                                  handleSellpyOrderSelect(order.id);
-                                } else if (onOpenOrderDetails) {
-                                  onOpenOrderDetails(order);
-                                }
-                              }}
-                            >
-                              {order.externalOrderId || '-'}
-                            </td>
+                            {!isThriftedPartner && (
+                              <td 
+                                className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
+                                onClick={() => {
+                                  if (isSellpyPending) {
+                                    handleSellpyOrderSelect(order.id);
+                                  } else if (onOpenOrderDetails) {
+                                    onOpenOrderDetails(order);
+                                  }
+                                }}
+                              >
+                                {order.externalOrderId || '-'}
+                              </td>
+                            )}
                             <td 
                               className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
                               onClick={() => {
@@ -3067,18 +3078,20 @@ useEffect(() => {
                             >
                               {order.orderValue ? `$${order.orderValue.toFixed(2)}` : '-'}
                             </td>
-                            <td 
-                              className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                              onClick={() => {
-                                if (isSellpyPending) {
-                                  handleSellpyOrderSelect(order.id);
-                                } else if (onOpenOrderDetails) {
-                                  onOpenOrderDetails(order);
-                                }
-                              }}
-                            >
-                              {order.salesMargin !== undefined ? `${order.salesMargin.toFixed(1)}%` : '-'}
-                            </td>
+                            {!isThriftedPartner && (
+                              <td 
+                                className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
+                                onClick={() => {
+                                  if (isSellpyPending) {
+                                    handleSellpyOrderSelect(order.id);
+                                  } else if (onOpenOrderDetails) {
+                                    onOpenOrderDetails(order);
+                                  }
+                                }}
+                              >
+                                {order.salesMargin !== undefined ? `${order.salesMargin.toFixed(1)}%` : '-'}
+                              </td>
+                            )}
                             <td 
                               className="px-4 py-3 text-right cursor-pointer"
                               onClick={() => {

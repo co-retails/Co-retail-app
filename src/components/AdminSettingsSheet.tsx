@@ -13,7 +13,8 @@ import {
   ChevronRight,
   LogOut,
   Cog,
-  Sparkles
+  Sparkles,
+  BarChart3
 } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
 import svgPaths from '../imports/svg-hxa7jl3k8x';
@@ -42,9 +43,11 @@ interface AdminSettingsSheetProps {
   onLogout: () => void;
   onSwitchToAdmin?: () => void;
   onNavigateToStockCheckReport?: () => void;
+  onNavigateToPartnerReports?: () => void;
   onNavigateToPortalConfiguration?: () => void;
   onNavigateToPartnerSettings?: () => void;
-  onNavigateToPriceForkCalibration?: () => void;
+  onNavigateToStoreUserAccess?: () => void;
+  onNavigateToPartnerUserAccess?: () => void;
 }
 
 interface MenuItem {
@@ -55,6 +58,7 @@ interface MenuItem {
   onClick: () => void;
   adminOnly?: boolean;
   brandAdminOnly?: boolean;
+  partnerOnly?: boolean;
 }
 
 export default function AdminSettingsSheet({
@@ -65,9 +69,11 @@ export default function AdminSettingsSheet({
   onLogout,
   onSwitchToAdmin,
   onNavigateToStockCheckReport,
+  onNavigateToPartnerReports,
   onNavigateToPortalConfiguration,
   onNavigateToPartnerSettings,
-  onNavigateToPriceForkCalibration
+  onNavigateToStoreUserAccess,
+  onNavigateToPartnerUserAccess
 }: AdminSettingsSheetProps) {
   if (!userAccount) {
     console.warn('AdminSettingsSheet: userAccount is undefined, sheet will not render.');
@@ -101,6 +107,13 @@ export default function AdminSettingsSheet({
     }
   };
 
+  const handlePartnerReports = () => {
+    if (onNavigateToPartnerReports) {
+      onNavigateToPartnerReports();
+      onClose();
+    }
+  };
+
   const handlePortalConfiguration = () => {
     if (onNavigateToPortalConfiguration) {
       onNavigateToPortalConfiguration();
@@ -111,13 +124,6 @@ export default function AdminSettingsSheet({
   const handlePartnerSettings = () => {
     if (onNavigateToPartnerSettings) {
       onNavigateToPartnerSettings();
-      onClose();
-    }
-  };
-
-  const handlePriceForkCalibration = () => {
-    if (onNavigateToPriceForkCalibration) {
-      onNavigateToPriceForkCalibration();
       onClose();
     }
   };
@@ -134,6 +140,20 @@ export default function AdminSettingsSheet({
     }
   };
 
+  const handleStoreUserAccess = () => {
+    if (onNavigateToStoreUserAccess) {
+      onNavigateToStoreUserAccess();
+      onClose();
+    }
+  };
+
+  const handlePartnerUserAccess = () => {
+    if (onNavigateToPartnerUserAccess) {
+      onNavigateToPartnerUserAccess();
+      onClose();
+    }
+  };
+
   const menuSections: { title: string; items: MenuItem[] }[] = [
     {
       title: 'Reports',
@@ -144,6 +164,14 @@ export default function AdminSettingsSheet({
           description: 'Access historical stock check sessions',
           icon: <Package className="w-6 h-6" />,
           onClick: handleStockCheckReport
+        },
+        {
+          id: 'partner-reports',
+          title: 'Partner Reports',
+          description: 'Sales & Stock analytics for partners',
+          icon: <BarChart3 className="w-6 h-6" />,
+          onClick: handlePartnerReports,
+          partnerOnly: true
         }
       ]
     },
@@ -151,11 +179,20 @@ export default function AdminSettingsSheet({
       title: 'Access',
       items: [
         {
-          id: 'user-accounts',
-          title: 'User accounts',
-          description: 'View and edit user roles in your market',
+          id: 'store-user-access',
+          title: 'Store user access',
+          description: 'View store staff and manager accounts',
+          icon: <Store className="w-6 h-6" />,
+          onClick: handleStoreUserAccess,
+          brandAdminOnly: true
+        },
+        {
+          id: 'partner-user-access',
+          title: 'Partner user access',
+          description: 'View partner portal user accounts',
           icon: <Users className="w-6 h-6" />,
-          onClick: () => {} // Placeholder for future implementation
+          onClick: handlePartnerUserAccess,
+          brandAdminOnly: true
         }
       ]
     },
@@ -168,14 +205,6 @@ export default function AdminSettingsSheet({
           description: 'Manage attributes, pricing, and validation rules',
           icon: <Cog className="w-6 h-6" />,
           onClick: handlePortalConfiguration,
-          adminOnly: true
-        },
-        {
-          id: 'price-fork',
-          title: 'Price Fork calibration',
-          description: 'Adjust AI pricing parameters and run simulations',
-          icon: <Sparkles className="w-6 h-6" />,
-          onClick: handlePriceForkCalibration,
           adminOnly: true
         },
         {
@@ -293,6 +322,7 @@ export default function AdminSettingsSheet({
                     // Check permissions
                     if (item.adminOnly && !hasPermission('Admin')) return null;
                     if (item.brandAdminOnly && !hasPermission('Brand Admin')) return null;
+                    if (item.partnerOnly && currentAppRole !== 'partner') return null;
 
                     return (
                       <button

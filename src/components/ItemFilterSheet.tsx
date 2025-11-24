@@ -290,13 +290,13 @@ export default function ItemFilterSheet({
           <Button
             variant="outline"
             onClick={handleReset}
-            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[40px] label-large"
+            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large"
           >
             Reset
           </Button>
           <Button
             onClick={handleApply}
-            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[40px] label-large"
+            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large"
           >
             Apply filters
           </Button>

@@ -36,7 +36,7 @@ import {
 } from './ui/table';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
-import { ArrowLeft, Brain, DownloadCloud, FileText, Loader2, RefreshCw, Sparkles, UploadCloud, Wand2, XCircle } from 'lucide-react';
+import { ArrowLeft, Brain, DownloadCloud, FileText, Info, Loader2, RefreshCw, Sparkles, UploadCloud, Wand2, XCircle } from 'lucide-react';
 
 interface PriceForkCalibrationScreenProps {
   partnerId: string;
@@ -240,10 +240,10 @@ export default function PriceForkCalibrationScreen({
       setTestItems((prev) =>
         prev.map((item) => {
           const tierWeight = getTierWeight(item.brandTier);
-          const marginFloor = Number(calibrationState.marginFloor ?? priceForkDefaultState.marginFloor);
+          const marginFloorItem = Number(calibrationState.marginFloorItem ?? priceForkDefaultState.marginFloorItem);
           const materialWeight = getMaterialWeight(item.material);
 
-          const base = Math.max(item.aiSuggestedPrice, item.purchasePrice * (1 + marginFloor / 100));
+          const base = Math.max(item.aiSuggestedPrice, item.purchasePrice * (1 + marginFloorItem / 100));
           const candidatePrice = base * tierWeight * materialWeight;
           const pricePoints = getPricePointsForItem(item);
           const snappedPrice = snapToNearestPricePoint(candidatePrice, pricePoints);
@@ -267,7 +267,7 @@ export default function PriceForkCalibrationScreen({
       return (
         <div className="space-y-4">
           {mockBrandSegments.map((segment) => (
-            <Card key={segment.tier} className="bg-surface-container-high border border-outline-variant">
+            <Card key={segment.tier} className="bg-surface border border-outline-variant">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div>
@@ -322,7 +322,7 @@ export default function PriceForkCalibrationScreen({
 
     if (activePrompt === 'category-mapping') {
       return (
-        <Card className="bg-surface-container-high border border-outline-variant">
+        <Card className="bg-surface border border-outline-variant">
           <CardHeader>
             <CardTitle className="title-medium text-on-surface">Category mapping confidence</CardTitle>
             <CardDescription className="body-small text-on-surface-variant">
@@ -376,7 +376,7 @@ export default function PriceForkCalibrationScreen({
 
     if (activePrompt === 'pricing-logic') {
       return (
-        <Card className="bg-surface-container-high border border-outline-variant">
+        <Card className="bg-surface border border-outline-variant">
           <CardHeader>
             <CardTitle className="title-medium text-on-surface">Pricing engine narrative</CardTitle>
             <CardDescription className="body-small text-on-surface-variant">
@@ -454,6 +454,14 @@ export default function PriceForkCalibrationScreen({
               <Sparkles className="w-4 h-4 mr-2" />
               Save
             </Button>
+          </div>
+        </div>
+        <div className="px-4 md:px-6 py-2 bg-primary-container/20 border-t border-primary/10">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-primary flex-shrink-0" />
+            <p className="body-small text-on-surface">
+              <span className="font-medium">Applies to API-integrated order creation only.</span> Price Fork automatically sets suggested sales prices for items sourced via API integration. Manual order creation is not affected by these settings.
+            </p>
           </div>
         </div>
         {hasUnsavedChanges && (
@@ -666,11 +674,11 @@ export default function PriceForkCalibrationScreen({
               </Button>
             </div>
           </div>
-          <Card className="bg-surface-container-high border border-outline-variant overflow-hidden">
+          <Card className="bg-surface border border-outline-variant overflow-hidden">
             <ScrollArea className="w-full" type="scroll">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-surface-container-highest border-outline-variant/60">
+                  <TableRow className="bg-surface-container border-outline-variant/60">
                     <TableHead className="text-on-surface-variant w-[26rem]">Item</TableHead>
                     <TableHead className="text-on-surface-variant">Purchase</TableHead>
                     <TableHead className="text-on-surface-variant">Suggested price</TableHead>
@@ -740,7 +748,7 @@ export default function PriceForkCalibrationScreen({
                               handleOverridePrice(item.id, Number.isNaN(parsed) ? undefined : parsed);
                             }}
                           >
-                            <SelectTrigger className="w-40 bg-surface-container-high border-outline rounded-lg h-[44px]">
+                            <SelectTrigger className="w-40 bg-surface border-outline rounded-lg h-[44px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
