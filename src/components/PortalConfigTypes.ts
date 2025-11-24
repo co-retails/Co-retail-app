@@ -148,3 +148,26 @@ export interface GtinMappingStats {
   overrideCount: number;
   storageEfficiency: number; // Percentage of mappings that are inherited vs overrides
 }
+
+// AI Attribute Mapping Types
+export interface AttributeMapping {
+  id: string;
+  brandId: string;
+  partnerId: string;
+  attributeKey: 'color' | 'size' | 'gender' | 'subcategory';
+  brandValueCode: string; // Brand's dropdown value code
+  brandValueLabel: string; // Brand's dropdown value label
+  partnerValue: string; // Partner API value
+  confidence: number; // AI confidence score (0-100)
+  mappedAt: string; // When the mapping was created
+  mappedBy: 'ai' | 'manual';
+  lastUpdated: string;
+  lastUpdatedBy: string;
+}
+
+export interface AttributeMappingStats {
+  totalMappings: number;
+  aiMapped: number;
+  manualMapped: number;
+  averageConfidence: number;
+}

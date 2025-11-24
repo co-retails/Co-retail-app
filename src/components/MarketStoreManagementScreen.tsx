@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import {
   ArrowLeft,
@@ -26,8 +30,7 @@ interface Brand {
   id: string;
   name: string;
   enabled: boolean;
-  enabledForStoreApp: boolean;
-  enabledForPartnerPortal: boolean;
+  enabledForCoRetailApp: boolean;
 }
 
 interface Country {
@@ -35,19 +38,19 @@ interface Country {
   name: string;
   brandId: string;
   enabled: boolean;
-  enabledForStoreApp: boolean;
-  enabledForPartnerPortal: boolean;
+  enabledForCoRetailApp: boolean;
 }
 
 interface Store {
   id: string;
   name: string;
   code: string;
+  address?: string;
+  salesPriceCurrency?: string;
   countryId: string;
   brandId: string;
   enabled: boolean;
-  enabledForStoreApp: boolean;
-  enabledForPartnerPortal: boolean;
+  enabledForCoRetailApp: boolean;
 }
 
 interface MarketStoreManagementScreenProps {
@@ -62,26 +65,26 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
   
   // Mock initial data - in real app this would come from props or API
   const [brands, setBrands] = useState<Brand[]>([
-    { id: '1', name: 'WEEKDAY', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
-    { id: '2', name: 'COS', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
-    { id: '3', name: 'Monki', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: false },
-    { id: '4', name: 'H&M', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
+    { id: '1', name: 'WEEKDAY', enabled: true, enabledForCoRetailApp: true },
+    { id: '2', name: 'COS', enabled: true, enabledForCoRetailApp: true },
+    { id: '3', name: 'Monki', enabled: true, enabledForCoRetailApp: false },
+    { id: '4', name: 'H&M', enabled: true, enabledForCoRetailApp: true },
   ]);
 
   const [countries, setCountries] = useState<Country[]>([
-    { id: '1', name: 'Sweden', brandId: '1', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
-    { id: '2', name: 'Denmark', brandId: '1', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
-    { id: '3', name: 'Norway', brandId: '1', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: false },
-    { id: '9', name: 'Spain', brandId: '2', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
-    { id: '18', name: 'Sweden', brandId: '3', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: false },
-    { id: '28', name: 'Germany', brandId: '4', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
+    { id: '1', name: 'Sweden', brandId: '1', enabled: true, enabledForCoRetailApp: true },
+    { id: '2', name: 'Denmark', brandId: '1', enabled: true, enabledForCoRetailApp: true },
+    { id: '3', name: 'Norway', brandId: '1', enabled: true, enabledForCoRetailApp: false },
+    { id: '9', name: 'Spain', brandId: '2', enabled: true, enabledForCoRetailApp: true },
+    { id: '18', name: 'Sweden', brandId: '3', enabled: true, enabledForCoRetailApp: false },
+    { id: '28', name: 'Germany', brandId: '4', enabled: true, enabledForCoRetailApp: true },
   ]);
 
   const [stores, setStores] = useState<Store[]>([
-    { id: '1', name: 'Drottninggatan 63', code: 'SE0655', countryId: '1', brandId: '1', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
-    { id: '2', name: 'Södermalm Store', code: 'SE0656', countryId: '1', brandId: '1', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: false },
-    { id: '3', name: 'Copenhagen Central', code: 'DK0123', countryId: '2', brandId: '1', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
-    { id: '10', name: 'Barcelona Passeig', code: 'ES0001', countryId: '9', brandId: '2', enabled: true, enabledForStoreApp: true, enabledForPartnerPortal: true },
+    { id: '1', name: 'Drottninggatan 63', code: 'SE0655', address: 'Drottninggatan 63, 111 36 Stockholm', countryId: '1', brandId: '1', enabled: true, enabledForCoRetailApp: true },
+    { id: '2', name: 'Södermalm Store', code: 'SE0656', address: 'Götgatan 36, 118 30 Stockholm', countryId: '1', brandId: '1', enabled: true, enabledForCoRetailApp: false },
+    { id: '3', name: 'Copenhagen Central', code: 'DK0123', address: 'Strøget 1, 1200 København', countryId: '2', brandId: '1', enabled: true, enabledForCoRetailApp: true },
+    { id: '10', name: 'Barcelona Passeig', code: 'ES0001', address: 'Passeig de Gràcia 92, 08008 Barcelona', countryId: '9', brandId: '2', enabled: true, enabledForCoRetailApp: true },
   ]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('brands');
@@ -92,6 +95,17 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
   const [selectedCountryIds, setSelectedCountryIds] = useState<string[]>([]);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [editMode, setEditMode] = useState<EditMode>('none');
+  
+  // Form state for Add New
+  const [newBrandName, setNewBrandName] = useState('');
+  const [newMarketCountry, setNewMarketCountry] = useState('');
+  const [newMarketBrandId, setNewMarketBrandId] = useState('');
+  const [newStoreCode, setNewStoreCode] = useState('');
+  const [newStoreName, setNewStoreName] = useState('');
+  const [newStoreAddress, setNewStoreAddress] = useState('');
+  const [newStoreSalesPriceCurrency, setNewStoreSalesPriceCurrency] = useState('');
+  const [newStoreBrandId, setNewStoreBrandId] = useState('');
+  const [newStoreCountryId, setNewStoreCountryId] = useState('');
 
   // Filter data based on search and selections
   const filteredBrands = brands.filter(brand =>
@@ -115,35 +129,104 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
     return matchesSearch && matchesBrand && matchesCountry && matchesStore;
   });
 
-  const handleToggleBrandAccess = (brandId: string, field: 'enabledForStoreApp' | 'enabledForPartnerPortal') => {
+  const handleToggleBrandAccess = (brandId: string) => {
     setBrands(brands.map(brand =>
       brand.id === brandId
-        ? { ...brand, [field]: !brand[field] }
+        ? { ...brand, enabledForCoRetailApp: !brand.enabledForCoRetailApp }
         : brand
     ));
   };
 
-  const handleToggleCountryAccess = (countryId: string, field: 'enabledForStoreApp' | 'enabledForPartnerPortal') => {
+  const handleToggleCountryAccess = (countryId: string) => {
     setCountries(countries.map(country =>
       country.id === countryId
-        ? { ...country, [field]: !country[field] }
+        ? { ...country, enabledForCoRetailApp: !country.enabledForCoRetailApp }
         : country
     ));
   };
 
-  const handleToggleStoreAccess = (storeId: string, field: 'enabledForStoreApp' | 'enabledForPartnerPortal') => {
+  const handleToggleStoreAccess = (storeId: string) => {
     setStores(stores.map(store =>
       store.id === storeId
-        ? { ...store, [field]: !store[field] }
+        ? { ...store, enabledForCoRetailApp: !store.enabledForCoRetailApp }
         : store
     ));
   };
 
   const handleAddNew = () => {
     setIsAddSheetOpen(true);
-    if (viewMode === 'brands') setEditMode('brand');
-    else if (viewMode === 'countries') setEditMode('country');
-    else setEditMode('store');
+    if (viewMode === 'brands') {
+      setEditMode('brand');
+      setNewBrandName('');
+    } else if (viewMode === 'countries') {
+      setEditMode('country');
+      setNewMarketCountry('');
+      setNewMarketBrandId('');
+    } else {
+      setEditMode('store');
+      setNewStoreCode('');
+      setNewStoreName('');
+      setNewStoreAddress('');
+      setNewStoreBrandId('');
+      setNewStoreCountryId('');
+    }
+  };
+
+  const handleSaveNewBrand = () => {
+    if (!newBrandName.trim()) return;
+    
+    const newBrand: Brand = {
+      id: `brand-${Date.now()}`,
+      name: newBrandName.trim(),
+      enabled: true,
+      enabledForCoRetailApp: true // Auto-enabled
+    };
+    
+    setBrands([...brands, newBrand]);
+    setIsAddSheetOpen(false);
+    setNewBrandName('');
+  };
+
+  const handleSaveNewMarket = () => {
+    if (!newMarketCountry.trim() || !newMarketBrandId) return;
+    
+    const newMarket: Country = {
+      id: `country-${Date.now()}`,
+      name: newMarketCountry.trim(),
+      brandId: newMarketBrandId,
+      enabled: true,
+      enabledForCoRetailApp: true // Auto-enabled
+    };
+    
+    setCountries([...countries, newMarket]);
+    setIsAddSheetOpen(false);
+    setNewMarketCountry('');
+    setNewMarketBrandId('');
+  };
+
+  const handleSaveNewStore = () => {
+    if (!newStoreCode.trim() || !newStoreName.trim() || !newStoreAddress.trim() || !newStoreSalesPriceCurrency || !newStoreBrandId || !newStoreCountryId) return;
+    
+    const newStore: Store = {
+      id: `store-${Date.now()}`,
+      name: newStoreName.trim(),
+      code: newStoreCode.trim(),
+      address: newStoreAddress.trim(),
+      salesPriceCurrency: newStoreSalesPriceCurrency,
+      countryId: newStoreCountryId,
+      brandId: newStoreBrandId,
+      enabled: true,
+      enabledForCoRetailApp: true // Auto-enabled
+    };
+    
+    setStores([...stores, newStore]);
+    setIsAddSheetOpen(false);
+    setNewStoreCode('');
+    setNewStoreName('');
+    setNewStoreAddress('');
+    setNewStoreSalesPriceCurrency('');
+    setNewStoreBrandId('');
+    setNewStoreCountryId('');
   };
 
   const getBreadcrumb = () => {
@@ -175,61 +258,35 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
             <div className="flex-1 min-w-0">
               <h3 className="title-medium text-on-surface mb-3">{brand.name}</h3>
               
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="label-medium text-on-surface">Store App</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`label-small ${brand.enabledForStoreApp ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
-                        {brand.enabledForStoreApp ? 'On' : 'Off'}
-                      </span>
-                      <button
-                        onClick={() => handleToggleBrandAccess(brand.id, 'enabledForStoreApp')}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
-                          brand.enabledForStoreApp 
-                            ? 'bg-primary' 
-                            : 'bg-surface-container border-2 border-outline'
-                        }`}
-                        aria-label={`Toggle Store App access for ${brand.name}`}
-                      >
-                        <span
-                          className={`inline-block h-6 w-6 transform rounded-full shadow-lg transition-all duration-200 ${
-                            brand.enabledForStoreApp ? 'translate-x-7 ring-2 ring-white/30' : 'translate-x-1'
-                          }`}
-                          style={{ backgroundColor: '#FFFFFF' }}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="label-medium text-on-surface">Partner Portal</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`label-small ${brand.enabledForPartnerPortal ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
-                        {brand.enabledForPartnerPortal ? 'On' : 'Off'}
-                      </span>
-                      <button
-                        onClick={() => handleToggleBrandAccess(brand.id, 'enabledForPartnerPortal')}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
-                          brand.enabledForPartnerPortal 
-                            ? 'bg-primary' 
-                            : 'bg-surface-container border-2 border-outline'
-                        }`}
-                        aria-label={`Toggle Partner Portal access for ${brand.name}`}
-                      >
-                        <span
-                          className={`inline-block h-6 w-6 transform rounded-full shadow-lg transition-all duration-200 ${
-                            brand.enabledForPartnerPortal ? 'translate-x-7 ring-2 ring-white/30' : 'translate-x-1'
-                          }`}
-                          style={{ backgroundColor: '#FFFFFF' }}
-                        />
-                      </button>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <div className="label-medium text-on-surface">Co-retail app</div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className={`label-small ${brand.enabledForCoRetailApp ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
+                    {brand.enabledForCoRetailApp ? 'On' : 'Off'}
+                  </span>
+                  <button
+                    onClick={() => handleToggleBrandAccess(brand.id)}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
+                      brand.enabledForCoRetailApp 
+                        ? 'bg-primary' 
+                        : 'bg-surface-container border-2 border-outline'
+                    }`}
+                    aria-label={`Toggle Co-retail app access for ${brand.name}`}
+                  >
+                    <span
+                      className={`inline-block h-6 w-6 transform rounded-full shadow-lg transition-all duration-200 ${
+                        brand.enabledForCoRetailApp ? 'ring-2 ring-white/30' : ''
+                      }`}
+                      style={{ 
+                        backgroundColor: '#FFFFFF',
+                        transform: brand.enabledForCoRetailApp ? 'translateX(32px)' : 'translateX(4px)'
+                      }}
+                    />
+                  </button>
+                </div>
+              </div>
               </div>
             
             <div className="flex-shrink-0">
@@ -284,59 +341,33 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
                   )}
                 </div>
                 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="label-medium text-on-surface">Store App</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`label-small ${country.enabledForStoreApp ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
-                        {country.enabledForStoreApp ? 'On' : 'Off'}
-                      </span>
-                      <button
-                        onClick={() => handleToggleCountryAccess(country.id, 'enabledForStoreApp')}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
-                          country.enabledForStoreApp 
-                            ? 'bg-primary' 
-                            : 'bg-surface-container border-2 border-outline'
-                        }`}
-                        aria-label={`Toggle Store App access for ${country.name}`}
-                      >
-                        <span
-                          className={`inline-block h-6 w-6 transform rounded-full shadow-lg transition-all duration-200 ${
-                            country.enabledForStoreApp ? 'translate-x-7 ring-2 ring-white/30' : 'translate-x-1'
-                          }`}
-                          style={{ backgroundColor: '#FFFFFF' }}
-                        />
-                      </button>
-                    </div>
+                <div className="flex items-center justify-between gap-3 mt-3">
+                  <div className="flex-1">
+                    <div className="label-medium text-on-surface">Co-retail app</div>
                   </div>
-                  
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="label-medium text-on-surface">Partner Portal</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`label-small ${country.enabledForPartnerPortal ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
-                        {country.enabledForPartnerPortal ? 'On' : 'Off'}
-                      </span>
-                      <button
-                        onClick={() => handleToggleCountryAccess(country.id, 'enabledForPartnerPortal')}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
-                          country.enabledForPartnerPortal 
-                            ? 'bg-primary' 
-                            : 'bg-surface-container border-2 border-outline'
-                        }`}
-                        aria-label={`Toggle Partner Portal access for ${country.name}`}
-                      >
+                  <div className="flex items-center gap-2">
+                    <span className={`label-small ${country.enabledForCoRetailApp ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
+                      {country.enabledForCoRetailApp ? 'On' : 'Off'}
+                    </span>
+                    <button
+                      onClick={() => handleToggleCountryAccess(country.id)}
+                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
+                        country.enabledForCoRetailApp 
+                          ? 'bg-primary' 
+                          : 'bg-surface-container border-2 border-outline'
+                      }`}
+                      aria-label={`Toggle Co-retail app access for ${country.name}`}
+                    >
                         <span
                           className={`inline-block h-6 w-6 transform rounded-full shadow-lg transition-all duration-200 ${
-                            country.enabledForPartnerPortal ? 'translate-x-7 ring-2 ring-white/30' : 'translate-x-1'
+                            country.enabledForCoRetailApp ? 'ring-2 ring-white/30' : ''
                           }`}
-                          style={{ backgroundColor: '#FFFFFF' }}
+                          style={{ 
+                            backgroundColor: '#FFFFFF',
+                            transform: country.enabledForCoRetailApp ? 'translateX(32px)' : 'translateX(4px)'
+                          }}
                         />
-                      </button>
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -407,59 +438,39 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
                   )}
                 </div>
                 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="label-medium text-on-surface">Store App</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`label-small ${store.enabledForStoreApp ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
-                        {store.enabledForStoreApp ? 'On' : 'Off'}
-                      </span>
-                      <button
-                        onClick={() => handleToggleStoreAccess(store.id, 'enabledForStoreApp')}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
-                          store.enabledForStoreApp 
-                            ? 'bg-primary' 
-                            : 'bg-surface-container border-2 border-outline'
-                        }`}
-                        aria-label={`Toggle Store App access for ${store.name}`}
-                      >
-                        <span
-                          className={`inline-block h-6 w-6 transform rounded-full shadow-lg transition-all duration-200 ${
-                            store.enabledForStoreApp ? 'translate-x-7 ring-2 ring-white/30' : 'translate-x-1'
-                          }`}
-                          style={{ backgroundColor: '#FFFFFF' }}
-                        />
-                      </button>
-                    </div>
+                {store.address && (
+                  <div className="body-small text-on-surface-variant mb-3">
+                    {store.address}
                   </div>
-                  
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="label-medium text-on-surface">Partner Portal</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`label-small ${store.enabledForPartnerPortal ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
-                        {store.enabledForPartnerPortal ? 'On' : 'Off'}
-                      </span>
-                      <button
-                        onClick={() => handleToggleStoreAccess(store.id, 'enabledForPartnerPortal')}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
-                          store.enabledForPartnerPortal 
-                            ? 'bg-primary' 
-                            : 'bg-surface-container border-2 border-outline'
-                        }`}
-                        aria-label={`Toggle Partner Portal access for ${store.name}`}
-                      >
+                )}
+                
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="label-medium text-on-surface">Co-retail app</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`label-small ${store.enabledForCoRetailApp ? 'text-primary font-medium' : 'text-on-surface-variant'}`}>
+                      {store.enabledForCoRetailApp ? 'On' : 'Off'}
+                    </span>
+                    <button
+                      onClick={() => handleToggleStoreAccess(store.id)}
+                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ${
+                        store.enabledForCoRetailApp 
+                          ? 'bg-primary' 
+                          : 'bg-surface-container border-2 border-outline'
+                      }`}
+                      aria-label={`Toggle Co-retail app access for ${store.name}`}
+                    >
                         <span
                           className={`inline-block h-6 w-6 transform rounded-full shadow-lg transition-all duration-200 ${
-                            store.enabledForPartnerPortal ? 'translate-x-7 ring-2 ring-white/30' : 'translate-x-1'
+                            store.enabledForCoRetailApp ? 'ring-2 ring-white/30' : ''
                           }`}
-                          style={{ backgroundColor: '#FFFFFF' }}
+                          style={{ 
+                            backgroundColor: '#FFFFFF',
+                            transform: store.enabledForCoRetailApp ? 'translateX(32px)' : 'translateX(4px)'
+                          }}
                         />
-                      </button>
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -486,7 +497,7 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
           <div className="flex-1">
             <h1 className="title-large text-on-surface">Markets & Stores</h1>
             <p className="body-small text-on-surface-variant">
-              Enable brands, markets, and stores for Store App and Partner Portal
+              Enable brands, markets, and stores for Co-retail app
             </p>
           </div>
 
@@ -1015,28 +1026,233 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
         )}
       </div>
 
-      {/* Add New Sheet - Placeholder for future implementation */}
+      {/* Add New Sheet */}
       <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
         <SheetContent
           side={isLargeScreen ? "right" : "bottom"}
           className={`
-            bg-surface-container-high border-outline-variant
+            bg-surface border-outline-variant flex flex-col p-0
             ${isLargeScreen ? 'h-full w-full max-w-md' : 'rounded-t-3xl max-h-[90vh]'}
           `}
         >
-          <SheetHeader>
-            <SheetTitle className="text-on-surface">
+          {/* Header */}
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-outline-variant flex-shrink-0">
+            <SheetTitle className="title-large text-on-surface">
               Add New {editMode === 'brand' ? 'Brand' : editMode === 'country' ? 'Market' : 'Store'}
             </SheetTitle>
-            <SheetDescription className="text-on-surface-variant">
-              This feature will be implemented with backend integration
+            <SheetDescription className="body-medium text-on-surface-variant mt-2">
+              {editMode === 'brand' && 'Create a new brand. The Co-retail app toggle will be enabled automatically.'}
+              {editMode === 'country' && 'Create a new market. The Co-retail app toggle will be enabled automatically.'}
+              {editMode === 'store' && 'Create a new store. The Co-retail app toggle will be enabled automatically.'}
             </SheetDescription>
           </SheetHeader>
           
-          <div className="mt-6">
-            <p className="body-medium text-on-surface-variant">
-              Adding new {editMode === 'brand' ? 'brands' : editMode === 'country' ? 'markets' : 'stores'} will be available once connected to the backend API.
-            </p>
+          {/* Form Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            {editMode === 'brand' && (
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="brand-name" className="label-large text-on-surface mb-2 block">
+                    Brand Name *
+                  </Label>
+                  <Input
+                    id="brand-name"
+                    type="text"
+                    placeholder="Enter brand name"
+                    value={newBrandName}
+                    onChange={(e) => setNewBrandName(e.target.value)}
+                    className="bg-surface border-outline h-12 body-large"
+                  />
+                </div>
+              </div>
+            )}
+
+            {editMode === 'country' && (
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="market-country" className="label-large text-on-surface mb-2 block">
+                    Country *
+                  </Label>
+                  <Input
+                    id="market-country"
+                    type="text"
+                    placeholder="Enter country name"
+                    value={newMarketCountry}
+                    onChange={(e) => setNewMarketCountry(e.target.value)}
+                    className="bg-surface border-outline h-12 body-large"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="market-brand" className="label-large text-on-surface mb-2 block">
+                    Brand *
+                  </Label>
+                  <Select
+                    value={newMarketBrandId}
+                    onValueChange={(value: string) => setNewMarketBrandId(value)}
+                  >
+                    <SelectTrigger className="bg-surface border-outline h-12 body-large">
+                      <SelectValue placeholder="Select a brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brands.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          {brand.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {editMode === 'store' && (
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="store-code" className="label-large text-on-surface mb-2 block">
+                    Store Code *
+                  </Label>
+                  <Input
+                    id="store-code"
+                    type="text"
+                    placeholder="Enter store code"
+                    value={newStoreCode}
+                    onChange={(e) => setNewStoreCode(e.target.value)}
+                    className="bg-surface border-outline h-12 body-large"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="store-name" className="label-large text-on-surface mb-2 block">
+                    Store Name *
+                  </Label>
+                  <Input
+                    id="store-name"
+                    type="text"
+                    placeholder="Enter store name"
+                    value={newStoreName}
+                    onChange={(e) => setNewStoreName(e.target.value)}
+                    className="bg-surface border-outline h-12 body-large"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="store-address" className="label-large text-on-surface mb-2 block">
+                    Store Address *
+                  </Label>
+                  <Textarea
+                    id="store-address"
+                    placeholder="Enter store address"
+                    value={newStoreAddress}
+                    onChange={(e) => setNewStoreAddress(e.target.value)}
+                    className="bg-surface border-outline min-h-[100px] body-large resize-none"
+                    rows={4}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="store-sales-price-currency" className="label-large text-on-surface mb-2 block">
+                    Sales Price Currency *
+                  </Label>
+                  <Select
+                    value={newStoreSalesPriceCurrency}
+                    onValueChange={(value: string) => setNewStoreSalesPriceCurrency(value)}
+                  >
+                    <SelectTrigger className="bg-surface border-outline h-12 body-large">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SEK">SEK - Swedish Krona</SelectItem>
+                      <SelectItem value="EUR">EUR - Euro</SelectItem>
+                      <SelectItem value="USD">USD - US Dollar</SelectItem>
+                      <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                      <SelectItem value="DKK">DKK - Danish Krone</SelectItem>
+                      <SelectItem value="NOK">NOK - Norwegian Krone</SelectItem>
+                      <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                      <SelectItem value="PLN">PLN - Polish Zloty</SelectItem>
+                      <SelectItem value="CZK">CZK - Czech Koruna</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="store-brand" className="label-large text-on-surface mb-2 block">
+                    Brand *
+                  </Label>
+                  <Select
+                    value={newStoreBrandId}
+                    onValueChange={(value: string) => {
+                      setNewStoreBrandId(value);
+                      setNewStoreCountryId(''); // Reset country when brand changes
+                    }}
+                  >
+                    <SelectTrigger className="bg-surface border-outline h-12 body-large">
+                      <SelectValue placeholder="Select a brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brands.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          {brand.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="store-market" className="label-large text-on-surface mb-2 block">
+                    Market *
+                  </Label>
+                  <Select
+                    value={newStoreCountryId}
+                    onValueChange={(value: string) => setNewStoreCountryId(value)}
+                    disabled={!newStoreBrandId}
+                  >
+                    <SelectTrigger className="bg-surface border-outline h-12 body-large disabled:opacity-50">
+                      <SelectValue placeholder={newStoreBrandId ? "Select a market" : "Select brand first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries
+                        .filter(c => c.brandId === newStoreBrandId)
+                        .map((country) => (
+                          <SelectItem key={country.id} value={country.id}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer with Actions - Fixed at bottom */}
+          <div className="px-6 py-4 border-t border-outline-variant flex-shrink-0 bg-surface">
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsAddSheetOpen(false)}
+                className="flex-1 h-12 body-large"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (editMode === 'brand') handleSaveNewBrand();
+                  else if (editMode === 'country') handleSaveNewMarket();
+                  else if (editMode === 'store') handleSaveNewStore();
+                }}
+                disabled={
+                  editMode === 'brand' ? !newBrandName.trim() :
+                  editMode === 'country' ? (!newMarketCountry.trim() || !newMarketBrandId) :
+                  (!newStoreCode.trim() || !newStoreName.trim() || !newStoreAddress.trim() || !newStoreSalesPriceCurrency || !newStoreBrandId || !newStoreCountryId)
+                }
+                className="flex-1 h-12 bg-primary text-on-primary hover:bg-primary/90 body-large"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save
+              </Button>
+            </div>
           </div>
         </SheetContent>
       </Sheet>

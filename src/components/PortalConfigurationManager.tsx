@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { PortalConfigurationLanding } from './PortalConfigurationLanding';
 import { AttributeDictionaryScreen } from './AttributeDictionaryScreen';
 import { DropdownValuesScreen } from './DropdownValuesScreen';
-import { SEKPriceLaddersScreen } from './SEKPriceLaddersScreen';
+import { AttributeMappingScreen } from './AttributeMappingScreen';
 import { CurrencyMappingScreen } from './CurrencyMappingScreen';
 import { PartnerPricingScreen } from './PartnerPricingScreen';
 import { PurchasePriceCurrencyConverterScreen } from './PurchasePriceCurrencyConverterScreen';
@@ -71,10 +71,10 @@ export function PortalConfigurationManager({
       return <AttributeDictionaryScreen onBack={handleBackToLanding} />;
 
     case 'dropdown-values':
-      return <DropdownValuesScreen onBack={handleBackToLanding} />;
+      return <DropdownValuesScreen onBack={handleBackToLanding} onNavigate={handleNavigate} />;
 
-    case 'price-ladders':
-      return <SEKPriceLaddersScreen onBack={handleBackToLanding} />;
+    case 'attribute-mappings':
+      return <AttributeMappingScreen onBack={handleBackToLanding} />;
 
     case 'partner-pricing':
       return <PartnerPricingScreen onBack={handleBackToLanding} />;

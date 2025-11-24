@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -23,7 +23,6 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import {
   partnerPriceBooks,
-  sekPriceLadders as sharedSekPriceLadders,
   pricingBrands,
   getBrandOptionsForPartner as fetchBrandOptionsForPartner,
   brandNameById
@@ -53,30 +52,21 @@ interface PricePoint {
 
 const brands = pricingBrands;
 const allPartnerIds = mockPartners.map((partner) => partner.id);
-const defaultNonSekCurrency = mockCurrencies.find((currency) => currency !== 'SEK') ?? 'EUR';
-const sekkLadders = sharedSekPriceLadders;
-
-const getLadderSteps = (brandId: string, partnerId: string): number[] => {
-  return (
-    sekkLadders.find(
-      (ladder) => ladder.brandId === brandId && ladder.partnerId === partnerId
-    )?.steps ?? []
-  );
-};
+const defaultCurrency = mockCurrencies[0] ?? 'EUR';
 
 const getBrandOptionsForPartner = (partnerId: string): { id: string; name: string }[] =>
   fetchBrandOptionsForPartner(partnerId);
 
 const initialPricePoints: PricePoint[] = partnerPriceBooks.map((book) => {
-  const nonSekCurrencies = Object.keys(book.prices).filter((currency) => currency !== 'SEK');
-  const defaultCurrency = nonSekCurrencies[0] ?? defaultNonSekCurrency;
+  const currencies = Object.keys(book.prices);
+  const defaultCurrencyForBook = currencies[0] ?? defaultCurrency;
 
   return {
     id: book.id,
     partnerId: book.partnerId,
     partnerName: book.partnerName,
     brandId: book.brandId,
-    currency: defaultCurrency,
+    currency: defaultCurrencyForBook || defaultCurrency,
     prices: book.prices
   };
 });
@@ -89,9 +79,9 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
   const [editingPricePoint, setEditingPricePoint] = useState<PricePoint | null>(null);
   const [editingCurrency, setEditingCurrency] = useState<string | null>(null);
   const [formState, setFormState] = useState({
-    partnerId: allPartnerIds[0],
-    brandId: getBrandOptionsForPartner(allPartnerIds[0])[0]?.id ?? brands[0].id,
-    currency: defaultNonSekCurrency,
+    partnerId: allPartnerIds[0] || '',
+    brandId: (allPartnerIds[0] && getBrandOptionsForPartner(allPartnerIds[0])[0]?.id) || brands[0]?.id || '',
+    currency: defaultCurrency,
     pricesText: ''
   });
 
@@ -117,7 +107,7 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
       )
     ) {
       const fallbackBrandId =
-        brandOptionsForCurrentPartner[0]?.id ?? brands[0].id;
+        brandOptionsForCurrentPartner[0]?.id || brands[0]?.id || '';
       setFormState((prev) => ({
         ...prev,
         brandId: fallbackBrandId
@@ -140,20 +130,17 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
   };
 
   const parsedPrices = useMemo(() => {
-    if (formState.currency === 'SEK') {
-      return [];
-    }
     return parsePriceList(formState.pricesText);
-  }, [formState.currency, formState.pricesText]);
+  }, [formState.pricesText]);
 
   const resetFormState = () => {
-    const defaultPartnerId = allPartnerIds[0];
+    const defaultPartnerId = allPartnerIds[0] || '';
     const defaultBrandId =
-      getBrandOptionsForPartner(defaultPartnerId)[0]?.id ?? brands[0].id;
+      (defaultPartnerId && getBrandOptionsForPartner(defaultPartnerId)[0]?.id) || brands[0]?.id || '';
     setFormState({
       partnerId: defaultPartnerId,
       brandId: defaultBrandId,
-      currency: defaultNonSekCurrency,
+      currency: defaultCurrency,
       pricesText: ''
     });
     setEditingPricePoint(null);
@@ -169,16 +156,14 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
   const openEditDialog = (pricePoint: PricePoint) => {
     setDialogMode('edit');
     setEditingPricePoint(pricePoint);
-    const nonSekCurrencies = Object.keys(pricePoint.prices).filter(
-      (currency) => currency !== 'SEK'
-    );
-    const defaultCurrency = nonSekCurrencies[0] ?? defaultNonSekCurrency;
-    setEditingCurrency(defaultCurrency);
+    const currencies = Object.keys(pricePoint.prices);
+    const defaultCurrencyForBook = currencies[0] ?? defaultCurrency;
+    setEditingCurrency(defaultCurrencyForBook);
     setFormState({
       partnerId: pricePoint.partnerId,
       brandId: pricePoint.brandId,
-      currency: defaultCurrency,
-      pricesText: pricePoint.prices[defaultCurrency]?.join('\n') ?? ''
+      currency: defaultCurrencyForBook,
+      pricesText: pricePoint.prices[defaultCurrencyForBook]?.join('\n') ?? ''
     });
     setIsDialogOpen(true);
   };
@@ -195,11 +180,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
   };
 
   const handleSavePricePoint = () => {
-    if (formState.currency === 'SEK') {
-      toast.error('SEK price points are managed by the SEK price ladder.');
-      return;
-    }
-
     if (!parsedPrices.length) {
       toast.error('Add at least one price point.');
       return;
@@ -208,12 +188,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
     const partner = mockPartners.find((p) => p.id === formState.partnerId);
     if (!partner) {
       toast.error('Select a partner.');
-      return;
-    }
-
-    const ladderSteps = getLadderSteps(formState.brandId, formState.partnerId);
-    if (!ladderSteps.length) {
-      toast.error('No SEK price ladder configured for this partner and brand.');
       return;
     }
 
@@ -243,7 +217,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
             delete updatedPrices[editingCurrency];
           }
           updatedPrices[formState.currency] = parsedPrices;
-          updatedPrices.SEK = ladderSteps;
 
           return {
             ...pp,
@@ -274,7 +247,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
               currency: formState.currency,
               prices: {
                 ...pp.prices,
-                SEK: ladderSteps,
                 [formState.currency]: parsedPrices
               }
             };
@@ -282,6 +254,10 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
         );
         toast.success('Price set updated');
       } else {
+        if (!formState.partnerId || !formState.brandId) {
+          toast.error('Partner and brand are required.');
+          return;
+        }
         const newPricePoint: PricePoint = {
           id: Date.now().toString(),
           partnerId: formState.partnerId,
@@ -289,7 +265,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
           brandId: formState.brandId,
           currency: formState.currency,
           prices: {
-            SEK: ladderSteps,
             [formState.currency]: parsedPrices
           }
         };
@@ -306,12 +281,12 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
 
   const handlePartnerSelect = (partnerId: string) => {
     const nextBrandOptions = getBrandOptionsForPartner(partnerId);
-    const nextBrandId = nextBrandOptions[0]?.id ?? brands[0].id;
+    const nextBrandId = nextBrandOptions[0]?.id || brands[0]?.id || '';
 
     setFormState({
       partnerId,
       brandId: nextBrandId,
-      currency: defaultNonSekCurrency,
+      currency: defaultCurrency,
       pricesText: ''
     });
     setEditingCurrency(null);
@@ -326,11 +301,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
   };
 
   const handleCurrencySelect = (currency: string) => {
-    if (currency === 'SEK') {
-      toast.error('SEK price points are managed by the SEK price ladder.');
-      return;
-    }
-
     setEditingCurrency(currency);
     setFormState((prev) => ({
       ...prev,
@@ -413,17 +383,7 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
                   {partnerPrices.map((pricePoint) => {
                     const brandName =
                       brandNameMap[pricePoint.brandId] ?? pricePoint.brandId;
-                    const sekSteps = getLadderSteps(
-                      pricePoint.brandId,
-                      pricePoint.partnerId
-                    );
-                    const sekChips =
-                      sekSteps.length > 0
-                        ? sekSteps
-                        : pricePoint.prices.SEK ?? [];
-                    const currencyEntries = Object.entries(pricePoint.prices).filter(
-                      ([currency]) => currency !== 'SEK'
-                    );
+                    const currencyEntries = Object.entries(pricePoint.prices);
                     const currencyCount = currencyEntries.length;
 
                     return (
@@ -436,10 +396,10 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
                             <div className="title-medium text-on-surface">{brandName}</div>
                             <div className="body-medium text-on-surface-variant">
                               {currencyCount
-                                ? `${currencyCount} additional currency set${
+                                ? `${currencyCount} currency set${
                                     currencyCount > 1 ? 's' : ''
                                   } configured`
-                                : 'No additional currencies configured'}
+                                : 'No currencies configured'}
                             </div>
                           </div>
                           <div className="flex gap-2 flex-shrink-0">
@@ -460,57 +420,33 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
                           </div>
                         </div>
 
-                        <div className="space-y-4">
-                          <div>
-                            <p className="label-medium text-on-surface-variant mb-2">
-                              SEK price ladder
-                            </p>
-                            {sekChips.length ? (
-                              <div className="flex flex-wrap gap-2">
-                                {sekChips.map((price, index) => (
-                                  <span
-                                    key={`sek-${pricePoint.id}-${index}`}
-                                    className="label-medium px-3 py-1 rounded-full bg-surface-container-high text-on-surface"
-                                  >
-                                    {price} SEK
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="body-small text-on-surface-variant">
-                                No SEK price ladder configured.
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="space-y-3">
-                            {currencyEntries.length ? (
-                              currencyEntries.map(([currency, prices]) => (
-                                <div
-                                  key={`${pricePoint.id}-${currency}`}
-                                  className="space-y-2"
-                                >
-                                  <div className="label-medium text-on-surface">
-                                    {currency}
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {prices.map((price, index) => (
-                                      <span
-                                        key={`${pricePoint.id}-${currency}-${index}`}
-                                        className="label-large px-3 py-1 rounded-full bg-primary-container text-on-primary-container"
-                                      >
-                                        {price} {currency}
-                                      </span>
-                                    ))}
-                                  </div>
+                        <div className="space-y-3">
+                          {currencyEntries.length ? (
+                            currencyEntries.map(([currency, prices]) => (
+                              <div
+                                key={`${pricePoint.id}-${currency}`}
+                                className="space-y-2"
+                              >
+                                <div className="label-medium text-on-surface">
+                                  {currency}
                                 </div>
-                              ))
-                            ) : (
-                              <p className="body-small text-on-surface-variant">
-                                No additional currency price points have been added yet.
-                              </p>
-                            )}
-                          </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {prices.map((price, index) => (
+                                    <span
+                                      key={`${pricePoint.id}-${currency}-${index}`}
+                                      className="label-large px-3 py-1 rounded-full bg-primary-container text-on-primary-container"
+                                    >
+                                      {price} {currency}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="body-small text-on-surface-variant">
+                              No currency price points have been added yet.
+                            </p>
+                          )}
                         </div>
                       </Card>
                     );
@@ -548,7 +484,7 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
       </div>
       <Dialog
         open={isDialogOpen}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           setIsDialogOpen(open);
           if (!open) {
             resetFormState();
@@ -634,7 +570,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
                       <SelectItem
                         key={currency}
                         value={currency}
-                        disabled={currency === 'SEK'}
                       >
                         {currency}
                       </SelectItem>
@@ -673,11 +608,7 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
 
             <div className="space-y-2">
               <Label className="label-medium text-on-surface">Preview</Label>
-              {formState.currency === 'SEK' ? (
-                <p className="body-small text-on-surface-variant">
-                  SEK price points follow the SEK price ladder and cannot be edited here.
-                </p>
-              ) : parsedPrices.length ? (
+              {parsedPrices.length ? (
                 <div className="flex flex-wrap gap-2">
                   {parsedPrices.map((price) => (
                     <Badge
@@ -710,7 +641,7 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
             </Button>
             <Button
               onClick={handleSavePricePoint}
-              disabled={formState.currency === 'SEK' || !parsedPrices.length}
+              disabled={!parsedPrices.length}
             >
               {dialogMode === 'edit' ? 'Save changes' : 'Add price set'}
             </Button>
