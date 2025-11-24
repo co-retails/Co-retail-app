@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   brandTierWeights,
   calibrationParameters,
@@ -13,12 +13,14 @@ import {
   priceForkPromptDefinitions
 } from '../data/priceFork';
 import { getSekPriceOptions } from '../data/partnerPricing';
+import { Brand } from './PortalConfigTypes';
 import { cn } from './ui/utils';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Slider } from './ui/slider';
 import { Input } from './ui/input';
+import { Label } from './ui/label';
 import {
   Select,
   SelectContent,
@@ -41,7 +43,7 @@ import { ArrowLeft, Brain, DownloadCloud, FileText, Info, Loader2, RefreshCw, Sp
 interface PriceForkCalibrationScreenProps {
   partnerId: string;
   onBack?: () => void;
-  onSaveCalibration?: (state: PriceForkCalibrationState) => void;
+  onSaveCalibration?: (brandId: string, state: PriceForkCalibrationState) => void;
 }
 
 const confidenceBandClasses = [
@@ -63,7 +65,7 @@ const calcMargin = (purchasePrice: number, salePrice: number) => {
   return (salePrice - purchasePrice) / purchasePrice;
 };
 
-const snapToNearestPricePoint = (value: number, pricePoints: number[]) => {
+const snapToNearestPricePoint = (value: number, pricePoints: number[]): number => {
   if (!pricePoints.length) {
     return Math.round(value);
   }
@@ -78,7 +80,7 @@ const snapToNearestPricePoint = (value: number, pricePoints: number[]) => {
       return Math.max(point, closest);
     }
     return closest;
-  }, pricePoints[0]);
+  }, pricePoints[0]!);
 };
 
 const formatWeightLabel = (weight: number) => {
@@ -93,12 +95,50 @@ export default function PriceForkCalibrationScreen({
   onBack,
   onSaveCalibration
 }: PriceForkCalibrationScreenProps) {
-  const [calibrationState, setCalibrationState] = useState<PriceForkCalibrationState>({ ...priceForkDefaultState });
-  const [lastSavedState, setLastSavedState] = useState<PriceForkCalibrationState>({ ...priceForkDefaultState });
+  // Mock brands data
+  const brands: Brand[] = [
+    { id: '1', name: 'WEEKDAY', code: 'WD' },
+    { id: '2', name: 'COS', code: 'COS' },
+    { id: '3', name: 'Monki', code: 'MK' },
+    { id: '4', name: 'H&M', code: 'HM' }
+  ];
+
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(brands[0]?.id || '1');
+  
+  // Store calibration state per brand
+  const [calibrationStates, setCalibrationStates] = useState<Record<string, PriceForkCalibrationState>>({
+    [selectedBrandId]: { ...priceForkDefaultState }
+  });
+  const [lastSavedStates, setLastSavedStates] = useState<Record<string, PriceForkCalibrationState>>({
+    [selectedBrandId]: { ...priceForkDefaultState }
+  });
+
+  // Get current brand's calibration state
+  const calibrationState = calibrationStates[selectedBrandId] || { ...priceForkDefaultState };
+  const lastSavedState = lastSavedStates[selectedBrandId] || { ...priceForkDefaultState };
+
+  // Handle brand change
+  const handleBrandChange = (brandId: string) => {
+    setSelectedBrandId(brandId);
+    // Initialize calibration state for new brand if it doesn't exist
+    if (!calibrationStates[brandId]) {
+      setCalibrationStates(prev => ({
+        ...prev,
+        [brandId]: { ...priceForkDefaultState }
+      }));
+      setLastSavedStates(prev => ({
+        ...prev,
+        [brandId]: { ...priceForkDefaultState }
+      }));
+    }
+  };
   const [testItems, setTestItems] = useState<PriceForkTestItem[]>(() =>
     mockPriceForkTestItems.map((item) => {
       const pricePoints = getSekPriceOptions(partnerId, item.brand);
-      const snapped = snapToNearestPricePoint(item.aiSuggestedPrice, pricePoints.length ? pricePoints : [item.aiSuggestedPrice]);
+      const snapped = snapToNearestPricePoint(
+        item.aiSuggestedPrice,
+        pricePoints.length > 0 ? pricePoints : [item.aiSuggestedPrice]
+      );
       return {
         ...item,
         aiSuggestedPrice: snapped
@@ -113,9 +153,12 @@ export default function PriceForkCalibrationScreen({
   }, [calibrationState, lastSavedState]);
 
   const handleParameterChange = (id: string, value: number | string | boolean) => {
-    setCalibrationState((prev) => ({
+    setCalibrationStates((prev) => ({
       ...prev,
-      [id]: value
+      [selectedBrandId]: {
+        ...(prev[selectedBrandId] || { ...priceForkDefaultState }),
+        [id]: value
+      }
     }));
   };
 
@@ -172,7 +215,10 @@ export default function PriceForkCalibrationScreen({
   );
 
   const handleReset = () => {
-    setCalibrationState({ ...priceForkDefaultState });
+    setCalibrationStates((prev) => ({
+      ...prev,
+      [selectedBrandId]: { ...priceForkDefaultState }
+    }));
     setTestItems((prev) =>
       prev.map((item) => {
         const pricePoints = getPricePointsForItem(item);
@@ -188,8 +234,11 @@ export default function PriceForkCalibrationScreen({
   };
 
   const handleSave = () => {
-    setLastSavedState({ ...calibrationState });
-    onSaveCalibration?.(calibrationState);
+    setLastSavedStates((prev) => ({
+      ...prev,
+      [selectedBrandId]: { ...calibrationState }
+    }));
+    onSaveCalibration?.(selectedBrandId, calibrationState);
   };
 
   const handleAcceptItem = (id: string) => {
@@ -431,7 +480,7 @@ export default function PriceForkCalibrationScreen({
               )}
             </h1>
             <p className="body-small text-on-surface-variant">
-              Tune the AI engine, test on real inventory, and surface insights before publishing changes to partners.
+              Configure AI pricing parameters per brand. Tune the AI engine, test on real inventory, and surface insights before publishing changes to partners.
             </p>
           </div>
           <div className="flex items-center gap-2 ml-4">
@@ -478,6 +527,24 @@ export default function PriceForkCalibrationScreen({
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-8">
+        {/* Brand Selector */}
+        <div className="flex items-center gap-4">
+          <Label htmlFor="brand-select" className="label-medium text-on-surface">
+            Brand:
+          </Label>
+          <Select value={selectedBrandId} onValueChange={handleBrandChange}>
+            <SelectTrigger id="brand-select" className="w-48 bg-surface-container-high border-outline rounded-lg h-[44px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {brands.map((brand) => (
+                <SelectItem key={brand.id} value={brand.id}>
+                  {brand.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <section className="space-y-6">
           <Card className="bg-surface-container-high border border-outline-variant">
@@ -494,8 +561,8 @@ export default function PriceForkCalibrationScreen({
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">
               {calibrationParameters.map((parameter) => {
-                const value = calibrationState[parameter.id];
-                const formattedValue = parameter.format ? parameter.format(value) : value;
+                const value = calibrationState[parameter.id] ?? priceForkDefaultState[parameter.id as keyof PriceForkCalibrationState];
+                const formattedValue = parameter.format ? parameter.format(value as number) : value;
                 return (
                   <div
                     key={parameter.id}
@@ -520,7 +587,7 @@ export default function PriceForkCalibrationScreen({
                           min={parameter.min}
                           max={parameter.max}
                           step={parameter.step}
-                          onValueChange={(vals) => handleParameterChange(parameter.id, Number(vals[0]))}
+                          onValueChange={(vals: number[]) => handleParameterChange(parameter.id, Number(vals[0]))}
                         />
                         <div className="flex justify-between text-label-small text-on-surface-variant">
                           <span>{parameter.min}</span>
@@ -555,8 +622,8 @@ export default function PriceForkCalibrationScreen({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {brandTierWeights.map((tier) => {
-                    const value = calibrationState[tier.id];
-                    const formattedValue = tier.format ? tier.format(value) : value;
+                    const value = calibrationState[tier.id] ?? priceForkDefaultState[tier.id as keyof PriceForkCalibrationState];
+                    const formattedValue = tier.format ? tier.format(value as number) : value;
                     return (
                       <div key={tier.id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -570,7 +637,7 @@ export default function PriceForkCalibrationScreen({
                           min={tier.min}
                           max={tier.max}
                           step={tier.step}
-                          onValueChange={(vals) => handleParameterChange(tier.id, Number(vals[0]))}
+                          onValueChange={(vals: number[]) => handleParameterChange(tier.id, Number(vals[0]))}
                         />
                         <div className="flex justify-between text-label-small text-on-surface-variant">
                           <span>{tier.min}</span>
@@ -609,7 +676,7 @@ export default function PriceForkCalibrationScreen({
                         min={0.8}
                         max={1.4}
                         step={0.02}
-                        onValueChange={(vals) => handleParameterChange(material.id, Number(vals[0]))}
+                        onValueChange={(vals: number[]) => handleParameterChange(material.id, Number(vals[0]))}
                       />
                     </div>
                   ))}
@@ -743,7 +810,7 @@ export default function PriceForkCalibrationScreen({
                         <TableCell>
                           <Select
                             value={finalPrice.toString()}
-                            onValueChange={(selected) => {
+                            onValueChange={(selected: string) => {
                               const parsed = Number(selected);
                               handleOverridePrice(item.id, Number.isNaN(parsed) ? undefined : parsed);
                             }}

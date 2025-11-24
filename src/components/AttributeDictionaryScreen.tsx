@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import svgPaths from "../imports/svg-7un8q74kd7";
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -34,10 +35,6 @@ import {
   Plus,
   Edit,
   Power,
-  Search,
-  Filter,
-  Download,
-  Upload,
   MoreVertical
 } from 'lucide-react';
 import {
@@ -47,7 +44,7 @@ import {
   DropdownMenuTrigger
 } from './ui/dropdown-menu';
 import { Attribute, AttributeType, InputType, Brand } from './PortalConfigTypes';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface AttributeDictionaryScreenProps {
   onBack: () => void;
@@ -325,7 +322,7 @@ export function AttributeDictionaryScreen({ onBack }: AttributeDictionaryScreenP
             <div className="flex items-center gap-2">
               <span className="label-medium text-on-surface-variant">Brand:</span>
               <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                <SelectTrigger className="w-[180px] bg-surface border-outline">
+                <SelectTrigger className="w-[180px] bg-surface-container-high border border-outline rounded-lg min-h-[40px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -352,13 +349,19 @@ export function AttributeDictionaryScreen({ onBack }: AttributeDictionaryScreenP
         {/* Search and Filters */}
         <div className="mb-4 flex gap-2">
           <div className="relative flex-1 md:flex-none md:w-[400px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant" />
-            <Input
-              type="search"
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5">
+              <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                <path clipRule="evenodd" d={svgPaths.p3938ac00} fill="var(--on-surface-variant)" fillRule="evenodd" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              id="attributes-search"
+              name="attributes-search"
               placeholder="Search attributes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-surface-container border-outline"
+              className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
             />
           </div>
         </div>
@@ -368,7 +371,7 @@ export function AttributeDictionaryScreen({ onBack }: AttributeDictionaryScreenP
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-outline-variant hover:bg-surface-container-high">
+                <TableRow className="border-outline-variant bg-surface-container">
                   <TableHead className="body-medium text-on-surface-variant">Attribute</TableHead>
                   <TableHead className="body-medium text-on-surface-variant">Key</TableHead>
                   <TableHead className="body-medium text-on-surface-variant">Type</TableHead>
@@ -382,7 +385,7 @@ export function AttributeDictionaryScreen({ onBack }: AttributeDictionaryScreenP
               </TableHeader>
               <TableBody>
                 {filteredAttributes.length === 0 ? (
-                  <TableRow>
+                  <TableRow className="bg-surface">
                     <TableCell
                       colSpan={9}
                       className="h-32 text-center body-medium text-on-surface-variant"
@@ -394,7 +397,7 @@ export function AttributeDictionaryScreen({ onBack }: AttributeDictionaryScreenP
                   filteredAttributes.map((attribute) => (
                     <TableRow
                       key={attribute.id}
-                      className="border-outline-variant hover:bg-surface-container-high"
+                      className="border-outline-variant bg-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
                     >
                       <TableCell>
                         <div>
@@ -602,7 +605,7 @@ export function AttributeDictionaryScreen({ onBack }: AttributeDictionaryScreenP
                   value={formData.type}
                   onValueChange={(value) => setFormData({ ...formData, type: value as AttributeType })}
                 >
-                  <SelectTrigger id="type" className="bg-surface-container border-outline">
+                  <SelectTrigger id="type" className="bg-surface-container-high border border-outline rounded-lg min-h-[48px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -623,7 +626,7 @@ export function AttributeDictionaryScreen({ onBack }: AttributeDictionaryScreenP
                   value={formData.inputType}
                   onValueChange={(value) => setFormData({ ...formData, inputType: value as InputType })}
                 >
-                  <SelectTrigger id="inputType" className="bg-surface-container border-outline">
+                  <SelectTrigger id="inputType" className="bg-surface-container-high border border-outline rounded-lg min-h-[48px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

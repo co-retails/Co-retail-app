@@ -2,7 +2,7 @@ import svgPaths from "./svg-hxa7jl3k8x";
 
 function AndroidAppTopBar() {
   return (
-    <div className="bg-white box-border content-stretch flex gap-[8px] h-[48px] items-center justify-start px-[24px] py-0 relative shrink-0 w-[360px]" data-name="Android - AppTopBar">
+    <div className="bg-surface box-border content-stretch flex gap-[8px] h-[48px] items-center justify-start px-[24px] py-0 relative shrink-0 w-[360px]" data-name="Android - AppTopBar">
       <div aria-hidden="true" className="absolute border-[#e4e4e4] border-[0px_0px_1px] border-solid inset-0 pointer-events-none" />
       <div className="basis-0 flex flex-col font-['Roboto:Regular',_sans-serif] font-normal grow h-[24px] justify-center leading-[0] min-h-px min-w-px relative shrink-0 text-[#1a1a1a] text-[24px]" style={{ fontVariationSettings: "'wdth' 100" }}>
         <p className="leading-[28px]">Admin</p>
@@ -142,7 +142,7 @@ function StateLayer1() {
 
 function ListItemListItem0Density1() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled1 />
       <StateLayer1 />
     </div>
@@ -234,7 +234,7 @@ function Divider() {
 
 function ListItemListItem0Density2() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled2 />
       <StateLayer2 />
       <Divider />
@@ -270,7 +270,7 @@ function StateLayer3() {
 
 function ListItemListItem0Density3() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled3 />
       <StateLayer3 />
     </div>
@@ -347,7 +347,7 @@ function StateLayer4() {
 
 function ListItemListItem0Density4() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled4 />
       <StateLayer4 />
     </div>
@@ -424,7 +424,7 @@ function StateLayer5() {
 
 function ListItemListItem0Density5() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled5 />
       <StateLayer5 />
     </div>
@@ -501,7 +501,7 @@ function StateLayer6() {
 
 function ListItemListItem0Density6() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled6 />
       <StateLayer6 />
     </div>
@@ -578,7 +578,7 @@ function StateLayer7() {
 
 function ListItemListItem0Density7() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled7 />
       <StateLayer7 />
     </div>
@@ -613,7 +613,7 @@ function StateLayer8() {
 
 function ListItemListItem0Density8() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled8 />
       <StateLayer8 />
     </div>
@@ -702,7 +702,7 @@ function Divider1() {
 
 function ListItemListItem0Density9() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled9 />
       <StateLayer9 />
       <Divider1 />
@@ -738,7 +738,7 @@ function StateLayer10() {
 
 function ListItemListItem0Density10() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled10 />
       <StateLayer10 />
     </div>
@@ -818,7 +818,7 @@ function StateLayer11() {
 
 function ListItemListItem0Density11() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled11 />
       <StateLayer11 />
     </div>
@@ -895,7 +895,7 @@ function StateLayer12() {
 
 function ListItemListItem0Density12() {
   return (
-    <div className="bg-white content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
+    <div className="bg-surface content-stretch flex flex-col h-[56px] items-center justify-center relative shrink-0 w-[360px]" data-name="List item/List Item: 0 Density">
       <BuildingBlocksStateLayer1Enabled12 />
       <StateLayer12 />
     </div>
@@ -961,7 +961,7 @@ function TrailingIcon() {
 
 export default function Admin() {
   return (
-    <div className="bg-white relative size-full" data-name="Admin">
+    <div className="bg-surface relative size-full" data-name="Admin">
       <SettingsList />
       <TrailingIcon />
     </div>

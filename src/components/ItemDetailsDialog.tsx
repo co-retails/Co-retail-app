@@ -351,7 +351,7 @@ export default function ItemDetailsDialog({
                       })
                     }
                   >
-                    <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg h-10">
+                    <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation">
                       <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
@@ -367,7 +367,7 @@ export default function ItemDetailsDialog({
                     type={type}
                     value={currentValue?.toString() || ''}
                     onChange={(e) => setEditValues({ ...editValues, [field]: type === 'number' ? parseFloat(e.target.value) : e.target.value })}
-                    className="bg-surface-container-high border border-outline rounded-lg h-10"
+                    className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base touch-manipulation"
                     autoFocus
                   />
                 )}
@@ -375,17 +375,17 @@ export default function ItemDetailsDialog({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleSaveEdit(field)}
-                  className="h-8 w-8 flex-shrink-0 text-primary hover:bg-primary-container"
+                  className="min-h-[48px] min-w-[48px] h-12 w-12 flex-shrink-0 text-primary hover:bg-primary-container touch-manipulation"
                 >
-                  <Check size={16} />
+                  <Check size={20} />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={handleCancelEdit}
-                  className="h-8 w-8 flex-shrink-0 text-on-surface-variant hover:bg-surface-container-high"
+                  className="min-h-[48px] min-w-[48px] h-12 w-12 flex-shrink-0 text-on-surface-variant hover:bg-surface-container-high touch-manipulation"
                 >
-                  <X size={16} />
+                  <X size={20} />
                 </Button>
               </div>
             ) : (
@@ -412,9 +412,9 @@ export default function ItemDetailsDialog({
             size="icon"
             variant="ghost"
             onClick={() => handleStartEdit(field)}
-            className="h-8 w-8 flex-shrink-0 text-on-surface-variant hover:bg-surface-container-high"
+            className="min-h-[48px] min-w-[48px] h-12 w-12 flex-shrink-0 text-on-surface-variant hover:bg-surface-container-high touch-manipulation"
           >
-            <Edit3 size={14} />
+            <Edit3 size={20} />
           </Button>
         )}
       </div>
@@ -444,7 +444,7 @@ export default function ItemDetailsDialog({
                     setShowIdScanner(false);
                     setScannedId('');
                   }}
-                  className="text-on-surface-variant"
+                  className="min-h-[48px] min-w-[48px] text-on-surface-variant touch-manipulation"
                   aria-label="Back"
                 >
                   <ArrowLeft size={20} />
@@ -459,17 +459,22 @@ export default function ItemDetailsDialog({
             </div>
           </div>
 
-          {/* Scanner */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <ActiveScanner
-              onScan={handleScan}
-              onManualEntry={handleManualEntry}
-              isScanning={isScanning}
-              showManualEntry={true}
-            />
+          {/* Scanner - 1/3 of screen */}
+          <div className="flex-shrink-0 px-4 pt-4 pb-4 border-b border-outline-variant overflow-hidden">
+            <div className="h-[33vh] min-h-[200px] max-h-[33vh]">
+              <ActiveScanner
+                onScan={handleScan}
+                onManualEntry={handleManualEntry}
+                isScanning={isScanning}
+                showManualEntry={false}
+              />
+            </div>
+          </div>
 
+          {/* Scanned ID Display */}
+          <div className="flex-1 overflow-y-auto p-4">
             {scannedId && (
-              <div className="mt-4 p-4 bg-success-container rounded-lg">
+              <div className="p-4 bg-success-container rounded-lg">
                 <p className="body-medium text-on-success-container mb-2">New ID scanned:</p>
                 <p className="title-large text-on-success-container">{scannedId}</p>
               </div>
@@ -485,14 +490,14 @@ export default function ItemDetailsDialog({
                   setShowIdScanner(false);
                   setScannedId('');
                 }}
-                className="flex-1"
+                className="flex-1 min-h-[48px] touch-manipulation"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleConfirmNewId}
                 disabled={!scannedId.trim()}
-                className="flex-1"
+                className="flex-1 min-h-[48px] touch-manipulation"
               >
                 Confirm
               </Button>
@@ -521,7 +526,7 @@ export default function ItemDetailsDialog({
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                className="absolute top-4 left-4 bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-10"
+                className="absolute top-4 left-4 min-h-[48px] min-w-[48px] bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-10 touch-manipulation"
                 aria-label="Back"
               >
                 <ArrowLeft size={20} />
@@ -537,9 +542,9 @@ export default function ItemDetailsDialog({
                   variant="default"
                   size="sm"
                   onClick={handleTakePhoto}
-                  className="bg-surface-container-highest text-on-surface hover:bg-surface-container-high shadow-md"
+                  className="min-h-[48px] bg-surface-container-highest text-on-surface hover:bg-surface-container-high shadow-md touch-manipulation"
                 >
-                  <Camera size={16} className="mr-2" />
+                  <Camera size={18} className="mr-2" />
                   Take photo
                 </Button>
               </div>
@@ -551,7 +556,7 @@ export default function ItemDetailsDialog({
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                className="absolute top-4 left-4 bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-10"
+                className="absolute top-4 left-4 min-h-[48px] min-w-[48px] bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-10 touch-manipulation"
                 aria-label="Back"
               >
                 <ArrowLeft size={20} />
@@ -596,9 +601,9 @@ export default function ItemDetailsDialog({
                         variant="outline"
                         size="sm"
                         onClick={handleTakePhoto}
-                        className="flex-1"
+                        className="flex-1 min-h-[48px] touch-manipulation"
                       >
-                        <Camera size={14} className="mr-2" />
+                        <Camera size={18} className="mr-2" />
                         Take photo
                       </Button>
                     </div>
@@ -616,9 +621,9 @@ export default function ItemDetailsDialog({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowIdScanner(true)}
-                className="flex items-center gap-2 flex-shrink-0"
+                className="flex items-center gap-2 flex-shrink-0 min-h-[48px] touch-manipulation"
               >
-                <QrCode size={14} />
+                <QrCode size={18} />
                 Scan
               </Button>
             </div>
@@ -784,9 +789,9 @@ export default function ItemDetailsDialog({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowHistory(!showHistory)}
-                className="w-full text-on-surface-variant"
+                className="w-full min-h-[48px] text-on-surface-variant touch-manipulation"
               >
-                <History size={16} className="mr-2" />
+                <History size={18} className="mr-2" />
                 {showHistory ? 'Hide History' : 'Show History'}
               </Button>
             </div>

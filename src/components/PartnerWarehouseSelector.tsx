@@ -9,6 +9,7 @@ export interface Partner {
   name: string;
   code: string;
   productType?: 'white-label' | 'resell' | 'wholesale' | 'other';
+  brandIds?: string[];
 }
 
 export interface Warehouse {
@@ -17,6 +18,7 @@ export interface Warehouse {
   code: string;
   location: string;
   partnerId: string;
+  brandIds?: string[];
 }
 
 export interface PartnerWarehouseSelection {

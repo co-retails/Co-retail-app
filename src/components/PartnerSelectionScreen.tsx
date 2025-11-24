@@ -22,7 +22,7 @@ function Header({ onBack }: { onBack: () => void }) {
       <div className="flex items-center h-16 px-4">
         {/* Back button */}
         <button 
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
+          className="w-12 h-12 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2 touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
           onClick={onBack}
           aria-label="Go back"
         >

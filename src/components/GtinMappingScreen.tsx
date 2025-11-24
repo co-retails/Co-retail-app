@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Download, Upload, Save, Settings, X, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Download, Upload, Save, Settings, X, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -23,6 +23,7 @@ import {
 import { Checkbox } from './ui/checkbox';
 import { Switch } from './ui/switch';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { GtinMapping, PartnerType, GtinMappingStats } from './PortalConfigTypes';
 import { parseCSV, downloadCSV } from '../utils/spreadsheetUtils';
 
@@ -157,7 +158,7 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
   const [partnerRequiresCategory, setPartnerRequiresCategory] = useState<Record<string, boolean>>({
     '4': true, // US Partner requires category
   });
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]); // Empty = all brands
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [formState, setFormState] = useState({
     partnerType: 'Main Partner' as PartnerType,
     partnerId: '',
@@ -916,38 +917,78 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
       </div>
 
       {/* Brand Filter */}
-      <div className="px-4 md:px-6 py-3 border-b border-outline-variant bg-surface-container">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="label-medium text-on-surface-variant">Brand:</span>
-          <div className="flex items-center gap-2 flex-wrap">
-            {availableBrands.map(brand => (
-              <div key={brand.id} className="flex items-center gap-2">
-                <Checkbox
-                  id={`brand-${brand.id}`}
-                  checked={selectedBrands.includes(brand.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedBrands(prev => [...prev, brand.id]);
-                    } else {
-                      setSelectedBrands(prev => prev.filter(id => id !== brand.id));
-                    }
-                  }}
-                />
-                <Label htmlFor={`brand-${brand.id}`} className="body-medium text-on-surface cursor-pointer">
-                  {brand.name}
-                </Label>
-              </div>
-            ))}
-            {selectedBrands.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedBrands([])}
-                className="h-8 text-on-surface-variant"
-              >
-                Clear
-              </Button>
-            )}
+      <div className="border-t border-outline-variant bg-surface-container px-4 md:px-6 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="label-medium text-on-surface-variant">Brand:</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center justify-between gap-2 w-[220px] min-h-[40px] px-3 py-2 bg-surface-container-high border border-outline rounded-lg text-on-surface label-medium hover:bg-surface-container-highest transition-colors">
+                  <span className="truncate">
+                    {selectedBrands.length === 0
+                      ? 'All brands'
+                      : selectedBrands.length === availableBrands.length
+                      ? 'All brands'
+                      : selectedBrands.length === 1
+                      ? availableBrands.find(b => b.id === selectedBrands[0])?.name || '1 selected'
+                      : `${selectedBrands.length} selected`}
+                  </span>
+                  <ChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[220px] p-1 bg-surface border-outline">
+                <div className="max-h-[300px] overflow-y-auto">
+                  <div
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-surface-container-high cursor-pointer"
+                    onClick={() => {
+                      if (selectedBrands.length === availableBrands.length) {
+                        setSelectedBrands([]);
+                      } else {
+                        setSelectedBrands(availableBrands.map(b => b.id));
+                      }
+                    }}
+                  >
+                    <Checkbox
+                      checked={selectedBrands.length === availableBrands.length}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedBrands(availableBrands.map(b => b.id));
+                        } else {
+                          setSelectedBrands([]);
+                        }
+                      }}
+                    />
+                    <span className="body-medium text-on-surface">All brands</span>
+                  </div>
+                  <div className="h-px bg-outline-variant my-1" />
+                  {availableBrands.map((brand) => (
+                    <div
+                      key={brand.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-surface-container-high cursor-pointer"
+                      onClick={() => {
+                        if (selectedBrands.includes(brand.id)) {
+                          setSelectedBrands(prev => prev.filter(id => id !== brand.id));
+                        } else {
+                          setSelectedBrands(prev => [...prev, brand.id]);
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={selectedBrands.includes(brand.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedBrands(prev => [...prev, brand.id]);
+                          } else {
+                            setSelectedBrands(prev => prev.filter(id => id !== brand.id));
+                          }
+                        }}
+                      />
+                      <span className="body-medium text-on-surface">{brand.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>
@@ -1161,7 +1202,7 @@ export function GtinMappingScreen({ onBack }: GtinMappingScreenProps) {
                   {filteredPartnerTypeConfigs.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center body-medium text-on-surface-variant">
-                        {selectedBrands.length > 0 
+                        {selectedBrands.length > 0
                           ? 'No GTIN mappings found for selected brands. Click "Add GTIN mapping" to get started.'
                           : 'No GTIN mappings configured. Click "Add GTIN mapping" to get started.'}
                       </td>

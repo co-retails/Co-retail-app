@@ -50,7 +50,7 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
       <div className="flex items-center h-16 px-4 md:px-6">
         {/* Leading icon */}
         <button 
-          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-on-primary/12 transition-colors mr-2"
+          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-on-primary/12 transition-colors mr-2 touch-manipulation min-w-[48px] min-h-[48px]"
           onClick={onBack}
           aria-label="Go back"
         >
@@ -63,7 +63,7 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
         </h1>
         
         {/* Trailing icon */}
-        <button className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-on-primary/12 transition-colors">
+        <button className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-on-primary/12 transition-colors touch-manipulation min-w-[48px] min-h-[48px]">
           <MoreVertical className="w-6 h-6 text-on-primary" />
         </button>
       </div>
@@ -150,7 +150,7 @@ function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions, userRo
       <div className="flex items-center gap-4 px-1 py-3">
         {/* Leading element - Checkbox */}
         <button 
-          className="flex-shrink-0 w-10 h-10 flex items-center justify-center"
+          className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
           onClick={() => onToggleSelect(item.id)}
           aria-label={extendedItem.selected ? 'Deselect item' : 'Select item'}
         >
@@ -214,7 +214,7 @@ function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions, userRo
         
         {/* Trailing element */}
         <button 
-          className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors"
+          className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
           onClick={() => onMoreActions(item.id)}
           aria-label="More actions"
         >

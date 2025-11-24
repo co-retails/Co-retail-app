@@ -155,7 +155,7 @@ export function CurrencyMappingScreen({ onBack }: CurrencyMappingScreenProps) {
             <div className="flex items-center gap-2">
               <span className="label-medium text-on-surface-variant">Brand:</span>
               <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                <SelectTrigger className="w-[180px] bg-surface border-outline">
+                <SelectTrigger className="w-[180px] bg-surface-container-high border border-outline rounded-lg min-h-[40px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -171,7 +171,7 @@ export function CurrencyMappingScreen({ onBack }: CurrencyMappingScreenProps) {
             <div className="flex items-center gap-2">
               <span className="label-medium text-on-surface-variant">Partner:</span>
               <Select value={selectedPartner} onValueChange={setSelectedPartner}>
-                <SelectTrigger className="w-[200px] bg-surface border-outline">
+                <SelectTrigger className="w-[200px] bg-surface-container-high border border-outline rounded-lg min-h-[40px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -187,7 +187,7 @@ export function CurrencyMappingScreen({ onBack }: CurrencyMappingScreenProps) {
             <div className="flex items-center gap-2">
               <span className="label-medium text-on-surface-variant">Currency:</span>
               <Select value={selectedCurrency} onValueChange={(v) => setSelectedCurrency(v as CurrencyCode)}>
-                <SelectTrigger className="w-[120px] bg-surface border-outline">
+                <SelectTrigger className="w-[120px] bg-surface-container-high border border-outline rounded-lg min-h-[40px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

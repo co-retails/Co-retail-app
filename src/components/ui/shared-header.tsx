@@ -22,7 +22,7 @@ export function SharedHeader({
   className = "" 
 }: SharedHeaderProps) {
   return (
-    <div className={`bg-surface-container border-b border-outline-variant ${className}`}>
+    <div className={`bg-surface border-b border-outline-variant ${className}`}>
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

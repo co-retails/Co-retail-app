@@ -317,7 +317,7 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
                 
                 {/* Trailing Icon - More Options */}
                 <div className="flex-shrink-0">
-                  <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">
+                  <button className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24">
                       <circle cx="12" cy="5" r="2" fill="var(--on-surface)" />
                       <circle cx="12" cy="12" r="2" fill="var(--on-surface)" />
