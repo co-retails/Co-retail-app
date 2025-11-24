@@ -16,11 +16,17 @@ import PriceForkCalibrationScreen from './PriceForkCalibrationScreen';
 import { UserRole } from './PortalConfigTypes';
 import { Partner, Warehouse } from './PartnerWarehouseSelector';
 
+interface Brand {
+  id: string;
+  name: string;
+}
+
 interface PortalConfigurationManagerProps {
   userRole: UserRole;
   onBack: () => void;
   partners?: Partner[];
   warehouses?: Warehouse[];
+  brands?: Brand[];
   onSavePartner?: (partner: Partner) => void;
   onDeletePartner?: (partnerId: string) => void;
   onSaveWarehouse?: (warehouse: Warehouse) => void;
@@ -33,6 +39,7 @@ export function PortalConfigurationManager({
   onBack,
   partners = [],
   warehouses = [],
+  brands = [],
   onSavePartner = () => {},
   onDeletePartner = () => {},
   onSaveWarehouse = () => {},
@@ -107,6 +114,7 @@ export function PortalConfigurationManager({
           onBack={handleBackToLanding}
           partners={partners}
           warehouses={warehouses}
+          brands={brands}
           onSavePartner={onSavePartner}
           onDeletePartner={onDeletePartner}
           onSaveWarehouse={onSaveWarehouse}

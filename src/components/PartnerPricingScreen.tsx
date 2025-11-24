@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Filter } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import {
@@ -17,17 +17,10 @@ import {
   DialogHeader,
   DialogTitle
 } from './ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from './ui/dropdown-menu';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import {
   partnerPriceBooks,
   sekPriceLadders as sharedSekPriceLadders,
@@ -90,7 +83,7 @@ const initialPricePoints: PricePoint[] = partnerPriceBooks.map((book) => {
 
 export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
   const [pricePoints, setPricePoints] = useState<PricePoint[]>(initialPricePoints);
-  const [selectedPartners, setSelectedPartners] = useState<string[]>(allPartnerIds);
+  const [selectedPartner, setSelectedPartner] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [editingPricePoint, setEditingPricePoint] = useState<PricePoint | null>(null);
@@ -104,29 +97,17 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
 
   const brandNameMap = useMemo(() => ({ ...brandNameById }), []);
 
-  const partnerFilterSet = useMemo(
-    () => new Set(selectedPartners),
-    [selectedPartners]
-  );
-
   const displayedPartners = useMemo(() => {
-    if (!selectedPartners.length) {
-      return [] as typeof mockPartners;
+    if (selectedPartner === 'all') {
+      return mockPartners;
     }
-    return mockPartners.filter((partner) => partnerFilterSet.has(partner.id));
-  }, [partnerFilterSet, selectedPartners]);
+    const partner = mockPartners.find((p) => p.id === selectedPartner);
+    return partner ? [partner] : [];
+  }, [selectedPartner]);
 
   const brandOptionsForCurrentPartner = useMemo(
     () => getBrandOptionsForPartner(formState.partnerId),
     [formState.partnerId]
-  );
-
-  const hasVisiblePricePoints = useMemo(
-    () =>
-      displayedPartners.some((partner) =>
-        pricePoints.some((pp) => pp.partnerId === partner.id)
-      ),
-    [displayedPartners, pricePoints]
   );
 
   useEffect(() => {
@@ -322,34 +303,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
     resetFormState();
   };
 
-  const isAllSelected = selectedPartners.length === allPartnerIds.length;
-
-  const handleSelectAllPartners = (checked: boolean | 'indeterminate') => {
-    const isChecked = checked === true;
-    if (isChecked) {
-      setSelectedPartners(allPartnerIds);
-    } else {
-      setSelectedPartners([]);
-    }
-  };
-
-  const handlePartnerFilterToggle = (
-    partnerId: string,
-    checked: boolean | 'indeterminate'
-  ) => {
-    const isChecked = checked === true;
-    setSelectedPartners((prev) => {
-      if (isChecked) {
-        if (prev.includes(partnerId)) {
-          return prev;
-        }
-        const nextSet = new Set([...prev, partnerId]);
-        return allPartnerIds.filter((id) => nextSet.has(id));
-      }
-
-      return prev.filter((id) => id !== partnerId);
-    });
-  };
 
   const handlePartnerSelect = (partnerId: string) => {
     const nextBrandOptions = getBrandOptionsForPartner(partnerId);
@@ -411,44 +364,32 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Filter className="w-4 h-4" />
-                  <span>
-                    {isAllSelected
-                      ? 'All partners'
-                      : selectedPartners.length
-                      ? `${selectedPartners.length} selected`
-                      : 'Select partners'}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuCheckboxItem
-                  checked={isAllSelected}
-                  onCheckedChange={handleSelectAllPartners}
-                >
-                  All partners
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuSeparator />
-                {mockPartners.map((partner) => (
-                  <DropdownMenuCheckboxItem
-                    key={partner.id}
-                    checked={selectedPartners.includes(partner.id)}
-                    onCheckedChange={(checked) =>
-                      handlePartnerFilterToggle(partner.id, checked)
-                    }
-                  >
-                    {partner.name}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
             <Button className="gap-2" onClick={openCreateDialog}>
               <Plus className="w-5 h-5" />
               <span>Add price set</span>
             </Button>
+          </div>
+        </div>
+
+        {/* Context Bar */}
+        <div className="border-t border-outline-variant bg-surface-container px-4 md:px-6 py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="label-medium text-on-surface-variant">Partner:</span>
+              <Select value={selectedPartner} onValueChange={setSelectedPartner}>
+                <SelectTrigger className="w-[220px] bg-surface-container-high border border-outline rounded-lg min-h-[40px]">
+                  <SelectValue placeholder="Select partner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All partners</SelectItem>
+                  {mockPartners.map((partner) => (
+                    <SelectItem key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -456,15 +397,6 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
       {/* Content */}
       <div className="max-w-6xl px-4 md:px-6 py-6">
         <div className="space-y-6">
-          {!selectedPartners.length && (
-            <Card className="p-6 border-outline bg-surface-container">
-              <div className="title-medium text-on-surface mb-2">Select partners to view pricing</div>
-              <div className="body-medium text-on-surface-variant">
-                Use the filter in the top right to choose which partner price sets to display.
-              </div>
-            </Card>
-          )}
-
           {displayedPartners.map((partner) => {
             const partnerPrices = pricePoints.filter(
               (pricePoint) => pricePoint.partnerId === partner.id
@@ -588,13 +520,11 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
             );
           })}
 
-          {selectedPartners.length > 0 && !hasVisiblePricePoints && pricePoints.length > 0 && (
-            <Card className="p-6 border-outline bg-surface-container text-center">
-              <div className="title-medium text-on-surface mb-2">
-                No price sets for the selected partners
-              </div>
+          {displayedPartners.length > 0 && !displayedPartners.some(p => pricePoints.some(pp => pp.partnerId === p.id)) && (
+            <Card className="p-6 border-outline bg-surface-container">
+              <div className="title-medium text-on-surface mb-2">No pricing configured</div>
               <div className="body-medium text-on-surface-variant">
-                Add a price set to get started or adjust the partner filter.
+                Add price sets using the "Add price set" button above.
               </div>
             </Card>
           )}

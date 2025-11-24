@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import PartnerSalesReport, { SalesDataPoint } from './PartnerSalesReport';
 import PartnerStockReport, { StockReportData, TimePeriod } from './PartnerStockReport';
 import type { Store, Brand, Country } from './StoreSelector';
+import { Partner as WarehousePartner } from './PartnerWarehouseSelector';
 
 export interface PartnerReportsScreenProps {
   onBack: () => void;
@@ -13,7 +14,9 @@ export interface PartnerReportsScreenProps {
   stores: Store[];
   brands: Brand[];
   countries: Country[];
+  partners: WarehousePartner[];
   partnerId?: string;
+  currentUserRole?: 'admin' | 'partner' | 'store-staff' | 'buyer';
 }
 
 type ReportTab = 'sales' | 'stock';
@@ -26,12 +29,18 @@ export default function PartnerReportsScreen({
   stores,
   brands,
   countries,
-  partnerId
+  partners,
+  partnerId,
+  currentUserRole = 'partner'
 }: PartnerReportsScreenProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>('sales');
   
+  // Determine if user can change partner filter (Admins and Brand Admins)
+  const canChangePartner = currentUserRole === 'admin' || currentUserRole === 'store-staff';
+  
   // Global filter state - unified time period for both reports
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<UnifiedTimePeriod>('month');
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>(partnerId || 'all');
   const [selectedBrandId, setSelectedBrandId] = useState<string>('all');
   const [selectedCountryId, setSelectedCountryId] = useState<string>('all');
   const [selectedStoreId, setSelectedStoreId] = useState<string>('all');
@@ -39,15 +48,78 @@ export default function PartnerReportsScreen({
     salesData[salesData.length - 1]?.month || ''
   );
 
-  const getPeriodLabel = (period: UnifiedTimePeriod) => {
-    switch (period) {
-      case 'month': return 'Month';
-      case 'daily': return 'Yesterday';
-      case 'sevenDays': return '7 Days';
-      case 'fourteenDays': return '14 Days';
-      case 'thirtyDays': return '30 Days';
+  // Set partner filter to current partner if user is a partner
+  useEffect(() => {
+    if (!canChangePartner && partnerId) {
+      setSelectedPartnerId(partnerId);
     }
-  };
+  }, [canChangePartner, partnerId]);
+
+  // Filter available brands, countries, and stores based on selected partner
+  const filteredBrands = useMemo(() => {
+    if (selectedPartnerId === 'all' || !canChangePartner) {
+      return brands;
+    }
+    const partner = partners.find(p => p.id === selectedPartnerId);
+    if (partner?.brandIds && partner.brandIds.length > 0) {
+      return brands.filter(brand => partner.brandIds!.includes(brand.id));
+    }
+    return brands;
+  }, [selectedPartnerId, partners, brands, canChangePartner]);
+
+  const filteredCountries = useMemo(() => {
+    if (selectedPartnerId === 'all' || !canChangePartner) {
+      return countries;
+    }
+    // Filter countries based on brands associated with the partner
+    const partner = partners.find(p => p.id === selectedPartnerId);
+    if (partner?.brandIds && partner.brandIds.length > 0) {
+      return countries.filter(country => 
+        partner.brandIds!.includes(country.brandId)
+      );
+    }
+    return countries;
+  }, [selectedPartnerId, partners, countries, canChangePartner]);
+
+  const filteredStores = useMemo(() => {
+    if (selectedPartnerId === 'all' || !canChangePartner) {
+      return stores;
+    }
+    // Filter stores based on brands associated with the partner
+    const partner = partners.find(p => p.id === selectedPartnerId);
+    if (partner?.brandIds && partner.brandIds.length > 0) {
+      return stores.filter(store => 
+        partner.brandIds!.includes(store.brandId)
+      );
+    }
+    return stores;
+  }, [selectedPartnerId, partners, stores, canChangePartner]);
+
+  // Reset brand/country/store filters when partner changes
+  useEffect(() => {
+    if (selectedPartnerId !== 'all' && canChangePartner) {
+      // Reset filters that are no longer valid for the selected partner
+      const partner = partners.find(p => p.id === selectedPartnerId);
+      if (partner?.brandIds) {
+        if (selectedBrandId !== 'all' && !partner.brandIds.includes(selectedBrandId)) {
+          setSelectedBrandId('all');
+        }
+        if (selectedCountryId !== 'all') {
+          const validCountry = countries.find(c => c.id === selectedCountryId);
+          if (validCountry && !partner.brandIds.includes(validCountry.brandId)) {
+            setSelectedCountryId('all');
+          }
+        }
+        if (selectedStoreId !== 'all') {
+          const validStore = stores.find(s => s.id === selectedStoreId);
+          if (validStore && !partner.brandIds.includes(validStore.brandId)) {
+            setSelectedStoreId('all');
+          }
+        }
+      }
+    }
+  }, [selectedPartnerId, partners, brands, countries, stores, selectedBrandId, selectedCountryId, selectedStoreId, canChangePartner]);
+
 
   return (
     <div className="min-h-screen bg-surface">
@@ -107,13 +179,44 @@ export default function PartnerReportsScreen({
       <div className="w-full bg-surface border-b border-outline-variant sticky top-[145px] z-10">
         <div className="px-4 md:px-6 py-3">
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Partner Filter - Editable for Admins and Brand Admins, Read-only display for Partners */}
+            <div className="flex items-center gap-2">
+              <label className="label-small text-on-surface-variant whitespace-nowrap">Partner:</label>
+              {canChangePartner ? (
+                <Select
+                  value={selectedPartnerId}
+                  onValueChange={(value: string) => setSelectedPartnerId(value)}
+                >
+                  <SelectTrigger 
+                    className="bg-surface-container border border-outline-variant rounded-lg min-h-[56px] h-14 body-medium min-w-[150px]"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-surface-container-high border border-outline">
+                    <SelectItem value="all" className="body-medium">All Partners</SelectItem>
+                    {partners.map(partner => (
+                      <SelectItem key={partner.id} value={partner.id} className="body-medium">
+                        {partner.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="bg-surface-container border border-outline-variant rounded-lg min-h-[56px] h-14 px-4 flex items-center body-medium min-w-[150px]">
+                  <span className="text-on-surface">
+                    {partners.find(p => p.id === selectedPartnerId)?.name || 'Unknown Partner'}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Time Period */}
             <div className="flex items-center gap-2">
               <label className="label-small text-on-surface-variant whitespace-nowrap">Time Period:</label>
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedTimePeriod}
-                  onValueChange={(value) => setSelectedTimePeriod(value as UnifiedTimePeriod)}
+                  onValueChange={(value: string) => setSelectedTimePeriod(value as UnifiedTimePeriod)}
                 >
                   <SelectTrigger 
                     className="bg-surface-container border border-outline-variant rounded-lg min-h-[56px] h-14 body-medium min-w-[120px]"
@@ -164,7 +267,7 @@ export default function PartnerReportsScreen({
                 </SelectTrigger>
                 <SelectContent className="bg-surface-container-high border border-outline">
                   <SelectItem value="all" className="body-medium">All</SelectItem>
-                  {brands.map(brand => (
+                  {filteredBrands.map(brand => (
                     <SelectItem key={brand.id} value={brand.id} className="body-medium">
                       {brand.name}
                     </SelectItem>
@@ -187,7 +290,7 @@ export default function PartnerReportsScreen({
                 </SelectTrigger>
                 <SelectContent className="bg-surface-container-high border border-outline">
                   <SelectItem value="all" className="body-medium">All</SelectItem>
-                  {countries.map(country => (
+                  {filteredCountries.map(country => (
                     <SelectItem key={country.id} value={country.id} className="body-medium">
                       {country.name}
                     </SelectItem>
@@ -210,7 +313,7 @@ export default function PartnerReportsScreen({
                 </SelectTrigger>
                 <SelectContent className="bg-surface-container-high border border-outline">
                   <SelectItem value="all" className="body-medium">All Stores</SelectItem>
-                  {stores.map(store => (
+                  {filteredStores.map(store => (
                     <SelectItem key={store.id} value={store.id} className="body-medium">
                       {store.name}
                     </SelectItem>
@@ -227,28 +330,28 @@ export default function PartnerReportsScreen({
         {activeTab === 'sales' && (
           <PartnerSalesReport
             salesData={salesData}
-            stores={stores}
-            brands={brands}
-            countries={countries}
+            stores={filteredStores}
+            brands={filteredBrands}
+            countries={filteredCountries}
             selectedMonth={selectedMonth}
             selectedTimePeriod={selectedTimePeriod}
             selectedBrandId={selectedBrandId}
             selectedCountryId={selectedCountryId}
             selectedStoreId={selectedStoreId}
-            partnerId={partnerId}
+            partnerId={selectedPartnerId === 'all' ? undefined : selectedPartnerId}
           />
         )}
         {activeTab === 'stock' && (
           <PartnerStockReport
             stockData={stockData}
-            stores={stores}
-            brands={brands}
-            countries={countries}
+            stores={filteredStores}
+            brands={filteredBrands}
+            countries={filteredCountries}
             selectedTimePeriod={selectedTimePeriod === 'month' ? 'thirtyDays' : selectedTimePeriod as TimePeriod}
             selectedBrandId={selectedBrandId}
             selectedCountryId={selectedCountryId}
             selectedStoreId={selectedStoreId}
-            partnerId={partnerId}
+            partnerId={selectedPartnerId === 'all' ? undefined : selectedPartnerId}
           />
         )}
       </div>

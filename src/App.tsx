@@ -2111,7 +2111,9 @@ export default function App() {
             stores={mockStores}
             brands={mockBrands}
             countries={mockCountries}
+            partners={mockWarehousePartners}
             partnerId={currentPartnerWarehouseSelection.partnerId}
+            currentUserRole={currentUserRole}
           />
         </React.Suspense>
       )}
@@ -3194,6 +3196,7 @@ export default function App() {
           }}
           partners={partners}
           warehouses={warehouses}
+          brands={mockBrands}
           onSavePartner={handleSavePartner}
           onDeletePartner={handleDeletePartner}
           onSaveWarehouse={handleSaveWarehouse}

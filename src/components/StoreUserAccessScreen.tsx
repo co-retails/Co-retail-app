@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Search, Filter, Users, ChevronRight, User, Shield } from 'lucide-react';
+import { ArrowLeft, Filter, Users, ChevronRight, User, Shield } from 'lucide-react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -9,6 +8,7 @@ import { Separator } from './ui/separator';
 import { useMediaQuery } from './ui/use-mobile';
 import { StoreUserAccess, mockStoreUserAccess } from '../data/userAccessMockData';
 import { Brand, Country, Store } from './StoreSelector';
+import svgPaths from '../imports/svg-7un8q74kd7';
 
 interface StoreUserAccessScreenProps {
   onBack: () => void;
@@ -208,15 +208,21 @@ export default function StoreUserAccessScreen({
 
           {/* Search and Stats */}
           <div className="space-y-3">
-            <div className="relative flex-1 md:flex-none md:w-[576px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant" />
-              <Input
-                type="search"
-                placeholder="Search by name, email, or store..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-surface-container border-outline"
-              />
+            <div className="relative w-full md:max-w-2xl">
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5">
+                  <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                    <path clipRule="evenodd" d={svgPaths.p3938ac00} fill="var(--on-surface-variant)" fillRule="evenodd" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or store..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
+                />
+              </div>
             </div>
 
             {/* Stats */}
@@ -263,7 +269,7 @@ export default function StoreUserAccessScreen({
 
             {/* Brand Filter */}
             <Select value={filterBrandId} onValueChange={setFilterBrandId}>
-              <SelectTrigger className="bg-surface-container-highest border-outline w-[180px]">
+              <SelectTrigger className="bg-surface-container border border-outline-variant rounded-lg w-[180px]">
                 <SelectValue placeholder="All brands" />
               </SelectTrigger>
               <SelectContent>
@@ -276,7 +282,7 @@ export default function StoreUserAccessScreen({
 
             {/* Country Filter */}
             <Select value={filterCountryId} onValueChange={setFilterCountryId}>
-              <SelectTrigger className="bg-surface-container-highest border-outline w-[180px]">
+              <SelectTrigger className="bg-surface-container border border-outline-variant rounded-lg w-[180px]">
                 <SelectValue placeholder="All countries" />
               </SelectTrigger>
               <SelectContent>
@@ -289,7 +295,7 @@ export default function StoreUserAccessScreen({
 
             {/* Role Filter */}
             <Select value={filterRole} onValueChange={setFilterRole}>
-              <SelectTrigger className="bg-surface-container-highest border-outline w-[180px]">
+              <SelectTrigger className="bg-surface-container border border-outline-variant rounded-lg w-[180px]">
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
@@ -307,7 +313,7 @@ export default function StoreUserAccessScreen({
 
             {/* Store Filter */}
             <Select value={filterStoreId} onValueChange={setFilterStoreId}>
-              <SelectTrigger className="bg-surface-container-highest border-outline w-[240px]">
+              <SelectTrigger className="bg-surface-container border border-outline-variant rounded-lg w-[240px]">
                 <SelectValue placeholder="All stores" />
               </SelectTrigger>
               <SelectContent>
@@ -421,11 +427,11 @@ export default function StoreUserAccessScreen({
                       /* Mobile Card View */
                       <div className="space-y-2">
                         {users.map(user => (
-                          <Card 
-                            key={user.id} 
-                            className="hover:bg-surface-container-high transition-colors cursor-pointer border-outline"
-                            onClick={() => setSelectedUser(user)}
-                          >
+                      <Card 
+                        key={user.id} 
+                        className="bg-surface-container border border-outline-variant hover:bg-surface-container-high transition-colors cursor-pointer"
+                        onClick={() => setSelectedUser(user)}
+                      >
                             <CardContent className="p-4">
                               <div className="flex items-start gap-4">
                                 {/* User Avatar */}

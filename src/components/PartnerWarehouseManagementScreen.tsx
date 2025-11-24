@@ -1,21 +1,32 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { ArrowLeft, Plus, Edit, Building2, Warehouse as WarehouseIcon, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Building2, Warehouse as WarehouseIcon, Trash2, Save, X, ChevronDown, MoreVertical } from 'lucide-react';
 import { Partner, Warehouse } from './PartnerWarehouseSelector';
 import { toast } from 'sonner';
 import { Badge } from './ui/badge';
-import { useMediaQuery } from './ui/use-mobile';
-import { Separator } from './ui/separator';
+import { Checkbox } from './ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+
+interface Brand {
+  id: string;
+  name: string;
+}
 
 interface PartnerWarehouseManagementScreenProps {
   onBack: () => void;
   partners: Partner[];
   warehouses: Warehouse[];
+  brands: Brand[];
   onSavePartner: (partner: Partner) => void;
   onDeletePartner: (partnerId: string) => void;
   onSaveWarehouse: (warehouse: Warehouse) => void;
@@ -27,6 +38,7 @@ type PartnerFormData = {
   name: string;
   code: string;
   productType: 'white-label' | 'resell' | 'wholesale' | 'other';
+  brandIds: string[];
 };
 
 type WarehouseFormData = {
@@ -35,19 +47,23 @@ type WarehouseFormData = {
   code: string;
   location: string;
   partnerId: string;
+  brandIds: string[];
 };
 
 export default function PartnerWarehouseManagementScreen({
   onBack,
   partners,
   warehouses,
+  brands,
   onSavePartner,
   onDeletePartner,
   onSaveWarehouse,
   onDeleteWarehouse
 }: PartnerWarehouseManagementScreenProps) {
-  const isMobile = useMediaQuery('(max-width: 768px)');
-  
+  // Filter state
+  const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([]);
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
+
   // Partner dialog state
   const [isPartnerDialogOpen, setIsPartnerDialogOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
@@ -55,7 +71,8 @@ export default function PartnerWarehouseManagementScreen({
     id: '',
     name: '',
     code: '',
-    productType: 'resell'
+    productType: 'resell',
+    brandIds: []
   });
 
   // Warehouse dialog state
@@ -66,17 +83,36 @@ export default function PartnerWarehouseManagementScreen({
     name: '',
     code: '',
     location: '',
-    partnerId: ''
+    partnerId: '',
+    brandIds: []
   });
 
-  // Selected partner for viewing warehouses
-  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+  // Get warehouses for a specific partner
+  const getPartnerWarehouses = (partnerId: string) => {
+    return warehouses.filter(w => w.partnerId === partnerId);
+  };
 
-  // Get warehouses for selected partner
-  const partnerWarehouses = useMemo(() => {
-    if (!selectedPartnerId) return [];
-    return warehouses.filter(w => w.partnerId === selectedPartnerId);
-  }, [selectedPartnerId, warehouses]);
+  // Filter partners by selected brands and partners
+  const filteredPartners = useMemo(() => {
+    let filtered = partners;
+    
+    // Filter by selected partners
+    if (selectedPartnerIds.length > 0) {
+      filtered = filtered.filter(partner => selectedPartnerIds.includes(partner.id));
+    }
+    
+    // Filter by selected brands
+    if (selectedBrandIds.length > 0) {
+      filtered = filtered.filter(partner => {
+        const partnerBrandIds = partner.brandIds || [];
+        return selectedBrandIds.some(brandId => partnerBrandIds.includes(brandId));
+      });
+    }
+    
+    return filtered;
+  }, [partners, selectedBrandIds, selectedPartnerIds]);
+
+
 
   // Open partner dialog for adding new partner
   const handleAddPartner = () => {
@@ -85,7 +121,8 @@ export default function PartnerWarehouseManagementScreen({
       id: `partner-${Date.now()}`,
       name: '',
       code: '',
-      productType: 'resell'
+      productType: 'resell',
+      brandIds: []
     });
     setIsPartnerDialogOpen(true);
   };
@@ -97,7 +134,8 @@ export default function PartnerWarehouseManagementScreen({
       id: partner.id,
       name: partner.name,
       code: partner.code || '',
-      productType: partner.productType || 'resell'
+      productType: partner.productType || 'resell',
+      brandIds: partner.brandIds || []
     });
     setIsPartnerDialogOpen(true);
   };
@@ -117,12 +155,23 @@ export default function PartnerWarehouseManagementScreen({
       id: partnerFormData.id,
       name: partnerFormData.name,
       code: partnerFormData.code,
-      productType: partnerFormData.productType
+      productType: partnerFormData.productType,
+      brandIds: partnerFormData.brandIds
     };
 
     onSavePartner(partner);
     toast.success(editingPartner ? 'Partner updated successfully' : 'Partner added successfully');
     setIsPartnerDialogOpen(false);
+  };
+
+  // Toggle brand selection in partner form
+  const togglePartnerBrand = (brandId: string) => {
+    setPartnerFormData(prev => ({
+      ...prev,
+      brandIds: prev.brandIds.includes(brandId)
+        ? prev.brandIds.filter(id => id !== brandId)
+        : [...prev.brandIds, brandId]
+    }));
   };
 
   // Delete partner
@@ -136,21 +185,20 @@ export default function PartnerWarehouseManagementScreen({
     if (window.confirm('Are you sure you want to delete this partner?')) {
       onDeletePartner(partnerId);
       toast.success('Partner deleted successfully');
-      if (selectedPartnerId === partnerId) {
-        setSelectedPartnerId(null);
-      }
     }
   };
 
   // Open warehouse dialog for adding new warehouse
   const handleAddWarehouse = (partnerId?: string) => {
     setEditingWarehouse(null);
+    const partner = partners.find(p => p.id === partnerId);
     setWarehouseFormData({
       id: `warehouse-${Date.now()}`,
       name: '',
       code: '',
       location: '',
-      partnerId: partnerId || selectedPartnerId || ''
+      partnerId: partnerId || '',
+      brandIds: partner?.brandIds || []
     });
     setIsWarehouseDialogOpen(true);
   };
@@ -163,7 +211,8 @@ export default function PartnerWarehouseManagementScreen({
       name: warehouse.name,
       code: warehouse.code,
       location: warehouse.location,
-      partnerId: warehouse.partnerId
+      partnerId: warehouse.partnerId,
+      brandIds: warehouse.brandIds || []
     });
     setIsWarehouseDialogOpen(true);
   };
@@ -192,12 +241,23 @@ export default function PartnerWarehouseManagementScreen({
       name: warehouseFormData.name,
       code: warehouseFormData.code,
       location: warehouseFormData.location,
-      partnerId: warehouseFormData.partnerId
+      partnerId: warehouseFormData.partnerId,
+      brandIds: warehouseFormData.brandIds
     };
 
     onSaveWarehouse(warehouse);
     toast.success(editingWarehouse ? 'Warehouse updated successfully' : 'Warehouse added successfully');
     setIsWarehouseDialogOpen(false);
+  };
+
+  // Toggle brand selection in warehouse form
+  const toggleWarehouseBrand = (brandId: string) => {
+    setWarehouseFormData(prev => ({
+      ...prev,
+      brandIds: prev.brandIds.includes(brandId)
+        ? prev.brandIds.filter(id => id !== brandId)
+        : [...prev.brandIds, brandId]
+    }));
   };
 
   // Delete warehouse
@@ -211,7 +271,7 @@ export default function PartnerWarehouseManagementScreen({
   return (
     <div className="h-full flex flex-col bg-surface">
       {/* Header */}
-      <div className="bg-surface-container border-b border-outline-variant px-4 py-3 flex items-center justify-between">
+      <div className="bg-surface border-b border-outline-variant px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -222,8 +282,8 @@ export default function PartnerWarehouseManagementScreen({
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-semibold text-on-surface">Partner & Warehouse Management</h1>
-            <p className="text-sm text-on-surface-variant">Manage partners and their warehouses</p>
+            <h1 className="headline-small text-on-surface">Partner & Warehouse Management</h1>
+            <p className="body-small text-on-surface-variant">Manage partners and their warehouses</p>
           </div>
         </div>
         <Button
@@ -237,151 +297,396 @@ export default function PartnerWarehouseManagementScreen({
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* Partners List */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                Partners ({partners.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {partners.length === 0 ? (
-                  <div className="text-center py-8 text-on-surface-variant">
-                    <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No partners yet. Click "Add Partner" to get started.</p>
-                  </div>
-                ) : (
-                  partners.map((partner) => {
-                    const partnerWarehouseCount = warehouses.filter(w => w.partnerId === partner.id).length;
-                    const isSelected = selectedPartnerId === partner.id;
-                    
-                    return (
-                      <Card 
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Filters */}
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="title-large text-on-surface">Partners ({filteredPartners.length})</h2>
+            <div className="flex items-center gap-2">
+              <span className="label-medium text-on-surface-variant">Partner:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center justify-between gap-2 w-[220px] min-h-[40px] px-3 py-2 bg-surface-container-high border border-outline rounded-lg text-on-surface label-medium hover:bg-surface-container-highest transition-colors">
+                    <span className="truncate">
+                      {selectedPartnerIds.length === 0
+                        ? 'All partners'
+                        : selectedPartnerIds.length === partners.length
+                        ? 'All partners'
+                        : selectedPartnerIds.length === 1
+                        ? partners.find(p => p.id === selectedPartnerIds[0])?.name || '1 selected'
+                        : `${selectedPartnerIds.length} selected`}
+                    </span>
+                    <ChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[220px] p-1 bg-surface border-outline">
+                  <div className="max-h-[300px] overflow-y-auto">
+                    <div
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-surface-container-high cursor-pointer"
+                      onClick={() => {
+                        if (selectedPartnerIds.length === partners.length) {
+                          setSelectedPartnerIds([]);
+                        } else {
+                          setSelectedPartnerIds(partners.map(p => p.id));
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={selectedPartnerIds.length === partners.length}
+                        onCheckedChange={(checked: boolean | 'indeterminate') => {
+                          setSelectedPartnerIds(checked === true ? partners.map(p => p.id) : []);
+                        }}
+                      />
+                      <span className="body-medium text-on-surface">All partners</span>
+                    </div>
+                    <div className="h-px bg-outline-variant my-1" />
+                    {partners.map((partner) => (
+                      <div
                         key={partner.id}
-                        className={`cursor-pointer transition-colors ${
-                          isSelected 
-                            ? 'border-primary bg-primary/5' 
-                            : 'hover:bg-surface-container-high'
-                        }`}
-                        onClick={() => setSelectedPartnerId(isSelected ? null : partner.id)}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-surface-container-high cursor-pointer"
+                        onClick={() => {
+                          if (selectedPartnerIds.includes(partner.id)) {
+                            setSelectedPartnerIds(prev => prev.filter(id => id !== partner.id));
+                          } else {
+                            setSelectedPartnerIds(prev => [...prev, partner.id]);
+                          }
+                        }}
                       >
-                        <CardContent className="p-4">
+                        <Checkbox
+                          checked={selectedPartnerIds.includes(partner.id)}
+                          onCheckedChange={(checked: boolean | 'indeterminate') => {
+                            if (checked === true) {
+                              setSelectedPartnerIds(prev => [...prev, partner.id]);
+                            } else {
+                              setSelectedPartnerIds(prev => prev.filter(id => id !== partner.id));
+                            }
+                          }}
+                        />
+                        <span className="body-medium text-on-surface">{partner.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              <span className="label-medium text-on-surface-variant">Brand:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center justify-between gap-2 w-[220px] min-h-[40px] px-3 py-2 bg-surface-container-high border border-outline rounded-lg text-on-surface label-medium hover:bg-surface-container-highest transition-colors">
+                    <span className="truncate">
+                      {selectedBrandIds.length === 0
+                        ? 'All brands'
+                        : selectedBrandIds.length === brands.length
+                        ? 'All brands'
+                        : selectedBrandIds.length === 1
+                        ? brands.find(b => b.id === selectedBrandIds[0])?.name || '1 selected'
+                        : `${selectedBrandIds.length} selected`}
+                    </span>
+                    <ChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[220px] p-1 bg-surface border-outline">
+                  <div className="max-h-[300px] overflow-y-auto">
+                    <div
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-surface-container-high cursor-pointer"
+                      onClick={() => {
+                        if (selectedBrandIds.length === brands.length) {
+                          setSelectedBrandIds([]);
+                        } else {
+                          setSelectedBrandIds(brands.map(b => b.id));
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={selectedBrandIds.length === brands.length}
+                        onCheckedChange={(checked: boolean | 'indeterminate') => {
+                          setSelectedBrandIds(checked === true ? brands.map(b => b.id) : []);
+                        }}
+                      />
+                      <span className="body-medium text-on-surface">All brands</span>
+                    </div>
+                    <div className="h-px bg-outline-variant my-1" />
+                    {brands.map((brand) => (
+                      <div
+                        key={brand.id}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-surface-container-high cursor-pointer"
+                        onClick={() => {
+                          if (selectedBrandIds.includes(brand.id)) {
+                            setSelectedBrandIds(prev => prev.filter(id => id !== brand.id));
+                          } else {
+                            setSelectedBrandIds(prev => [...prev, brand.id]);
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedBrandIds.includes(brand.id)}
+                          onCheckedChange={(checked: boolean | 'indeterminate') => {
+                            if (checked === true) {
+                              setSelectedBrandIds(prev => [...prev, brand.id]);
+                            } else {
+                              setSelectedBrandIds(prev => prev.filter(id => id !== brand.id));
+                            }
+                          }}
+                        />
+                        <span className="body-medium text-on-surface">{brand.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* Filter Chips */}
+          {(selectedPartnerIds.length > 0 || selectedBrandIds.length > 0) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="label-small text-on-surface-variant">Active filters:</span>
+              
+              {/* Partner Filter Chips */}
+              {selectedPartnerIds.map(partnerId => {
+                const partner = partners.find(p => p.id === partnerId);
+                if (!partner) return null;
+                return (
+                  <div
+                    key={partnerId}
+                    className="inline-flex items-center gap-2 h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-lg"
+                  >
+                    <span className="label-small">{partner.name}</span>
+                    <button
+                      onClick={() => setSelectedPartnerIds(prev => prev.filter(id => id !== partnerId))}
+                      className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
+                      aria-label={`Remove ${partner.name} filter`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
+              
+              {/* Brand Filter Chips */}
+              {selectedBrandIds.map(brandId => {
+                const brand = brands.find(b => b.id === brandId);
+                if (!brand) return null;
+                return (
+                  <div
+                    key={brandId}
+                    className="inline-flex items-center gap-2 h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-lg"
+                  >
+                    <span className="label-small">{brand.name}</span>
+                    <button
+                      onClick={() => setSelectedBrandIds(prev => prev.filter(id => id !== brandId))}
+                      className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
+                      aria-label={`Remove ${brand.name} filter`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
+              
+              {/* Clear All Filters Button */}
+              <button
+                onClick={() => {
+                  setSelectedPartnerIds([]);
+                  setSelectedBrandIds([]);
+                }}
+                className="inline-flex items-center h-8 px-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors rounded-lg"
+              >
+                <span className="label-small">Clear all</span>
+              </button>
+            </div>
+          )}
+
+          {/* Partners List */}
+          <div>
+            <div className="space-y-3">
+              {filteredPartners.length === 0 ? (
+                <div className="text-center py-8 text-on-surface-variant">
+                  <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No partners yet. Click "Add Partner" to get started.</p>
+                </div>
+              ) : (
+                filteredPartners.map((partner) => {
+                  const partnerWarehouses = getPartnerWarehouses(partner.id).filter(w => {
+                    // Filter by selected brands
+                    if (selectedBrandIds.length > 0) {
+                      const warehouseBrandIds = w.brandIds || [];
+                      if (!selectedBrandIds.some(brandId => warehouseBrandIds.includes(brandId))) {
+                        return false;
+                      }
+                    }
+                    return true;
+                  });
+                  const partnerWarehouseCount = partnerWarehouses.length;
+                  
+                  return (
+                    <div 
+                      key={partner.id}
+                      className="rounded-lg border bg-surface-container border-outline-variant"
+                    >
+                      <div className="p-4">
                           <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-medium text-on-surface">{partner.name}</h3>
-                                <Badge variant="secondary" className="text-xs">
-                                  {partner.code}
-                                </Badge>
-                                {partner.productType && (
-                                  <Badge variant="outline" className="text-xs capitalize">
-                                    {partner.productType}
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center flex-shrink-0">
+                                <Building2 className="w-5 h-5 text-on-primary-container" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="title-medium text-on-surface">{partner.name}</h3>
+                                  <Badge variant="secondary" className="label-small">
+                                    {partner.code}
                                   </Badge>
+                                  {partner.productType && (
+                                    <Badge variant="outline" className="label-small capitalize">
+                                      {partner.productType}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="body-small text-on-surface-variant mb-2">
+                                  {partnerWarehouseCount} warehouse{partnerWarehouseCount !== 1 ? 's' : ''}
+                                </p>
+                                {/* Selected Brands */}
+                                {partner.brandIds && partner.brandIds.length > 0 ? (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="label-small text-on-surface-variant">Brands:</span>
+                                    {partner.brandIds.map(brandId => {
+                                      const brand = brands.find(b => b.id === brandId);
+                                      if (!brand) return null;
+                                      return (
+                                        <Badge 
+                                          key={brandId} 
+                                          variant="outline" 
+                                          className="label-small bg-primary-container/20 border-primary-container text-on-primary-container"
+                                        >
+                                          {brand.name}
+                                        </Badge>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <p className="label-small text-on-surface-variant italic">No brands assigned</p>
                                 )}
                               </div>
-                              <p className="text-sm text-on-surface-variant">
-                                {partnerWarehouseCount} warehouse{partnerWarehouseCount !== 1 ? 's' : ''}
-                              </p>
                             </div>
                             <div className="flex items-center gap-2">
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddWarehouse(partner.id);
-                                }}
-                                className="text-on-surface-variant hover:text-on-surface"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAddWarehouse(partner.id)}
+                                className="text-on-surface border-outline-variant hover:bg-surface-container-highest"
                               >
-                                <Plus className="w-4 h-4" />
+                                <Plus className="w-4 h-4 mr-1" />
+                                <span className="label-large">Add warehouse</span>
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditPartner(partner);
-                                }}
-                                className="text-on-surface-variant hover:text-on-surface"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeletePartner(partner.id);
-                                }}
-                                className="text-error hover:bg-error/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-on-surface-variant hover:text-on-surface"
+                                  >
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                  <DropdownMenuItem onClick={() => handleEditPartner(partner)}>
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDeletePartner(partner.id)}
+                                    className="text-error"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
 
-                          {/* Show warehouses when partner is selected */}
-                          {isSelected && partnerWarehouses.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-outline-variant">
-                              <div className="flex items-center gap-2 mb-3">
-                                <WarehouseIcon className="w-4 h-4 text-on-surface-variant" />
-                                <span className="text-sm font-medium text-on-surface">Warehouses</span>
-                              </div>
-                              <div className="space-y-2">
-                                {partnerWarehouses.map((warehouse) => (
-                                  <div
-                                    key={warehouse.id}
-                                    className="flex items-start justify-between gap-4 p-3 rounded-lg bg-surface-container"
-                                  >
+                        {/* Show warehouses - always expanded */}
+                        {partnerWarehouses.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-outline-variant">
+                            <h3 className="title-small text-on-surface mb-3">Warehouses</h3>
+                            <div className="space-y-2">
+                              {partnerWarehouses.map((warehouse) => (
+                                <div
+                                  key={warehouse.id}
+                                  className="flex items-start justify-between gap-4 p-3 rounded-lg bg-surface hover:bg-surface-container-highest border border-outline-variant"
+                                >
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="w-8 h-8 bg-secondary-container rounded-full flex items-center justify-center flex-shrink-0">
+                                      <WarehouseIcon className="w-4 h-4 text-on-secondary-container" />
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-medium text-sm text-on-surface">{warehouse.name}</h4>
-                                        <Badge variant="secondary" className="text-xs">
+                                        <h4 className="title-small text-on-surface">{warehouse.name}</h4>
+                                        <Badge variant="secondary" className="label-small">
                                           {warehouse.code}
                                         </Badge>
                                       </div>
-                                      <p className="text-sm text-on-surface-variant">{warehouse.location}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEditWarehouse(warehouse);
-                                        }}
-                                        className="h-8 w-8 text-on-surface-variant hover:text-on-surface"
-                                      >
-                                        <Edit className="w-3.5 h-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteWarehouse(warehouse.id);
-                                        }}
-                                        className="h-8 w-8 text-error hover:bg-error/10"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
+                                      <p className="body-small text-on-surface-variant mb-2">{warehouse.location}</p>
+                                      {/* Selected Brands */}
+                                      {warehouse.brandIds && warehouse.brandIds.length > 0 ? (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <span className="label-small text-on-surface-variant">Brands:</span>
+                                          {warehouse.brandIds.map(brandId => {
+                                            const brand = brands.find(b => b.id === brandId);
+                                            if (!brand) return null;
+                                            return (
+                                              <Badge 
+                                                key={brandId} 
+                                                variant="outline" 
+                                                className="label-small bg-primary-container/20 border-primary-container text-on-primary-container"
+                                              >
+                                                {brand.name}
+                                              </Badge>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <p className="label-small text-on-surface-variant italic">No brands assigned</p>
+                                      )}
                                     </div>
                                   </div>
-                                ))}
-                              </div>
+                                  <div className="flex items-center gap-1">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-on-surface-variant hover:text-on-surface"
+                                        >
+                                          <MoreVertical className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-40">
+                                        <DropdownMenuItem onClick={() => handleEditWarehouse(warehouse)}>
+                                          <Edit className="w-4 h-4 mr-2" />
+                                          Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem 
+                                          onClick={() => handleDeleteWarehouse(warehouse.id)}
+                                          className="text-error"
+                                        >
+                                          <Trash2 className="w-4 h-4 mr-2" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -430,6 +735,33 @@ export default function PartnerWarehouseManagementScreen({
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Brands</Label>
+              <div className="border border-outline-variant rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                {brands.length === 0 ? (
+                  <p className="body-small text-on-surface-variant">No brands available</p>
+                ) : (
+                  brands.map((brand) => (
+                    <div key={brand.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`partner-brand-${brand.id}`}
+                        checked={partnerFormData.brandIds.includes(brand.id)}
+                        onCheckedChange={() => togglePartnerBrand(brand.id)}
+                      />
+                      <Label
+                        htmlFor={`partner-brand-${brand.id}`}
+                        className="body-medium text-on-surface cursor-pointer flex-1"
+                      >
+                        {brand.name}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+              <p className="label-small text-on-surface-variant">
+                Select which brands use this partner
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -460,7 +792,14 @@ export default function PartnerWarehouseManagementScreen({
               <Label htmlFor="warehouse-partner">Partner *</Label>
               <Select
                 value={warehouseFormData.partnerId}
-                onValueChange={(value) => setWarehouseFormData({ ...warehouseFormData, partnerId: value })}
+                onValueChange={(value: string) => {
+                  const partner = partners.find(p => p.id === value);
+                  setWarehouseFormData({ 
+                    ...warehouseFormData, 
+                    partnerId: value,
+                    brandIds: partner?.brandIds || []
+                  });
+                }}
                 disabled={!!editingWarehouse}
               >
                 <SelectTrigger id="warehouse-partner">
@@ -475,7 +814,7 @@ export default function PartnerWarehouseManagementScreen({
                 </SelectContent>
               </Select>
               {editingWarehouse && (
-                <p className="text-xs text-on-surface-variant">
+                <p className="label-small text-on-surface-variant">
                   Partner cannot be changed when editing
                 </p>
               )}
@@ -507,6 +846,33 @@ export default function PartnerWarehouseManagementScreen({
                 onChange={(e) => setWarehouseFormData({ ...warehouseFormData, location: e.target.value })}
                 placeholder="e.g., Stockholm, Sweden"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Brands</Label>
+              <div className="border border-outline-variant rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                {brands.length === 0 ? (
+                  <p className="body-small text-on-surface-variant">No brands available</p>
+                ) : (
+                  brands.map((brand) => (
+                    <div key={brand.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`warehouse-brand-${brand.id}`}
+                        checked={warehouseFormData.brandIds.includes(brand.id)}
+                        onCheckedChange={() => toggleWarehouseBrand(brand.id)}
+                      />
+                      <Label
+                        htmlFor={`warehouse-brand-${brand.id}`}
+                        className="body-medium text-on-surface cursor-pointer flex-1"
+                      >
+                        {brand.name}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+              <p className="label-small text-on-surface-variant">
+                Select which brands use this warehouse
+              </p>
             </div>
           </div>
           <DialogFooter>

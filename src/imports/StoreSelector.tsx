@@ -79,7 +79,7 @@ function IconArrowDown2() {
 
 function Frame2() {
   return (
-    <div className="absolute bg-white h-[49px] left-0 top-0 w-[280px]">
+    <div className="absolute bg-surface h-[49px] left-0 top-0 w-[280px]">
       <IconArrowDown2 />
       <div className="absolute h-px left-0 top-[48px] w-[300px]" data-name="line">
         <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 300 1">
@@ -202,7 +202,7 @@ function TrailingIcon() {
 
 function TopAppBar() {
   return (
-    <div className="absolute bg-white box-border content-stretch flex gap-[6px] h-[44px] items-center justify-start left-0 pl-[24px] pr-[4px] py-[8px] top-[49px] w-[375px]" data-name="top-app-bar">
+    <div className="absolute bg-surface box-border content-stretch flex gap-[6px] h-[44px] items-center justify-start left-0 pl-[24px] pr-[4px] py-[8px] top-[49px] w-[375px]" data-name="top-app-bar">
       <div className="basis-0 font-['Roboto:Regular',_sans-serif] font-normal grow leading-[0] min-h-px min-w-px relative shrink-0 text-[#1c1b1f] text-[22px]" style={{ fontVariationSettings: "'wdth' 100" }}>
         <p className="leading-[28px]">Store selector</p>
       </div>
@@ -213,7 +213,7 @@ function TopAppBar() {
 
 export default function StoreSelector1() {
   return (
-    <div className="bg-white relative shadow-[0px_2px_4px_0px_rgba(0,0,0,0.2),0px_1px_5px_0px_rgba(0,0,0,0.13)] size-full" data-name="Store selector">
+    <div className="bg-surface relative shadow-[0px_2px_4px_0px_rgba(0,0,0,0.2),0px_1px_5px_0px_rgba(0,0,0,0.13)] size-full" data-name="Store selector">
       <AppButtons />
       <TopAppBar />
       <div className="absolute flex flex-col font-['Roboto:Regular',_sans-serif] font-normal h-[20px] justify-center leading-[0] left-[24px] text-[12px] text-[rgba(0,0,0,0.9)] top-[103px] tracking-[0.4px] translate-y-[-50%] w-[276px]" style={{ fontVariationSettings: "'wdth' 100" }}>

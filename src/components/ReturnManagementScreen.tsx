@@ -47,7 +47,7 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
       <div className="flex items-center h-16 px-4 md:px-6">
         {/* Leading icon */}
         <button 
-          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
+          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2 touch-manipulation min-w-[48px] min-h-[48px]"
           onClick={onBack}
           aria-label="Go back"
         >
@@ -60,7 +60,7 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
         </h1>
         
         {/* Trailing icon */}
-        <button className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors">
+        <button className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px]">
           <MoreVertical className="w-6 h-6 text-on-surface" />
         </button>
       </div>
@@ -198,7 +198,7 @@ function TabBar({
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className="flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+            className="flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-h-[48px]"
             onClick={() => onTabChange(tab.id)}
           >
             <span className={`title-small ${
@@ -244,7 +244,7 @@ function ReturnItemCard({
       <div className={`flex items-center gap-2 sm:gap-4 px-4 py-3 ${!isScanned ? 'opacity-60' : ''}`}>
         {/* Leading element - Checkbox */}
         <button 
-          className="flex-shrink-0 w-10 h-10 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full"
+          className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
           onClick={() => onToggleSelect(item.id)}
           aria-label={item.selected ? 'Deselect item' : 'Select item'}
         >
@@ -301,7 +301,7 @@ function ReturnItemCard({
         
         {/* Trailing element */}
         <button 
-          className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+          className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
           onClick={() => setShowActions(!showActions)}
           aria-label="More actions"
         >
@@ -317,7 +317,7 @@ function ReturnItemCard({
               variant="outline"
               size="sm"
               onClick={() => onMoreActions(item.id)}
-              className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 focus:bg-tertiary-container/80 active:bg-tertiary-container/60 transition-colors px-3 py-2 rounded-[16px] min-h-[32px]"
+              className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 focus:bg-tertiary-container/80 active:bg-tertiary-container/60 transition-colors px-3 py-2 rounded-[16px] min-h-[48px] md:min-h-[32px] touch-manipulation"
             >
               2nd Try
             </Button>
@@ -326,7 +326,7 @@ function ReturnItemCard({
             variant="outline"
             size="sm"
             onClick={() => onMoreActions(item.id)}
-            className="border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-3 py-2 rounded-[16px] min-h-[32px]"
+            className="border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-3 py-2 rounded-[16px] min-h-[48px] md:min-h-[32px] touch-manipulation"
           >
             Missing
           </Button>
@@ -421,7 +421,7 @@ function BottomActions({
         <Button 
           variant="outline"
           onClick={onSaveAndClose}
-          className="flex-1 border-outline text-on-surface hover:bg-surface-container-high"
+          className="flex-1 border-outline text-on-surface hover:bg-surface-container-high min-h-[48px] md:min-h-0 touch-manipulation"
         >
           Save & close
         </Button>
@@ -429,7 +429,7 @@ function BottomActions({
           <Button 
             onClick={onContinue}
             disabled={!hasScannedItems}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant"
+            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[48px] md:min-h-0 touch-manipulation"
           >
             Continue
           </Button>
@@ -437,7 +437,7 @@ function BottomActions({
           <Button 
             onClick={onCreateReturn}
             disabled={!hasSelectedItems}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant"
+            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[48px] md:min-h-0 touch-manipulation"
           >
             Return
           </Button>

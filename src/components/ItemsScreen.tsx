@@ -31,7 +31,6 @@ import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetail
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
 import { UserRole } from './ItemCard';
 import { toast } from 'sonner';
-import { Checkbox } from './ui/checkbox';
 import { getSekPriceOptions } from '../data/partnerPricing';
 import type { Store as StoreRecord, Country as CountryRecord, Brand as BrandRecord } from './StoreSelector';
 
@@ -369,7 +368,7 @@ function MultiSelectActions({
         {/* Left side - Select all and count */}
         <div className="flex items-center gap-3">
           <button 
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
             onClick={onSelectAll}
             aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
           >

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import svgPaths from "../imports/svg-7un8q74kd7";
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -35,7 +36,6 @@ import {
   Trash2,
   Upload,
   Download,
-  Search,
   GripVertical,
   MoreVertical
 } from 'lucide-react';
@@ -46,7 +46,7 @@ import {
   DropdownMenuTrigger
 } from './ui/dropdown-menu';
 import { DropdownValue, Attribute, Brand } from './PortalConfigTypes';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface DropdownValuesScreenProps {
   onBack: () => void;
@@ -498,7 +498,7 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
             <div className="flex items-center gap-2">
               <span className="label-medium text-on-surface-variant">Brand:</span>
               <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                <SelectTrigger className="w-[180px] bg-surface border-outline">
+                <SelectTrigger className="w-[180px] bg-surface-container-high border border-outline rounded-lg min-h-[40px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -562,13 +562,19 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
           <div className="lg:col-span-2 space-y-4">
             {/* Search */}
             <div className="relative w-full md:w-[400px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant" />
-              <Input
-                type="search"
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5">
+                <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                  <path clipRule="evenodd" d={svgPaths.p3938ac00} fill="var(--on-surface-variant)" fillRule="evenodd" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                id="values-search"
+                name="values-search"
                 placeholder="Search values..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-surface-container border-outline"
+                className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
               />
             </div>
 
@@ -577,7 +583,7 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-outline-variant hover:bg-surface-container-high">
+                    <TableRow className="border-outline-variant bg-surface-container">
                       <TableHead className="w-[40px]"></TableHead>
                       <TableHead className="body-medium text-on-surface-variant">Code</TableHead>
                       <TableHead className="body-medium text-on-surface-variant">Label</TableHead>
@@ -595,7 +601,7 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
                   </TableHeader>
                   <TableBody>
                     {filteredValues.length === 0 ? (
-                      <TableRow>
+                      <TableRow className="bg-surface">
                         <TableCell
                           colSpan={showParentColumn ? 7 : 6}
                           className="h-32 text-center body-medium text-on-surface-variant"
@@ -607,7 +613,7 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
                       filteredValues.map((value) => (
                         <TableRow
                           key={value.id}
-                          className="border-outline-variant hover:bg-surface-container-high"
+                          className="border-outline-variant bg-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
                         >
                           <TableCell>
                             <GripVertical className="w-5 h-5 text-on-surface-variant" />
@@ -798,7 +804,7 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
                 >
                   <SelectTrigger
                     id="parent-category"
-                    className="bg-surface-container border-outline"
+                    className="bg-surface-container-high border border-outline rounded-lg min-h-[48px]"
                   >
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
