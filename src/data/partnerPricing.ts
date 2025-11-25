@@ -164,4 +164,63 @@ export function getBrandOptionsForPartner(partnerId: string): PricingBrand[] {
   return pricingBrands;
 }
 
+// Map country names to currency codes
+const countryToCurrency: Record<string, string> = {
+  'Sweden': 'SEK',
+  'Denmark': 'DKK',
+  'Norway': 'NOK',
+  'Finland': 'EUR',
+  'Netherlands': 'EUR',
+  'Belgium': 'EUR',
+  'Austria': 'EUR',
+  'Switzerland': 'CHF',
+  'Spain': 'EUR',
+  'France': 'EUR',
+  'Italy': 'EUR',
+  'Portugal': 'EUR',
+  'United Kingdom': 'GBP',
+  'Ireland': 'EUR',
+  'Germany': 'EUR',
+  'Poland': 'PLN',
+  'Czech Republic': 'CZK',
+  'United States': 'USD',
+  'Canada': 'CAD',
+  'Russia': 'RUB',
+  'Japan': 'JPY',
+  'South Korea': 'KRW',
+  'China': 'CNY',
+  'Australia': 'AUD',
+  'Mexico': 'MXN',
+  'Brazil': 'BRL'
+};
+
+// Get currency code from country name
+export function getCurrencyFromCountry(countryName: string): string {
+  return countryToCurrency[countryName] || 'EUR'; // Default to EUR if country not found
+}
+
+// Get price options for a partner, brand, and currency
+export function getPriceOptionsForCurrency(
+  partnerId?: string,
+  brandNameOrId?: string,
+  currency?: string
+): number[] {
+  if (!partnerId || !currency) {
+    return [];
+  }
+
+  const normalizedBrandId =
+    (brandNameOrId && (brandNameById[brandNameOrId] || getBrandIdFromName(brandNameOrId))) ||
+    (brandNameOrId ? brandNameOrId.toLowerCase() : undefined);
+
+  const priceBook = partnerPriceBooks.find(
+    (book) =>
+      book.partnerId === partnerId &&
+      (!normalizedBrandId || book.brandId === normalizedBrandId) &&
+      book.prices[currency]?.length
+  );
+
+  return priceBook?.prices[currency] ?? [];
+}
+
 

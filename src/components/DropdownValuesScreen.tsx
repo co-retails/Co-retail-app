@@ -37,7 +37,8 @@ import {
   Upload,
   Download,
   GripVertical,
-  MoreVertical
+  MoreVertical,
+  Sparkles
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -50,6 +51,7 @@ import { toast } from 'sonner';
 
 interface DropdownValuesScreenProps {
   onBack: () => void;
+  onNavigate?: (screen: string) => void;
 }
 
 type ExtendedDropdownValue = DropdownValue & {
@@ -57,7 +59,7 @@ type ExtendedDropdownValue = DropdownValue & {
   parentCode?: string;
 };
 
-export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
+export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScreenProps) {
   // Mock brands data
   const brands: Brand[] = [
     { id: 'weekday', name: 'Weekday', code: 'WD' },
@@ -469,6 +471,16 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
           </div>
 
           <div className="flex gap-2">
+            {onNavigate && (
+              <Button
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary-container"
+                onClick={() => onNavigate('attribute-mappings')}
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                View AI Mappings
+              </Button>
+            )}
             <Button
               variant="outline"
               className="border-outline hover:bg-surface-container-high"

@@ -11,6 +11,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { AlertCircleIcon } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
+import { getPriceOptionsForCurrency } from '../data/partnerPricing';
 
 export interface ItemDetailsTableItem extends OrderItem {
   id: string;
@@ -36,6 +37,9 @@ interface ItemDetailsTableProps {
   categoryOptions?: string[]; // Custom category options
   hideCategoryForThrifted?: boolean; // Hide category column for Thrifted orders (category is auto-mapped from subcategory)
   subcategoriesByCategory?: Record<string, string[]>; // Map of category to subcategories for cascading dropdown
+  partnerId?: string; // Partner ID for price lookup
+  countryName?: string; // Country name for currency lookup
+  currency?: string; // Currency code (if known, otherwise derived from country)
 }
 
 // Dropdown options for editable attributes
@@ -44,10 +48,6 @@ const CATEGORY_OPTIONS = ['Clothing', 'Shoes', 'Accessories', 'Bags'];
 const SUBCATEGORY_OPTIONS = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Sneakers', 'Boots', 'Sandals', 'Bags', 'Scarves', 'Jewelry'];
 const COLOR_OPTIONS = ['Black', 'White', 'Blue', 'Red', 'Gray', 'Green', 'Navy', 'Beige', 'Brown', 'Pink', 'Yellow', 'Purple'];
 const SIZE_OPTIONS = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '34', '36', '37', '38', '39', '40', '41', '42', '43', '44'];
-
-// Valid price points for SEK (Swedish Krona) - Sellpy partner market
-// These correspond to the price ladder steps for the market and partner
-const PRICE_OPTIONS_SEK = [50, 75, 100, 120, 150, 200, 250, 300, 400, 500, 600, 750, 1000, 1200, 1500, 2000];
 
 export function ItemDetailsTable({
   items,
@@ -64,7 +64,19 @@ export function ItemDetailsTable({
   categoryOptions = CATEGORY_OPTIONS,
   hideCategoryForThrifted = false,
   subcategoriesByCategory,
+  partnerId,
+  countryName,
+  currency,
 }: ItemDetailsTableProps) {
+  // Get price options based on partner, brand, and currency
+  // For now, we'll use the first item's brand to determine price options
+  // In a real implementation, this might need to be per-item
+  const firstItemBrand = items[0]?.brand;
+  const priceOptions = partnerId && currency
+    ? getPriceOptionsForCurrency(partnerId, firstItemBrand, currency)
+    : [];
+  
+  const displayCurrency = currency || 'SEK'; // Default to SEK if not provided
   return (
     <>
       {/* Mobile View - Cards */}
@@ -135,7 +147,7 @@ export function ItemDetailsTable({
                         <div className="label-small">
                           <span className="text-on-surface-variant opacity-70">Price:</span>
                           <span className="text-on-surface ml-1">
-                            {item.price} SEK
+                            {item.price} {displayCurrency}
                           </span>
                         </div>
                       )}
@@ -230,7 +242,7 @@ export function ItemDetailsTable({
             )}
             {showPrice && (
               <th className="px-4 py-3 text-right">
-                <span className="label-medium text-on-surface">Price (SEK)*</span>
+                <span className="label-medium text-on-surface">Price ({displayCurrency})*</span>
               </th>
             )}
             {showMargin && (
@@ -610,20 +622,26 @@ export function ItemDetailsTable({
                             : 'border-outline-variant focus:border-primary bg-surface-container'
                         }`}>
                           <SelectValue placeholder="Select price*">
-                            {item.price > 0 && <span className="text-right w-full block">{item.price} SEK</span>}
+                            {item.price > 0 && <span className="text-right w-full block">{item.price} {displayCurrency}</span>}
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {PRICE_OPTIONS_SEK.map((price) => (
-                            <SelectItem key={price} value={price.toString()} className="body-medium">
-                              {price} SEK
+                          {priceOptions.length > 0 ? (
+                            priceOptions.map((price) => (
+                              <SelectItem key={price} value={price.toString()} className="body-medium">
+                                {price} {displayCurrency}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="" disabled className="body-medium">
+                              No prices configured
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                     ) : (
                       <span className="body-medium text-on-surface">
-                        {item.price} SEK
+                        {item.price} {displayCurrency}
                       </span>
                     )}
                     {item.fieldErrors?.price && (

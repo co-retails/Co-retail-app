@@ -1,6 +1,4 @@
-import React from 'react';
 import { Card } from './ui/card';
-import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import {
   Settings,
@@ -14,7 +12,6 @@ import {
   ArrowLeft,
   Barcode,
   Globe,
-  Store as StoreIcon,
   Building2,
   Sparkles
 } from 'lucide-react';
@@ -49,18 +46,18 @@ export function PortalConfigurationLanding({
       icon: Filter,
       disabled: !isAdmin,
       screen: 'dropdown-values'
+    },
+    {
+      id: 'mappings',
+      title: 'AI Attribute Mappings',
+      description: 'View AI mappings between partner API values and brand dropdown values',
+      icon: Sparkles,
+      disabled: !isAdmin,
+      screen: 'attribute-mappings'
     }
   ];
 
   const pricingSections = [
-    {
-      id: 'ladder',
-      title: 'SEK price ladders',
-      description: 'Define valid price points per Brand & Partner',
-      icon: DollarSign,
-      disabled: false,
-      screen: 'price-ladders'
-    },
     {
       id: 'partner-pricing',
       title: 'Partner pricing',
@@ -221,7 +218,7 @@ export function PortalConfigurationLanding({
           <div className="mb-4">
             <h2 className="title-large text-on-surface mb-1">Pricing</h2>
             <p className="body-medium text-on-surface-variant">
-              Define SEK price ladders and fixed price points per currency for each partner
+              Set fixed price points per currency for each partner
             </p>
           </div>
 

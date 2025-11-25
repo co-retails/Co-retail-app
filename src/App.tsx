@@ -2313,6 +2313,8 @@ export default function App() {
           partnerName={detailsScreenData.partnerName}
           warehouseName={detailsScreenData.warehouseName}
           receiverLabel={detailsScreenData.receiverLabel}
+          countries={mockCountries}
+          stores={mockStores}
           isAdmin={mockUserAccount.role.name === 'Admin'}
           currentUserRole={currentUserRole === 'partner' ? 'partner' : currentUserRole === 'admin' ? 'admin' : 'store-staff'}
           onUpdateReturnDeliveryStatus={detailsScreenData.type === 'return' ? handleUpdateReturnDeliveryStatus : undefined}

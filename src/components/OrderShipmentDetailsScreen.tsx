@@ -55,6 +55,7 @@ import {
   mapSubcategoryToCategory,
   getAllThriftedSubcategories
 } from '../utils/spreadsheetUtils';
+import { getCurrencyFromCountry, getPriceOptionsForCurrency } from '../data/partnerPricing';
 
 export type DetailType = 'order' | 'shipment' | 'return';
 
@@ -87,6 +88,8 @@ interface OrderShipmentDetailsScreenProps {
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
   onCancelReturn?: (deliveryId: string, reason: string) => void;
   currentUserRole?: 'partner' | 'store-staff' | 'admin';
+  countries?: Array<{ id: string; name: string; brandId: string }>;
+  stores?: Array<{ id: string; name: string; code: string; countryId: string; brandId: string }>;
 }
 
 // Valid price points for SEK (Swedish Krona) - Sellpy partner market
@@ -214,7 +217,9 @@ export default function OrderShipmentDetailsScreen({
   onRegisterDelivery,
   onUpdateReturnDeliveryStatus,
   onCancelReturn,
-  currentUserRole
+  currentUserRole,
+  countries = [],
+  stores = []
 }: OrderShipmentDetailsScreenProps) {
   // State for editable items
   const [editableItems, setEditableItems] = useState<DetailItem[]>([]);
@@ -353,6 +358,30 @@ export default function OrderShipmentDetailsScreen({
   
   // Check if Thrifted order is editable (pending status)
   const isThriftedEditable = isThriftedOrder && isPendingOrder;
+
+  // Get currency from store/country
+  // First, try to find the store by storeCode or storeName
+  const receivingStore = stores.find(s => 
+    (storeCode && s.code === storeCode) || 
+    (storeName && s.name === storeName)
+  );
+  
+  // Get country name from store
+  const countryName = receivingStore 
+    ? countries.find(c => c.id === receivingStore.countryId)?.name
+    : undefined;
+  
+  // Get currency from country
+  const currency = countryName ? getCurrencyFromCountry(countryName) : undefined;
+  
+  // Get partner ID from partner name
+  const partnerId = partnerName === 'Sellpy Operations' || partnerName === 'Sellpy' 
+    ? '1' 
+    : partnerName === 'Thrifted' 
+    ? '2' 
+    : partnerName === 'Shenzhen Fashion Manufacturing'
+    ? '6'
+    : undefined;
 
   // Validation function for Thrifted items
   // For Thrifted, partners fill in subcategory, category is auto-mapped
@@ -1168,6 +1197,9 @@ export default function OrderShipmentDetailsScreen({
                     categoryOptions={isThriftedOrder ? THRIFTED_VALID_VALUES.categories : undefined} // Show category dropdown for Thrifted (required before subcategory)
                     hideCategoryForThrifted={false} // Show category column for cascading dropdown
                     subcategoriesByCategory={isThriftedOrder ? THRIFTED_VALID_VALUES.subcategories : undefined} // Provide category-to-subcategory mapping
+                    partnerId={partnerId}
+                    countryName={countryName}
+                    currency={currency}
                   />
                 )}
               </>
