@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bookmark, TruckIcon, Tag, Store, User, QrCode, ClipboardList, ShoppingBag, FileText, Sparkles } from 'lucide-react';
 import svgPaths from "../imports/svg-8iuolkmxl8";
+import TopNavigationBar from './TopNavigationBar';
 
 interface NavigationDestination {
   id: string;
@@ -12,6 +13,8 @@ interface NavigationDestination {
 interface ResponsiveNavigationProps {
   activeDestination: string;
   destinations: NavigationDestination[];
+  userInitials?: string;
+  onSettingsClick?: () => void;
 }
 
 function NavigationBar({ activeDestination, destinations }: ResponsiveNavigationProps) {
@@ -222,11 +225,21 @@ function NavigationRail({ activeDestination, destinations }: ResponsiveNavigatio
   );
 }
 
-export default function ResponsiveNavigation({ activeDestination, destinations }: ResponsiveNavigationProps) {
+export default function ResponsiveNavigation({ 
+  activeDestination, 
+  destinations, 
+  userInitials = 'JD',
+  onSettingsClick 
+}: ResponsiveNavigationProps) {
   return (
     <>
       <NavigationBar activeDestination={activeDestination} destinations={destinations} />
-      <NavigationRail activeDestination={activeDestination} destinations={destinations} />
+      <TopNavigationBar 
+        activeDestination={activeDestination} 
+        destinations={destinations}
+        userInitials={userInitials}
+        onSettingsClick={onSettingsClick || (() => {})}
+      />
     </>
   );
 }

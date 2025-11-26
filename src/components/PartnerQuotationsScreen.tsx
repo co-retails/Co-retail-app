@@ -133,11 +133,14 @@ export default function PartnerQuotationsScreen({
     : [];
 
   return (
-    <div className="min-h-screen bg-surface flex pb-20 md:pb-0">
-      {/* Left Panel - Quotations List */}
-      <div className={`${selectedQuotationId ? 'hidden md:flex' : 'flex'} flex-col flex-1 border-r border-outline-variant max-w-full md:max-w-md lg:max-w-lg`}>
-        {/* Top App Bar */}
-        <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
+    <div className="min-h-screen bg-surface flex flex-col pb-20 md:pb-0">
+      {/* Spacer for top nav on desktop */}
+      <div className="hidden md:block h-16"></div>
+      <div className="flex flex-1 min-h-0">
+        {/* Left Panel - Quotations List */}
+        <div className={`${selectedQuotationId ? 'hidden md:flex' : 'flex'} flex-col flex-1 border-r border-outline-variant max-w-full md:max-w-md lg:max-w-lg`}>
+          {/* Top App Bar */}
+          <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant">
           <div className="flex items-center h-16 px-4 md:px-6">
             <h1 className="title-large text-on-surface flex-1">
               Quotation requests
@@ -417,6 +420,7 @@ export default function PartnerQuotationsScreen({
           </div>
         </div>
       )}
+      </div>
 
       {/* Price Suggestion Dialog */}
       <Dialog open={suggestPriceDialogOpen} onOpenChange={setSuggestPriceDialogOpen}>

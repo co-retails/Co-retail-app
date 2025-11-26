@@ -100,9 +100,10 @@ export function useAppState() {
   const [shippingInitialTab, setShippingInitialTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined>(undefined);
   
   // Role management state
-  const [currentUserRole, setCurrentUserRole] = useState<AppUserRole>('admin');
+  const [currentUserRole, setCurrentUserRole] = useState<AppUserRole>('store-staff');
   const [isRoleSwitcherSheetOpen, setIsRoleSwitcherSheetOpen] = useState(false);
   const [isAdminSettingsSheetOpen, setIsAdminSettingsSheetOpen] = useState(false);
+  const [isAdminExperienceMode, setIsAdminExperienceMode] = useState(false);
   
   // Store selection state
   const [currentStoreSelection, setCurrentStoreSelection] = useState<StoreSelection>({
@@ -213,6 +214,8 @@ export function useAppState() {
     setIsRoleSwitcherSheetOpen,
     isAdminSettingsSheetOpen,
     setIsAdminSettingsSheetOpen,
+    isAdminExperienceMode,
+    setIsAdminExperienceMode,
     
     // Store/Partner selection
     currentStoreSelection,

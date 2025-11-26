@@ -49,7 +49,7 @@ export default function RoleSwitcherSheet({
         {/* Header */}
         <SheetHeader className={`relative px-6 pb-4 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
           <SheetTitle className="title-large text-on-surface text-left">
-            Switch role
+            Switch view
           </SheetTitle>
           <SheetDescription className="body-small text-on-surface-variant text-left">
             Access different features based on your role
@@ -66,7 +66,7 @@ export default function RoleSwitcherSheet({
             >
               <div className="flex items-center gap-2 w-full">
                 <UserIcon size={20} className="flex-shrink-0" />
-                <span className="label-large break-words">Store Staff</span>
+                <span className="label-large break-words">Store app</span>
                 {currentRole === 'store-staff' && (
                   <Badge variant="secondary" className="ml-auto flex-shrink-0 body-small">
                     Active
@@ -85,7 +85,7 @@ export default function RoleSwitcherSheet({
             >
               <div className="flex items-center gap-2 w-full">
                 <TruckIcon size={20} className="flex-shrink-0" />
-                <span className="label-large break-words">Partner</span>
+                <span className="label-large break-words">Partner portal</span>
                 {currentRole === 'partner' && (
                   <Badge variant="secondary" className="ml-auto flex-shrink-0 body-small">
                     Active
@@ -104,7 +104,7 @@ export default function RoleSwitcherSheet({
             >
               <div className="flex items-center gap-2 w-full">
                 <ShoppingBagIcon size={20} className="flex-shrink-0" />
-                <span className="label-large break-words">Buyer</span>
+                <span className="label-large break-words">Buyer portal</span>
                 {currentRole === 'buyer' && (
                   <Badge variant="secondary" className="ml-auto flex-shrink-0 body-small">
                     Active

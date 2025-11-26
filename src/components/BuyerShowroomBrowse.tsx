@@ -187,8 +187,10 @@ export default function BuyerShowroomBrowse({
 
   return (
     <div className="min-h-screen bg-surface">
+      {/* Spacer for top nav on desktop */}
+      <div className="hidden md:block h-16"></div>
       {/* Top App Bar */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
+      <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant">
         <div className="flex items-center h-16 px-4 md:px-6">
           <h1 className="title-large text-on-surface flex-1">
             Browse products

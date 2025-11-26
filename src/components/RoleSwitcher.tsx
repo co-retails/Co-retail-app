@@ -18,7 +18,7 @@ export default function RoleSwitcher({ currentRole, onRoleChange, className = ''
     <Card className={`p-4 ${className}`}>
       <div className="space-y-4">
         <div className="space-y-2">
-          <h6 className="title-small text-on-surface">Switch role</h6>
+          <h6 className="title-small text-on-surface">Switch view</h6>
           <p className="body-small text-on-surface-variant">
             Access different features based on your role
           </p>
@@ -37,8 +37,8 @@ export default function RoleSwitcher({ currentRole, onRoleChange, className = ''
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="store-staff">Store staff</SelectItem>
-              <SelectItem value="partner">Partner</SelectItem>
+              <SelectItem value="store-staff">Store app</SelectItem>
+              <SelectItem value="partner">Partner portal</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -51,7 +51,7 @@ export default function RoleSwitcher({ currentRole, onRoleChange, className = ''
           >
             <div className="flex items-center gap-2 w-full">
               <UserIcon size={20} className="flex-shrink-0" />
-              <span className="label-large break-words">Store Staff</span>
+              <span className="label-large break-words">Store app</span>
               {currentRole === 'store-staff' && (
                 <Badge variant="secondary" className="ml-auto flex-shrink-0">Active</Badge>
               )}
@@ -68,7 +68,7 @@ export default function RoleSwitcher({ currentRole, onRoleChange, className = ''
           >
             <div className="flex items-center gap-2 w-full">
               <TruckIcon size={20} className="flex-shrink-0" />
-              <span className="label-large break-words">Partner</span>
+              <span className="label-large break-words">Partner portal</span>
               {currentRole === 'partner' && (
                 <Badge variant="secondary" className="ml-auto flex-shrink-0">Active</Badge>
               )}

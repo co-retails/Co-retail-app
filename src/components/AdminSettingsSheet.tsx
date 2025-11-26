@@ -14,7 +14,8 @@ import {
   LogOut,
   Cog,
   Sparkles,
-  BarChart3
+  BarChart3,
+  UserIcon
 } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
 import svgPaths from '../imports/svg-hxa7jl3k8x';
@@ -40,8 +41,10 @@ interface AdminSettingsSheetProps {
   onClose: () => void;
   userAccount: UserAccount;
   currentAppRole: AppRole;
+  isAdminExperienceMode?: boolean;
+  onToggleAdminExperience?: () => void;
   onLogout: () => void;
-  onSwitchToAdmin?: () => void;
+  onRoleSwitcherClick?: () => void;
   onNavigateToStockCheckReport?: () => void;
   onNavigateToPartnerReports?: () => void;
   onNavigateToPortalConfiguration?: () => void;
@@ -66,8 +69,10 @@ export default function AdminSettingsSheet({
   onClose,
   userAccount,
   currentAppRole,
+  isAdminExperienceMode = false,
+  onToggleAdminExperience,
   onLogout,
-  onSwitchToAdmin,
+  onRoleSwitcherClick,
   onNavigateToStockCheckReport,
   onNavigateToPartnerReports,
   onNavigateToPortalConfiguration,
@@ -86,6 +91,11 @@ export default function AdminSettingsSheet({
 
   const hasPermission = (requiredRole?: 'Admin' | 'Brand Admin') => {
     if (!requiredRole) {
+      return true;
+    }
+
+    // If in admin experience mode, admin users have full access
+    if (isAdminExperienceMode && roleName === 'Admin') {
       return true;
     }
 
@@ -133,9 +143,15 @@ export default function AdminSettingsSheet({
     onClose();
   };
 
-  const handleSwitchToAdmin = () => {
-    if (onSwitchToAdmin) {
-      onSwitchToAdmin();
+  const handleToggleAdminExperience = () => {
+    if (onToggleAdminExperience) {
+      onToggleAdminExperience();
+    }
+  };
+
+  const handleRoleSwitcherClick = () => {
+    if (onRoleSwitcherClick) {
+      onRoleSwitcherClick();
       onClose();
     }
   };
@@ -274,10 +290,25 @@ export default function AdminSettingsSheet({
                 Access role: {roleName}
               </Badge>
               <Badge variant="outline" className="rounded-lg text-on-surface">
-                Current view: {currentAppRole === 'store-staff' ? 'Store staff' : currentAppRole === 'partner' ? 'Partner' : currentAppRole === 'buyer' ? 'Buyer' : 'Admin'}
+                Current view: {currentAppRole === 'store-staff' ? 'Store app' : currentAppRole === 'partner' ? 'Partner portal' : currentAppRole === 'buyer' ? 'Buyer portal' : 'Admin'}
               </Badge>
+              {isAdminExperienceMode && (
+                <Badge variant="secondary" className="rounded-lg">
+                  Admin experience
+                </Badge>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-4">
+              {onRoleSwitcherClick && (
+                <Button
+                  variant="outline"
+                  onClick={handleRoleSwitcherClick}
+                  className="rounded-lg text-on-surface border-outline hover:bg-surface-container-high px-4"
+                >
+                  <UserIcon className="w-5 h-5 mr-2" />
+                  Switch view
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={handleLogout}
@@ -286,21 +317,16 @@ export default function AdminSettingsSheet({
                 <LogOut className="w-5 h-5 mr-2" />
                 Logout
               </Button>
-              {currentAppRole !== 'admin' && onSwitchToAdmin && (
+              {roleName === 'Admin' && onToggleAdminExperience && (
                 <Button
                   variant="ghost"
-                  onClick={handleSwitchToAdmin}
+                  onClick={handleToggleAdminExperience}
                   className="rounded-lg text-on-surface hover:bg-surface-container-high"
                 >
-                  View full admin experience
+                  {isAdminExperienceMode ? 'View app based experience' : 'View full admin experience'}
                 </Button>
               )}
             </div>
-            {currentAppRole !== 'admin' && !onSwitchToAdmin && (
-              <p className="body-small text-on-surface-variant mt-3">
-                Switch to the Admin role from the role selector to see all admin-only screens.
-              </p>
-            )}
           </div>
 
           <Separator className="bg-outline-variant" />

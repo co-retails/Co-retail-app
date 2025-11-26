@@ -194,7 +194,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
           <div className="bg-surface-container border-b border-outline-variant">
             <div className="px-4 py-3">
               <div className="flex items-center gap-3">
-                <h1 className="headline-small text-on-surface">Choose Your Role</h1>
+                <h1 className="headline-small text-on-surface">Switch view</h1>
               </div>
             </div>
           </div>

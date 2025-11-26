@@ -1648,9 +1648,11 @@ export default function ItemsScreen({
 
   return (
     <div className="bg-surface relative size-full">
+      {/* Spacer for top nav on desktop */}
+      <div className="hidden md:block h-16"></div>
       {/* Header */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
-        <div className="px-4 md:px-6 py-4">
+      <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
+        <div className="px-4 md:px-6 py-4 md:pt-4">
           <div className="flex items-center justify-between">
             <h3 className="headline-small text-on-surface">Items</h3>
             

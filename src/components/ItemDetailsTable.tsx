@@ -1,5 +1,6 @@
 import React from 'react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { ItemCard, BaseItem } from './ItemCard';
 import { Input } from './ui/input';
 import { 
   Select,
@@ -40,6 +41,7 @@ interface ItemDetailsTableProps {
   partnerId?: string; // Partner ID for price lookup
   countryName?: string; // Country name for currency lookup
   currency?: string; // Currency code (if known, otherwise derived from country)
+  orderStatus?: string; // Order status to pass to item cards for status display
 }
 
 // Dropdown options for editable attributes
@@ -67,6 +69,7 @@ export function ItemDetailsTable({
   partnerId,
   countryName,
   currency,
+  orderStatus,
 }: ItemDetailsTableProps) {
   // Get price options based on partner, brand, and currency
   // For now, we'll use the first item's brand to determine price options
@@ -83,121 +86,57 @@ export function ItemDetailsTable({
       <div className="md:hidden space-y-2">
         {items.map((item) => {
           const hasError = item.status === 'error';
-          const errorFields = Object.keys(item.fieldErrors || {});
+          const errorFields = Object.entries(item.fieldErrors || {});
+          const baseItem: BaseItem = {
+            id: item.id,
+            brand: item.brand || '—',
+            category: item.category || '',
+            subcategory: item.subcategory || '',
+            size: item.size,
+            color: item.color,
+            price: item.price || 0,
+            purchasePrice: item.purchasePrice,
+            partnerItemId: item.partnerItemId || item.sku || item.itemId,
+            retailerItemId: item.retailerItemId,
+            thumbnail: item.imageUrl,
+            status: item.status,
+            errors: hasError ? errorFields.map(([field, message]) => `${field}: ${message}`) : undefined,
+            currency: displayCurrency
+          };
+
+          const marginValue = showMargin && item.price && item.purchasePrice
+            ? ((item.price - item.purchasePrice) / item.price) * 100
+            : undefined;
+
           return (
-          <div 
-            key={item.id}
-            className={`border rounded-lg p-4 ${
-              hasError 
-                ? 'border-error bg-error-container/10' 
-                : 'border-outline-variant bg-surface'
-            }`}
-          >
-            <div className="flex gap-3">
-              {/* Image */}
-              <div className="w-16 h-16 rounded overflow-hidden bg-surface-container flex-shrink-0">
-                {item.imageUrl ? (
-                  <ImageWithFallback
-                    src={item.imageUrl}
-                    alt={`${item.brand} ${item.category}`}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
-                    <span className="label-small text-on-surface-variant">No Image</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Item Details */}
-              <div className="flex-1 min-w-0">
-                <div className="body-medium text-on-surface mb-1">
-                  {item.brand}{!hideCategoryForThrifted && item.category && ` • ${item.category}`}
-                </div>
-                <div className="body-small text-on-surface-variant mb-2">
-                  {item.subcategory}{item.size && ` • ${item.size}`} • {item.color}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 label-small text-on-surface-variant">
-                  {showRetailerId && (
-                    <div>
-                      <span className="opacity-70">Item ID:</span>
-                      <div className="text-on-surface">{item.retailerItemId || '—'}</div>
-                    </div>
-                  )}
-                  <div>
-                    <span className="opacity-70">External ID:</span>
-                    <div className="text-on-surface">{item.partnerItemId || '—'}</div>
-                  </div>
-                </div>
-
-                {/* Price Info */}
-                {(showPrice || showPurchasePrice || showMargin) && (
-                  <div className="mt-2 pt-2 border-t border-outline-variant">
-                    <div className="flex gap-4 flex-wrap">
-                      {showPurchasePrice && (
-                        <div className="label-small">
-                          <span className="text-on-surface-variant opacity-70">Purchase:</span>
-                          <span className="text-on-surface ml-1">
-                            {item.purchasePrice?.toFixed(2) || '0.00'} SEK
-                          </span>
-                        </div>
-                      )}
-                      {showPrice && (
-                        <div className="label-small">
-                          <span className="text-on-surface-variant opacity-70">Price:</span>
-                          <span className="text-on-surface ml-1">
-                            {item.price} {displayCurrency}
-                          </span>
-                        </div>
-                      )}
-                      {showMargin && item.price && item.purchasePrice && (
-                        <div className="label-small">
-                          <span className="text-on-surface-variant opacity-70">Margin:</span>
-                          <span className="text-primary ml-1">
-                            {item.price > 0 ? (((item.price - item.purchasePrice) / item.price) * 100).toFixed(1) : '0.0'}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Status */}
-                {showStatus && item.status && (
-                  <div className="mt-2">
-                    {item.status === 'pending' && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-warning-container text-on-warning-container label-small">
-                        Pending
-                      </span>
-                    )}
-                    {item.status === 'scanned' && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
-                        Scanned
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Validation Errors */}
-                {hasError && errorFields.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-error/20">
-                    <div className="flex items-start gap-2">
-                      <AlertCircleIcon className="w-4 h-4 text-error flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="label-small text-error mb-1">Validation Errors:</p>
-                        <ul className="space-y-1 body-small text-on-error-container">
-                          {errorFields.map((field) => (
-                            <li key={field}>• {item.fieldErrors![field]}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+            <ItemCard
+              key={item.id}
+              item={baseItem}
+              variant="order-details"
+              showActions={false}
+              showSelection={false}
+              orderDetailsConfig={{
+                partnerLabel: 'External ID',
+                retailerLabel: 'Item ID*',
+                showPartnerId: true,
+                showRetailerId: showRetailerId,
+                showCategory: !hideCategoryForThrifted,
+                showSubcategory: true,
+                showSize: true,
+                showColor: true,
+                showPrice,
+                showPurchasePrice,
+                showMargin,
+                currency: displayCurrency,
+                marginValue,
+                orderStatus,
+                extraFields: showStatus ? [{
+                  label: 'Status',
+                  value: item.status
+                }] : undefined,
+                errorMessages: hasError ? errorFields.map(([field, message]) => `${field}: ${message}`) : undefined
+              }}
+            />
           );
         })}
       </div>
@@ -633,7 +572,7 @@ export function ItemDetailsTable({
                               </SelectItem>
                             ))
                           ) : (
-                            <SelectItem value="" disabled className="body-medium">
+                            <SelectItem value="no-prices" disabled className="body-medium">
                               No prices configured
                             </SelectItem>
                           )}

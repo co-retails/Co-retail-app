@@ -43,7 +43,7 @@ interface ReturnManagementScreenProps {
 
 function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
   return (
-    <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
+    <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
       <div className="flex items-center h-16 px-4 md:px-6">
         {/* Leading icon */}
         <button 
@@ -523,6 +523,8 @@ export default function ReturnManagementScreen({
 
   return (
     <div className="bg-surface min-h-screen">
+      {/* Spacer for top nav on desktop */}
+      <div className="hidden md:block h-16"></div>
       {/* Top App Bar */}
       <TopAppBar onBack={onBack} title="Return" />
       

@@ -359,6 +359,9 @@ export default function OrderDetailsScreen({
                                   onEdit={() => handleEditItem(item)}
                                   showActions={true}
                                   showSelection={false}
+                                  orderDetailsConfig={{
+                                    orderStatus: order.status
+                                  }}
                                 />
                                 {item.errors && item.errors.length > 0 && (
                                   <div className="bg-error-container/30 border-t border-error/20 px-4 py-2">
@@ -417,6 +420,9 @@ export default function OrderDetailsScreen({
                                   onEdit={() => handleEditItem(item)}
                                   showActions={true}
                                   showSelection={false}
+                                  orderDetailsConfig={{
+                                    orderStatus: order.status
+                                  }}
                                 />
                               </div>
                             );

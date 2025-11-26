@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, ReactNode } from 'react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import svgPathsNew from "../imports/svg-9jzmb4i3sv";
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Archive, Clock, Edit3, Download, RefreshCw, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw } from "lucide-react";
+import { Edit3, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw } from "lucide-react";
 import type { StatusHistoryEntry } from './ItemDetailsDialog';
 
 // Base item interface that works for both Item and OrderItem
@@ -24,6 +24,8 @@ export interface BaseItem {
   size?: string;
   color?: string;
   price: number;
+  purchasePrice?: number;
+  currency?: string;
   status?: string;
   date?: string;
   deliveryId?: string;
@@ -45,6 +47,25 @@ export interface BaseItem {
 
 export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
 
+interface OrderDetailsCardConfig {
+  partnerLabel?: string;
+  retailerLabel?: string;
+  showPartnerId?: boolean;
+  showRetailerId?: boolean;
+  showCategory?: boolean;
+  showSubcategory?: boolean;
+  showSize?: boolean;
+  showColor?: boolean;
+  showPrice?: boolean;
+  showPurchasePrice?: boolean;
+  showMargin?: boolean;
+  currency?: string;
+  marginValue?: number;
+  extraFields?: Array<{ label: string; value?: ReactNode }>;
+  errorMessages?: string[];
+  orderStatus?: string; // Order status to derive item display status
+}
+
 interface ItemCardProps {
   item: BaseItem;
   onToggleSelect?: (itemId: string) => void;
@@ -55,6 +76,7 @@ interface ItemCardProps {
   showActions?: boolean;
   showSelection?: boolean;
   userRole?: UserRole;
+  orderDetailsConfig?: OrderDetailsCardConfig;
 }
 
 export const ItemCard = memo(function ItemCard({ 
@@ -66,7 +88,8 @@ export const ItemCard = memo(function ItemCard({
   variant = 'items-list',
   showActions = true,
   showSelection = true,
-  userRole = 'store-staff'
+  userRole = 'store-staff',
+  orderDetailsConfig
 }: ItemCardProps) {
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
   const normalizeTimestamp = (value: string) => {
@@ -186,8 +209,90 @@ export const ItemCard = memo(function ItemCard({
   };
 
   if (variant === 'order-details') {
+    const {
+      partnerLabel = 'Partner ID',
+      retailerLabel = 'Retailer ID',
+      showPartnerId = true,
+      showRetailerId = true,
+      showCategory = true,
+      showSubcategory = true,
+      showSize = true,
+      showColor = true,
+      showPrice = true,
+      showPurchasePrice = false,
+      showMargin = false,
+      currency,
+      marginValue,
+      extraFields = [],
+      errorMessages,
+      orderStatus
+    } = orderDetailsConfig || {};
+
+    // Derive item display status from order status and item state
+    const getItemDisplayStatus = () => {
+      // If item has validation errors, show error
+      if (item.status === 'error' || (errorMessages && errorMessages.length > 0)) {
+        return { text: 'Error', color: 'text-error' };
+      }
+      
+      // If order status is provided, use it to determine item status
+      if (orderStatus) {
+        switch (orderStatus) {
+          case 'pending':
+            // For pending orders, show "Ready" if retailer ID exists, otherwise "Pending"
+            return item.retailerItemId 
+              ? { text: 'Ready', color: 'text-success' }
+              : { text: 'Pending', color: 'text-on-surface-variant' };
+          case 'registered':
+            return { text: 'Registered', color: 'text-success' };
+          case 'in-transit':
+            return { text: 'In Transit', color: 'text-primary' };
+          case 'delivered':
+            return { text: 'Delivered', color: 'text-tertiary' };
+          case 'in-review':
+            return { text: 'In Review', color: 'text-warning' };
+          default:
+            // Fallback: show "Ready" if retailer ID exists, otherwise use order status or "Pending"
+            return item.retailerItemId
+              ? { text: 'Ready', color: 'text-success' }
+              : { text: orderStatus ? (orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)) : 'Pending', color: 'text-on-surface-variant' };
+        }
+      }
+      
+      // Fallback: use item status or retailer ID presence
+      if (item.retailerItemId) {
+        return { text: 'Ready', color: 'text-success' };
+      }
+      return { text: item.status || 'Pending', color: item.status === 'error' ? 'text-error' : 'text-on-surface-variant' };
+    };
+
+    const displayStatus = getItemDisplayStatus();
+
+    const priceCurrency = currency ?? item.currency;
+    const formatPrice = (value?: number) => {
+      if (value === undefined || Number.isNaN(value)) {
+        return '—';
+      }
+      if (priceCurrency) {
+        return `${value.toFixed(2)} ${priceCurrency}`;
+      }
+      return `$${value.toFixed(2)}`;
+    };
+
+    const derivedMargin = showMargin
+      ? (marginValue !== undefined
+          ? marginValue
+          : (item.price && item.purchasePrice !== undefined && item.price > 0
+              ? ((item.price - item.purchasePrice) / item.price) * 100
+              : undefined))
+      : undefined;
+
+    const combinedErrors = errorMessages?.length
+      ? errorMessages
+      : item.errors;
+
     return (
-      <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
+      <div className="w-full bg-surface-container hover:bg-surface-container-high border border-outline-variant rounded-lg transition-colors">
         {/* M3 Three-line List Item - Mobile Layout */}
         <button 
           className="w-full flex items-center gap-4 p-4 text-left md:hidden"
@@ -218,10 +323,8 @@ export const ItemCard = memo(function ItemCard({
           <div className="flex-1 min-w-0">
             {/* Line 1: Status */}
             <div className="flex items-center gap-2 mb-1 min-w-0">
-              <div className={`label-small whitespace-nowrap flex-shrink-0 ${
-                item.retailerItemId ? 'text-success' : (item.status === 'error' ? 'text-error' : 'text-on-surface-variant')
-              }`}>
-                {item.retailerItemId ? 'Ready' : item.status || 'Pending'}
+              <div className={`label-small whitespace-nowrap flex-shrink-0 ${displayStatus.color}`}>
+                {displayStatus.text}
               </div>
             </div>
             
@@ -232,31 +335,90 @@ export const ItemCard = memo(function ItemCard({
             
             {/* Line 3: Brand • Category • Size */}
             <div className="body-small text-on-surface-variant mb-1 truncate">
-              {item.brand} • {item.category}{item.size && ` • ${item.size}`}
+              {[
+                item.brand,
+                showCategory ? item.category : undefined,
+                showSubcategory ? item.subcategory : undefined,
+                showSize ? item.size : undefined,
+                showColor ? item.color : undefined
+              ].filter(Boolean).join(' • ')}
             </div>
             
             {/* Line 4: Partner ID and Retailer ID (two columns) */}
-            <div className="grid grid-cols-2 gap-2 label-small text-on-surface-variant opacity-90">
-              {item.partnerItemId && (
-                <div className="truncate">
-                  {item.partnerItemId}
+            {(showPartnerId || showRetailerId) && (
+              <div className="grid grid-cols-2 gap-2 label-small text-on-surface-variant opacity-90">
+                {showPartnerId && (
+                  <div className="truncate">
+                    <span className="block text-on-surface-variant/70">{partnerLabel}</span>
+                    <span className="text-on-surface">{item.partnerItemId || '—'}</span>
+                  </div>
+                )}
+                {showRetailerId && (
+                  <div className="truncate">
+                    <span className="block text-on-surface-variant/70">{retailerLabel}</span>
+                    <span className={`text-on-surface ${item.retailerItemId ? 'text-success' : ''}`}>
+                      {item.retailerItemId || '—'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Price Info */}
+            {(showPurchasePrice || showPrice || (showMargin && derivedMargin !== undefined)) && (
+              <div className="mt-3 pt-3 border-t border-outline-variant">
+                <div className="flex flex-wrap gap-4">
+                  {showPurchasePrice && (
+                    <div className="label-small">
+                      <span className="text-on-surface-variant/70">Purchase:</span>
+                      <span className="text-on-surface ml-1">
+                        {formatPrice(item.purchasePrice)}
+                      </span>
+                    </div>
+                  )}
+                  {showPrice && (
+                    <div className="label-small">
+                      <span className="text-on-surface-variant/70">Price:</span>
+                      <span className="text-on-surface ml-1">
+                        {formatPrice(item.price)}
+                      </span>
+                    </div>
+                  )}
+                  {showMargin && derivedMargin !== undefined && (
+                    <div className="label-small">
+                      <span className="text-on-surface-variant/70">Margin:</span>
+                      <span className="text-primary ml-1">
+                        {derivedMargin.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {item.retailerItemId && (
-                <div className="truncate text-success">
-                  {item.retailerItemId}
+              </div>
+            )}
+
+            {extraFields.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-outline-variant">
+                <div className="grid grid-cols-2 gap-2">
+                  {extraFields.map((field) => (
+                    <div key={field.label} className="label-small text-on-surface-variant">
+                      <span className="block text-on-surface-variant/70">{field.label}</span>
+                      <span className="text-on-surface">{field.value || '—'}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           
           {/* Trailing Elements */}
           <div className="flex-shrink-0 flex items-center gap-2">
             {/* Price */}
             <div className="text-right">
-              <div className="title-small text-on-surface whitespace-nowrap">
-                ${item.price.toFixed(2)}
-              </div>
+              {showPrice && (
+                <div className="title-small text-on-surface whitespace-nowrap">
+                  {formatPrice(item.price)}
+                </div>
+              )}
             </div>
           </div>
         </button>
@@ -309,7 +471,7 @@ export const ItemCard = memo(function ItemCard({
           )}
         </div>
         
-        {item.status === 'error' && item.errors && (
+        {item.status === 'error' && combinedErrors && (
           <div className="mx-4 mb-3 p-3 rounded-xl bg-error-container/20 border border-error">
             <div className="flex items-start gap-2">
               <div className="w-4 h-4 rounded-full bg-error flex items-center justify-center mt-0.5">
@@ -318,7 +480,7 @@ export const ItemCard = memo(function ItemCard({
                 </svg>
               </div>
               <p className="body-small text-on-error-container">
-                {item.errors.join(', ')}
+                {combinedErrors.join(', ')}
               </p>
             </div>
           </div>

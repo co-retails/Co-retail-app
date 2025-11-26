@@ -290,7 +290,7 @@ test.describe('Modal and Dialog Interactions', () => {
       await page.waitForTimeout(500);
       
       // Should see role options
-      await expect(page.locator('text=/Switch role|Choose role/i').first()).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('text=/Switch view/i').first()).toBeVisible({ timeout: 5000 });
 
       // Close by clicking outside or close button
       const closeButton = page.locator('button[aria-label*="Close"], button:has-text("×")').first();
