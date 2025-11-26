@@ -53,7 +53,7 @@ export function SharedHeader({
                 size="icon"
                 onClick={onRoleSwitcherClick}
                 className="text-on-surface-variant"
-                aria-label="Switch role"
+                aria-label="Switch view"
               >
                 <UserIcon size={20} />
               </Button>

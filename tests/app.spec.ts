@@ -128,7 +128,7 @@ test.describe('Store Staff - Home Screen', () => {
       await roleSwitcherButton.click();
       await page.waitForTimeout(500);
       // Check for role switcher content
-      await expect(page.locator('text=/Switch role|Choose role/i').first()).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('text=/Switch view/i').first()).toBeVisible({ timeout: 5000 });
     }
   });
 

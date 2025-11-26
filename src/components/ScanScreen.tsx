@@ -56,7 +56,7 @@ function ScanViewer({ onScan }: {
 }) {
 
   return (
-    <div className="sticky top-0 mx-4 md:mx-6 mt-4 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden z-20">
+    <div className="sticky top-0 md:top-16 mx-4 md:mx-6 mt-4 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden z-[90]">
       {/* Camera Preview Area */}
       <div className="relative bg-surface-variant h-64 flex items-center justify-center">
         {/* Camera preview placeholder - in real implementation, this would show camera feed */}
@@ -750,6 +750,8 @@ export default function ScanScreen({
 
   return (
     <div className="bg-surface min-h-screen flex flex-col">
+      {/* Spacer for top nav on desktop */}
+      <div className="hidden md:block h-16"></div>
       <ScanViewer onScan={handleScan} />
       
       <ScannedItemsSection 

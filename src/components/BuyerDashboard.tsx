@@ -35,7 +35,6 @@ interface BuyerDashboardProps {
   onViewOrders: () => void;
   onViewQuotations: () => void;
   onViewShipments: () => void;
-  onRoleSwitcherClick: () => void;
   onAdminClick?: () => void;
   brands: Brand[];
   countries: Country[];
@@ -45,7 +44,7 @@ interface BuyerDashboardProps {
 
 function StatusBarIPhone() {
   return (
-    <div className="h-[44px] overflow-clip relative shrink-0 w-full">
+    <div className="h-[44px] overflow-clip relative shrink-0 w-full md:hidden">
       <div className="absolute h-[11.336px] right-[14.67px] top-[17.33px] w-[66.661px]">
         <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 67 12">
           <path d={svgPaths.p18c81cf0} fill="#212121" opacity="0.35" stroke="white" />
@@ -71,7 +70,6 @@ export default function BuyerDashboard({
   onViewOrders,
   onViewQuotations,
   onViewShipments,
-  onRoleSwitcherClick,
   onAdminClick,
   brands,
   countries,
@@ -103,22 +101,16 @@ export default function BuyerDashboard({
 
   return (
     <div className="min-h-screen bg-surface pb-20 md:pb-0">
-      {/* Unified Header - Same as Store and Partner Portal */}
-      <div className="w-full bg-surface border-b border-outline-variant">
+      {/* Mobile Header - Full header with logo and selector */}
+      <div className="w-full bg-surface border-b border-outline-variant md:hidden">
         <StatusBarIPhone />
         
         {/* Header Content */}
         <div className="px-4 md:px-6 py-3">
-          {/* Top Row: Profile Icon, Logo, Admin Icon */}
+          {/* Top Row: Logo, Admin Icon */}
           <div className="flex items-center justify-between mb-4">
-            {/* Profile/Role Switcher Icon */}
-            <button
-              onClick={onRoleSwitcherClick}
-              className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
-              aria-label="Switch Role"
-            >
-              <UserCircle className="h-6 w-6 text-on-surface-variant" />
-            </button>
+            {/* Spacer to balance layout */}
+            <div className="w-10" />
             
             {/* Centered Logo */}
             <div className="flex flex-col items-center">
@@ -153,6 +145,30 @@ export default function BuyerDashboard({
             </button>
           </div>
         </div>
+      </div>
+      
+      {/* Desktop Header - Logo and selector, positioned below top nav */}
+      <div className="hidden md:flex flex-col items-center px-6 py-4 bg-surface" style={{ marginTop: '4rem' }}>
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-3">
+          <div className="h-[28px] w-[153px] mb-1">
+            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
+              <path d={svgPaths.p2523a00} fill="#1A1A1A" />
+            </svg>
+          </div>
+          <div className="label-large text-on-surface tracking-wider uppercase">
+            Buyer portal
+          </div>
+        </div>
+        
+        {/* Retailer/Country Selector */}
+        <button
+          onClick={() => setIsRetailerSelectorOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-surface-container-high transition-colors"
+        >
+          <span className="title-medium text-on-surface">{getCurrentRetailerDisplay()}</span>
+          <ChevronDown className="h-4 w-4 text-on-surface-variant" />
+        </button>
       </div>
 
       {/* Main Content - M3 Grid: 16px mobile, 24px tablet+ */}

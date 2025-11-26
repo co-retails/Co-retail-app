@@ -169,6 +169,8 @@ export default function App() {
     setIsRoleSwitcherSheetOpen,
     isAdminSettingsSheetOpen,
     setIsAdminSettingsSheetOpen,
+    isAdminExperienceMode,
+    setIsAdminExperienceMode,
     currentStoreSelection,
     setCurrentStoreSelection,
     currentPartnerWarehouseSelection,
@@ -1220,6 +1222,10 @@ export default function App() {
     setIsAdminSettingsSheetOpen(true);
   };
 
+  const handleToggleAdminExperience = () => {
+    setIsAdminExperienceMode(prev => !prev);
+  };
+
   const handleLogout = () => {
     setIsAdminSettingsSheetOpen(false);
   };
@@ -1501,8 +1507,6 @@ export default function App() {
       }
       onBackClick={handleBack}
       onHomeClick={handleBackToHome}
-      showRoleSwitcher={true}
-      onRoleSwitcherClick={handleOpenRoleSwitcher}
       currentRole={currentUserRole}
       onAdminClick={handleOpenAdminSettings}
       currentStoreSelection={currentStoreSelection}
@@ -1534,7 +1538,6 @@ export default function App() {
           onNavigateToSellers={handleNavigateToSellers}
           onNavigateToStockCheck={handleNavigateToStockCheck}
           onNavigateToAdmin={handleOpenAdminSettings}
-          onNavigateToRoleSwitcher={handleOpenRoleSwitcher}
           deliveryStats={{
             newDeliveries: deliveries.filter(d => d.status === 'In transit').length,
             toReturn: mockPartners.reduce((sum, p) => sum + p.itemsToReturn, 0),
@@ -2067,7 +2070,6 @@ export default function App() {
           onViewReturns={handleNavigateToReturnsTab}
           onNavigateToShowroom={handleNavigateToShowroom}
           onAdminClick={handleOpenAdminSettings}
-          onRoleSwitcherClick={handleOpenRoleSwitcher}
           stats={mockPartnerStats}
           recentOrders={partnerOrders}
           returnDeliveries={returnDeliveries}
@@ -3100,7 +3102,6 @@ export default function App() {
           onViewQuotations={handleNavigateToBuyerQuotations}
           onViewShipments={handleNavigateToBuyerShipments}
           onViewOrders={handleNavigateToBuyerOrders}
-          onRoleSwitcherClick={handleOpenRoleSwitcher}
           onAdminClick={handleOpenAdminSettings}
           brands={mockBrands}
           countries={mockCountries}
@@ -3191,7 +3192,12 @@ export default function App() {
       {currentScreen === 'portal-configuration' && (
         <Suspense fallback={<LoadingFallback />}>
         <PortalConfigurationManager 
-          userRole={currentUserRole}
+          userRole={
+            (isAdminExperienceMode && mockUserAccount?.role?.name === 'Admin') 
+              ? 'admin' 
+              : (currentUserRole === 'store-staff' ? 'store_staff' : currentUserRole === 'partner' ? 'partner' : 'admin')
+          }
+          isAdminExperienceMode={isAdminExperienceMode}
           onBack={() => {
             setIsAdminSettingsSheetOpen(false);
             setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
@@ -3287,8 +3293,10 @@ export default function App() {
         onClose={() => setIsAdminSettingsSheetOpen(false)}
         userAccount={mockUserAccount}
         currentAppRole={currentUserRole}
+        isAdminExperienceMode={isAdminExperienceMode}
+        onToggleAdminExperience={handleToggleAdminExperience}
         onLogout={handleLogout}
-        onSwitchToAdmin={currentUserRole === 'admin' ? undefined : () => handleRoleChange('admin')}
+        onRoleSwitcherClick={handleOpenRoleSwitcher}
         onNavigateToStockCheckReport={handleNavigateToStockCheckReports}
         onNavigateToPartnerReports={() => {
           setIsAdminSettingsSheetOpen(false);
@@ -3317,6 +3325,8 @@ export default function App() {
         <ResponsiveNavigation 
           activeDestination={activeDestination}
           destinations={navigationDestinations}
+          userInitials={mockUserAccount?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'JD'}
+          onSettingsClick={handleOpenAdminSettings}
         />
       )}
       

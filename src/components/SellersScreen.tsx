@@ -304,8 +304,10 @@ export default function SellersScreen({ onBack, onNavigateToHome, onNavigateToIt
 
   return (
     <div className="bg-surface relative min-h-screen">
+      {/* Spacer for top nav on desktop */}
+      <div className="hidden md:block h-16"></div>
       {/* Header */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
+      <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
         <div className="px-4 md:px-6 py-4">
           <h3 className="headline-small text-on-surface">Sellers</h3>
         </div>

@@ -23,6 +23,7 @@ interface Brand {
 
 interface PortalConfigurationManagerProps {
   userRole: UserRole;
+  isAdminExperienceMode?: boolean;
   onBack: () => void;
   partners?: Partner[];
   warehouses?: Warehouse[];
@@ -36,6 +37,7 @@ interface PortalConfigurationManagerProps {
 
 export function PortalConfigurationManager({
   userRole,
+  isAdminExperienceMode = false,
   onBack,
   partners = [],
   warehouses = [],
@@ -62,6 +64,7 @@ export function PortalConfigurationManager({
       return (
         <PortalConfigurationLanding
           userRole={userRole}
+          isAdminExperienceMode={isAdminExperienceMode}
           onNavigate={handleNavigate}
           onBack={onBack}
         />
@@ -126,6 +129,7 @@ export function PortalConfigurationManager({
       return (
         <PortalConfigurationLanding
           userRole={userRole}
+          isAdminExperienceMode={isAdminExperienceMode}
           onNavigate={handleNavigate}
           onBack={onBack}
         />

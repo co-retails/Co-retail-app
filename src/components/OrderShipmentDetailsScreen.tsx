@@ -1200,6 +1200,7 @@ export default function OrderShipmentDetailsScreen({
                     partnerId={partnerId}
                     countryName={countryName}
                     currency={currency}
+                    orderStatus={type === 'order' ? (data as PartnerOrder).status : type === 'shipment' ? (data as DeliveryNote).status : undefined}
                   />
                 )}
               </>

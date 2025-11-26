@@ -19,16 +19,18 @@ import { UserRole } from './PortalConfigTypes';
 
 interface PortalConfigurationLandingProps {
   userRole: UserRole;
+  isAdminExperienceMode?: boolean;
   onNavigate: (screen: string) => void;
   onBack: () => void;
 }
 
 export function PortalConfigurationLanding({
   userRole,
+  isAdminExperienceMode = false,
   onNavigate,
   onBack
 }: PortalConfigurationLandingProps) {
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'admin' || isAdminExperienceMode;
 
   const attributeSections = [
     {

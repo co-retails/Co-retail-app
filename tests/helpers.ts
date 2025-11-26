@@ -20,16 +20,16 @@ export class AppTestHelpers {
    * Switch to a specific user role
    */
   async switchToRole(role: 'store-staff' | 'partner' | 'buyer') {
-    const roleSwitcherButton = this.page.locator('button[aria-label*="Switch Role"], button[aria-label*="Role"], button:has([class*="UserIcon"])').first();
+    const roleSwitcherButton = this.page.locator('button[aria-label*="Switch view"], button[aria-label*="Switch View"], button[aria-label*="Role"], button:has([class*="UserIcon"])').first();
     
     if (await roleSwitcherButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await roleSwitcherButton.click();
       await this.page.waitForTimeout(500);
       
       const roleMap = {
-        'store-staff': /Store|Staff/i,
-        'partner': /Partner/i,
-        'buyer': /Buyer/i
+        'store-staff': /Store app/i,
+        'partner': /Partner portal/i,
+        'buyer': /Buyer portal/i
       };
       
       const roleOption = this.page.getByRole('button', { name: roleMap[role] }).first();

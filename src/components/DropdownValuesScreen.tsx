@@ -828,7 +828,7 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="no-categories" disabled>
                         No categories available
                       </SelectItem>
                     )}

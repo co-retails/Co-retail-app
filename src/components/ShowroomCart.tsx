@@ -53,8 +53,10 @@ export default function ShowroomCart({
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
+      {/* Spacer for top nav on desktop */}
+      <div className="hidden md:block h-16"></div>
       {/* Top App Bar */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
+      <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant">
         <div className="flex items-center h-16 px-4 md:px-6">
           <button 
             className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
