@@ -797,7 +797,7 @@ export default function OrderShipmentDetailsScreen({
   ) : undefined;
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-surface flex flex-col">
       <SharedHeader 
         title={getTitle()}
         onBack={onBack}
@@ -805,7 +805,7 @@ export default function OrderShipmentDetailsScreen({
         rightElement={headerRightElement}
       />
 
-      <div className="w-full px-4 md:px-6 py-4 md:py-6 pb-32 space-y-6">
+      <div className="flex-1 overflow-y-auto w-full px-4 md:px-6 py-4 md:py-6 pb-32 space-y-6">
         {/* Delivery Information Card - Show for all shipments */}
         {type === 'shipment' && (
           <Card className="bg-surface-container border border-outline-variant">
@@ -992,11 +992,10 @@ export default function OrderShipmentDetailsScreen({
                       {(data as DeliveryNote).boxes.map((box) => (
                         <Card 
                           key={box.id}
-                          className="border-outline cursor-pointer transition-colors hover:opacity-90"
-                          style={{ backgroundColor: '#f0f0eb' }}
+                          className="border-outline cursor-pointer transition-colors hover:opacity-90 bg-surface-container"
                           onClick={() => handleBoxClick(box)}
                         >
-                          <CardContent className="p-4" style={{ backgroundColor: 'transparent' }}>
+                          <CardContent className="p-4">
                             <div className="flex items-start justify-between">
                               <div className="flex items-start gap-3 flex-1 min-w-0">
                                 <div className="p-2 bg-primary-container rounded-lg flex-shrink-0">
@@ -1301,7 +1300,7 @@ export default function OrderShipmentDetailsScreen({
         {/* Action Buttons for Sellpy Orders - Fixed bottom bar */}
         {type === 'order' && (partnerName === 'Sellpy Operations' || partnerName === 'Sellpy') && (
           <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant z-20">
-            <div className="px-4 md:px-6 py-4 pb-safe">
+            <div className="px-4 md:px-6 py-4 pb-safe flex flex-col md:flex-row md:justify-end">
               {/* Pending status: Add retailer IDs - right aligned on desktop */}
               {(data as PartnerOrder).status === 'pending' && onNavigateToRetailerIdScan && (
                 <div className="flex justify-start md:justify-end">
@@ -1318,12 +1317,12 @@ export default function OrderShipmentDetailsScreen({
 
               {/* Approval status: Save & Close and Approve order (Admin only) */}
               {isApprovalOrder && isAdmin && (
-                <div className="flex justify-start md:justify-end gap-3">
+                <div className="flex flex-row gap-3 w-full md:max-w-md">
                   <Button 
                     onClick={handleSaveAndClose}
                     variant="outline"
                     size="lg"
-                    className="w-full md:w-auto border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[48px]"
+                    className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
                   >
                     <span className="label-large">Save & Close</span>
                   </Button>
@@ -1336,7 +1335,7 @@ export default function OrderShipmentDetailsScreen({
                         }
                       }}
                       size="lg"
-                      className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[48px]"
+                      className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg h-[56px]"
                     >
                       <CheckIcon size={20} className="mr-2" />
                       <span className="label-large">Approve</span>
@@ -1406,7 +1405,7 @@ export default function OrderShipmentDetailsScreen({
                 </div>
               )}
               
-              <div className="flex justify-start md:justify-end gap-3">
+              <div className="flex flex-row gap-3 max-w-md md:max-w-none md:ml-auto">
                 {/* Pending status: Save & Close and Register order */}
                 {isThriftedEditable && (
                   <>
@@ -1414,7 +1413,7 @@ export default function OrderShipmentDetailsScreen({
                       onClick={handleSaveAndClose}
                       variant="outline"
                       size="lg"
-                      className="w-full md:w-auto border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[48px]"
+                      className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
                     >
                       <span className="label-large">Save & Close</span>
                     </Button>
@@ -1423,7 +1422,7 @@ export default function OrderShipmentDetailsScreen({
                         onClick={onRegisterOrder}
                         disabled={!canRegister}
                         size="lg"
-                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px]"
+                        className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
                       >
                         <CheckIcon size={20} className="mr-2" />
                         <span className="label-large">Register order</span>
@@ -1581,7 +1580,7 @@ export default function OrderShipmentDetailsScreen({
       {/* Action Buttons for Pending/Packing Shipments - Fixed bottom bar */}
       {type === 'shipment' && ((data as DeliveryNote).status === 'pending' || (data as DeliveryNote).status === 'packing') && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4 z-20 pb-safe">
-          <div className="flex flex-row gap-3 items-center justify-between">
+          <div className="flex flex-row gap-3 items-center">
             {(() => {
               const shipment = data as DeliveryNote;
               const totalItems = orderItems.length;
@@ -1590,17 +1589,17 @@ export default function OrderShipmentDetailsScreen({
               
               return (
                 <>
-                  <div className="hidden md:flex items-center gap-2 text-on-surface-variant body-small">
+                  <div className="hidden md:flex items-center gap-2 text-on-surface-variant body-small md:mr-auto">
                     <PackageIcon size={16} />
                     <span>{assignedItems} of {totalItems} items in {shipment.boxes.length} box{shipment.boxes.length !== 1 ? 'es' : ''}</span>
                   </div>
                   
-                  <div className="flex flex-row gap-3 flex-1 md:flex-initial">
+                  <div className="flex flex-row gap-3 flex-1 max-w-md md:max-w-none md:ml-auto">
                     {onSaveAndClose && (
                       <Button
                         variant="outline"
                         onClick={onSaveAndClose}
-                        className="flex-1"
+                        className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[56px]"
                         size="lg"
                       >
                         <span className="label-large">Save & Close</span>
@@ -1611,7 +1610,7 @@ export default function OrderShipmentDetailsScreen({
                       <Button
                         onClick={onRegisterDelivery}
                         disabled={shipment.boxes.length === 0 || unassignedItems > 0 || shipment.boxes.some(box => box.items.length === 0)}
-                        className="flex-1 bg-primary text-on-primary"
+                        className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[56px]"
                         size="lg"
                       >
                         <CheckIcon size={20} className="mr-2" />

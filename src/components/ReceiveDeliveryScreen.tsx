@@ -346,20 +346,24 @@ function BottomActions({
 }) {
   return (
     <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 md:p-6">
-      <Button 
-        onClick={onRegister}
-        disabled={!canRegister}
-        className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
-      >
-        Register
-      </Button>
-      {scannedCount > 0 && (
-        <div className="text-center mt-2">
-          <span className="body-small text-on-surface-variant">
-            {scannedCount}/{totalBoxes} boxes scanned
-          </span>
+      <div className="flex justify-end">
+        <div className="w-full md:max-w-md">
+          <Button 
+            onClick={onRegister}
+            disabled={!canRegister}
+            className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-6 py-3 rounded-lg h-[56px] flex items-center justify-center label-large"
+          >
+            Register
+          </Button>
+          {scannedCount > 0 && (
+            <div className="text-center mt-2">
+              <span className="body-small text-on-surface-variant">
+                {scannedCount}/{totalBoxes} boxes scanned
+              </span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

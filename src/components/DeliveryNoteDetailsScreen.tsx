@@ -61,7 +61,7 @@ export interface DeliveryNote {
   storeCode?: string;
 }
 
-interface DeliveryNoteCreationScreenProps {
+interface DeliveryNoteDetailsScreenProps {
   onBack: () => void;
   orderId: string;
   orderItems: OrderItem[];
@@ -84,7 +84,7 @@ interface DeliveryNoteCreationScreenProps {
 
 type DialogMode = 'box-label' | 'add-items' | 'scan-item' | null;
 
-export default function DeliveryNoteCreationScreen({
+export default function DeliveryNoteDetailsScreen({
   onBack,
   orderId,
   orderItems,
@@ -548,7 +548,7 @@ export default function DeliveryNoteCreationScreen({
               return (
                 <Card
                   key={box.id}
-                  className="border-outline cursor-pointer hover:bg-primary-container/80 transition-colors bg-primary-container"
+                  className="border-outline cursor-pointer hover:bg-surface-container-high transition-colors bg-surface-container"
                   onClick={() => {
                     if (onOpenBoxDetails) {
                       onOpenBoxDetails(box);

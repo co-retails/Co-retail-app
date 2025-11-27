@@ -326,20 +326,22 @@ function BoxesList({
 
   return (
     <Card className={`mx-4 md:mx-6 mb-4 ${isPartnerPortal ? 'bg-transparent' : 'bg-surface-container'} border border-outline-variant overflow-hidden`}>
-      <div className="divide-y divide-outline-variant">
-        {boxes.map((box) => (
-          <BoxCard
-            key={box.id}
-            box={box}
-            onSelect={() => onSelectBox(box)}
-            onMarkDelivered={onMarkBoxDelivered ? () => onMarkBoxDelivered(box.id) : undefined}
-            onMarkRejected={onMarkBoxRejected ? () => onMarkBoxRejected(box.id) : undefined}
-            canScan={canScan}
-            isAdmin={isAdmin}
-            isPartnerPortal={isPartnerPortal}
-          />
-        ))}
-      </div>
+      <CardContent className="p-0">
+        <div className="divide-y divide-outline-variant">
+          {boxes.map((box) => (
+            <BoxCard
+              key={box.id}
+              box={box}
+              onSelect={() => onSelectBox(box)}
+              onMarkDelivered={onMarkBoxDelivered ? () => onMarkBoxDelivered(box.id) : undefined}
+              onMarkRejected={onMarkBoxRejected ? () => onMarkBoxRejected(box.id) : undefined}
+              canScan={canScan}
+              isAdmin={isAdmin}
+              isPartnerPortal={isPartnerPortal}
+            />
+          ))}
+        </div>
+      </CardContent>
     </Card>
   );
 }
@@ -389,7 +391,7 @@ export default function DeliveryDetailsScreen({
       />
 
       {/* Content */}
-      <div className="flex-1 pt-6">
+      <div className="flex-1 overflow-y-auto pt-6">
         {/* Delivery & Sender Info */}
         <DeliveryAndSenderCard delivery={delivery} />
 
@@ -419,25 +421,29 @@ export default function DeliveryDetailsScreen({
 
       {canScan && (
         <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 md:p-6">
-          <Button
-            onClick={onScanToReceive}
-            className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-2.5 rounded-lg min-h-[48px] flex items-center justify-center label-large"
-          >
-            <QrCode className="w-4 h-4 mr-2" />
-            Scan to receive
-          </Button>
+          <div className="flex justify-end">
+            <div className="w-full md:max-w-md">
+              <Button
+                onClick={onScanToReceive}
+                className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg h-[56px] flex items-center justify-center label-large"
+              >
+                <QrCode className="w-4 h-4 mr-2" />
+                Scan to receive
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Fixed Bottom Action Buttons for Pending/Packing Deliveries */}
       {isPendingOrPacking && (onSaveAndClose || onRegisterDelivery) && (
         <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 md:p-6 z-20">
-          <div className="flex flex-row gap-3">
+          <div className="flex flex-row gap-3 max-w-md mx-auto md:mx-0">
             {onSaveAndClose && (
               <Button
                 variant="outline"
                 onClick={onSaveAndClose}
-                className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-2.5 rounded-lg min-h-[48px] label-large"
+                className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg min-h-[56px] label-large"
                 size="lg"
               >
                 <span className="label-large">Save & Close</span>
@@ -447,7 +453,7 @@ export default function DeliveryDetailsScreen({
             {onRegisterDelivery && (
               <Button
                 onClick={onRegisterDelivery}
-                className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-2.5 rounded-lg min-h-[48px] label-large"
+                className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[56px] label-large"
                 size="lg"
               >
                 <Check className="w-4 h-4 mr-2" />

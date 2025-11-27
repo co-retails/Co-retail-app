@@ -27,7 +27,7 @@ import PartnerDashboard, { PartnerOrder } from './components/PartnerDashboard';
 import OrderCreationScreen, { OrderItem } from './components/OrderCreationScreen';
 import ThriftedOrderCreationScreen from './components/ThriftedOrderCreationScreen';
 import BoxManagementScreen, { DeliveryNote } from './components/BoxManagementScreen';
-import DeliveryNoteCreationScreen, { DeliveryNote as DeliveryNoteCreationDeliveryNote } from './components/DeliveryNoteCreationScreen';
+import DeliveryNoteDetailsScreen, { DeliveryNote as DeliveryNoteCreationDeliveryNote } from './components/DeliveryNoteDetailsScreen';
 import OrderDetailsScreen from './components/OrderDetailsScreen';
 import RetailerIdScanScreen from './components/RetailerIdScanScreen';
 import PostRegistrationDialog from './components/PostRegistrationDialog';
@@ -2755,7 +2755,7 @@ export default function App() {
           : (orderData ? resolveWarehouseName(orderData.warehouseId, orderData.warehouseName) : detailsScreenData.warehouseName);
 
         return (
-          <DeliveryNoteCreationScreen
+          <DeliveryNoteDetailsScreen
             onBack={() => {
               // Restore the tab if we came from shipping screen
               if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {

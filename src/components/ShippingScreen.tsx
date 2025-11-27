@@ -181,7 +181,7 @@ function DeliveryItem({ delivery, onSelect }: { delivery: Delivery; onSelect: ()
 
   return (
     <button
-      className="w-full bg-surface-container hover:bg-surface-container-high transition-colors border-b border-outline-variant text-left"
+      className="w-full bg-surface-container hover:bg-surface-container-high transition-colors text-left"
       onClick={onSelect}
     >
       {/* M3 Three-line List Item - matching other screens pattern */}

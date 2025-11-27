@@ -18,7 +18,7 @@ import PartnerDashboard from './PartnerDashboard';
 import OrderCreationScreen from './OrderCreationScreen';
 import ThriftedOrderCreationScreen from './ThriftedOrderCreationScreen';
 import BoxManagementScreen from './BoxManagementScreen';
-import DeliveryNoteCreationScreen from './DeliveryNoteCreationScreen';
+import DeliveryNoteDetailsScreen from './DeliveryNoteDetailsScreen';
 import OrderDetailsScreen from './OrderDetailsScreen';
 import RetailerIdScanScreen from './RetailerIdScanScreen';
 import OrderShipmentDetailsScreen from './OrderShipmentDetailsScreen';
@@ -572,7 +572,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
       });
       
       return (
-        <DeliveryNoteCreationScreen
+        <DeliveryNoteDetailsScreen
           onBack={() => {
             state.setCurrentScreen('partner-dashboard');
           }}
