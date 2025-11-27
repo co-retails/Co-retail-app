@@ -33,6 +33,7 @@ import RetailerIdScanScreen from './components/RetailerIdScanScreen';
 import PostRegistrationDialog from './components/PostRegistrationDialog';
 import OrderShipmentDetailsScreen, { DetailType } from './components/OrderShipmentDetailsScreen';
 import DeliveryNoteBoxDetailsScreen from './components/DeliveryNoteBoxDetailsScreen';
+import { FullScreenDialog, FullScreenDialogContent } from './components/ui/full-screen-dialog';
 
 // Digital Showroom Components - Lazy loaded for code splitting
 const PartnerShowroomDashboard = React.lazy(() => import('./components/PartnerShowroomDashboard'));
@@ -1493,6 +1494,7 @@ export default function App() {
     currentScreen !== 'sellpy-order-details' &&
     currentScreen !== 'retailer-id-scan' &&
     currentScreen !== 'order-shipment-details' &&
+    currentScreen !== 'delivery-note-box-details' &&
     currentScreen !== 'receive';
 
   // === Render ===
@@ -1716,7 +1718,13 @@ export default function App() {
       )}
 
       {currentScreen === 'delivery-details' && selectedDelivery && (
-        <DeliveryDetailsScreen
+        <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
+          if (!open) {
+            setCurrentScreenSafe('shipping');
+          }
+        }}>
+          <FullScreenDialogContent className="flex flex-col p-0 bg-surface" fullWidth>
+            <DeliveryDetailsScreen
           delivery={selectedDelivery}
           boxes={deliveryBoxes}
           onBack={() => setCurrentScreenSafe('shipping')}
@@ -1744,42 +1752,69 @@ export default function App() {
               setSelectedDelivery({ ...selectedDelivery, status, cancellationReason: reason as 'Missing delivery' | undefined });
             }
           }}
-        />
+          onSaveAndClose={() => {
+            setCurrentScreenSafe('shipping');
+          }}
+          onRegisterDelivery={() => {
+            if (selectedDelivery) {
+              setDeliveries(prevDeliveries =>
+                prevDeliveries.map(delivery =>
+                  delivery.id === selectedDelivery.id
+                    ? { ...delivery, status: 'In transit' as const }
+                    : delivery
+                )
+              );
+              setSelectedDelivery({ ...selectedDelivery, status: 'In transit' });
+              toast.success('Delivery registered successfully');
+              setCurrentScreenSafe('shipping');
+            }
+          }}
+            />
+          </FullScreenDialogContent>
+        </FullScreenDialog>
       )}
 
       {currentScreen === 'box-details' && selectedBox && (
-        <BoxDetailsScreen
-          box={selectedBox}
-          items={[
-            {
-              id: '1',
-              itemId: '34780001',
-              title: 'Sample Item 1',
-              brand: 'H&M',
-              category: 'Clothing',
-              size: 'M',
-              color: 'Black',
-              price: 29.99,
-              status: 'In transit',
-              date: selectedBox.date,
-              orderNumber: selectedBox.orderNumber
-            },
-            {
-              id: '2',
-              itemId: '34780002',
-              title: 'Sample Item 2',
-              brand: 'Weekday',
-              category: 'Clothing',
-              size: 'L',
-              color: 'White',
-              price: 39.99,
-              status: 'In transit',
-              date: selectedBox.date,
-              orderNumber: selectedBox.orderNumber
-            }
-          ]}
-          onBack={() => setCurrentScreenSafe('delivery-details')}
-        />
+        <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
+          if (!open) {
+            setCurrentScreenSafe('delivery-details');
+          }
+        }}>
+          <FullScreenDialogContent className="flex flex-col p-0 bg-surface">
+            <BoxDetailsScreen
+              box={selectedBox}
+              items={[
+                {
+                  id: '1',
+                  itemId: '34780001',
+                  title: 'Sample Item 1',
+                  brand: 'H&M',
+                  category: 'Clothing',
+                  size: 'M',
+                  color: 'Black',
+                  price: 29.99,
+                  status: 'In transit',
+                  date: selectedBox.date,
+                  orderNumber: selectedBox.orderNumber
+                },
+                {
+                  id: '2',
+                  itemId: '34780002',
+                  title: 'Sample Item 2',
+                  brand: 'Weekday',
+                  category: 'Clothing',
+                  size: 'L',
+                  color: 'White',
+                  price: 39.99,
+                  status: 'In transit',
+                  date: selectedBox.date,
+                  orderNumber: selectedBox.orderNumber
+                }
+              ]}
+              onBack={() => setCurrentScreenSafe('delivery-details')}
+            />
+          </FullScreenDialogContent>
+        </FullScreenDialog>
       )}
 
       {currentScreen === 'receive' && selectedDelivery && (
@@ -2294,7 +2329,23 @@ export default function App() {
       })()}
 
       {currentScreen === 'order-shipment-details' && detailsScreenData && (
-        <OrderShipmentDetailsScreen
+        <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
+          if (!open) {
+            // Restore the tab if we came from shipping screen
+            if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
+              setShippingInitialTab(detailsScreenData.previousTab);
+            }
+            
+            // Navigate back to the previous screen if specified, otherwise use default handleBack
+            if (detailsScreenData.previousScreen) {
+              setCurrentScreenSafe(detailsScreenData.previousScreen);
+            } else {
+              handleBack();
+            }
+          }
+        }}>
+          <FullScreenDialogContent className="flex flex-col p-0 bg-surface" fullWidth>
+            <OrderShipmentDetailsScreen
           type={detailsScreenData.type}
           data={detailsScreenData.data}
           onBack={() => {
@@ -2317,6 +2368,7 @@ export default function App() {
           receiverLabel={detailsScreenData.receiverLabel}
           countries={mockCountries}
           stores={mockStores}
+          brands={mockBrands}
           isAdmin={mockUserAccount.role.name === 'Admin'}
           currentUserRole={currentUserRole === 'partner' ? 'partner' : currentUserRole === 'admin' ? 'admin' : 'store-staff'}
           onUpdateReturnDeliveryStatus={detailsScreenData.type === 'return' ? handleUpdateReturnDeliveryStatus : undefined}
@@ -2573,67 +2625,79 @@ export default function App() {
             }
             return undefined;
           })()}
-        />
+            />
+          </FullScreenDialogContent>
+        </FullScreenDialog>
       )}
 
       {/* Delivery Note Box Details Screen */}
       {currentScreen === 'delivery-note-box-details' && selectedDeliveryNoteBox && (
-        <DeliveryNoteBoxDetailsScreen
-          box={selectedDeliveryNoteBox.box}
-          orderItems={selectedDeliveryNoteBox.orderItems}
-          receiverBrand={selectedDeliveryNoteBox.receiverBrand}
-          receiverStoreCode={selectedDeliveryNoteBox.receiverStoreCode}
-          senderWarehouse={selectedDeliveryNoteBox.senderWarehouse}
-          isAdmin={currentUserRole === 'admin'}
-          onBack={() => {
+        <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
+          if (!open) {
             const previousScreen = selectedDeliveryNoteBox?.previousScreen || 'order-shipment-details';
             setSelectedDeliveryNoteBox(null);
             setCurrentScreenSafe(previousScreen);
-          }}
-          onRegisterBox={handleRegisterBox}
-          onSaveAndClose={handleSaveBoxAndClose}
-          onUnregisterBox={(boxId) => {
-            const deliveryNote = deliveryNotes.find(note => 
-              note.boxes.some(b => b.id === boxId)
-            );
-            
-            if (deliveryNote) {
-              setDeliveryNotes(prev => prev.map(note =>
-                note.id === deliveryNote.id
-                  ? {
-                      ...note,
-                      boxes: note.boxes.map(b =>
-                        b.id === boxId ? { ...b, status: 'pending' as const } : b
-                      )
-                    }
-                  : note
-              ));
-              
-              // Update detailsScreenData if we're viewing this delivery note
-              if (detailsScreenData?.type === 'shipment' && detailsScreenData.data.id === deliveryNote.id) {
-                setDetailsScreenData({
-                  ...detailsScreenData,
-                  data: {
-                    ...detailsScreenData.data,
-                    boxes: (detailsScreenData.data as DeliveryNote).boxes.map(b =>
-                      b.id === boxId ? { ...b, status: 'pending' as const } : b
-                    )
+          }
+        }}>
+          <FullScreenDialogContent className="flex flex-col p-0 bg-surface">
+            <DeliveryNoteBoxDetailsScreen
+              box={selectedDeliveryNoteBox.box}
+              orderItems={selectedDeliveryNoteBox.orderItems}
+              receiverBrand={selectedDeliveryNoteBox.receiverBrand}
+              receiverStoreCode={selectedDeliveryNoteBox.receiverStoreCode}
+              senderWarehouse={selectedDeliveryNoteBox.senderWarehouse}
+              isAdmin={currentUserRole === 'admin'}
+              onBack={() => {
+                const previousScreen = selectedDeliveryNoteBox?.previousScreen || 'order-shipment-details';
+                setSelectedDeliveryNoteBox(null);
+                setCurrentScreenSafe(previousScreen);
+              }}
+              onRegisterBox={handleRegisterBox}
+              onSaveAndClose={handleSaveBoxAndClose}
+              onUnregisterBox={(boxId) => {
+                const deliveryNote = deliveryNotes.find(note => 
+                  note.boxes.some(b => b.id === boxId)
+                );
+                
+                if (deliveryNote) {
+                  setDeliveryNotes(prev => prev.map(note =>
+                    note.id === deliveryNote.id
+                      ? {
+                          ...note,
+                          boxes: note.boxes.map(b =>
+                            b.id === boxId ? { ...b, status: 'pending' as const } : b
+                          )
+                        }
+                      : note
+                  ));
+                  
+                  // Update detailsScreenData if we're viewing this delivery note
+                  if (detailsScreenData?.type === 'shipment' && detailsScreenData.data.id === deliveryNote.id) {
+                    setDetailsScreenData({
+                      ...detailsScreenData,
+                      data: {
+                        ...detailsScreenData.data,
+                        boxes: (detailsScreenData.data as DeliveryNote).boxes.map(b =>
+                          b.id === boxId ? { ...b, status: 'pending' as const } : b
+                        )
+                      }
+                    });
                   }
-                });
-              }
-              
-              // Update selected box if it's the one being unregistered
-              if (selectedDeliveryNoteBox.box.id === boxId) {
-                setSelectedDeliveryNoteBox({
-                  ...selectedDeliveryNoteBox,
-                  box: { ...selectedDeliveryNoteBox.box, status: 'pending' }
-                });
-              }
-              
-              toast.success('Box unregistered');
-            }
-          }}
-        />
+                  
+                  // Update selected box if it's the one being unregistered
+                  if (selectedDeliveryNoteBox.box.id === boxId) {
+                    setSelectedDeliveryNoteBox({
+                      ...selectedDeliveryNoteBox,
+                      box: { ...selectedDeliveryNoteBox.box, status: 'pending' }
+                    });
+                  }
+                  
+                  toast.success('Box unregistered');
+                }
+              }}
+            />
+          </FullScreenDialogContent>
+        </FullScreenDialog>
       )}
 
       {/* Delivery Note Creation Screen */}
@@ -2682,7 +2746,9 @@ export default function App() {
         const receivingStoreCode = isShipment && deliveryNoteData
           ? deliveryNoteData.storeCode || ''
           : (orderData ? (orderData.receivingStoreId || detailsScreenData.storeCode || '') : '');
-        const store = receivingStoreId ? mockStores.find(s => s.id === receivingStoreId) : undefined;
+        const store = receivingStoreId 
+          ? mockStores.find(s => s.id === receivingStoreId) 
+          : (receivingStoreCode ? mockStores.find(s => s.code === receivingStoreCode) : undefined);
         const receiverBrand = store ? mockBrands.find(b => b.id === store.brandId)?.name : (detailsScreenData.receiverBrand || undefined);
         const warehouseName = isShipment && deliveryNoteData
           ? resolveWarehouseName(deliveryNoteData.warehouseId, deliveryNoteData.warehouseName)
@@ -2806,24 +2872,27 @@ export default function App() {
               setCurrentScreenSafe('delivery-note-box-details');
             }}
             receivingStore={
-              isShipment && deliveryNoteData
-                ? (deliveryNoteData.storeName
+              store
+                ? {
+                    name: store.name,
+                    code: store.code
+                  }
+                : (isShipment && deliveryNoteData && deliveryNoteData.storeName
                     ? {
                         name: deliveryNoteData.storeName,
-                        code: receivingStoreCode
+                        code: receivingStoreCode || deliveryNoteData.storeCode || ''
                       }
-                    : undefined)
-                : (orderData?.receivingStoreName
-                    ? {
-                        name: orderData.receivingStoreName,
-                        code: receivingStoreCode
-                      }
-                    : detailsScreenData.storeName
-                      ? {
-                          name: detailsScreenData.storeName,
-                          code: receivingStoreCode
-                        }
-                      : undefined)
+                    : (orderData?.receivingStoreName
+                        ? {
+                            name: orderData.receivingStoreName,
+                            code: receivingStoreCode
+                          }
+                        : detailsScreenData.storeName
+                          ? {
+                              name: detailsScreenData.storeName,
+                              code: receivingStoreCode || detailsScreenData.storeCode || ''
+                            }
+                          : undefined))
             }
             receiverBrand={receiverBrand}
             warehouseName={warehouseName}

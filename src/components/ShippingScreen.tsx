@@ -48,7 +48,7 @@ export interface SellpyOrder {
 export interface Delivery {
   id: string;
   date: string;
-  status: 'In transit' | 'Delivered' | 'Partially Delivered' | 'Cancelled' | 'Rejected';
+  status: 'Pending' | 'Packing' | 'In transit' | 'Delivered' | 'Partially Delivered' | 'Cancelled' | 'Rejected';
   deliveryId: string;
   orders: number;
   items: number;
@@ -295,7 +295,8 @@ function PartnerDeliveryNoteItem({
   
   const getStatusDisplay = (status: DeliveryNoteStatus) => {
     switch (status) {
-      case 'pending': return 'Pending Shipment';
+      case 'pending': return 'Pending';
+      case 'packing': return 'Packing';
       case 'registered': return 'In Transit';
       default: return status;
     }
@@ -304,21 +305,21 @@ function PartnerDeliveryNoteItem({
   const getStatusBadgeColor = (status: DeliveryNoteStatus) => {
     switch (status) {
       case 'pending': return 'bg-warning-container text-on-warning-container';
+      case 'packing': return 'bg-primary-container text-on-primary-container';
       case 'registered': return 'bg-primary-container text-on-primary-container';
       default: return 'bg-surface-container-high text-on-surface-variant';
     }
   };
 
-  const ComponentWrapper = onClick ? 'button' : 'div';
+  const hasActions = isAdmin && deliveryStatus === 'pending' && onDelete;
   
   return (
-    <ComponentWrapper 
+    <div 
       className={`w-full bg-surface-container border-b border-outline-variant ${
-        onClick ? 'hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200 text-left' : ''
+        onClick ? 'hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200' : ''
       }`}
-      onClick={onClick}
     >
-      {/* M3 Three-line List Item */}
+      {/* M3 Three-line List Item - matching DeliveryItem pattern for mobile */}
       <div className="flex items-center gap-4 px-4 py-3">
         
         {/* Leading Element - Truck Icon */}
@@ -327,30 +328,28 @@ function PartnerDeliveryNoteItem({
         </div>
         
         {/* Main Content */}
-        <div className="flex-1 min-w-0">
-          {/* Top Line - Date and Status */}
-          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="label-small text-on-surface-variant">
-              {deliveryNote.createdDate},
-            </span>
-            <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeColor(deliveryNote.status)}`}>
+        <div className="flex-1 min-w-0" onClick={onClick}>
+          {/* Top Line - Date and Status in smallest font (consistent with DeliveryItem) */}
+          <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-wrap">
+            <span>{deliveryNote.createdDate},</span>
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${getStatusBadgeColor(deliveryNote.status)}`}>
               {getStatusDisplay(deliveryNote.status as DeliveryNoteStatus)}
             </span>
           </div>
           
-          {/* Primary Line - Delivery Note ID */}
-          <div className="body-medium text-on-surface mb-0.5">
+          {/* Primary Line - Delivery Note ID (prominent) */}
+          <div className="text-sm font-normal text-on-surface leading-tight mb-0.5 tracking-[0.25px]">
             <span className="block truncate">Delivery: {deliveryNote.id}</span>
           </div>
           
-          {/* Secondary Line - Orders, Items and Boxes */}
-          <div className="body-small text-on-surface-variant mb-0.5">
-            {relatedOrders.length} order{relatedOrders.length !== 1 ? 's' : ''} • {totalItems} items • {deliveryNote.boxes.length} boxes
+          {/* Secondary Line - Orders and Items */}
+          <div className="text-xs font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]">
+            {relatedOrders.length} order{relatedOrders.length !== 1 ? 's' : ''} • {totalItems} items
           </div>
           
-          {/* Sender/Receiver Line - Only show if requested */}
+          {/* Metadata Line - Sender/Receiver (only if requested) */}
           {showSenderReceiver && (senderName || receiverDisplay || warehouseDisplay) && (
-            <div className="label-small text-on-surface-variant opacity-90">
+            <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90">
               {warehouseDisplay && (
                 <div className="truncate">From: {warehouseDisplay}</div>
               )}
@@ -360,46 +359,59 @@ function PartnerDeliveryNoteItem({
               {receiverDisplay && (
                 <div className="truncate">To: {receiverDisplay}</div>
               )}
-              {receivingStoreName && receiverDisplay !== receivingStoreName && (
-                <div className="truncate">{receivingStoreName}</div>
-              )}
-            </div>
-          )}
-          
-          {/* Metadata Line - Order IDs */}
-          {relatedOrders.length > 0 && (
-            <div className="label-small text-on-surface-variant opacity-90">
-              <div className="truncate">
-                Orders: {relatedOrders.map(order => order.id).join(', ')}
-              </div>
             </div>
           )}
         </div>
         
-        {/* Trailing Elements */}
-        <div className="flex-shrink-0 flex items-center gap-3">
-          {/* Status Badge - Always visible on desktop, positioned far right */}
-          <div className={`hidden md:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(deliveryStatus)}`}>
-            {getStatusDisplay(deliveryStatus)}
+        {/* Trailing Elements - Boxes count, More menu, Arrow */}
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {/* Boxes Count - on mobile, matches DeliveryItem pattern */}
+          <div className="text-right">
+            <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px]">
+              Boxes: {deliveryNote.boxes.length}
+            </div>
           </div>
-          {/* Delete button for Admin on pending deliveries */}
-          {isAdmin && deliveryStatus === 'pending' && onDelete && (
-            <button
-              onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
-                e.stopPropagation();
-                if (confirm('Are you sure you want to delete this delivery? This action cannot be undone.')) {
-                  onDelete(deliveryNote.id);
-                }
-              }}
-              className="p-2 rounded-full hover:bg-error-container text-error transition-colors"
-              aria-label="Delete delivery"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+          
+          {/* More Menu for Actions - on mobile */}
+          {hasActions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.stopPropagation();
+                  }}
+                  className="p-1 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors"
+                  aria-label="Delivery actions"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
+                <DropdownMenuItem
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    if (confirm('Are you sure you want to delete this delivery? This action cannot be undone.')) {
+                      onDelete?.(deliveryNote.id);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  <span className="body-medium">Delete Delivery</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
+          {/* Navigation Arrow */}
+          {onClick && (
+            <div className="w-5 h-5 flex items-center justify-center" onClick={onClick}>
+              <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+            </div>
           )}
         </div>
       </div>
-    </ComponentWrapper>
+    </div>
   );
 }
 

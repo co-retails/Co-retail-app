@@ -280,15 +280,6 @@ export default function RetailerIdScanScreen({
             </button>
           </div>
         </div>
-        
-        {/* Scanner controls */}
-        <div className="p-4 border-t border-outline-variant bg-surface">
-          <div className="flex justify-center">
-            <Button variant="outline" onClick={handleCancelScanning} size="sm">
-              Reset Session
-            </Button>
-          </div>
-        </div>
       </div>
 
       {/* Fixed Item Identified Section - Below Scanner */}
@@ -452,12 +443,17 @@ export default function RetailerIdScanScreen({
               </CardHeader>
               <CardContent className="p-0">
                 {scannedConnections.map((item) => (
-                  <div key={item.id} className="border-b border-outline-variant last:border-b-0">
+                  <div key={item.id} className="border-b border-outline-variant last:border-b-0 mx-4 md:mx-0">
                     <ItemCard
-                      item={item as BaseItem}
+                      item={{
+                        ...item as BaseItem,
+                        status: 'Pending'
+                      }}
                       variant="items-list"
                       showActions={false}
                       showSelection={false}
+                      hideSellerName={true}
+                      showBothIds={true}
                     />
                   </div>
                 ))}
@@ -478,12 +474,17 @@ export default function RetailerIdScanScreen({
               </CardHeader>
               <CardContent className="p-0">
                 {itemsNeedingRetailerIds.map((item) => (
-                  <div key={item.id} className="border-b border-outline-variant last:border-b-0">
+                  <div key={item.id} className="border-b border-outline-variant last:border-b-0 mx-4 md:mx-0">
                     <ItemCard
-                      item={item as BaseItem}
+                      item={{
+                        ...item as BaseItem,
+                        status: 'Pending'
+                      }}
                       variant="items-list"
                       showActions={false}
                       showSelection={false}
+                      hideSellerName={true}
+                      showExternalIdOnly={true}
                     />
                   </div>
                 ))}
@@ -498,11 +499,11 @@ export default function RetailerIdScanScreen({
       {/* Sticky Bottom Action Bar */}
       {scannedConnections.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4 z-20 pb-safe">
-          <div className="flex flex-col md:flex-row md:justify-end gap-3 md:px-2">
+          <div className="flex flex-row justify-end gap-3">
             <Button 
               variant="outline" 
               onClick={handleSaveScannedItems}
-              className="w-full md:w-auto min-h-[48px] rounded-lg"
+              className="flex-1 md:flex-none min-h-[48px] rounded-lg"
             >
               <span className="label-large">Save scanned items</span>
             </Button>
@@ -510,7 +511,7 @@ export default function RetailerIdScanScreen({
             {onRegisterOrder && orderStatus === 'pending' && (
               <Button 
                 onClick={handleRegisterOrder}
-                className="w-full md:w-auto min-h-[48px] bg-primary text-on-primary hover:bg-primary/90 rounded-lg"
+                className="flex-1 md:flex-none min-h-[48px] bg-primary text-on-primary hover:bg-primary/90 rounded-lg"
                 disabled={scannedConnections.length === 0}
               >
                 <span className="label-large">Register order</span>
@@ -521,7 +522,7 @@ export default function RetailerIdScanScreen({
             {onCreateDeliveryNote && orderStatus === 'registered' && (
               <Button 
                 onClick={handleCreateDeliveryNote}
-                className="w-full md:w-auto min-h-[48px] bg-tertiary text-on-tertiary hover:bg-tertiary/90 rounded-lg"
+                className="flex-1 md:flex-none min-h-[48px] bg-tertiary text-on-tertiary hover:bg-tertiary/90 rounded-lg"
                 disabled={scannedConnections.length === 0}
               >
                 <PackageIcon size={20} className="mr-2" />

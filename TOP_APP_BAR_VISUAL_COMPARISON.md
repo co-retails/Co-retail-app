@@ -298,3 +298,4 @@ App Bar (bg-surface) ← Base level
 
 This creates proper visual depth and hierarchy as per Material 3 guidelines.
 
+

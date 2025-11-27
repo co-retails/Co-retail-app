@@ -36,7 +36,7 @@ const FullScreenDialogOverlay = React.forwardRef<
     ref={ref}
     data-slot="full-screen-dialog-overlay"
     className={cn(
-      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/30 md:bg-black/50",
+      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[110] bg-black/30 md:bg-black/50",
       className,
     )}
     {...props}
@@ -46,8 +46,10 @@ FullScreenDialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const FullScreenDialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    fullWidth?: boolean;
+  }
+>(({ className, children, fullWidth, ...props }, ref) => {
   // Detect if we're on desktop
   const [isDesktop, setIsDesktop] = React.useState(false);
   
@@ -84,6 +86,31 @@ const FullScreenDialogContent = React.forwardRef<
     }
   );
   
+  const hasTitle = React.Children.toArray(children).some(
+    (child: any) => {
+      // Check for direct DialogTitle component
+      if (child?.type?.displayName === 'FullScreenDialogTitle') return true;
+      
+      // Check for data-slot attribute
+      if (child?.props?.["data-slot"] === 'full-screen-dialog-title') return true;
+      
+      // Check if it's a DialogPrimitive.Title
+      if (child?.type === DialogPrimitive.Title) return true;
+      
+      // Check nested children (for DialogHeader containing DialogTitle)
+      if (child?.props?.children) {
+        const nestedChildren = React.Children.toArray(child.props.children);
+        return nestedChildren.some((nestedChild: any) => 
+          nestedChild?.type?.displayName === 'FullScreenDialogTitle' ||
+          nestedChild?.props?.["data-slot"] === 'full-screen-dialog-title' ||
+          nestedChild?.type === DialogPrimitive.Title
+        );
+      }
+      
+      return false;
+    }
+  );
+  
   // Determine the aria-describedby value
   const getAriaDescribedBy = () => {
     // If there's already an aria-describedby prop provided, use it
@@ -104,7 +131,8 @@ const FullScreenDialogContent = React.forwardRef<
   const shouldShowFallback = !hasDescription && !props["aria-describedby"];
   
   // Always set aria-describedby to suppress Radix warnings
-  const desktopStyle = isDesktop ? {
+  // Only apply width constraint if not fullWidth
+  const desktopStyle = isDesktop && !fullWidth ? {
     width: '33vw',
     maxWidth: '400px',
     minWidth: '360px'
@@ -123,26 +151,33 @@ const FullScreenDialogContent = React.forwardRef<
         ref={ref}
         data-slot="full-screen-dialog-content"
         className={cn(
-          "bg-surface fixed z-50",
+          "bg-surface fixed z-[110]",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "duration-300",
           // Mobile: full screen, slide up from bottom
           !isDesktop && "inset-0 w-full h-full",
           !isDesktop && "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-          // Desktop: slide in from right, M3 guidelines - approximately 1/3 of screen width
-          isDesktop && "inset-y-0 top-0 bottom-0 right-0 left-auto h-full",
+          // Desktop: slide in from right
+          isDesktop && "inset-y-0 top-0 bottom-0 right-0 h-full",
           isDesktop && "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
           isDesktop && "shadow-[-4px_0_16px_rgba(0,0,0,0.1)]",
+          // Full width on desktop: left-0 instead of left-auto
+          isDesktop && fullWidth && "left-0 w-full",
           className,
         )}
         {...contentProps}
       >
-        {children}
-        {shouldShowFallback && (
-          <span id="full-screen-dialog-fallback-description" className="sr-only">
-            Full screen dialog content
-          </span>
+        {!hasTitle && (
+          <DialogPrimitive.Title className="sr-only">
+            Dialog
+          </DialogPrimitive.Title>
         )}
+        {!hasDescription && (
+          <DialogPrimitive.Description className="sr-only" id="full-screen-dialog-fallback-description">
+            Full screen dialog content
+          </DialogPrimitive.Description>
+        )}
+        {children}
       </DialogPrimitive.Content>
     </FullScreenDialogPortal>
   );

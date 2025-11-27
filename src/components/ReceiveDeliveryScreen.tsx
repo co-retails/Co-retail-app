@@ -203,26 +203,34 @@ function BoxCard({
       
       {/* Main Content */}
       <div className="flex-1 min-w-0">
-        {/* Top Line - Date and Status */}
-        <div className="label-small text-on-surface-variant">
-          {box.date} • {box.status}
+        {/* Top Line - Created date and Box status */}
+        <div className="label-small text-on-surface-variant mb-1">
+          {box.date} • <span className={(deliveryStatus === 'Delivered' || box.status === 'Delivered') ? 'text-tertiary' : ''}>{box.status}</span>
         </div>
         
-        {/* Second Line - Box ID */}
-        <div className="title-small text-on-surface truncate">
+        {/* Second Line - Box Label */}
+        <div className="body-medium text-on-surface mb-1">
+          <span className="label-small text-on-surface-variant">Box Label: </span>
           {box.boxId}
         </div>
         
-        {/* Third Line - Details */}
+        {/* Third Line - Box ID */}
+        <div className="label-small text-on-surface-variant mb-1">
+          <span className="label-small text-on-surface-variant">Box ID: </span>
+          {box.id}
+        </div>
+        
+        {/* Fourth Line - Order nr */}
         <div className="body-small text-on-surface-variant">
-          Items: {box.items} • Order: {box.orderNumber}
+          <span className="label-small text-on-surface-variant">Order nr: </span>
+          {box.orderNumber}
         </div>
       </div>
       
-      {/* Trailing Element - Status or More menu */}
+      {/* Trailing Element - Items count or More menu */}
       <div className="flex-shrink-0 flex items-center gap-2">
-        <div className={`label-small px-2 py-1 rounded-[8px] ${statusClass}`}>
-          {statusLabel}
+        <div className="body-small text-on-surface-variant">
+          {box.items} {box.items === 1 ? 'item' : 'items'}
         </div>
         {showMenu && (
           <DropdownMenu>
@@ -613,12 +621,12 @@ export default function ReceiveDeliveryScreen({
           </div>
 
           {canScan && activeTab === 'not-scanned' && notScannedBoxes.length > 0 && (
-            <div className="bg-surface-container border-t border-outline-variant">
+            <div className="border-t border-outline-variant">
               <div className="flex items-center justify-between px-4 md:px-6 py-3">
                 {/* Left side - Select all checkbox and count */}
                 <div className="flex items-center gap-3">
                   <button 
-                    className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                    className="p-3 ml-4 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
                     onClick={handleSelectAllNotScanned}
                     aria-label={selectedBoxIds.length === notScannedBoxes.length ? "Deselect all boxes" : "Select all boxes"}
                   >

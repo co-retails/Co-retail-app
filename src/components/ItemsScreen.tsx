@@ -17,13 +17,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "./ui/sheet";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Textarea } from "./ui/textarea";
-import { Archive, Clock, Edit3, Download, X, RefreshCw, FilterIcon } from "lucide-react";
+import { Archive, Edit3, X, FilterIcon } from "lucide-react";
 import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { ItemCard, BaseItem } from './ItemCard';
@@ -175,7 +183,6 @@ function ActiveFiltersDisplay({
 }) {
   const activeFilters: ActiveFilter[] = [];
   
-  if (filters.keyword) activeFilters.push({ key: 'keyword', label: `"${filters.keyword}"` });
   if (filters.brand !== 'all') activeFilters.push({ key: 'brand', label: filters.brand });
   if (filters.category !== 'all') activeFilters.push({ key: 'category', label: filters.category });
   if (filters.status !== 'all') activeFilters.push({ key: 'status', label: filters.status });
@@ -235,34 +242,61 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   const [formData, setFormData] = useState({
     status: 'none',
     category: '',
-    price: ''
+    priceReduction: 'none',
+    comment: ''
   });
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSave = () => {
     const updates: Partial<Item> = {};
     if (formData.status !== 'none') updates.status = formData.status as Item['status'];
     if (formData.category) updates.category = formData.category;
-    if (formData.price) updates.price = parseFloat(formData.price);
+    if (formData.priceReduction !== 'none') {
+      const reductionPercent = parseFloat(formData.priceReduction);
+      // Store the reduction percentage - the actual price calculation will be done in handleBulkEditSave
+      (updates as any).priceReduction = reductionPercent;
+    }
+    if (formData.comment) {
+      (updates as any).comment = formData.comment;
+    }
     
     onSave(updates);
-    setFormData({ status: 'none', category: '', price: '' });
+    setFormData({ status: 'none', category: '', priceReduction: 'none', comment: '' });
     onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-surface border border-outline-variant max-w-md mx-4">
-        <DialogHeader>
-          <DialogTitle className="title-large text-on-surface">
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent 
+        side={isMobile ? "bottom" : "right"} 
+        className="bg-surface border-outline-variant p-0 flex flex-col md:max-w-[400px] md:h-full max-h-[85vh] md:max-h-full"
+      >
+        {/* Header - Fixed */}
+        <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
+          <SheetTitle className="title-large text-on-surface">
             Bulk Edit Items
-          </DialogTitle>
-          <DialogDescription className="body-medium text-on-surface-variant">
+          </SheetTitle>
+          <SheetDescription className="body-medium text-on-surface-variant">
             Edit properties for {selectedItems.length} selected items. Only filled fields will be updated.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="status" className="text-right">
+          </SheetDescription>
+        </SheetHeader>
+
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+          {/* Status Field */}
+          <div className="space-y-2">
+            <Label htmlFor="status" className="label-large text-on-surface">
               Status
             </Label>
             <Select
@@ -271,7 +305,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
                 setFormData(prev => ({ ...prev, status: value as Item['status'] | 'none' }))
               }
             >
-              <SelectTrigger className="col-span-3 bg-surface-container-high border border-outline rounded-lg">
+              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
@@ -284,51 +318,78 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="category" className="text-right">
+          
+          {/* Category Field */}
+          <div className="space-y-2">
+            <Label htmlFor="category" className="label-large text-on-surface">
               Category
             </Label>
             <Input
               id="category"
               value={formData.category}
               onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="col-span-3 bg-surface-container-high border border-outline rounded-lg"
+              className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large"
               placeholder="e.g. Hoodie, Dress, Shorts"
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="price" className="text-right">
-              Price (€)
+          
+          {/* Price % Reduction Field */}
+          <div className="space-y-2">
+            <Label htmlFor="priceReduction" className="label-large text-on-surface">
+              Price % reduction
             </Label>
-            <Input
-              id="price"
-              type="number"
-              value={formData.price}
-              onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-              className="col-span-3 bg-surface-container-high border border-outline rounded-lg"
-              placeholder="0.00"
-              min="0"
-              step="0.01"
+            <Select
+              value={formData.priceReduction}
+              onValueChange={(value: string) =>
+                setFormData(prev => ({ ...prev, priceReduction: value }))
+              }
+            >
+              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                <SelectValue placeholder="Select reduction" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No change</SelectItem>
+                <SelectItem value="10">10%</SelectItem>
+                <SelectItem value="20">20%</SelectItem>
+                <SelectItem value="30">30%</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Comment Field */}
+          <div className="space-y-2">
+            <Label htmlFor="comment" className="label-large text-on-surface">
+              Comment (optional)
+            </Label>
+            <Textarea
+              id="comment"
+              value={formData.comment}
+              onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
+              className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[80px] body-large resize-none"
+              placeholder="Add a comment..."
+              rows={3}
             />
           </div>
         </div>
-        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3">
+
+        {/* Footer - Fixed at bottom */}
+        <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
           <Button 
             variant="outline" 
             onClick={onClose}
-            className="w-full sm:w-auto sm:min-w-[120px]"
+            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large touch-manipulation"
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSave}
-            className="w-full sm:w-auto sm:min-w-[120px]"
+            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
           >
             Update items
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -339,10 +400,7 @@ function MultiSelectActions({
   onReturnToSeller,
   onSelectAll,
   onArchive,
-  onMarkExpired,
   onBulkEdit,
-  onExport,
-  onBatchStatusUpdate,
   canReturn
 }: {
   selectedCount: number;
@@ -351,10 +409,7 @@ function MultiSelectActions({
   onReturnToSeller: () => void;
   onSelectAll: () => void;
   onArchive: () => void;
-  onMarkExpired: () => void;
   onBulkEdit: () => void;
-  onExport: () => void;
-  onBatchStatusUpdate: () => void;
   canReturn: boolean;
 }) {
   // Don't show if there are no items
@@ -363,12 +418,12 @@ function MultiSelectActions({
   const hasSelectedItems = selectedCount > 0;
 
   return (
-    <div className="bg-surface-container border-t border-outline-variant">
-      <div className="flex items-center justify-between px-4 py-3">
+    <div className="border-t border-outline-variant">
+      <div className="flex items-center justify-between px-1 py-3">
         {/* Left side - Select all and count */}
         <div className="flex items-center gap-3">
           <button 
-            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+            className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
             onClick={onSelectAll}
             aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
           >
@@ -423,10 +478,6 @@ function MultiSelectActions({
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Bulk Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onBatchStatusUpdate}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                <span>Update status</span>
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={onBulkEdit}>
                 <Edit3 className="mr-2 h-4 w-4" />
                 <span>Bulk edit</span>
@@ -435,15 +486,6 @@ function MultiSelectActions({
               <DropdownMenuItem onClick={onArchive}>
                 <Archive className="mr-2 h-4 w-4" />
                 <span>Archive selected</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onMarkExpired}>
-                <Clock className="mr-2 h-4 w-4" />
-                <span>Mark as expired</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onExport}>
-                <Download className="mr-2 h-4 w-4" />
-                <span>Export selected</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1178,17 +1220,13 @@ export default function ItemsScreen({
       }
       
       // Advanced filter sheet filters
-      const matchesKeyword = itemFilters.keyword === '' ||
-        item.itemId.toLowerCase().includes(itemFilters.keyword.toLowerCase()) ||
-        item.title.toLowerCase().includes(itemFilters.keyword.toLowerCase());
-      
       const matchesBrand = itemFilters.brand === 'all' || item.brand === itemFilters.brand;
       const matchesCategory = itemFilters.category === 'all' || item.category === itemFilters.category;
       const matchesStatus = itemFilters.status === 'all' || item.status === itemFilters.status;
       const matchesColour = itemFilters.colour === 'all' || item.color === itemFilters.colour;
       const matchesPrice = item.price >= itemFilters.priceRange[0] && item.price <= itemFilters.priceRange[1];
       
-      return matchesPartner && matchesQuickSearch && matchesQuickFilter && matchesKeyword && 
+      return matchesPartner && matchesQuickSearch && matchesQuickFilter && 
              matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesPrice;
     }).map(item => {
       // Remove deliveryId from items with status "Pending"
@@ -1342,9 +1380,6 @@ export default function ItemsScreen({
     const newFilters = { ...itemFilters };
     
     switch (filterKey) {
-      case 'keyword':
-        newFilters.keyword = '';
-        break;
       case 'brand':
       case 'category':
       case 'status':
@@ -1365,8 +1400,7 @@ export default function ItemsScreen({
   };
 
   const hasActiveFilters = () => {
-    return itemFilters.keyword !== '' ||
-           itemFilters.brand !== 'all' ||
+    return itemFilters.brand !== 'all' ||
            itemFilters.category !== 'all' ||
            itemFilters.status !== 'all' ||
            itemFilters.colour !== 'all' ||
@@ -1532,47 +1566,62 @@ export default function ItemsScreen({
     toast.success(`${selectedItems.length} items archived successfully`);
   };
 
-  const handleMarkExpired = () => {
-    const selectedIds = selectedItems.map(item => item.id);
-    setItems(prev => prev.map(item => 
-      selectedIds.includes(item.id) 
-        ? ({ ...item, status: 'To return', selected: false } as Item)
-        : item
-    ));
-    toast.success(`${selectedItems.length} items marked as expired`);
-  };
-
   const handleBulkEdit = () => {
     setShowBulkEditModal(true);
   };
 
   const handleBulkEditSave = (updates: Partial<Item>) => {
     const selectedIds = selectedItems.map(item => item.id);
-    setItems(prev => prev.map(item => 
-      selectedIds.includes(item.id) 
-        ? { ...item, ...updates, selected: false }
-        : item
-    ));
-    const updateCount = Object.keys(updates).length;
-    toast.success(`${selectedItems.length} items updated with ${updateCount} field(s)`);
-  };
-
-  const handleExport = () => {
-    // Simulate CSV export
-    const csvContent = [
-      'Item ID,Title,Brand,Category,Size,Price,Status,Date',
-      ...selectedItems.map(item => 
-        `${item.itemId},"${item.title}","${item.brand}","${item.category}","${item.size || ''}",${item.price},"${item.status}","${item.date}"`
-      )
-    ].join('\n');
+    const priceReduction = (updates as any).priceReduction;
+    const comment = (updates as any).comment;
+    const statusChange = updates.status;
     
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'selected_items.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
+    setItems(prev => prev.map(item => {
+      if (!selectedIds.includes(item.id)) return item;
+      
+      const itemUpdates: Partial<Item> = { ...updates, selected: false };
+      
+      // Calculate new price if price reduction is specified
+      if (priceReduction && typeof priceReduction === 'number') {
+        const reductionPercent = priceReduction / 100;
+        itemUpdates.price = Math.round(item.price * (1 - reductionPercent) * 100) / 100;
+        // Remove priceReduction from updates as it's not a real field
+        delete (itemUpdates as any).priceReduction;
+      }
+      
+      // Handle comment - add to statusHistory if status changed or if comment provided
+      if (comment || (statusChange && statusChange !== item.status)) {
+        const newHistoryEntry: StatusHistoryEntry = {
+          status: (statusChange || item.status) as Item['status'],
+          timestamp: formatTimestamp(),
+          user: 'Current User',
+          note: comment || undefined
+        };
+        
+        itemUpdates.statusHistory = [
+          ...(item.statusHistory || []),
+          newHistoryEntry
+        ];
+        
+        // Remove comment from updates as it's not a real field
+        delete (itemUpdates as any).comment;
+      }
+      
+      // Update lastInStoreAt if status changed to 'In Store'
+      if (statusChange === 'In Store') {
+        itemUpdates.lastInStoreAt = new Date().toISOString();
+      }
+      
+      return { ...item, ...itemUpdates };
+    }));
+    
+    const updateCount = Object.keys(updates).filter(key => 
+      key !== 'priceReduction' && key !== 'comment' || 
+      (key === 'priceReduction' && priceReduction) ||
+      (key === 'comment' && comment)
+    ).length;
+    const reductionText = priceReduction ? ` with ${priceReduction}% price reduction` : '';
+    toast.success(`${selectedItems.length} items updated${reductionText}`);
   };
 
   const handleItemClick = (item: Item) => {
@@ -1849,10 +1898,7 @@ export default function ItemsScreen({
           onReturnToSeller={handleReturnToSeller}
           onSelectAll={handleSelectAll}
           onArchive={handleArchiveSelected}
-          onMarkExpired={handleMarkExpired}
           onBulkEdit={handleBulkEdit}
-          onExport={handleExport}
-          onBatchStatusUpdate={() => setShowBatchStatusUpdate(true)}
         canReturn={canReturnSelectedItems}
         />
         

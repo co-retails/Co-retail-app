@@ -11,8 +11,7 @@ import {
   PackageIcon, 
   ScanIcon,
   CheckIcon,
-  MoreVertical,
-  CheckSquareIcon
+  MoreVertical
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
@@ -75,13 +74,6 @@ export default function BoxDetailsSideSheet({
     }
   };
 
-  const handleBulkMarkAsScanned = () => {
-    notScannedItems.forEach(item => {
-      onMarkAsScanned(item);
-    });
-    toast.success(`${notScannedItems.length} items marked as scanned`);
-  };
-
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex flex-col p-0 max-h-screen w-full sm:max-w-full">
@@ -110,10 +102,10 @@ export default function BoxDetailsSideSheet({
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'scanned' | 'not-scanned')} className="flex-1 flex flex-col min-h-0">
               <div className="flex-shrink-0 px-6 pt-4 border-b border-outline-variant bg-surface z-10">
                 <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0">
-                  <TabsTrigger value="scanned" className="border border-outline-variant rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
+                  <TabsTrigger value="scanned" className="rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
                     Scanned ({scannedItems.length})
                   </TabsTrigger>
-                  <TabsTrigger value="not-scanned" className="border border-outline-variant rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
+                  <TabsTrigger value="not-scanned" className="rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
                     Not Scanned ({notScannedItems.length})
                   </TabsTrigger>
                 </TabsList>
@@ -160,19 +152,6 @@ export default function BoxDetailsSideSheet({
               <TabsContent value="not-scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0 min-h-0">
                 {notScannedItems.length > 0 ? (
                   <>
-                    {/* Bulk Action Button */}
-                    <div className="mb-4">
-                      <Button
-                        variant="outline"
-                        onClick={handleBulkMarkAsScanned}
-                        className="w-full"
-                        size="sm"
-                      >
-                        <CheckSquareIcon className="mr-2 h-4 w-4" />
-                        <span className="label-medium">Mark all as scanned</span>
-                      </Button>
-                    </div>
-
                     <div className="space-y-2">
                       {notScannedItems.map((item) => (
                         <Card key={item.id} className="border-outline-variant bg-surface-container">
@@ -231,23 +210,25 @@ export default function BoxDetailsSideSheet({
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-outline-variant px-6 py-4 space-y-3 flex-shrink-0">
-          <Button
-            variant="outline"
-            onClick={onSaveAndClose}
-            className="w-full"
-            size="lg"
-          >
-            <span className="label-large">Save & Close</span>
-          </Button>
-          <Button
-            onClick={onContinue}
-            disabled={scannedItems.length === 0}
-            className="w-full bg-primary text-on-primary"
-            size="lg"
-          >
-            <span className="label-large">Continue</span>
-          </Button>
+        <div className="border-t border-outline-variant px-6 py-4 flex-shrink-0">
+          <div className="flex flex-row gap-3">
+            <Button
+              variant="outline"
+              onClick={onSaveAndClose}
+              className="flex-1"
+              size="lg"
+            >
+              <span className="label-large">Save & Close</span>
+            </Button>
+            <Button
+              onClick={onContinue}
+              disabled={scannedItems.length === 0}
+              className="flex-1 bg-primary text-on-primary"
+              size="lg"
+            >
+              <span className="label-large">Continue</span>
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

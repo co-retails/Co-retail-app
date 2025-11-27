@@ -196,7 +196,7 @@ export default function StoreFilterBottomSheet({
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="text-primary hover:text-primary hover:bg-primary-container/50 h-8 px-3 ml-4 flex-shrink-0"
+              className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-8 px-3 ml-4 flex-shrink-0 min-h-[40px] md:min-h-0 touch-manipulation"
             >
               Clear all
             </Button>
@@ -228,7 +228,7 @@ export default function StoreFilterBottomSheet({
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-10 justify-between text-left"
+                      className="w-full h-12 md:h-10 justify-between text-left min-h-[48px] md:min-h-0 touch-manipulation"
                     >
                       <div className="flex items-center gap-2">
                         <span className="body-medium text-on-surface">
@@ -252,7 +252,7 @@ export default function StoreFilterBottomSheet({
                               key={brand.id}
                               value={brand.name}
                               onSelect={() => handleBrandToggle(brand.id)}
-                              className="flex items-center gap-2 cursor-pointer"
+                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 touch-manipulation"
                             >
                               <Checkbox
                                 checked={viewFilter.brandIds?.includes(brand.id) || false}
@@ -291,7 +291,7 @@ export default function StoreFilterBottomSheet({
                       variant="ghost"
                       size="sm"
                       onClick={() => onBrandFilterChange([])}
-                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-6 px-2"
+                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[40px] md:min-h-0 touch-manipulation"
                     >
                       Clear
                     </Button>
@@ -308,7 +308,7 @@ export default function StoreFilterBottomSheet({
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-10 justify-between text-left"
+                      className="w-full h-12 md:h-10 justify-between text-left min-h-[48px] md:min-h-0 touch-manipulation"
                     >
                       <div className="flex items-center gap-2">
                         <span className="body-medium text-on-surface">
@@ -333,7 +333,7 @@ export default function StoreFilterBottomSheet({
                                 key={country.id}
                                 value={country.name}
                                 onSelect={() => handleCountryToggle(country.id)}
-                                className="flex items-center gap-2 cursor-pointer"
+                                className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 touch-manipulation"
                               >
                                 <Checkbox
                                   checked={viewFilter.countryIds?.includes(country.id) || false}
@@ -373,7 +373,7 @@ export default function StoreFilterBottomSheet({
                       variant="ghost"
                       size="sm"
                       onClick={() => onCountryFilterChange([])}
-                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-6 px-2"
+                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[40px] md:min-h-0 touch-manipulation"
                     >
                       Clear
                     </Button>
@@ -390,7 +390,7 @@ export default function StoreFilterBottomSheet({
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-10 justify-between text-left"
+                      className="w-full h-12 md:h-10 justify-between text-left min-h-[48px] md:min-h-0 touch-manipulation"
                     >
                       <div className="flex items-center gap-2">
                         <span className="body-medium text-on-surface">
@@ -417,7 +417,7 @@ export default function StoreFilterBottomSheet({
                                 key={store.id}
                                 value={`${store.name} ${brand?.name} ${country?.name} ${store.code}`}
                                 onSelect={() => handleStoreToggle(store.id)}
-                                className="flex items-center gap-2 cursor-pointer"
+                                className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 touch-manipulation"
                               >
                                 <Checkbox
                                   checked={viewFilter.storeIds?.includes(store.id) || false}
@@ -474,7 +474,7 @@ export default function StoreFilterBottomSheet({
                       variant="ghost"
                       size="sm"
                       onClick={() => onStoreFilterChange([])}
-                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-6 px-2"
+                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[40px] md:min-h-0 touch-manipulation"
                     >
                       Clear
                     </Button>
@@ -493,13 +493,13 @@ export default function StoreFilterBottomSheet({
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="flex-1 h-10"
+              className="flex-1 h-12 md:h-10 min-h-[48px] md:min-h-0 touch-manipulation"
               onClick={() => setIsOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              className="flex-1 h-10"
+              className="flex-1 h-12 md:h-10 min-h-[48px] md:min-h-0 touch-manipulation"
               onClick={() => setIsOpen(false)}
               disabled={false}
             >

@@ -64,6 +64,7 @@ interface OrderDetailsCardConfig {
   extraFields?: Array<{ label: string; value?: ReactNode }>;
   errorMessages?: string[];
   orderStatus?: string; // Order status to derive item display status
+  isAdmin?: boolean; // Whether user is admin (for purchase price and margin visibility)
 }
 
 interface ItemCardProps {
@@ -77,6 +78,9 @@ interface ItemCardProps {
   showSelection?: boolean;
   userRole?: UserRole;
   orderDetailsConfig?: OrderDetailsCardConfig;
+  hideSellerName?: boolean;
+  showExternalIdOnly?: boolean;
+  showBothIds?: boolean;
 }
 
 export const ItemCard = memo(function ItemCard({ 
@@ -89,7 +93,10 @@ export const ItemCard = memo(function ItemCard({
   showActions = true,
   showSelection = true,
   userRole = 'store-staff',
-  orderDetailsConfig
+  orderDetailsConfig,
+  hideSellerName = false,
+  showExternalIdOnly = false,
+  showBothIds = false
 }: ItemCardProps) {
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
   const normalizeTimestamp = (value: string) => {
@@ -225,7 +232,8 @@ export const ItemCard = memo(function ItemCard({
       marginValue,
       extraFields = [],
       errorMessages,
-      orderStatus
+      orderStatus,
+      isAdmin = false
     } = orderDetailsConfig || {};
 
     // Derive item display status from order status and item state
@@ -321,22 +329,25 @@ export const ItemCard = memo(function ItemCard({
           
           {/* Main Content */}
           <div className="flex-1 min-w-0">
-            {/* Line 1: Status */}
-            <div className="flex items-center gap-2 mb-1 min-w-0">
-              <div className={`label-small whitespace-nowrap flex-shrink-0 ${displayStatus.color}`}>
+            {/* Line 1: Date • Status */}
+            <div className="flex items-center gap-1 mb-0.5 min-w-0">
+              <div className="label-small text-on-surface whitespace-nowrap flex-shrink-0">
+                {item.date || '—'}
+              </div>
+              <div className="w-1 h-1 rounded-full bg-outline-variant flex-shrink-0"></div>
+              <div className={`label-small whitespace-nowrap truncate flex-shrink-0 ${displayStatus.color}`}>
                 {displayStatus.text}
               </div>
             </div>
             
-            {/* Line 2: Title/Item ID */}
+            {/* Line 2: Brand */}
             <div className="title-small text-on-surface mb-0.5 truncate">
-              {item.title || `${item.brand} ${item.category}`}
+              {item.brand}
             </div>
             
-            {/* Line 3: Brand • Category • Size */}
-            <div className="body-small text-on-surface-variant mb-1 truncate">
+            {/* Line 3: Category • Subcategory • Size • Color */}
+            <div className="body-small text-on-surface mb-0.5 truncate">
               {[
-                item.brand,
                 showCategory ? item.category : undefined,
                 showSubcategory ? item.subcategory : undefined,
                 showSize ? item.size : undefined,
@@ -346,29 +357,29 @@ export const ItemCard = memo(function ItemCard({
             
             {/* Line 4: Partner ID and Retailer ID (two columns) */}
             {(showPartnerId || showRetailerId) && (
-              <div className="grid grid-cols-2 gap-2 label-small text-on-surface-variant opacity-90">
-                {showPartnerId && (
-                  <div className="truncate">
-                    <span className="block text-on-surface-variant/70">{partnerLabel}</span>
-                    <span className="text-on-surface">{item.partnerItemId || '—'}</span>
-                  </div>
-                )}
-                {showRetailerId && (
-                  <div className="truncate">
-                    <span className="block text-on-surface-variant/70">{retailerLabel}</span>
-                    <span className={`text-on-surface ${item.retailerItemId ? 'text-success' : ''}`}>
-                      {item.retailerItemId || '—'}
-                    </span>
-                  </div>
-                )}
+              <div className="label-small text-on-surface opacity-90 mb-0.5">
+                <div className="line-clamp-2">
+                  {showPartnerId && item.partnerItemId && (
+                    <>
+                      {partnerLabel}: {item.partnerItemId}
+                      {showRetailerId && item.retailerItemId && <br />}
+                    </>
+                  )}
+                  {showRetailerId && item.retailerItemId && (
+                    <>
+                      {retailerLabel}: <span className={item.retailerItemId ? 'text-success' : ''}>{item.retailerItemId}</span>
+                    </>
+                  )}
+                  {!item.partnerItemId && !item.retailerItemId && '—'}
+                </div>
               </div>
             )}
 
-            {/* Price Info */}
-            {(showPurchasePrice || showPrice || (showMargin && derivedMargin !== undefined)) && (
-              <div className="mt-3 pt-3 border-t border-outline-variant">
+            {/* Price Info - Only show purchase price and margin (admin only) */}
+            {((isAdmin && showPurchasePrice) || (isAdmin && showMargin)) && (
+              <div className="mt-2 pt-2 border-t border-outline-variant">
                 <div className="flex flex-wrap gap-4">
-                  {showPurchasePrice && (
+                  {isAdmin && showPurchasePrice && item.purchasePrice !== undefined && (
                     <div className="label-small">
                       <span className="text-on-surface-variant/70">Purchase:</span>
                       <span className="text-on-surface ml-1">
@@ -376,15 +387,7 @@ export const ItemCard = memo(function ItemCard({
                       </span>
                     </div>
                   )}
-                  {showPrice && (
-                    <div className="label-small">
-                      <span className="text-on-surface-variant/70">Price:</span>
-                      <span className="text-on-surface ml-1">
-                        {formatPrice(item.price)}
-                      </span>
-                    </div>
-                  )}
-                  {showMargin && derivedMargin !== undefined && (
+                  {isAdmin && showMargin && derivedMargin !== undefined && (
                     <div className="label-small">
                       <span className="text-on-surface-variant/70">Margin:</span>
                       <span className="text-primary ml-1">
@@ -412,14 +415,14 @@ export const ItemCard = memo(function ItemCard({
           
           {/* Trailing Elements */}
           <div className="flex-shrink-0 flex items-center gap-2">
-            {/* Price */}
-            <div className="text-right">
-              {showPrice && (
+            {/* Sales Price - Always show in trailing elements */}
+            {showPrice && (
+              <div className="text-right">
                 <div className="title-small text-on-surface whitespace-nowrap">
                   {formatPrice(item.price)}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </button>
 
@@ -545,7 +548,7 @@ export const ItemCard = memo(function ItemCard({
             </div>
             <div className="w-1 h-1 rounded-full bg-outline-variant flex-shrink-0"></div>
             <div className={`label-small whitespace-nowrap truncate ${getStatusColor(item.status)}`}>
-              {item.status || 'No Status'}
+              {item.status || 'Pending'}
             </div>
           </div>
           
@@ -562,20 +565,34 @@ export const ItemCard = memo(function ItemCard({
           {/* Line 4: ID and Delivery */}
           <div className="label-small text-on-surface opacity-90 mb-0.5">
             <div className="line-clamp-2">
-              ID: {item.retailerItemId || item.itemId || item.partnerItemId || '684756'}
-              {item.deliveryId && (
+              {showBothIds && item.retailerItemId && item.partnerItemId ? (
                 <>
+                  Item ID: {item.retailerItemId}
                   <br />
-                  Delivery: {item.deliveryId}
+                  External ID: {item.partnerItemId}
+                </>
+              ) : showExternalIdOnly ? (
+                <>External ID: {item.partnerItemId || '—'}</>
+              ) : (
+                <>
+                  ID: {item.retailerItemId || item.itemId || item.partnerItemId || '684756'}
+                  {item.deliveryId && (
+                    <>
+                      <br />
+                      Delivery: {item.deliveryId}
+                    </>
+                  )}
                 </>
               )}
             </div>
           </div>
           
           {/* Line 5: Seller */}
-          <div className="body-small text-on-surface truncate">
-            {item.sellerName || 'Sellpy'}
-          </div>
+          {!hideSellerName && (
+            <div className="body-small text-on-surface truncate">
+              {item.sellerName || 'Sellpy'}
+            </div>
+          )}
           {item.status?.toLowerCase() === 'rejected' && item.rejectReason && (
             <div className="label-small text-error truncate mt-1">
               Reason: {item.rejectReason}

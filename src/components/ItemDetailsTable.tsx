@@ -21,6 +21,8 @@ export interface ItemDetailsTableItem extends OrderItem {
   imageUrl?: string;
   errors?: string[];
   fieldErrors?: Record<string, string>; // Field-specific error messages
+  date?: string; // Date for display in item cards
+  sku?: string; // SKU/partner item ID
 }
 
 interface ItemDetailsTableProps {
@@ -42,6 +44,7 @@ interface ItemDetailsTableProps {
   countryName?: string; // Country name for currency lookup
   currency?: string; // Currency code (if known, otherwise derived from country)
   orderStatus?: string; // Order status to pass to item cards for status display
+  isAdmin?: boolean; // Whether user is admin (for purchase price and margin visibility)
 }
 
 // Dropdown options for editable attributes
@@ -70,6 +73,7 @@ export function ItemDetailsTable({
   countryName,
   currency,
   orderStatus,
+  isAdmin = false,
 }: ItemDetailsTableProps) {
   // Get price options based on partner, brand, and currency
   // For now, we'll use the first item's brand to determine price options
@@ -100,6 +104,7 @@ export function ItemDetailsTable({
             retailerItemId: item.retailerItemId,
             thumbnail: item.imageUrl,
             status: item.status,
+            date: item.date || new Date().toISOString().split('T')[0], // Add date for display
             errors: hasError ? errorFields.map(([field, message]) => `${field}: ${message}`) : undefined,
             currency: displayCurrency
           };
@@ -125,11 +130,12 @@ export function ItemDetailsTable({
                 showSize: true,
                 showColor: true,
                 showPrice,
-                showPurchasePrice,
-                showMargin,
+                showPurchasePrice: isAdmin && showPurchasePrice,
+                showMargin: isAdmin && showMargin,
                 currency: displayCurrency,
                 marginValue,
                 orderStatus,
+                isAdmin,
                 extraFields: showStatus ? [{
                   label: 'Status',
                   value: item.status

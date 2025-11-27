@@ -8,14 +8,12 @@ import {
   SheetFooter,
 } from './ui/sheet';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Slider } from './ui/slider';
 import { X } from 'lucide-react';
 
 export interface ItemFilters {
-  keyword: string;
   brand: string;
   category: string;
   status: string;
@@ -25,7 +23,6 @@ export interface ItemFilters {
 }
 
 export const defaultFilters: ItemFilters = {
-  keyword: '',
   brand: 'all',
   category: 'all',
   status: 'all',
@@ -88,7 +85,6 @@ export default function ItemFilterSheet({
   // Calculate active filter count
   const activeFilterCount = Object.entries(localFilters).filter(([key, value]) => {
     if (key === 'sortBy') return false;
-    if (key === 'keyword') return value !== '';
     if (key === 'priceRange') return value[0] !== 0 || value[1] !== 1000;
     return value !== 'all';
   }).length;
@@ -118,21 +114,6 @@ export default function ItemFilterSheet({
 
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-          {/* Keyword Search */}
-          <div className="space-y-2">
-            <Label htmlFor="keyword" className="label-large text-on-surface">
-              Keyword
-            </Label>
-            <Input
-              id="keyword"
-              type="text"
-              placeholder="Search by item name or ID"
-              value={localFilters.keyword}
-              onChange={(e) => updateFilter('keyword', e.target.value)}
-              className="bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large"
-            />
-          </div>
-
           {/* Brand Filter */}
           <div className="space-y-2">
             <Label htmlFor="brand" className="label-large text-on-surface">

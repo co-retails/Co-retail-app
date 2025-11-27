@@ -451,9 +451,9 @@ export default function DeliveryNoteBoxDetailsScreen({
         </div>
       </div>
 
-      {/* Fixed Bottom Actions - Only show for editable boxes */}
+      {/* Sticky Bottom Actions - Only show for editable boxes */}
       {isEditable && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant z-20">
+        <div className="sticky bottom-0 bg-surface border-t border-outline-variant z-20 mt-auto">
           <div className="px-4 md:px-6 py-4 pb-safe">
             <div className="flex gap-3">
               <Button
@@ -480,7 +480,7 @@ export default function DeliveryNoteBoxDetailsScreen({
 
       {/* Unregister button for admins on registered boxes */}
       {!isEditable && box.status === 'registered' && isAdmin && onUnregisterBox && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant z-20">
+        <div className="sticky bottom-0 bg-surface border-t border-outline-variant z-20 mt-auto">
           <div className="px-4 md:px-6 py-4 pb-safe">
             <Button
               variant="outline"

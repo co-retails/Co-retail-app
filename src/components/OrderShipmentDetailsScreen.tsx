@@ -38,7 +38,8 @@ import {
   UploadIcon,
   DownloadIcon,
   FileSpreadsheetIcon,
-  XIcon
+  XIcon,
+  Box as BoxIcon
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import { PartnerOrder } from './PartnerDashboard';
@@ -90,6 +91,7 @@ interface OrderShipmentDetailsScreenProps {
   currentUserRole?: 'partner' | 'store-staff' | 'admin';
   countries?: Array<{ id: string; name: string; brandId: string }>;
   stores?: Array<{ id: string; name: string; code: string; countryId: string; brandId: string }>;
+  brands?: Array<{ id: string; name: string }>;
 }
 
 // Valid price points for SEK (Swedish Krona) - Sellpy partner market
@@ -219,7 +221,8 @@ export default function OrderShipmentDetailsScreen({
   onCancelReturn,
   currentUserRole,
   countries = [],
-  stores = []
+  stores = [],
+  brands = []
 }: OrderShipmentDetailsScreenProps) {
   // State for editable items
   const [editableItems, setEditableItems] = useState<DetailItem[]>([]);
@@ -365,6 +368,11 @@ export default function OrderShipmentDetailsScreen({
     (storeCode && s.code === storeCode) || 
     (storeName && s.name === storeName)
   );
+  
+  // Get brand name from store
+  const receiverBrand = receivingStore 
+    ? brands.find(b => b.id === receivingStore.brandId)?.name
+    : (receiverLabel || undefined);
   
   // Get country name from store
   const countryName = receivingStore 
@@ -798,37 +806,107 @@ export default function OrderShipmentDetailsScreen({
       />
 
       <div className="w-full px-4 md:px-6 py-4 md:py-6 pb-32 space-y-6">
-        {/* Status Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 bg-surface-container-high rounded-lg">
-                {getIcon()}
-              </div>
-              <div className="flex-1">
-                <CardTitle className="title-medium text-on-surface">
-                  {type === 'order' ? (data as PartnerOrder).id : type === 'shipment' ? (data as DeliveryNote).id : (data as ReturnDelivery).deliveryId}
-                </CardTitle>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="body-small text-on-surface-variant">{getDate()}</span>
-                  <span className="text-on-surface-variant">•</span>
-                  <span className={`body-small ${getStatusColor()}`}>
-                    {getStatusDisplay()}
-                  </span>
+        {/* Delivery Information Card - Show for all shipments */}
+        {type === 'shipment' && (
+          <Card className="bg-surface-container border border-outline-variant">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-4">
+                {/* Leading visual */}
+                <div className="w-12 h-12 bg-primary-container rounded-[12px] flex items-center justify-center flex-shrink-0">
+                  <TruckIcon className="w-6 h-6 text-on-primary-container" />
+                </div>
+                
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Supporting text - Date and Status */}
+                  <div className="label-small text-on-surface-variant mb-2">
+                    <span>{new Date(getDate()).toISOString().split('T')[0]}, </span>
+                    <span className={`label-small px-2 py-0.5 rounded-full ${getStatusColor()}`}>
+                      {getStatusDisplay()}
+                    </span>
+                  </div>
+                  
+                  {/* Primary text - Delivery Note ID */}
+                  <h3 className="title-medium text-on-surface mb-2">
+                    Delivery Note: {(data as DeliveryNote).id}
+                  </h3>
+                  
+                  {/* Secondary text - Details */}
+                  <div className="body-small text-on-surface-variant mb-3">
+                    <span>Order: {(data as DeliveryNote).orderId} • Items: {items.length}</span>
+                  </div>
+
+                  {/* Sender and Receiver Information */}
+                  <div className="border-t border-outline-variant pt-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Sender */}
+                      {(warehouseName || partnerName) && (
+                        <div>
+                          <div className="label-small text-on-surface-variant mb-1">
+                            Sender
+                          </div>
+                          <div className="body-medium text-on-surface">
+                            {warehouseName || partnerName} {warehouseName && partnerName ? `(${partnerName})` : ''}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Receiver */}
+                      {(storeName || storeCode || receiverLabel || receivingStore) && (
+                        <div>
+                          <div className="label-small text-on-surface-variant mb-1">
+                            Receiver
+                          </div>
+                          <div className="body-medium text-on-surface">
+                            {receivingStore?.name || storeName || receiverLabel || '—'}{receiverBrand && (receivingStore?.name || storeName) ? ` (${receiverBrand})` : ''}
+                          </div>
+                          {(receivingStore?.code || storeCode) && (
+                            <div className="body-small text-on-surface-variant">
+                              {receivingStore?.code || storeCode}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <Badge 
-                variant="secondary" 
-                className="bg-primary-container text-on-primary-container"
-              >
-                {items.length} items
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {/* Sender and Receiver side by side */}
-            <div className="grid grid-cols-2 gap-4">
-              {(warehouseName || partnerName) && (type === 'order' || type === 'shipment') && (
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Status Card - Only show for orders and returns, not for shipments (shown in delivery information card) */}
+        {type !== 'shipment' && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 p-2 bg-surface-container-high rounded-lg">
+                  {getIcon()}
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="title-medium text-on-surface">
+                    {type === 'order' ? (data as PartnerOrder).id : (data as ReturnDelivery).deliveryId}
+                  </CardTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="body-small text-on-surface-variant">{new Date(getDate()).toISOString().split('T')[0]}</span>
+                    <span className="text-on-surface-variant">•</span>
+                    <span className={`body-small ${getStatusColor()}`}>
+                      {getStatusDisplay()}
+                    </span>
+                  </div>
+                </div>
+                <Badge 
+                  variant="secondary" 
+                  className="bg-primary-container text-on-primary-container"
+                >
+                  {items.length} items
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {/* Sender and Receiver side by side */}
+              <div className="grid grid-cols-2 gap-4">
+                {(warehouseName || partnerName) && type === 'order' && (
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-on-surface-variant">
                     <UserIcon size={16} />
@@ -853,7 +931,7 @@ export default function OrderShipmentDetailsScreen({
                 </div>
               )}
 
-              {(receiverLabel || storeName || storeCode) && (type === 'order' || type === 'shipment') && (
+                {(receiverLabel || storeName || storeCode) && type === 'order' && (
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-on-surface-variant">
                     <MapPinIcon size={16} />
@@ -886,79 +964,79 @@ export default function OrderShipmentDetailsScreen({
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Order Numbers - Show for shipments */}
-            {type === 'shipment' && relatedOrders.length > 0 && (
-              <>
-                <Separator className="my-4" />
-                <div className="space-y-2">
-                  <div className="label-small text-on-surface-variant">Orders</div>
-                  {relatedOrders.map((order) => (
-                    <div key={order.id} className="body-medium text-on-surface">
-                      {order.externalOrderId && !isThriftedOrder ? (
-                        <>
-                          {order.externalOrderId} (Internal: {order.id})
-                        </>
-                      ) : (
-                        order.id
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
             {type === 'shipment' && (
               <>
-                <Separator className="my-4" />
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-on-surface-variant">
-                      <PackageIcon size={16} />
-                      <span className="body-small">Boxes ({(data as DeliveryNote).boxes.length})</span>
-                    </div>
+                <div className="px-4 md:px-6 mb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="title-medium text-on-surface">Boxes ({(data as DeliveryNote).boxes.length})</h3>
                     {onAddBox && ((data as DeliveryNote).status === 'pending' || (data as DeliveryNote).status === 'packing') && (
                       <Button
-                        variant="default"
-                        size="sm"
                         onClick={() => setShowAddBoxDialog(true)}
-                        className="bg-primary text-on-primary"
+                        className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors min-h-[40px] px-4 py-2"
+                        size="lg"
                       >
-                        <PlusIcon size={16} className="mr-2" />
-                        <span className="label-medium">Add box</span>
+                        <PlusIcon size={20} className="mr-2" />
+                        <span className="label-large">Add box</span>
                       </Button>
                     )}
                   </div>
+                </div>
+                <div className="px-4 md:px-6 space-y-3">
                   {(data as DeliveryNote).boxes.length > 0 ? (
                     <div className="space-y-3">
                       {(data as DeliveryNote).boxes.map((box) => (
                         <Card 
                           key={box.id}
-                          className="border-outline-variant hover:bg-surface-container-high transition-colors"
+                          className="border-outline cursor-pointer transition-colors hover:opacity-90"
+                          style={{ backgroundColor: '#f0f0eb' }}
+                          onClick={() => handleBoxClick(box)}
                         >
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <button
-                                onClick={() => handleBoxClick(box)}
-                                className="flex-1 text-left"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Badge variant="outline" className="body-small">
-                                    {box.qrLabel} ({box.items.length} items)
-                                  </Badge>
-                                  {box.status === 'registered' && (
-                                    <Badge variant="secondary" className="bg-success-container text-on-success-container">
-                                      Registered
-                                    </Badge>
-                                  )}
-                                  {box.status === 'pending' && (
-                                    <Badge variant="outline" className="text-on-surface-variant">
-                                      Pending
-                                    </Badge>
-                                  )}
+                          <CardContent className="p-4" style={{ backgroundColor: 'transparent' }}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <div className="p-2 bg-primary-container rounded-lg flex-shrink-0">
+                                  <BoxIcon className="w-5 h-5 text-on-primary-container" />
                                 </div>
-                              </button>
+                                <div className="flex-1 min-w-0">
+                                  {/* Date and Status */}
+                                  <div className="label-small text-on-surface-variant mb-1">
+                                    {new Date(box.createdDate).toISOString().split('T')[0]} • {(() => {
+                                      const shipmentStatus = (data as DeliveryNote).status;
+                                      // If delivery is registered, boxes are in-transit
+                                      if (shipmentStatus === 'registered') {
+                                        return 'In Transit';
+                                      }
+                                      // If delivery is packing, boxes can be Packing or Registered
+                                      if (shipmentStatus === 'packing') {
+                                        return box.status === 'registered' ? 'Registered' : 'Packing';
+                                      }
+                                      // Default to box status
+                                      return box.status === 'registered' ? 'Registered' : box.status === 'pending' ? 'Packing' : box.status === 'in-transit' ? 'In Transit' : box.status === 'delivered' ? 'Delivered' : box.status === 'rejected' ? 'Rejected' : box.status === 'cancelled' ? 'Cancelled' : box.status;
+                                    })()}
+                                  </div>
+                                  {/* Box Label */}
+                                  <div className="body-medium text-on-surface mb-1">
+                                    <span className="label-small text-on-surface-variant">Box Label: </span>
+                                    {box.qrLabel}
+                                  </div>
+                                  {/* Box ID */}
+                                  <div className="label-small text-on-surface-variant">
+                                    <span className="label-small text-on-surface-variant">Box ID: </span>
+                                    {box.id}
+                                  </div>
+                                  {/* Items count */}
+                                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                                    <span className="body-small text-on-surface-variant">
+                                      {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button
@@ -1030,8 +1108,6 @@ export default function OrderShipmentDetailsScreen({
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
 
         {/* Items List - Only show for orders and returns, not for shipments (delivery notes) */}
         {type !== 'shipment' && (
@@ -1182,12 +1258,13 @@ export default function OrderShipmentDetailsScreen({
                     items={items.map(item => ({
                       ...item,
                       partnerItemId: item.partnerItemId || item.sku || item.itemId,
-                      subcategory: item.subcategory || '' // Preserve subcategory for all orders
+                      subcategory: item.subcategory || '', // Preserve subcategory for all orders
+                      date: item.date || (type === 'order' ? (data as PartnerOrder).createdDate : type === 'shipment' ? (data as DeliveryNote).createdDate : undefined)
                     }))}
                     showRetailerId={type !== 'shipment' && !isApprovalOrder} // Hide retailer ID for approval orders
                     showPrice={type === 'order' || type === 'return'} // Always show price for orders and returns (sales price for store-staff/admin)
                     showPurchasePrice={type !== 'return' && (isApprovalOrder || (isSellpyOrder && isAdmin))} // Show purchase price for Approval orders or Sellpy orders for Admins, but NOT for returns
-                    showMargin={isApprovalOrder} // Show margin % for approval orders
+                    showMargin={type !== 'return' && (isApprovalOrder || (isSellpyOrder && isAdmin))} // Show margin % for approval orders or Sellpy orders for Admins
                     showStatus={type === 'return'}
                     isEditable={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin)} // Allow editing for Thrifted pending orders or pending/approval orders (Admins only)
                     onUpdateItem={handleUpdateItemAttribute}
@@ -1201,6 +1278,7 @@ export default function OrderShipmentDetailsScreen({
                     countryName={countryName}
                     currency={currency}
                     orderStatus={type === 'order' ? (data as PartnerOrder).status : type === 'shipment' ? (data as DeliveryNote).status : undefined}
+                    isAdmin={isAdmin}
                   />
                 )}
               </>
@@ -1503,7 +1581,7 @@ export default function OrderShipmentDetailsScreen({
       {/* Action Buttons for Pending/Packing Shipments - Fixed bottom bar */}
       {type === 'shipment' && ((data as DeliveryNote).status === 'pending' || (data as DeliveryNote).status === 'packing') && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4 z-20 pb-safe">
-          <div className="flex flex-col md:flex-row md:justify-end gap-3 md:px-2">
+          <div className="flex flex-row gap-3 items-center justify-between">
             {(() => {
               const shipment = data as DeliveryNote;
               const totalItems = orderItems.length;
@@ -1512,33 +1590,35 @@ export default function OrderShipmentDetailsScreen({
               
               return (
                 <>
-                  <div className="flex items-center gap-2 text-on-surface-variant body-small md:mr-auto">
+                  <div className="hidden md:flex items-center gap-2 text-on-surface-variant body-small">
                     <PackageIcon size={16} />
                     <span>{assignedItems} of {totalItems} items in {shipment.boxes.length} box{shipment.boxes.length !== 1 ? 'es' : ''}</span>
                   </div>
                   
-                  {onSaveAndClose && (
-                    <Button
-                      variant="outline"
-                      onClick={onSaveAndClose}
-                      className="w-full md:w-auto"
-                      size="lg"
-                    >
-                      <span className="label-large">Save & Close</span>
-                    </Button>
-                  )}
-                  
-                  {onRegisterDelivery && (
-                    <Button
-                      onClick={onRegisterDelivery}
-                      disabled={shipment.boxes.length === 0 || unassignedItems > 0 || shipment.boxes.some(box => box.items.length === 0)}
-                      className="w-full md:w-auto bg-primary text-on-primary"
-                      size="lg"
-                    >
-                      <CheckIcon size={20} className="mr-2" />
-                      <span className="label-large">Register Delivery</span>
-                    </Button>
-                  )}
+                  <div className="flex flex-row gap-3 flex-1 md:flex-initial">
+                    {onSaveAndClose && (
+                      <Button
+                        variant="outline"
+                        onClick={onSaveAndClose}
+                        className="flex-1"
+                        size="lg"
+                      >
+                        <span className="label-large">Save & Close</span>
+                      </Button>
+                    )}
+                    
+                    {onRegisterDelivery && (
+                      <Button
+                        onClick={onRegisterDelivery}
+                        disabled={shipment.boxes.length === 0 || unassignedItems > 0 || shipment.boxes.some(box => box.items.length === 0)}
+                        className="flex-1 bg-primary text-on-primary"
+                        size="lg"
+                      >
+                        <CheckIcon size={20} className="mr-2" />
+                        <span className="label-large">Register Delivery</span>
+                      </Button>
+                    )}
+                  </div>
                 </>
               );
             })()}

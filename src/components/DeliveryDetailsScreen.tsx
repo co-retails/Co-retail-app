@@ -1,6 +1,6 @@
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { ArrowLeft, QrCode, Package, Truck, MoreVertical, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, QrCode, Package, Truck, MoreVertical, CheckCircle2, XCircle, Check } from 'lucide-react';
 import { Delivery } from './ShippingScreen';
 import { Box } from './ReceiveDeliveryScreen';
 import {
@@ -9,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import type { MouseEvent as ReactMouseEvent } from 'react';
 
 type DeliveryDetailsUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
 
@@ -23,14 +22,16 @@ interface DeliveryDetailsScreenProps {
   userRole?: DeliveryDetailsUserRole;
   onUpdateDeliveryStatus?: (deliveryId: string, status: Delivery['status'], reason?: string) => void;
   onUpdateBoxStatus?: (boxId: string, status: Box['status']) => void;
+  onSaveAndClose?: () => void;
+  onRegisterDelivery?: () => void;
 }
 
-function TopAppBar({ 
-  onBack, 
-  delivery, 
-  userRole, 
-  onUpdateDeliveryStatus 
-}: { 
+function TopAppBar({
+  onBack,
+  delivery,
+  userRole,
+  onUpdateDeliveryStatus
+}: {
   onBack: () => void;
   delivery: Delivery;
   userRole?: DeliveryDetailsUserRole;
@@ -61,14 +62,14 @@ function TopAppBar({
     <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
       <div className="flex items-center h-16 px-4 md:px-6">
         {/* Leading icon - Back button */}
-        <button 
+        <button
           className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
           onClick={onBack}
           aria-label="Go back"
         >
           <ArrowLeft className="w-6 h-6 text-on-surface" />
         </button>
-        
+
         {/* Title */}
         <h1 className="title-large text-on-surface flex-1">
           Delivery details
@@ -119,7 +120,7 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
   const statusDisplay = delivery.status === 'Cancelled' && delivery.cancellationReason
     ? `${delivery.status} • ${delivery.cancellationReason}`
     : delivery.status;
-  
+
   const getStatusBadgeClass = (status: Delivery['status']) => {
     if (status === 'Delivered') {
       return 'bg-success-container text-on-success-container';
@@ -137,12 +138,12 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
           <div className="w-12 h-12 bg-primary-container rounded-[12px] flex items-center justify-center flex-shrink-0">
             <Truck className="w-6 h-6 text-on-primary-container" />
           </div>
-          
+
           {/* Content */}
           <div className="flex-1 min-w-0">
             {/* Supporting text - Date and Status */}
             <div className="label-small text-on-surface-variant mb-2">
-              <span>{delivery.date}, New - </span>
+              <span>{new Date(delivery.date).toISOString().split('T')[0]}, New - </span>
               {isDelivered ? (
                 <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeClass(delivery.status)}`}>
                   {statusDisplay}
@@ -151,12 +152,12 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
                 <span>{statusDisplay}</span>
               )}
             </div>
-            
+
             {/* Primary text - Delivery ID */}
             <h3 className="title-medium text-on-surface mb-2">
               Delivery ID: {delivery.deliveryId}
             </h3>
-            
+
             {/* Secondary text - Details */}
             <div className="body-small text-on-surface-variant mb-3">
               <span>Boxes: {delivery.boxes} • Items: {delivery.items}</span>
@@ -178,40 +179,23 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
   );
 }
 
-function BoxCard({ 
-  box, 
+function BoxCard({
+  box,
   onSelect,
   onMarkDelivered,
   onMarkRejected,
-  isScanned,
   canScan,
-  isAdmin = false
-}: { 
-  box: Box; 
+  isAdmin = false,
+  isPartnerPortal = false
+}: {
+  box: Box;
   onSelect: () => void;
   onMarkDelivered?: () => void;
   onMarkRejected?: () => void;
-  isScanned: boolean;
   canScan: boolean;
   isAdmin?: boolean;
+  isPartnerPortal?: boolean;
 }) {
-  let statusLabel = 'In transit';
-  let statusClass = 'label-small text-on-surface-variant px-2 py-1 bg-surface-container rounded-[8px]';
-
-  if (box.status === 'Delivered') {
-    statusLabel = 'Delivered';
-    statusClass = 'label-small text-on-success-container px-2 py-1 bg-success-container rounded-[8px]';
-  } else if (box.status === 'Rejected') {
-    statusLabel = 'Rejected';
-    statusClass = 'label-small text-on-error-container px-2 py-1 bg-error-container rounded-[8px]';
-  } else if (box.status === 'Cancelled') {
-    statusLabel = `Cancelled${box.cancellationReason ? ` • ${box.cancellationReason}` : ''}`;
-    statusClass = 'label-small text-error px-2 py-1 bg-error-container rounded-[8px]';
-  } else if (isScanned) {
-    statusLabel = 'Scanned';
-    statusClass = 'label-small text-primary px-2 py-1 bg-primary-container rounded-[8px]';
-  }
-
   const showMarkDelivered = isAdmin && canScan && box.status === 'In transit' && onMarkDelivered;
   const showMarkRejected = isAdmin && canScan && box.status === 'In transit' && onMarkRejected;
   const showMenu = showMarkDelivered || showMarkRejected;
@@ -219,7 +203,7 @@ function BoxCard({
   return (
     <div
       onClick={onSelect}
-      className="w-full flex items-center gap-3 px-4 py-3 text-left bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
+      className="flex items-center gap-3 px-4 py-3 bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -229,47 +213,58 @@ function BoxCard({
         }
       }}
     >
+
+
       {/* Leading Element - Box Icon */}
       <div className="flex-shrink-0 w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center">
         <Package className="w-5 h-5 text-on-surface-variant" />
       </div>
-      
+
       {/* Main Content */}
       <div className="flex-1 min-w-0">
-        {/* Top Line - Date and Status */}
-        <div className="label-small text-on-surface-variant">
-          {box.date} • {box.status}
+        {/* Created date and Box status */}
+        <div className="label-small text-on-surface-variant mb-1">
+          {box.date} • <span className={box.status === 'Delivered' ? 'text-tertiary' : ''}>{box.status}</span>
         </div>
-        
-        {/* Second Line - Box ID */}
-        <div className="title-small text-on-surface">
+        {/* Box Label */}
+        <div className="body-medium text-on-surface mb-1">
+          <span className="label-small text-on-surface-variant">Box Label: </span>
           {box.boxId}
         </div>
-        
-        {/* Third Line - Details */}
+        {/* Box ID */}
+        <div className="label-small text-on-surface-variant mb-1">
+          <span className="label-small text-on-surface-variant">Box ID: </span>
+          {box.id}
+        </div>
+        {/* Order nr */}
         <div className="body-small text-on-surface-variant">
-          Items: {box.items} • Order: {box.orderNumber}
+          <span className="label-small text-on-surface-variant">Order nr: </span>
+          {box.orderNumber}
         </div>
       </div>
-      
-      {/* Trailing Element - More menu or status */}
+
+      {/* Trailing Element - Items count or More menu */}
       <div className="flex-shrink-0 flex items-center gap-2">
-        <div className={statusClass}>{statusLabel}</div>
+        <div className="body-small text-on-surface-variant">
+          {box.items} {box.items === 1 ? 'item' : 'items'}
+        </div>
         {showMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button 
+              <button
                 className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-                onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                }}
                 aria-label="More actions"
               >
                 <MoreVertical className="w-4 h-4 text-on-surface-variant" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2">
+            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
               {showMarkDelivered && (
-                <DropdownMenuItem 
-                  onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
+                <DropdownMenuItem
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     onMarkDelivered?.();
                   }}
@@ -279,8 +274,8 @@ function BoxCard({
                 </DropdownMenuItem>
               )}
               {showMarkRejected && (
-                <DropdownMenuItem 
-                  onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
+                <DropdownMenuItem
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     onMarkRejected?.();
                   }}
@@ -298,20 +293,22 @@ function BoxCard({
   );
 }
 
-function BoxesList({ 
+function BoxesList({
   boxes,
   onSelectBox,
   onMarkBoxDelivered,
   onMarkBoxRejected,
   canScan,
-  isAdmin = false
-}: { 
+  isAdmin = false,
+  isPartnerPortal = false
+}: {
   boxes: Box[];
   onSelectBox: (box: Box) => void;
   onMarkBoxDelivered?: (boxId: string) => void;
   onMarkBoxRejected?: (boxId: string) => void;
   canScan: boolean;
   isAdmin?: boolean;
+  isPartnerPortal?: boolean;
 }) {
   if (boxes.length === 0) {
     return (
@@ -328,18 +325,18 @@ function BoxesList({
   }
 
   return (
-    <Card className="mx-4 md:mx-6 mb-4 bg-surface-container border border-outline-variant overflow-hidden">
+    <Card className={`mx-4 md:mx-6 mb-4 ${isPartnerPortal ? 'bg-transparent' : 'bg-surface-container'} border border-outline-variant overflow-hidden`}>
       <div className="divide-y divide-outline-variant">
         {boxes.map((box) => (
-          <BoxCard 
+          <BoxCard
             key={box.id}
-            box={box} 
+            box={box}
             onSelect={() => onSelectBox(box)}
             onMarkDelivered={onMarkBoxDelivered ? () => onMarkBoxDelivered(box.id) : undefined}
             onMarkRejected={onMarkBoxRejected ? () => onMarkBoxRejected(box.id) : undefined}
-            isScanned={box.isScanned}
             canScan={canScan}
             isAdmin={isAdmin}
+            isPartnerPortal={isPartnerPortal}
           />
         ))}
       </div>
@@ -347,20 +344,24 @@ function BoxesList({
   );
 }
 
-export default function DeliveryDetailsScreen({ 
-  delivery, 
+export default function DeliveryDetailsScreen({
+  delivery,
   boxes,
-  onBack, 
+  onBack,
   onScanToReceive,
   onSelectBox,
   onMarkBoxScanned,
   userRole,
   onUpdateDeliveryStatus,
-  onUpdateBoxStatus
+  onUpdateBoxStatus,
+  onSaveAndClose,
+  onRegisterDelivery
 }: DeliveryDetailsScreenProps) {
-  const scannedBoxes = boxes.filter(b => b.isScanned);
   const canScan = delivery.status === 'In transit';
+  const isPendingOrPacking = delivery.status === 'Pending' || delivery.status === 'Packing';
   const isAdmin = userRole === 'admin';
+  // Check if this is a partner portal delivery (has partner info) OR if user is viewing as partner
+  const isPartnerPortal = !!(delivery.partnerId || delivery.partnerName) || userRole === 'partner';
 
   const handleMarkBoxDelivered = (boxId: string) => {
     if (onUpdateBoxStatus) {
@@ -380,18 +381,18 @@ export default function DeliveryDetailsScreen({
   return (
     <div className="bg-surface min-h-screen flex flex-col">
       {/* Top App Bar */}
-      <TopAppBar 
-        onBack={onBack} 
+      <TopAppBar
+        onBack={onBack}
         delivery={delivery}
         userRole={userRole}
         onUpdateDeliveryStatus={onUpdateDeliveryStatus}
       />
-      
+
       {/* Content */}
       <div className="flex-1 pt-6">
         {/* Delivery & Sender Info */}
         <DeliveryAndSenderCard delivery={delivery} />
-        
+
         {/* Instructions */}
         <div className="px-4 md:px-6 mb-4">
           <p className="body-medium text-on-surface-variant">
@@ -400,37 +401,63 @@ export default function DeliveryDetailsScreen({
               : 'Review the boxes for this delivery. Scanning is disabled because this delivery is no longer in transit.'}
           </p>
         </div>
-        
-        {/* Boxes count */}
-        <div className="px-4 md:px-6 mb-4">
-          <span className="body-medium text-on-surface-variant">
-            {boxes.length} boxes ({scannedBoxes.length} scanned)
-          </span>
-        </div>
-        
+
         {/* Boxes List */}
-        <BoxesList 
+        <div className="px-4 md:px-6 mb-4">
+          <h3 className="title-medium text-on-surface mb-4">Boxes ({boxes.length})</h3>
+        </div>
+        <BoxesList
           boxes={boxes}
           onSelectBox={onSelectBox}
           onMarkBoxDelivered={isAdmin && canScan ? handleMarkBoxDelivered : undefined}
           onMarkBoxRejected={isAdmin && canScan ? handleMarkBoxRejected : undefined}
           canScan={canScan}
           isAdmin={isAdmin}
+          isPartnerPortal={isPartnerPortal}
         />
       </div>
-      
-      {/* Fixed Bottom Action Button */}
+
       {canScan && (
         <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 md:p-6">
-          <Button 
+          <Button
             onClick={onScanToReceive}
-          className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
+            className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-2.5 rounded-lg min-h-[48px] flex items-center justify-center label-large"
           >
             <QrCode className="w-4 h-4 mr-2" />
             Scan to receive
           </Button>
         </div>
       )}
+
+      {/* Fixed Bottom Action Buttons for Pending/Packing Deliveries */}
+      {isPendingOrPacking && (onSaveAndClose || onRegisterDelivery) && (
+        <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 md:p-6 z-20">
+          <div className="flex flex-row gap-3">
+            {onSaveAndClose && (
+              <Button
+                variant="outline"
+                onClick={onSaveAndClose}
+                className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-2.5 rounded-lg min-h-[48px] label-large"
+                size="lg"
+              >
+                <span className="label-large">Save & Close</span>
+              </Button>
+            )}
+
+            {onRegisterDelivery && (
+              <Button
+                onClick={onRegisterDelivery}
+                className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-2.5 rounded-lg min-h-[48px] label-large"
+                size="lg"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                <span className="label-large">Register Delivery</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

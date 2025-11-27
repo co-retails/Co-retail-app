@@ -21,7 +21,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
-import { Archive, Clock, Edit3, Download, RefreshCw, Check, MoreVertical } from "lucide-react";
+import { Archive, Edit3, Check, MoreVertical } from "lucide-react";
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
 import { UserRole } from './ItemCard';
@@ -106,16 +106,13 @@ function ScanViewer({ onScan }: {
   );
 }
 
-function MultiSelectActions({ selectedCount, totalCount, isAllSelected, onSelectAll, onArchive, onMarkExpired, onBulkEdit, onExport, onBatchStatusUpdate }: {
+function MultiSelectActions({ selectedCount, totalCount, isAllSelected, onSelectAll, onArchive, onBulkEdit }: {
   selectedCount: number;
   totalCount: number;
   isAllSelected: boolean;
   onSelectAll: () => void;
   onArchive: () => void;
-  onMarkExpired: () => void;
   onBulkEdit: () => void;
-  onExport: () => void;
-  onBatchStatusUpdate: () => void;
 }) {
   // Don't show if there are no items
   if (totalCount === 0) return null;
@@ -123,12 +120,12 @@ function MultiSelectActions({ selectedCount, totalCount, isAllSelected, onSelect
   const hasSelectedItems = selectedCount > 0;
 
   return (
-    <div className="bg-surface-container border-t border-outline-variant">
-      <div className="flex items-center justify-between px-4 md:px-6 py-3">
+    <div className="border-t border-outline-variant">
+      <div className="flex items-center justify-between px-1 py-3">
         {/* Left side - Select all and count */}
         <div className="flex items-center gap-3">
           <button 
-            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+            className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
             onClick={onSelectAll}
             aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
           >
@@ -173,10 +170,6 @@ function MultiSelectActions({ selectedCount, totalCount, isAllSelected, onSelect
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Bulk Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onBatchStatusUpdate}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                <span>Update status</span>
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={onBulkEdit}>
                 <Edit3 className="mr-2 h-4 w-4" />
                 <span>Bulk edit</span>
@@ -185,15 +178,6 @@ function MultiSelectActions({ selectedCount, totalCount, isAllSelected, onSelect
               <DropdownMenuItem onClick={onArchive}>
                 <Archive className="mr-2 h-4 w-4" />
                 <span>Archive selected</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onMarkExpired}>
-                <Clock className="mr-2 h-4 w-4" />
-                <span>Mark as expired</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onExport}>
-                <Download className="mr-2 h-4 w-4" />
-                <span>Export selected</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -213,17 +197,25 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   const [formData, setFormData] = useState({
     status: 'none',
     category: '',
-    price: ''
+    priceReduction: 'none',
+    comment: ''
   });
 
   const handleSave = () => {
     const updates: Partial<ScannedItem> = {};
     if (formData.status !== 'none') updates.status = formData.status;
     if (formData.category) updates.category = formData.category;
-    if (formData.price) updates.price = parseFloat(formData.price);
+    if (formData.priceReduction !== 'none') {
+      const reductionPercent = parseFloat(formData.priceReduction);
+      // Store the reduction percentage - the actual price calculation will be done in handleBulkEditSave
+      (updates as any).priceReduction = reductionPercent;
+    }
+    if (formData.comment) {
+      (updates as any).comment = formData.comment;
+    }
     
     onSave(updates);
-    setFormData({ status: 'none', category: '', price: '' });
+    setFormData({ status: 'none', category: '', priceReduction: 'none', comment: '' });
     onClose();
   };
 
@@ -270,18 +262,37 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="price" className="text-right">
-              Price (€)
+            <Label htmlFor="priceReduction" className="text-right">
+              Price % reduction
             </Label>
-            <Input
-              id="price"
-              type="number"
-              value={formData.price}
-              onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-              className="col-span-3 bg-surface-container-high border border-outline rounded-lg"
-              placeholder="0.00"
-              min="0"
-              step="0.01"
+            <Select
+              value={formData.priceReduction}
+              onValueChange={(value: string) =>
+                setFormData(prev => ({ ...prev, priceReduction: value }))
+              }
+            >
+              <SelectTrigger className="col-span-3 bg-surface-container-high border border-outline rounded-lg">
+                <SelectValue placeholder="Select reduction" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No change</SelectItem>
+                <SelectItem value="10">10%</SelectItem>
+                <SelectItem value="20">20%</SelectItem>
+                <SelectItem value="30">30%</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="comment" className="text-right pt-2">
+              Comment (optional)
+            </Label>
+            <Textarea
+              id="comment"
+              value={formData.comment}
+              onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
+              className="col-span-3 bg-surface-container-high border border-outline rounded-lg min-h-[80px] body-large resize-none"
+              placeholder="Add a comment..."
+              rows={3}
             />
           </div>
         </div>
@@ -305,7 +316,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   );
 }
 
-function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreActions, onClick, userRole, onSelectAll, selectedCount, totalCount, isAllSelected, onArchive, onMarkExpired, onBulkEdit, onExport, onBatchStatusUpdate }: {
+function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreActions, onClick, userRole, onSelectAll, selectedCount, totalCount, isAllSelected, onArchive, onBulkEdit }: {
   items: ScannedItem[];
   onClearItems: () => void;
   onToggleSelect: (itemId: string) => void;
@@ -317,10 +328,7 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
   totalCount: number;
   isAllSelected: boolean;
   onArchive: () => void;
-  onMarkExpired: () => void;
   onBulkEdit: () => void;
-  onExport: () => void;
-  onBatchStatusUpdate: () => void;
 }) {
   return (
     <div className="flex-1 pb-20">
@@ -349,10 +357,7 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
         isAllSelected={isAllSelected}
         onSelectAll={onSelectAll}
         onArchive={onArchive}
-        onMarkExpired={onMarkExpired}
         onBulkEdit={onBulkEdit}
-        onExport={onExport}
-        onBatchStatusUpdate={onBatchStatusUpdate}
       />
       
       {/* Content Area - M3 Grid: 16px mobile, 24px tablet+ */}
@@ -561,25 +566,63 @@ export default function ScanScreen({
     toast.success(`${selectedItems.length} items archived`);
   };
 
-  const handleMarkExpired = () => {
-    setScannedItems(prev => prev.map(item => 
-      item.selected ? { ...item, status: 'Expired', selected: false } : item
-    ));
-    toast.success(`${selectedItems.length} items marked as expired`);
-  };
-
   const handleBulkEdit = () => {
     setShowBulkEditModal(true);
   };
 
+  const formatTimestamp = (date: Date | string = new Date()) => {
+    const value = typeof date === 'string' ? date : date;
+    return new Date(value).toLocaleString('sv-SE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).replace(',', '');
+  };
+
   const handleBulkEditSave = (updates: Partial<ScannedItem>) => {
     const selectedIds = selectedItems.map(item => item.id);
-    setScannedItems(prev => prev.map(item => 
-      selectedIds.includes(item.id) 
-        ? { ...item, ...updates, selected: false }
-        : item
-    ));
-    toast.success(`${selectedItems.length} items updated`);
+    const priceReduction = (updates as any).priceReduction;
+    const comment = (updates as any).comment;
+    const statusChange = updates.status;
+    
+    setScannedItems(prev => prev.map(item => {
+      if (!selectedIds.includes(item.id)) return item;
+      
+      const itemUpdates: Partial<ScannedItem> = { ...updates, selected: false };
+      
+      // Calculate new price if price reduction is specified
+      if (priceReduction && typeof priceReduction === 'number') {
+        const reductionPercent = priceReduction / 100;
+        itemUpdates.price = Math.round(item.price * (1 - reductionPercent) * 100) / 100;
+        // Remove priceReduction from updates as it's not a real field
+        delete (itemUpdates as any).priceReduction;
+      }
+      
+      // Handle comment - add to statusHistory if status changed or if comment provided
+      if (comment || (statusChange && statusChange !== item.status)) {
+        const newHistoryEntry: StatusHistoryEntry = {
+          status: (statusChange || item.status) as ScannedItem['status'],
+          timestamp: formatTimestamp(),
+          user: 'Current User',
+          note: comment || undefined
+        };
+        
+        itemUpdates.statusHistory = [
+          ...(item.statusHistory || []),
+          newHistoryEntry
+        ];
+        
+        // Remove comment from updates as it's not a real field
+        delete (itemUpdates as any).comment;
+      }
+      
+      return { ...item, ...itemUpdates };
+    }));
+    
+    const reductionText = priceReduction ? ` with ${priceReduction}% price reduction` : '';
+    toast.success(`${selectedItems.length} items updated${reductionText}`);
   };
 
   const partnerIdForPricing = currentPartnerWarehouseSelection?.partnerId;
@@ -590,25 +633,6 @@ export default function ScanScreen({
     }
     return getSekPriceOptions(partnerIdForPricing, selectedItemForDetails.brand);
   }, [partnerIdForPricing, selectedItemForDetails]);
-
-  const handleExport = () => {
-    // Simulate CSV export
-    const csvContent = [
-      'Item ID,Brand,Category,Size,Color,Price,Status,Date',
-      ...selectedItems.map(item => 
-        `${item.itemId},"${item.brand}","${item.category}","${item.size || ''}","${item.color || ''}",${item.price},"${item.status}","${item.date}"`
-      )
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'scanned_items.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-    toast.success('Items exported to CSV');
-  };
 
   const handleSaveItemDetails = (itemId: string, updates: Partial<ItemDetails>) => {
     setScannedItems(prev => prev.map(item => {
@@ -766,10 +790,7 @@ export default function ScanScreen({
         totalCount={scannedItems.length}
         isAllSelected={scannedItems.length > 0 && scannedItems.every(item => item.selected)}
         onArchive={handleArchiveSelected}
-        onMarkExpired={handleMarkExpired}
         onBulkEdit={handleBulkEdit}
-        onExport={handleExport}
-        onBatchStatusUpdate={() => setShowBatchStatusUpdate(true)}
       />
 
       {/* Bulk Edit Modal */}

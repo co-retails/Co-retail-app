@@ -17,8 +17,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { 
-  PackageIcon, 
+import {
+  PackageIcon,
   CheckIcon,
   ScanIcon,
   PlusIcon,
@@ -29,7 +29,8 @@ import {
   QrCodeIcon,
   MoreVertical,
   Trash2Icon,
-  RotateCcwIcon
+  RotateCcwIcon,
+  TruckIcon
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
@@ -101,7 +102,7 @@ export default function DeliveryNoteCreationScreen({
   existingCreatedDate
 }: DeliveryNoteCreationScreenProps) {
   const [boxes, setBoxes] = useState<Box[]>(initialBoxes || []);
-  
+
   // Update boxes when initialBoxes changes (e.g., when navigating back from box details)
   React.useEffect(() => {
     if (initialBoxes) {
@@ -114,7 +115,7 @@ export default function DeliveryNoteCreationScreen({
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [scanMode, setScanMode] = useState<'box' | 'item' | null>(null);
   const [expandedUnassignedItems, setExpandedUnassignedItems] = useState(false);
-  
+
   // Side sheet states
   const [showBoxDetailsSheet, setShowBoxDetailsSheet] = useState(false);
   const [showBoxLabelSheet, setShowBoxLabelSheet] = useState(false);
@@ -128,14 +129,14 @@ export default function DeliveryNoteCreationScreen({
   const completeBoxes = boxes.filter(box => box.items.length > 0).length;
 
   // Get unassigned items (not in any box yet)
-  const availableItems = orderItems.filter(item => 
+  const availableItems = orderItems.filter(item =>
     !boxes.some(box => box.items.some(boxItem => boxItem.id === item.id))
   );
 
   // Handle box label scan
   const handleBoxLabelScanned = (code: string) => {
     setScanMode(null);
-    
+
     // Check if box label already exists
     const existingBox = boxes.find(box => box.qrLabel === code);
     if (existingBox) {
@@ -420,12 +421,12 @@ export default function DeliveryNoteCreationScreen({
     // Status flow: In transit (only possible to Register if there is at least one registered box and no pending boxes)
     const registeredBoxes = boxes.filter(box => box.status === 'registered');
     const pendingBoxes = boxes.filter(box => box.status === 'pending');
-    
+
     if (registeredBoxes.length === 0) {
       toast.error('At least one box must be registered before registering the delivery note');
       return;
     }
-    
+
     if (pendingBoxes.length > 0) {
       toast.error('All boxes must be registered. Please register all pending boxes first.');
       return;
@@ -450,86 +451,105 @@ export default function DeliveryNoteCreationScreen({
 
   return (
     <div className="min-h-screen bg-surface">
-      <SharedHeader 
+      <SharedHeader
         title="Delivery details"
-        subtitle={`Order ${orderId}`}
         onBack={onBack}
         showBackButton={true}
       />
 
       <div className="px-4 md:px-6 py-6 space-y-4 pb-32">
-        {/* Sender and Receiver Info */}
-        {(warehouseName || (receiverBrand && receivingStore)) && (
-          <Card>
+        {/* Delivery Information Card - Same format as In transit delivery details */}
+        {(warehouseName || receivingStore || receiverBrand) && (
+          <Card className="bg-surface-container border border-outline-variant">
             <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {warehouseName && (
-                  <div>
-                    <p className="label-small text-on-surface-variant mb-1">Sender</p>
-                    <p className="body-medium text-on-surface">{warehouseName}</p>
+              <div className="flex items-start gap-4">
+                {/* Leading visual */}
+                <div className="w-12 h-12 bg-primary-container rounded-[12px] flex items-center justify-center flex-shrink-0">
+                  <TruckIcon className="w-6 h-6 text-on-primary-container" />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Supporting text - Date and Status */}
+                  <div className="label-small text-on-surface-variant mb-2">
+                    <span>{existingCreatedDate ? new Date(existingCreatedDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}, </span>
+                    <span className="label-small px-2 py-0.5 rounded-full text-on-surface-variant">
+                      {deliveryNoteId ? (initialBoxes?.some(b => b.status === 'registered') ? 'Packing' : 'Pending') : 'Pending'}
+                    </span>
                   </div>
-                )}
-                {receiverBrand && receivingStore && (
-                  <div>
-                    <p className="label-small text-on-surface-variant mb-1">Receiver</p>
-                    <p className="body-medium text-on-surface">{receiverBrand} {receivingStore.code}</p>
+
+                  {/* Primary text - Delivery Note ID */}
+                  <h3 className="title-medium text-on-surface mb-2">
+                    Delivery Note: {deliveryNoteId || `Order ${orderId}`}
+                  </h3>
+
+                  {/* Secondary text - Details */}
+                  <div className="body-small text-on-surface-variant mb-3">
+                    <span>Order: {orderId} • Items: {totalItems}{unassignedItems > 0 ? ` (${unassignedItems} unassigned)` : ''}</span>
                   </div>
-                )}
+
+                  {/* Sender and Receiver Information */}
+                  <div className="border-t border-outline-variant pt-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Sender */}
+                      {warehouseName && (
+                        <div>
+                          <div className="label-small text-on-surface-variant mb-1">
+                            Sender
+                          </div>
+                          <div className="body-medium text-on-surface">
+                            {warehouseName} {partnerName ? `(${partnerName})` : ''}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Receiver */}
+                      {(receivingStore || receiverBrand) && (
+                        <div>
+                          <div className="label-small text-on-surface-variant mb-1">
+                            Receiver
+                          </div>
+                          <div className="body-medium text-on-surface">
+                            {receivingStore?.name || receiverBrand || '—'}{receiverBrand && receivingStore?.name ? ` (${receiverBrand})` : ''}
+                          </div>
+                          {receivingStore?.code && (
+                            <div className="body-small text-on-surface-variant">
+                              {receivingStore.code}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Statistics - Compact */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <p className="label-small text-on-surface-variant mb-1">Total</p>
-                <p className="title-medium text-on-surface">{totalItems}</p>
-              </div>
-              <div>
-                <p className="label-small text-on-surface-variant mb-1">Assigned</p>
-                <p className="title-medium text-primary">{assignedItems}</p>
-              </div>
-              <div>
-                <p className="label-small text-on-surface-variant mb-1">Unassigned</p>
-                <p className="title-medium text-error">{unassignedItems}</p>
-              </div>
-              <div>
-                <p className="label-small text-on-surface-variant mb-1">Boxes</p>
-                <p className="title-medium text-on-surface">{boxes.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Boxes List */}
         <div className="flex items-center justify-between mb-2">
-          <h3 className="title-medium text-on-surface">Boxes</h3>
+          <h3 className="title-medium text-on-surface">Boxes ({boxes.length})</h3>
           <Button
-            variant="outline"
-            size="sm"
             onClick={handleAddBox}
+            className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors min-h-[40px] px-4 py-2"
+            size="lg"
           >
-            <PlusIcon size={16} className="mr-2" />
-            <span className="label-medium">Add box</span>
+            <PlusIcon size={20} className="mr-2" />
+            <span className="label-large">Add box</span>
           </Button>
         </div>
 
         {boxes.length > 0 ? (
           <div className="space-y-2">
             {boxes.map((box) => {
-              const boxDate = new Date(box.createdDate).toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric',
-                year: 'numeric'
-              });
-              
+              const boxDate = new Date(box.createdDate).toISOString().split('T')[0];
+
               return (
-                <Card 
-                  key={box.id} 
-                  className="border-outline cursor-pointer hover:bg-surface-container-high transition-colors"
+                <Card
+                  key={box.id}
+                  className="border-outline cursor-pointer hover:bg-[#F2E8DE] transition-colors"
+                  style={{ backgroundColor: '#FAF0E6' }}
                   onClick={() => {
                     if (onOpenBoxDetails) {
                       onOpenBoxDetails(box);
@@ -543,52 +563,25 @@ export default function DeliveryNoteCreationScreen({
                           <BoxIcon className="w-5 h-5 text-on-primary-container" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          {/* Date */}
+                          {/* Date and Status */}
                           <div className="label-small text-on-surface-variant mb-1">
-                            {boxDate}
+                            {boxDate} • {box.status === 'registered' ? 'Registered' : box.status === 'pending' ? 'Packing' : box.status === 'in-transit' ? 'In Transit' : box.status === 'delivered' ? 'Delivered' : box.status === 'rejected' ? 'Rejected' : box.status === 'cancelled' ? 'Cancelled' : box.status}
                           </div>
-                          {/* Box ID + Label */}
+                          {/* Box Label */}
                           <div className="body-medium text-on-surface mb-1">
+                            <span className="label-small text-on-surface-variant">Box Label: </span>
                             {box.qrLabel}
                           </div>
+                          {/* Box ID */}
                           <div className="label-small text-on-surface-variant">
-                            ID: {box.id}
+                            <span className="label-small text-on-surface-variant">Box ID: </span>
+                            {box.id}
                           </div>
-                          {/* Items count and status */}
-                          <div className="flex items-center gap-2 flex-wrap">
+                          {/* Items count */}
+                          <div className="flex items-center gap-2 flex-wrap mt-1">
                             <span className="body-small text-on-surface-variant">
                               {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
                             </span>
-                            {box.status === 'registered' && (
-                              <Badge variant="secondary" className="bg-success-container text-on-success-container body-small">
-                                Registered
-                              </Badge>
-                            )}
-                            {box.status === 'pending' && (
-                              <Badge variant="outline" className="text-on-surface-variant body-small">
-                                Packing
-                              </Badge>
-                            )}
-                            {box.status === 'in-transit' && (
-                              <Badge variant="secondary" className="bg-primary-container text-on-primary-container body-small">
-                                In Transit
-                              </Badge>
-                            )}
-                            {box.status === 'delivered' && (
-                              <Badge variant="secondary" className="bg-success-container text-on-success-container body-small">
-                                Delivered
-                              </Badge>
-                            )}
-                            {box.status === 'rejected' && (
-                              <Badge variant="secondary" className="bg-error-container text-on-error-container body-small">
-                                Rejected
-                              </Badge>
-                            )}
-                            {box.status === 'cancelled' && (
-                              <Badge variant="secondary" className="bg-error-container text-on-error-container body-small">
-                                Cancelled
-                              </Badge>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -615,7 +608,7 @@ export default function DeliveryNoteCreationScreen({
                             </DropdownMenuItem>
                           )}
                           {box.status === 'pending' && (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteBox(box.id);
@@ -711,7 +704,7 @@ export default function DeliveryNoteCreationScreen({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleDeleteUnassignedItem(item.id)}
                             className="text-error focus:text-error"
                           >
@@ -731,24 +724,24 @@ export default function DeliveryNoteCreationScreen({
 
       {/* Fixed Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4 z-20 pb-safe">
-        <div className="flex flex-col md:flex-row md:justify-end gap-3 md:px-2">
-          <div className="flex items-center gap-2 text-on-surface-variant body-small md:mr-auto">
+        <div className="flex flex-row md:justify-end gap-3 md:px-2">
+          <div className="hidden md:flex items-center gap-2 text-on-surface-variant body-small md:mr-auto">
             <PackageIcon size={16} />
             <span>{assignedItems} of {totalItems} items in {boxes.length} box{boxes.length !== 1 ? 'es' : ''}</span>
           </div>
-          
+
           <Button
             variant="outline"
             onClick={handleSaveDeliveryNoteAndClose}
-            className="w-full md:w-auto"
+            className="flex-1"
           >
             <span className="label-large">Save & Close</span>
           </Button>
-          
+
           <Button
             onClick={handleRegisterDelivery}
             disabled={boxes.length === 0 || unassignedItems > 0 || boxes.some(box => box.items.length === 0)}
-            className="w-full md:w-auto bg-primary text-on-primary"
+            className="flex-1 bg-primary text-on-primary"
           >
             <CheckIcon size={20} className="mr-2" />
             <span className="label-large">Register Delivery</span>

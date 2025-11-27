@@ -22,7 +22,7 @@ export const mockDeliveries: Delivery[] = [
   {
     id: '1',
     date: '2024-12-09',
-    status: 'In transit',
+    status: 'Pending',
     deliveryId: '122345678-3r890fhor8r4wrjf',
     orders: 1,
     items: 150,
@@ -72,7 +72,7 @@ export const mockPartners: Partner[] = [
     itemsToReturn: 15
   },
   {
-    id: '2', 
+    id: '2',
     name: 'Kinda Kinks',
     connectionStatus: 'connected',
     itemsToReturn: 0
