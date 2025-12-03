@@ -242,7 +242,7 @@ function TabBar({ activeTab, onTabChange, scannedCount, unscannedCount }: {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className="flex-1 pb-3 pt-4 px-4 relative"
+            className="flex-1 pb-3 pt-4 px-4 relative min-h-[48px] md:min-h-0 touch-manipulation"
             onClick={() => onTabChange(tab.id)}
           >
             <span className={`title-small ${

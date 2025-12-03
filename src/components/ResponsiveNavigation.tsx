@@ -8,6 +8,7 @@ interface NavigationDestination {
   label: string;
   icon: string;
   onClick: () => void;
+  desktopLabel?: string; // Optional desktop-specific label
 }
 
 interface ResponsiveNavigationProps {

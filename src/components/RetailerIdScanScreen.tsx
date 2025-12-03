@@ -499,11 +499,11 @@ export default function RetailerIdScanScreen({
       {/* Sticky Bottom Action Bar */}
       {scannedConnections.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4 z-20 pb-safe">
-          <div className="flex flex-row justify-end gap-3">
+          <div className="flex flex-row flex-wrap justify-end gap-3">
             <Button 
               variant="outline" 
               onClick={handleSaveScannedItems}
-              className="flex-1 md:flex-none min-h-[48px] rounded-lg"
+              className="flex-1 md:flex-none min-w-[220px] h-[56px] rounded-lg border-outline text-on-surface"
             >
               <span className="label-large">Save scanned items</span>
             </Button>
@@ -511,7 +511,7 @@ export default function RetailerIdScanScreen({
             {onRegisterOrder && orderStatus === 'pending' && (
               <Button 
                 onClick={handleRegisterOrder}
-                className="flex-1 md:flex-none min-h-[48px] bg-primary text-on-primary hover:bg-primary/90 rounded-lg"
+                className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-primary text-on-primary hover:bg-primary/90 rounded-lg"
                 disabled={scannedConnections.length === 0}
               >
                 <span className="label-large">Register order</span>
@@ -522,7 +522,7 @@ export default function RetailerIdScanScreen({
             {onCreateDeliveryNote && orderStatus === 'registered' && (
               <Button 
                 onClick={handleCreateDeliveryNote}
-                className="flex-1 md:flex-none min-h-[48px] bg-tertiary text-on-tertiary hover:bg-tertiary/90 rounded-lg"
+                className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-tertiary text-on-tertiary hover:bg-tertiary/90 rounded-lg"
                 disabled={scannedConnections.length === 0}
               >
                 <PackageIcon size={20} className="mr-2" />

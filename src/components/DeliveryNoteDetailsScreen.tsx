@@ -30,13 +30,15 @@ import {
   MoreVertical,
   Trash2Icon,
   RotateCcwIcon,
-  TruckIcon
+  TruckIcon,
+  Store,
+  MapPinIcon
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
 import BoxDetailsSideSheet from './BoxDetailsSideSheet';
 import BoxLabelSideSheet from './BoxLabelSideSheet';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { ImageWithFallback, DEFAULT_IMAGE_PLACEHOLDER } from './figma/ImageWithFallback';
 
 export interface Box {
   id: string;
@@ -119,6 +121,7 @@ export default function DeliveryNoteDetailsScreen({
   // Side sheet states
   const [showBoxDetailsSheet, setShowBoxDetailsSheet] = useState(false);
   const [showBoxLabelSheet, setShowBoxLabelSheet] = useState(false);
+  const [boxBeingEdited, setBoxBeingEdited] = useState<Box | null>(null);
   const [currentBoxItems, setCurrentBoxItems] = useState<OrderItem[]>([]);
   const [tempBoxId, setTempBoxId] = useState<string | null>(null);
 
@@ -155,6 +158,14 @@ export default function DeliveryNoteDetailsScreen({
 
     setBoxes([...boxes, newBox]);
     toast.success(`Box ${code} added`);
+  };
+
+  const updateBoxLabel = (boxId: string, label: string) => {
+    setBoxes(prev =>
+      prev.map(box =>
+        box.id === boxId ? { ...box, qrLabel: label } : box
+      )
+    );
   };
 
   // Handle manual box label entry
@@ -263,6 +274,27 @@ export default function DeliveryNoteDetailsScreen({
     setCurrentBoxItems([]);
     setTempBoxId(null);
     toast.success(`Box ${label} registered`);
+  };
+
+  const handleEditedBoxLabelSave = (label: string) => {
+    if (!boxBeingEdited) return;
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) {
+      toast.error('Please enter a box label');
+      return;
+    }
+
+    const duplicate = boxes.some(
+      (box) => box.qrLabel === trimmedLabel && box.id !== boxBeingEdited.id
+    );
+    if (duplicate) {
+      toast.error('Box label already exists');
+      return;
+    }
+
+    updateBoxLabel(boxBeingEdited.id, trimmedLabel);
+    toast.success('Box label updated');
+    setBoxBeingEdited(null);
   };
 
   // Handle cancel from box label sheet
@@ -460,7 +492,7 @@ export default function DeliveryNoteDetailsScreen({
       <div className="px-4 md:px-6 py-6 space-y-4 pb-32">
         {/* Delivery Information Card - Same format as In transit delivery details */}
         {(warehouseName || receivingStore || receiverBrand) && (
-          <Card className="bg-surface-container border border-outline-variant">
+          <Card className="bg-surface border border-outline-variant">
             <CardContent className="p-4">
               <div className="flex items-start gap-4">
                 {/* Leading visual */}
@@ -492,26 +524,42 @@ export default function DeliveryNoteDetailsScreen({
                   <div className="border-t border-outline-variant pt-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Sender */}
-                      {warehouseName && (
-                        <div>
-                          <div className="label-small text-on-surface-variant mb-1">
-                            Sender
+                      {(warehouseName || partnerName) && (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-on-surface-variant">
+                            <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                              <Store size={16} />
+                            </span>
+                            <span className="body-small">Sender</span>
                           </div>
                           <div className="body-medium text-on-surface">
-                            {warehouseName} {partnerName ? `(${partnerName})` : ''}
+                            {warehouseName || partnerName}
                           </div>
+                          {warehouseName && partnerName && (
+                            <div className="body-small text-on-surface-variant">
+                              {partnerName}
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {/* Receiver */}
                       {(receivingStore || receiverBrand) && (
-                        <div>
-                          <div className="label-small text-on-surface-variant mb-1">
-                            Receiver
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-on-surface-variant">
+                            <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+                              <MapPinIcon size={16} />
+                            </span>
+                            <span className="body-small">Receiver</span>
                           </div>
                           <div className="body-medium text-on-surface">
-                            {receivingStore?.name || receiverBrand || '—'}{receiverBrand && receivingStore?.name ? ` (${receiverBrand})` : ''}
+                            {receivingStore?.name || receiverBrand || '—'}
                           </div>
+                          {receiverBrand && receivingStore?.name && (
+                            <div className="body-small text-on-surface-variant">
+                              {receiverBrand}
+                            </div>
+                          )}
                           {receivingStore?.code && (
                             <div className="body-small text-on-surface-variant">
                               {receivingStore.code}
@@ -532,7 +580,7 @@ export default function DeliveryNoteDetailsScreen({
           <h3 className="title-medium text-on-surface">Boxes ({boxes.length})</h3>
           <Button
             onClick={handleAddBox}
-            className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors min-h-[40px] px-4 py-2"
+            className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors min-h-[48px] md:min-h-0 px-4 py-3"
             size="lg"
           >
             <PlusIcon size={20} className="mr-2" />
@@ -567,10 +615,12 @@ export default function DeliveryNoteDetailsScreen({
                             {boxDate} • {box.status === 'registered' ? 'Registered' : box.status === 'pending' ? 'Packing' : box.status === 'in-transit' ? 'In Transit' : box.status === 'delivered' ? 'Delivered' : box.status === 'rejected' ? 'Rejected' : box.status === 'cancelled' ? 'Cancelled' : box.status}
                           </div>
                           {/* Box Label */}
-                          <div className="body-medium text-on-surface mb-1">
-                            <span className="label-small text-on-surface-variant">Box Label: </span>
-                            {box.qrLabel}
-                          </div>
+                          {box.status !== 'pending' && (
+                            <div className="body-medium text-on-surface mb-1">
+                              <span className="label-small text-on-surface-variant">Box Label: </span>
+                              {box.qrLabel}
+                            </div>
+                          )}
                           {/* Box ID */}
                           <div className="label-small text-on-surface-variant">
                             <span className="label-small text-on-surface-variant">Box ID: </span>
@@ -597,6 +647,17 @@ export default function DeliveryNoteDetailsScreen({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {box.status === 'registered' && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBoxBeingEdited(box);
+                              }}
+                            >
+                              <EditIcon className="mr-2 h-4 w-4" />
+                              Edit box label
+                            </DropdownMenuItem>
+                          )}
                           {box.status === 'registered' && (
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
@@ -665,17 +726,11 @@ export default function DeliveryNoteDetailsScreen({
                   <div key={item.id} className="flex items-center gap-3 p-3 bg-error-container/10 rounded-lg border border-error/20">
                     {/* Item Image */}
                     <div className="flex-shrink-0 w-16 h-16 bg-surface-container rounded-lg overflow-hidden border border-outline-variant">
-                      {item.image || item.thumbnail ? (
-                        <ImageWithFallback
-                          src={item.image || item.thumbnail || ''}
-                          alt={item.itemId || item.partnerItemId || ''}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-surface-variant flex items-center justify-center">
-                          <PackageIcon className="w-6 h-6 text-on-surface-variant" />
-                        </div>
-                      )}
+                      <ImageWithFallback
+                        src={item.image || item.thumbnail || DEFAULT_IMAGE_PLACEHOLDER}
+                        alt={item.itemId || item.partnerItemId || ''}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     {/* Item Info */}
                     <div className="flex-1 min-w-0">
@@ -876,6 +931,7 @@ export default function DeliveryNoteDetailsScreen({
         <ActiveScanner
           onScan={handleBoxLabelScanned}
           onClose={() => setScanMode(null)}
+          showBackButton
           title="Scan Box Label"
           instructionText="Position the box QR code within the frame"
           mode="box"
@@ -890,6 +946,7 @@ export default function DeliveryNoteDetailsScreen({
             setScanMode(null);
             setCurrentBoxId(null);
           }}
+          showBackButton
           title="Scan Item"
           instructionText="Scan item barcode or QR code to add to box"
           mode="item"
@@ -914,6 +971,22 @@ export default function DeliveryNoteDetailsScreen({
         onOpenChange={setShowBoxLabelSheet}
         onRegisterBox={handleRegisterBox}
         onCancel={handleCancelLabel}
+      />
+
+      <BoxLabelSideSheet
+        isOpen={Boolean(boxBeingEdited)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBoxBeingEdited(null);
+          }
+        }}
+        onSubmit={handleEditedBoxLabelSave}
+        onCancel={() => setBoxBeingEdited(null)}
+        initialLabel={boxBeingEdited?.qrLabel}
+        title="Edit Box Label"
+        description="Update the label used for this box"
+        primaryActionLabel="Save label"
+        showBackButton={false}
       />
     </div>
   );

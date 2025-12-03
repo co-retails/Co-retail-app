@@ -40,16 +40,13 @@ function Header({ onBack }: { onBack: () => void }) {
   );
 }
 
-function PartnerItem({ partner, onSelect, isLast = false }: { 
+function PartnerItem({ partner, onSelect }: { 
   partner: Partner; 
   onSelect: () => void;
-  isLast?: boolean;
 }) {
   return (
     <button 
-      className={`bg-surface-container cursor-pointer hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors w-full text-left ${
-        !isLast ? 'border-b border-outline-variant' : ''
-      }`}
+      className="bg-surface-container cursor-pointer hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors w-full text-left min-h-[64px] touch-manipulation"
       onClick={onSelect}
     >
       {/* M3 List Item - Three-line with leading icon and trailing chevron */}
@@ -74,16 +71,6 @@ function PartnerItem({ partner, onSelect, isLast = false }: {
           {/* Secondary Text - Items to Return */}
           <div className="body-medium text-on-surface-variant leading-tight mb-1">
             {partner.itemsToReturn} items to return
-          </div>
-          
-          {/* Supporting Text - Connection Status */}
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${
-              partner.connectionStatus === 'connected' ? 'bg-tertiary' : 'bg-outline'
-            }`} />
-            <div className="label-medium text-on-surface-variant leading-tight capitalize">
-              {partner.connectionStatus}
-            </div>
           </div>
         </div>
         
@@ -122,12 +109,11 @@ export default function PartnerSelectionScreen({ partners, onSelectPartner, onBa
 
         {/* Partner List */}
         <div className="flex flex-col gap-2">
-          {partners.map((partner, index) => (
+          {partners.map((partner) => (
             <div key={partner.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
               <PartnerItem 
                 partner={partner} 
                 onSelect={() => onSelectPartner(partner)}
-                isLast={index === partners.length - 1}
               />
             </div>
           ))}

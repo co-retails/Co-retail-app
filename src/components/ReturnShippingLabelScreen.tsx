@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -18,7 +18,7 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
     <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
       <div className="flex items-center h-16 px-4 md:px-6">
         <button 
-          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
+          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2 touch-manipulation min-h-[48px] min-w-[48px]"
           onClick={onBack}
           aria-label="Go back"
         >
@@ -34,14 +34,10 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
 
 function ActiveScanner({ 
   onScan, 
-  onManualEntry,
-  isScanning,
-  showManualEntry
+  isScanning
 }: { 
   onScan: () => void;
-  onManualEntry?: (label: string) => void;
   isScanning: boolean;
-  showManualEntry?: boolean;
 }) {
   return (
     <div className="mx-4 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden">
@@ -54,7 +50,7 @@ function ActiveScanner({
         
         <div className="absolute inset-0 flex items-center justify-center">
           <button 
-            className="w-48 h-48 border-2 border-primary rounded-lg relative hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-48 h-48 border-2 border-primary rounded-lg relative hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             onClick={onScan}
             disabled={isScanning}
             aria-label="Tap to scan"
@@ -91,10 +87,19 @@ export default function ReturnShippingLabelScreen({
 }: ReturnShippingLabelScreenProps) {
   const [shippingLabel, setShippingLabel] = useState('');
   const [isScanning, setIsScanning] = useState(false);
-  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [returnId] = useState(() => {
+    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const randomSegment = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `RET-${partner.id}-${timestamp}-${randomSegment}`;
+  });
+  const shippingLabelInputRef = useRef<HTMLInputElement | null>(null);
 
   const scannedItems = items.filter(item => item.scanned);
   const scannedCount = scannedItems.length;
+
+  useEffect(() => {
+    shippingLabelInputRef.current?.focus();
+  }, []);
 
   const handleScan = () => {
     setIsScanning(true);
@@ -103,12 +108,12 @@ export default function ReturnShippingLabelScreen({
       const mockLabel = `SHIP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
       setShippingLabel(mockLabel);
       setIsScanning(false);
-      setShowManualEntry(false);
     }, 2000);
   };
 
   const handleManualEntry = (label: string) => {
     setShippingLabel(label);
+    shippingLabelInputRef.current?.focus();
   };
 
   const handleRegister = () => {
@@ -120,69 +125,78 @@ export default function ReturnShippingLabelScreen({
   };
 
   return (
-    <div className="bg-surface min-h-screen">
+    <div className="bg-surface min-h-screen pb-36">
       <TopAppBar onBack={onBack} title="Shipping Label" />
       
-      <div className="pb-20">
+      <div className="pb-32">
         {/* Active Scanner */}
         <div className="pt-4 md:pt-6">
           <ActiveScanner 
             onScan={handleScan}
-            onManualEntry={handleManualEntry}
             isScanning={isScanning}
-            showManualEntry={showManualEntry}
           />
         </div>
 
         {/* Manual Entry Section */}
-        <div className="px-4 md:px-6 pt-4">
-          {!showManualEntry && !shippingLabel ? (
-            <button 
-              className="w-full text-primary hover:bg-primary-container/10 focus:bg-primary-container/10 active:bg-primary-container/20 transition-colors py-3 rounded-md label-medium border border-outline-variant"
-              onClick={() => setShowManualEntry(true)}
-            >
-              Enter shipping label manually
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="shippingLabel" className="body-medium text-on-surface mb-2 block">
-                  Shipping Label
-                </Label>
-                <Input
-                  id="shippingLabel"
-                  value={shippingLabel}
-                  onChange={(e) => setShippingLabel(e.target.value)}
-                  placeholder="e.g., SHIP-12345678"
-                  className="bg-surface-container-high"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && shippingLabel.trim()) {
-                      handleRegister();
-                    }
-                  }}
-                  autoFocus={showManualEntry}
-                />
-              </div>
-              {shippingLabel && (
-                <p className="body-small text-on-surface-variant">
-                  Current label: <span className="font-medium text-on-surface">{shippingLabel}</span>
-                </p>
-              )}
+        <div className="px-4 md:px-6 pt-4 space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="shippingLabel" className="body-medium text-on-surface">
+                Enter shipping label
+              </Label>
+              <span className="label-small text-on-surface-variant">
+                Auto-focused for quick entry
+              </span>
             </div>
-          )}
+            <Input
+              id="shippingLabel"
+              ref={shippingLabelInputRef}
+              value={shippingLabel}
+              onChange={(e) => setShippingLabel(e.target.value)}
+              placeholder="e.g., SHIP-12345678"
+              className="bg-surface-container-high"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && shippingLabel.trim()) {
+                  handleRegister();
+                }
+              }}
+              autoFocus
+            />
+            {shippingLabel && (
+              <p className="body-small text-on-surface-variant">
+                Current label: <span className="font-medium text-on-surface">{shippingLabel}</span>
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Summary */}
         <div className="px-4 md:px-6 pt-6">
-          <div className="bg-surface-container border border-outline-variant rounded-lg p-4">
-            <div className="body-medium text-on-surface mb-2">Return Summary</div>
-            <div className="space-y-1">
+          <div className="bg-surface-container border border-outline-variant rounded-lg p-4 space-y-4">
+            <div className="flex flex-col gap-2">
+              <p className="label-medium text-on-surface-variant uppercase tracking-[0.5px]">Return Summary</p>
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="label-medium text-on-surface-variant uppercase tracking-[0.5px]">Return ID</p>
+                  <p className="font-mono text-on-surface text-lg">{returnId}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-outline text-on-surface hover:bg-surface-container-high min-h-[48px]"
+                  onClick={() => handleManualEntry(returnId)}
+                >
+                  Set Return ID as label
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1 border-t border-outline-variant/40 pt-3">
               <div className="flex justify-between body-small">
                 <span className="text-on-surface-variant">Partner:</span>
                 <span className="text-on-surface">{partner.name}</span>
               </div>
               <div className="flex justify-between body-small">
-                <span className="text-on-surface-variant">Items:</span>
+                <span className="text-on-surface-variant">Items scanned:</span>
                 <span className="text-on-surface">{scannedCount} items</span>
               </div>
             </div>
@@ -191,19 +205,19 @@ export default function ReturnShippingLabelScreen({
       </div>
 
       {/* Bottom Actions */}
-      <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4">
         <div className="flex gap-4">
           <Button 
             variant="outline"
             onClick={onBack}
-            className="flex-1 border-outline text-on-surface hover:bg-surface-container-high"
+            className="flex-1 border-outline text-on-surface hover:bg-surface-container-high min-h-[64px] md:min-h-[56px]"
           >
             Back
           </Button>
           <Button 
             onClick={handleRegister}
             disabled={!shippingLabel.trim()}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant"
+            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[64px] md:min-h-[56px]"
           >
             Register return
           </Button>

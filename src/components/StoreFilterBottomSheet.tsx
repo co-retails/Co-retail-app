@@ -196,7 +196,7 @@ export default function StoreFilterBottomSheet({
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-8 px-3 ml-4 flex-shrink-0 min-h-[40px] md:min-h-0 touch-manipulation"
+              className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-8 px-3 ml-4 flex-shrink-0 min-h-[48px] md:min-h-0 touch-manipulation"
             >
               Clear all
             </Button>
@@ -291,7 +291,7 @@ export default function StoreFilterBottomSheet({
                       variant="ghost"
                       size="sm"
                       onClick={() => onBrandFilterChange([])}
-                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[40px] md:min-h-0 touch-manipulation"
+                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[48px] md:min-h-0 touch-manipulation"
                     >
                       Clear
                     </Button>
@@ -373,7 +373,7 @@ export default function StoreFilterBottomSheet({
                       variant="ghost"
                       size="sm"
                       onClick={() => onCountryFilterChange([])}
-                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[40px] md:min-h-0 touch-manipulation"
+                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[48px] md:min-h-0 touch-manipulation"
                     >
                       Clear
                     </Button>
@@ -474,7 +474,7 @@ export default function StoreFilterBottomSheet({
                       variant="ghost"
                       size="sm"
                       onClick={() => onStoreFilterChange([])}
-                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[40px] md:min-h-0 touch-manipulation"
+                      className="text-primary hover:text-primary hover:bg-primary-container/50 h-10 md:h-6 px-2 min-h-[48px] md:min-h-0 touch-manipulation"
                     >
                       Clear
                     </Button>

@@ -11,7 +11,9 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Slider } from './ui/slider';
-import { X } from 'lucide-react';
+import { ChevronDown, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 
 export interface ItemFilters {
   brand: string;
@@ -37,17 +39,22 @@ interface ItemFilterSheetProps {
   filters: ItemFilters;
   onApplyFilters: (filters: ItemFilters) => void;
   onResetFilters: () => void;
+  brandOptions?: string[];
 }
+
+const DEFAULT_BRAND_OPTIONS = ['Nike', 'Adidas', 'H&M', 'Zara', 'Uniqlo', "Levi's"];
 
 export default function ItemFilterSheet({
   open,
   onOpenChange,
   filters,
   onApplyFilters,
-  onResetFilters
+  onResetFilters,
+  brandOptions
 }: ItemFilterSheetProps) {
   const [localFilters, setLocalFilters] = useState<ItemFilters>(filters);
   const [isMobile, setIsMobile] = React.useState(false);
+  const [brandPickerOpen, setBrandPickerOpen] = useState(false);
 
   // Detect mobile screen size
   React.useEffect(() => {
@@ -89,6 +96,13 @@ export default function ItemFilterSheet({
     return value !== 'all';
   }).length;
 
+  const selectableBrands = React.useMemo(() => {
+    const source = brandOptions && brandOptions.length > 0 ? brandOptions : DEFAULT_BRAND_OPTIONS;
+    return Array.from(new Set(source.map(name => name.trim()).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [brandOptions]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
@@ -119,26 +133,61 @@ export default function ItemFilterSheet({
             <Label htmlFor="brand" className="label-large text-on-surface">
               Brand
             </Label>
-            <Select
-              value={localFilters.brand}
-              onValueChange={(value) => updateFilter('brand', value)}
-            >
-              <SelectTrigger 
-                id="brand"
-                className="bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large"
+            <Popover open={brandPickerOpen} onOpenChange={setBrandPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  role="combobox"
+                  aria-expanded={brandPickerOpen}
+                  className="w-full justify-between bg-surface-container border border-outline-variant rounded-lg text-left"
+                  id="brand"
+                >
+                  <span className="truncate">
+                    {localFilters.brand === 'all' ? 'All brands' : localFilters.brand}
+                  </span>
+                  <ChevronDown className="w-4 h-4 opacity-60 flex-shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="p-0 w-[calc(100vw-2rem)] sm:w-72"
+                align="start"
               >
-                <SelectValue placeholder="Select brand" />
-              </SelectTrigger>
-              <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="all" className="body-large">All brands</SelectItem>
-                <SelectItem value="Nike" className="body-large">Nike</SelectItem>
-                <SelectItem value="Adidas" className="body-large">Adidas</SelectItem>
-                <SelectItem value="H&M" className="body-large">H&M</SelectItem>
-                <SelectItem value="Zara" className="body-large">Zara</SelectItem>
-                <SelectItem value="Uniqlo" className="body-large">Uniqlo</SelectItem>
-                <SelectItem value="Levi's" className="body-large">Levi's</SelectItem>
-              </SelectContent>
-            </Select>
+                <Command>
+                  <CommandInput placeholder="Search brands..." />
+                  <CommandList>
+                    <CommandEmpty>No brand found.</CommandEmpty>
+                    <CommandGroup heading="Brands">
+                      <CommandItem
+                        value="all"
+                        onSelect={() => {
+                          updateFilter('brand', 'all');
+                          setBrandPickerOpen(false);
+                        }}
+                        className="flex items-center justify-between"
+                      >
+                        <span>All brands</span>
+                        {localFilters.brand === 'all' && <Check className="w-4 h-4 opacity-70" />}
+                      </CommandItem>
+                      {selectableBrands.map((brand) => (
+                        <CommandItem
+                          key={brand}
+                          value={brand.toLowerCase()}
+                          onSelect={() => {
+                            updateFilter('brand', brand);
+                            setBrandPickerOpen(false);
+                          }}
+                          className="flex items-center justify-between"
+                        >
+                          <span>{brand}</span>
+                          {localFilters.brand === brand && <Check className="w-4 h-4 opacity-70" />}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Category Filter */}
@@ -270,14 +319,16 @@ export default function ItemFilterSheet({
         <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
           <Button
             variant="outline"
+            size="lg"
             onClick={handleReset}
-            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large"
+            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg touch-manipulation"
           >
             Reset
           </Button>
           <Button
             onClick={handleApply}
-            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large"
+            size="lg"
+            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg touch-manipulation"
           >
             Apply filters
           </Button>

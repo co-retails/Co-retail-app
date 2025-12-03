@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { ItemCard, BaseItem } from './ItemCard';
 import { Input } from './ui/input';
@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from './ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { AlertCircleIcon } from 'lucide-react';
+import { AlertCircleIcon, Package } from 'lucide-react';
+import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { OrderItem } from './OrderCreationScreen';
 import { getPriceOptionsForCurrency } from '../data/partnerPricing';
 
@@ -23,6 +24,7 @@ export interface ItemDetailsTableItem extends OrderItem {
   fieldErrors?: Record<string, string>; // Field-specific error messages
   date?: string; // Date for display in item cards
   sku?: string; // SKU/partner item ID
+  statusHistory?: StatusHistoryEntry[];
 }
 
 interface ItemDetailsTableProps {
@@ -75,6 +77,56 @@ export function ItemDetailsTable({
   orderStatus,
   isAdmin = false,
 }: ItemDetailsTableProps) {
+  const [mobileDetailsItem, setMobileDetailsItem] = useState<ItemDetailsTableItem | null>(null);
+  const detailFieldMap: Partial<Record<keyof ItemDetails, keyof ItemDetailsTableItem>> = {
+    brand: 'brand',
+    category: 'category',
+    subcategory: 'subcategory',
+    size: 'size',
+    color: 'color',
+    price: 'price',
+    status: 'status',
+    itemId: 'retailerItemId'
+  };
+
+  const mapToItemDetails = (item: ItemDetailsTableItem): ItemDetails => ({
+    id: item.id,
+    itemId: (item.retailerItemId || item.itemId || item.partnerItemId || '') as string,
+    title: (item.partnerItemId || item.itemId || item.brand || 'Item') as string,
+    brand: item.brand || '',
+    category: item.category || '',
+    subcategory: item.subcategory,
+    size: item.size,
+    color: item.color,
+    price: item.price || 0,
+    status: item.status || 'Pending',
+    date: (item.date || new Date().toISOString().split('T')[0]) as string,
+    deliveryId: (item as any).deliveryId,
+    thumbnail: item.imageUrl
+  });
+
+  const handleMobileDetailsSave = (itemId: string, updates: Partial<ItemDetails>) => {
+    if (!mobileDetailsItem) return;
+    const updatedItem = { ...mobileDetailsItem };
+
+    (Object.entries(updates) as [keyof ItemDetails, ItemDetails[keyof ItemDetails]][]).forEach(([key, value]) => {
+      const mappedField = detailFieldMap[key];
+      if (!mappedField || value === undefined) return;
+      (updatedItem as any)[mappedField] = value;
+      onUpdateItem?.(itemId, mappedField, value);
+    });
+
+    setMobileDetailsItem(updatedItem);
+  };
+
+  useEffect(() => {
+    if (!mobileDetailsItem) return;
+    const latest = items.find((item) => item.id === mobileDetailsItem.id);
+    if (latest) {
+      setMobileDetailsItem(latest);
+    }
+  }, [items, mobileDetailsItem?.id]);
+
   // Get price options based on partner, brand, and currency
   // For now, we'll use the first item's brand to determine price options
   // In a real implementation, this might need to be per-item
@@ -118,6 +170,7 @@ export function ItemDetailsTable({
               key={item.id}
               item={baseItem}
               variant="order-details"
+              onClick={() => setMobileDetailsItem(item)}
               showActions={false}
               showSelection={false}
               orderDetailsConfig={{
@@ -213,17 +266,12 @@ export function ItemDetailsTable({
               {/* Image */}
               <td className="px-4 py-3">
                 <div className="w-12 h-12 rounded overflow-hidden bg-surface-container flex items-center justify-center">
-                  {item.imageUrl ? (
-                    <ImageWithFallback
-                      src={item.imageUrl}
-                      alt={`${item.brand} ${item.category}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
-                      <span className="label-small text-on-surface-variant">No Image</span>
-                    </div>
-                  )}
+                  <ImageWithFallback
+                    src={item.imageUrl}
+                    alt={`${item.brand} ${item.category}`}
+                    className="w-full h-full object-cover"
+                    fallback={<Package className="w-5 h-5 text-on-surface-variant/60" />}
+                  />
                 </div>
               </td>
 
@@ -637,6 +685,16 @@ export function ItemDetailsTable({
         </tbody>
       </table>
       </div>
+
+      <ItemDetailsDialog
+        item={mobileDetailsItem ? mapToItemDetails(mobileDetailsItem) : null}
+        isOpen={!!mobileDetailsItem}
+        onClose={() => setMobileDetailsItem(null)}
+        onSave={handleMobileDetailsSave}
+        statusHistory={mobileDetailsItem?.statusHistory}
+        priceOptions={priceOptions}
+        priceCurrency={displayCurrency}
+      />
     </>
   );
 }

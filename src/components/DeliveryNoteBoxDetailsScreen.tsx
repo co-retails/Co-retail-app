@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import BoxLabelSideSheet from './BoxLabelSideSheet';
 
 interface DeliveryNoteBoxDetailsScreenProps {
   box: Box;
@@ -34,6 +35,7 @@ interface DeliveryNoteBoxDetailsScreenProps {
   senderWarehouse?: string;
   isAdmin?: boolean;
   onUnregisterBox?: (boxId: string) => void;
+  onUpdateBoxLabel?: (boxId: string, newLabel: string) => void;
 }
 
 export default function DeliveryNoteBoxDetailsScreen({
@@ -46,16 +48,19 @@ export default function DeliveryNoteBoxDetailsScreen({
   receiverStoreCode,
   senderWarehouse,
   isAdmin = false,
-  onUnregisterBox
+  onUnregisterBox,
+  onUpdateBoxLabel
 }: DeliveryNoteBoxDetailsScreenProps) {
   const [boxItems, setBoxItems] = useState<OrderItem[]>(box.items || []);
   const [scannedItemIds, setScannedItemIds] = useState<Set<string>>(
     new Set(box.items.map(item => item.id))
   );
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
+  const [isLabelSheetOpen, setIsLabelSheetOpen] = useState(false);
 
   // Determine if box is editable (pending/Packing status only - other boxes cannot be edited)
   const isEditable = box.status === 'pending';
+  const isPacking = box.status === 'pending';
   
   // Determine if box is registered/in-transit/delivered/rejected/cancelled (read-only)
   const isReadOnly = box.status === 'registered' || box.status === 'in-transit' || box.status === 'delivered' || box.status === 'rejected' || box.status === 'cancelled';
@@ -143,6 +148,14 @@ export default function DeliveryNoteBoxDetailsScreen({
     toast.success('Box registered successfully');
   };
 
+  const handleContinue = () => {
+    if (boxItems.length === 0) {
+      toast.error('Please add at least one item to the box');
+      return;
+    }
+    setIsLabelSheetOpen(true);
+  };
+
   const handleSaveAndClose = () => {
     onSaveAndClose(box.id, boxItems);
     toast.success('Box saved');
@@ -191,7 +204,7 @@ export default function DeliveryNoteBoxDetailsScreen({
     <div className="min-h-screen bg-surface flex flex-col">
       <SharedHeader
         title="Box details"
-        subtitle={box.qrLabel}
+        subtitle={isPacking ? undefined : box.qrLabel}
         onBack={onBack}
         showBackButton={true}
       />
@@ -218,7 +231,7 @@ export default function DeliveryNoteBoxDetailsScreen({
             <div className="bg-surface border-b border-outline-variant -mx-4 md:-mx-6 z-10 relative">
               <div className="flex">
                 <button
-                  className={`flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${
+                  className={`flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-h-[48px] md:min-h-0 ${
                     activeTab === 'scanned' ? 'text-primary' : 'text-on-surface-variant'
                   }`}
                   onClick={() => setActiveTab('scanned')}
@@ -231,7 +244,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                   )}
                 </button>
                 <button
-                  className={`flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${
+                  className={`flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-h-[48px] md:min-h-0 ${
                     activeTab === 'not-scanned' ? 'text-primary' : 'text-on-surface-variant'
                   }`}
                   onClick={() => setActiveTab('not-scanned')}
@@ -285,7 +298,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                               </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Button variant="ghost" size="icon">
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -347,7 +360,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                               </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Button variant="ghost" size="icon">
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -415,7 +428,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                             </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Button variant="ghost" size="icon">
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -465,13 +478,13 @@ export default function DeliveryNoteBoxDetailsScreen({
                 <span className="label-large">Save & Close</span>
               </Button>
               <Button
-                onClick={handleRegisterBox}
+                onClick={isPacking ? handleContinue : handleRegisterBox}
                 disabled={boxItems.length === 0}
                 className="flex-1 bg-primary text-on-primary"
                 size="lg"
               >
-                <CheckIcon size={20} className="mr-2" />
-                <span className="label-large">Register Box</span>
+                {!isPacking && <CheckIcon size={20} className="mr-2" />}
+                <span className="label-large">{isPacking ? 'Continue' : 'Register Box'}</span>
               </Button>
             </div>
           </div>
@@ -495,6 +508,25 @@ export default function DeliveryNoteBoxDetailsScreen({
             </Button>
           </div>
         </div>
+      )}
+
+      {isPacking && (
+        <BoxLabelSideSheet
+          isOpen={isLabelSheetOpen}
+          onOpenChange={setIsLabelSheetOpen}
+          onSubmit={(label) => {
+            onUpdateBoxLabel?.(box.id, label);
+            onRegisterBox(box.id);
+            setIsLabelSheetOpen(false);
+            onBack();
+          }}
+          onCancel={() => setIsLabelSheetOpen(false)}
+          initialLabel={box.qrLabel?.startsWith('TEMP-') ? '' : box.qrLabel}
+          title="Add Box Label"
+          description="Assign a label before registering this box"
+          primaryActionLabel="Save label"
+          showBackButton
+        />
       )}
     </div>
   );

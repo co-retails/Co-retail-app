@@ -334,6 +334,7 @@ export default function ItemDetailsDialog({
               <div className="flex items-center gap-2">
                 {type === 'select' ? (
                   <Select
+                    modal={false}
                     value={
                       currentValue !== undefined && currentValue !== null
                         ? currentValue.toString()
@@ -444,7 +445,7 @@ export default function ItemDetailsDialog({
                     setShowIdScanner(false);
                     setScannedId('');
                   }}
-                  className="min-h-[48px] min-w-[48px] text-on-surface-variant touch-manipulation"
+                  className="h-12 w-12 text-on-surface-variant touch-manipulation"
                   aria-label="Back"
                 >
                   <ArrowLeft size={20} />
@@ -486,18 +487,20 @@ export default function ItemDetailsDialog({
             <div className="flex gap-3">
               <Button
                 variant="outline"
+                size="lg"
                 onClick={() => {
                   setShowIdScanner(false);
                   setScannedId('');
                 }}
-                className="flex-1 min-h-[48px] touch-manipulation"
+                className="flex-1 touch-manipulation"
               >
                 Cancel
               </Button>
               <Button
+                size="lg"
                 onClick={handleConfirmNewId}
                 disabled={!scannedId.trim()}
-                className="flex-1 min-h-[48px] touch-manipulation"
+                className="flex-1 touch-manipulation"
               >
                 Confirm
               </Button>

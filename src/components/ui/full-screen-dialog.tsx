@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog@1.1.6";
 import { cn } from "./utils";
+import { OverlayPortalProvider } from "./overlay-portal-context";
 
 function FullScreenDialog({
   ...props
@@ -19,7 +20,7 @@ function FullScreenDialogTrigger({
 function FullScreenDialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="full-screen-dialog-portal" {...props} />;
+  return <DialogPrimitive.Portal data-slot="full-screen-dialog-portal" container={document.body} {...props} />;
 }
 
 function FullScreenDialogClose({
@@ -36,7 +37,7 @@ const FullScreenDialogOverlay = React.forwardRef<
     ref={ref}
     data-slot="full-screen-dialog-overlay"
     className={cn(
-      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[110] bg-black/30 md:bg-black/50",
+      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[9999] bg-black/30 md:bg-black/50",
       className,
     )}
     {...props}
@@ -52,6 +53,7 @@ const FullScreenDialogContent = React.forwardRef<
 >(({ className, children, fullWidth, ...props }, ref) => {
   // Detect if we're on desktop
   const [isDesktop, setIsDesktop] = React.useState(false);
+  const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
   
   React.useEffect(() => {
     const checkDesktop = () => {
@@ -141,22 +143,34 @@ const FullScreenDialogContent = React.forwardRef<
   const contentProps = {
     ...props,
     "aria-describedby": ariaDescribedBy || "full-screen-dialog-fallback-description",
-    style: desktopStyle ? { ...props.style, ...desktopStyle } : props.style
+    style: desktopStyle 
+      ? { ...props.style, ...desktopStyle, zIndex: 9999 } 
+      : { ...props.style, zIndex: 9999 }
   };
   
+  const assignRef = React.useCallback((node: React.ElementRef<typeof DialogPrimitive.Content> | null) => {
+    setPortalContainer(node);
+    if (typeof ref === "function") {
+      ref(node);
+    } else if (ref) {
+      (ref as React.MutableRefObject<React.ElementRef<typeof DialogPrimitive.Content> | null>).current = node;
+    }
+  }, [ref]);
+
   return (
     <FullScreenDialogPortal>
       <FullScreenDialogOverlay />
       <DialogPrimitive.Content
-        ref={ref}
+        ref={assignRef}
         data-slot="full-screen-dialog-content"
         className={cn(
-          "bg-surface fixed z-[110]",
+          "bg-surface fixed z-[9999]",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "duration-300",
-          // Mobile: full screen, slide up from bottom
-          !isDesktop && "inset-0 w-full h-full",
+          // Mobile: full screen, slide up from bottom, ensure it covers bottom nav
+          !isDesktop && "inset-0 w-full h-screen max-h-screen",
           !isDesktop && "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          !isDesktop && "bottom-0 top-0 left-0 right-0",
           // Desktop: slide in from right
           isDesktop && "inset-y-0 top-0 bottom-0 right-0 h-full",
           isDesktop && "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
@@ -177,7 +191,9 @@ const FullScreenDialogContent = React.forwardRef<
             Full screen dialog content
           </DialogPrimitive.Description>
         )}
-        {children}
+        <OverlayPortalProvider value={portalContainer}>
+          {children}
+        </OverlayPortalProvider>
       </DialogPrimitive.Content>
     </FullScreenDialogPortal>
   );

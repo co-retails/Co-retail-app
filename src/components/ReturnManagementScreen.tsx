@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User } from 'lucide-react';
-import svgPaths from "../imports/svg-7un8q74kd7";
 import { Partner } from './PartnerSelectionScreen';
 import { ItemCard, BaseItem } from './ItemCard';
 
@@ -20,6 +19,8 @@ export interface ReturnItem {
   selected: boolean;
   canExtend?: boolean;
   scanned?: boolean;
+  daysInStore?: number;
+  lastInStoreAt?: string;
 }
 
 export interface ReturnOrder {
@@ -38,8 +39,29 @@ interface ReturnManagementScreenProps {
   onBack: () => void;
   onCreateReturn: (selectedItems: ReturnItem[]) => void;
   onContinue?: () => void; // New prop for Continue button
-  onUpdateItem: (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan') => void;
+  onUpdateItem: (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan' | 'unscan') => void;
 }
+
+const getFallbackDaysFromId = (id: string) => {
+  if (!id) return 1;
+  const hash = Array.from(id).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return (hash % 45) + 1;
+};
+
+const getDaysInStoreForItem = (item: ReturnItem) => {
+  if (typeof item.daysInStore === 'number' && !Number.isNaN(item.daysInStore)) {
+    return Math.max(0, Math.round(item.daysInStore));
+  }
+  if (item.lastInStoreAt) {
+    const parsed = Date.parse(item.lastInStoreAt);
+    if (!Number.isNaN(parsed)) {
+      const diffInMs = Date.now() - parsed;
+      const diffInDays = Math.max(1, Math.round(diffInMs / (1000 * 60 * 60 * 24)));
+      return diffInDays;
+    }
+  }
+  return getFallbackDaysFromId(item.id);
+};
 
 function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
   return (
@@ -58,11 +80,6 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
         <h1 className="title-large text-on-surface flex-1">
           {title}
         </h1>
-        
-        {/* Trailing icon */}
-        <button className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px]">
-          <MoreVertical className="w-6 h-6 text-on-surface" />
-        </button>
       </div>
     </div>
   );
@@ -220,14 +237,20 @@ function ReturnItemCard({
   item, 
   isScanned, 
   onToggleSelect, 
-  onMoreActions 
+  onScanStatusChange,
+  daysInStore
 }: { 
   item: ReturnItem; 
   isScanned: boolean;
   onToggleSelect: (id: string) => void;
-  onMoreActions: (id: string) => void;
+  onScanStatusChange: (id: string, markAsScanned: boolean) => void;
+  daysInStore: number;
 }) {
   const [showActions, setShowActions] = useState(false);
+  const handleScanToggle = (markAsScanned: boolean) => {
+    onScanStatusChange(item.id, markAsScanned);
+    setShowActions(false);
+  };
 
   // Extended item with missing fields for M3 compliance
   const extendedItem = {
@@ -235,38 +258,24 @@ function ReturnItemCard({
     brand: 'H&M',
     category: 'Clothing',
     price: Math.floor(Math.random() * 50) + 5,
-    date: new Date().toISOString().split('T')[0],
-    daysRemaining: isScanned ? undefined : Math.floor(Math.random() * 10) + 1
+    date: new Date().toISOString().split('T')[0]
   };
 
+  const handleCardClick = () => onToggleSelect(item.id);
+  const moreButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setShowActions((prev) => !prev);
+  };
+  const actionClick = (markAsScanned: boolean) => {
+    handleScanToggle(markAsScanned);
+  };
+  const selectionClasses = item.selected
+    ? 'border-primary bg-primary-container/20 ring-2 ring-primary/60'
+    : 'border-outline-variant';
+
   return (
-    <div className="bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
-      <div className={`flex items-center gap-2 sm:gap-4 px-4 py-3 ${!isScanned ? 'opacity-60' : ''}`}>
-        {/* Leading element - Checkbox */}
-        <button 
-          className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-          onClick={() => onToggleSelect(item.id)}
-          aria-label={item.selected ? 'Deselect item' : 'Select item'}
-        >
-          <div className="relative w-5 h-5">
-            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
-              <path 
-                clipRule="evenodd" 
-                d={item.selected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
-                fill={item.selected ? "var(--primary)" : "var(--outline-variant)"} 
-                fillRule="evenodd" 
-              />
-            </svg>
-            {item.selected && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-            )}
-          </div>
-        </button>
-        
+    <div className={`relative overflow-visible rounded-2xl border bg-surface-container transition-colors ${selectionClasses}`}>
+      <div className="flex items-start gap-3 px-4 py-3">
         {/* Main content using standardized ItemCard */}
         <div className="flex-1 min-w-0 overflow-hidden">
           <ItemCard
@@ -289,47 +298,50 @@ function ReturnItemCard({
             variant="items-list"
             showActions={false}
             showSelection={false}
+            onClick={handleCardClick}
           />
-          {extendedItem.daysRemaining && (
-            <div className="ml-4 mt-1">
-              <span className="label-small text-on-surface-variant">
-                {extendedItem.daysRemaining}d remaining
-              </span>
-            </div>
-          )}
+          <div className="ml-1 mt-2">
+            <span className="label-small text-on-surface-variant">
+              {daysInStore} {daysInStore === 1 ? 'day' : 'days'} in store
+            </span>
+          </div>
         </div>
         
         {/* Trailing element */}
         <button 
           className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-          onClick={() => setShowActions(!showActions)}
+          onClick={moreButtonClick}
           aria-label="More actions"
         >
           <MoreVertical className="w-5 h-5 text-on-surface-variant" />
         </button>
       </div>
 
-      {/* Action buttons */}
+      {/* Action menu */}
       {showActions && (
-        <div className="flex gap-2 px-4 pb-3">
-          {item.canExtend && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onMoreActions(item.id)}
-              className="bg-tertiary-container text-on-tertiary-container border-0 hover:bg-tertiary-container/80 focus:bg-tertiary-container/80 active:bg-tertiary-container/60 transition-colors px-3 py-2 rounded-[16px] min-h-[48px] md:min-h-[32px] touch-manipulation"
+        <div className="absolute right-4 top-16 z-20 w-60 rounded-2xl border border-outline bg-surface shadow-xl">
+          <div role="menu" className="flex flex-col py-1">
+            <button
+              className="flex w-full items-center justify-between px-4 py-3 text-left label-medium text-on-surface hover:bg-surface-container-high disabled:text-on-surface-variant/60"
+              disabled={isScanned}
+              onClick={(event) => {
+                event.stopPropagation();
+                actionClick(true);
+              }}
             >
-              2nd Try
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onMoreActions(item.id)}
-            className="border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-3 py-2 rounded-[16px] min-h-[48px] md:min-h-[32px] touch-manipulation"
-          >
-            Missing
-          </Button>
+              Mark as Scanned
+            </button>
+            <button
+              className="flex w-full items-center justify-between px-4 py-3 text-left label-medium text-on-surface hover:bg-surface-container-high disabled:text-on-surface-variant/60"
+              disabled={!isScanned}
+              onClick={(event) => {
+                event.stopPropagation();
+                actionClick(false);
+              }}
+            >
+              Mark as Not scanned
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -374,24 +386,25 @@ function ItemsList({
   items, 
   isScanned, 
   onToggleSelect, 
-  onMoreActions 
+  onScanStatusChange 
 }: {
   items: ReturnItem[];
   isScanned: boolean;
   onToggleSelect: (id: string) => void;
-  onMoreActions: (id: string) => void;
+  onScanStatusChange: (id: string, markAsScanned: boolean) => void;
 }) {
   if (items.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-2">
       {items.map((item) => (
-        <div key={item.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
+        <div key={item.id}>
           <ReturnItemCard 
             item={item} 
             isScanned={isScanned}
             onToggleSelect={onToggleSelect}
-            onMoreActions={onMoreActions}
+            onScanStatusChange={onScanStatusChange}
+            daysInStore={getDaysInStoreForItem(item)}
           />
         </div>
       ))}
@@ -412,8 +425,8 @@ function BottomActions({
   hasSelectedItems: boolean;
   hasScannedItems: boolean;
 }) {
-  // Show Continue button if there are scanned items and onContinue is provided
-  const showContinue = hasScannedItems && onContinue;
+  // Show Continue button whenever onContinue is provided
+  const showContinue = Boolean(onContinue);
   
   return (
     <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4">
@@ -421,7 +434,7 @@ function BottomActions({
         <Button 
           variant="outline"
           onClick={onSaveAndClose}
-          className="flex-1 border-outline text-on-surface hover:bg-surface-container-high min-h-[48px] md:min-h-0 touch-manipulation"
+          className="flex-1 border-outline text-on-surface hover:bg-surface-container-high min-h-[64px] md:min-h-[56px] touch-manipulation"
         >
           Save & close
         </Button>
@@ -429,7 +442,7 @@ function BottomActions({
           <Button 
             onClick={onContinue}
             disabled={!hasScannedItems}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[48px] md:min-h-0 touch-manipulation"
+            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[64px] md:min-h-[56px] touch-manipulation"
           >
             Continue
           </Button>
@@ -437,7 +450,7 @@ function BottomActions({
           <Button 
             onClick={onCreateReturn}
             disabled={!hasSelectedItems}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[48px] md:min-h-0 touch-manipulation"
+            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[64px] md:min-h-[56px] touch-manipulation"
           >
             Return
           </Button>
@@ -499,14 +512,15 @@ export default function ReturnManagementScreen({
     }
   };
 
-  const handleMoreActions = (itemId: string) => {
-    const item = items.find(i => i.id === itemId);
-    if (item) {
-      if (item.canExtend) {
-        onUpdateItem(itemId, 'extend');
-      } else {
-        onUpdateItem(itemId, 'missing');
-      }
+  const handleScanStatusChange = (itemId: string, markAsScanned: boolean) => {
+    if (markAsScanned) {
+      onUpdateItem(itemId, 'scan');
+      onUpdateItem(itemId, 'select');
+      setActiveTab('scanned');
+    } else {
+      onUpdateItem(itemId, 'unscan');
+      onUpdateItem(itemId, 'deselect');
+      setActiveTab('unscanned');
     }
   };
 
@@ -568,7 +582,7 @@ export default function ReturnManagementScreen({
                 items={currentItems}
                 isScanned={activeTab === 'scanned'}
                 onToggleSelect={handleToggleSelect}
-                onMoreActions={handleMoreActions}
+                onScanStatusChange={handleScanStatusChange}
               />
             </div>
           ) : (

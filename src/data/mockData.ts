@@ -1241,7 +1241,7 @@ export const mockReturnDeliveries: ReturnDelivery[] = [
   {
     id: 'RET-002',
     date: '2024-12-09',
-    status: 'In transit',
+    status: 'Returned',
     deliveryId: 'RET-002-20241209',
     items: 30,
     boxes: 1,
@@ -2441,7 +2441,7 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
   },
   {
     id: 'THR-ORD-2024-002',
-    status: 'registered',
+    status: 'delivered',
     createdDate: '2024-12-10',
     itemCount: 48,
     boxCount: 2,

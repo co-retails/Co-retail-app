@@ -887,8 +887,8 @@ export default function ThriftedOrderCreationScreen({
 
       {/* Fixed Bottom Actions (only on items step) */}
       {step === 'items' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline px-4 md:px-6 lg:px-8 py-4 safe-area-bottom z-10">
-          <div>
+        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline px-4 md:px-6 lg:px-8 py-4 safe-area-bottom z-50">
+          <div className="max-w-screen-xl mx-auto">
             {/* Validation Summary */}
             {orderItems.length > 0 && (
               <div className="mb-3 flex items-center justify-center gap-2">
@@ -910,7 +910,8 @@ export default function ThriftedOrderCreationScreen({
               </div>
             )}
             
-            <div className="flex gap-3">
+            {/* Mobile: Full width evenly spaced buttons */}
+            <div className="flex gap-3 md:hidden">
               <Button
                 variant="outline"
                 size="lg"
@@ -941,6 +942,42 @@ export default function ThriftedOrderCreationScreen({
                   <span className="label-large">Create</span>
                 </Button>
               )}
+            </div>
+
+            {/* Desktop: Right-aligned buttons with max width */}
+            <div className="hidden md:flex justify-end">
+              <div className="flex gap-3 max-w-md w-full">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={onBack}
+                  className="flex-1"
+                >
+                  <span className="label-large">Cancel</span>
+                </Button>
+                
+                {isEditing ? (
+                  <Button
+                    onClick={() => storeSelection && onCreateOrder(orderItems, storeSelection, false)}
+                    disabled={!canCreateOrder}
+                    size="lg"
+                    className="flex-1 bg-primary text-on-primary"
+                  >
+                    <CheckIcon size={20} className="mr-2" />
+                    <span className="label-large">Save Changes</span>
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => storeSelection && onCreateOrder(orderItems, storeSelection, false)}
+                    disabled={!canCreateOrder}
+                    size="lg"
+                    className="flex-1 bg-primary text-on-primary"
+                  >
+                    <CheckIcon size={20} className="mr-2" />
+                    <span className="label-large">Create</span>
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>

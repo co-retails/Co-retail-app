@@ -25,7 +25,7 @@ interface ReturnBuilderScreenProps {
   items: ReturnItem[];
   onBack: () => void;
   onCreateReturn: (selectedItems: ReturnItem[]) => void;
-  onUpdateItem: (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan') => void;
+  onUpdateItem: (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan' | 'unscan') => void;
 }
 
 function Header({ onBack }: { onBack: () => void }) {
@@ -173,7 +173,7 @@ function ReturnItemComponent({ item, onUpdateItem }: { item: ReturnItem; onUpdat
               <div className="flex-shrink-0 flex items-center gap-1">
                 {/* More Actions */}
                 <button 
-                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors"
+                  className="w-12 h-12 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors touch-manipulation min-h-[48px] min-w-[48px] md:min-h-0 md:min-w-0"
                   onClick={() => setShowActions(!showActions)}
                   aria-label="More actions"
                 >
@@ -348,28 +348,26 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
 
       {/* Scan Button */}
       <button 
-        className={`absolute bg-primary h-[32px] rounded-lg translate-x-[-50%] translate-y-[-50%] cursor-pointer ${
+        className={`absolute bg-primary h-[56px] min-h-[48px] rounded-xl px-6 translate-x-[-50%] translate-y-[-50%] cursor-pointer touch-manipulation ${
           isScanning ? 'opacity-50' : 'hover:bg-primary/90 transition-colors'
         }`}
         style={{ top: "181px", left: "320px" }}
         onClick={handleScan}
         disabled={isScanning}
       >
-        <div className="flex flex-row items-center justify-center relative size-full">
-          <div className="flex items-center justify-center h-10 px-6 relative">
-            <div className="label-medium text-on-primary text-center text-nowrap relative shrink-0 uppercase">
-              <p>{isScanning ? 'Scanning...' : 'Scan'}</p>
-            </div>
-          </div>
+        <div className="flex items-center justify-center h-full w-full">
+          <span className="label-medium text-on-primary text-center uppercase">
+            {isScanning ? 'Scanning...' : 'Scan'}
+          </span>
         </div>
       </button>
 
       {/* Add Manually Button */}
       <button 
-        className="absolute label-medium text-primary text-center h-[20px] justify-center left-[194px] top-[181px] translate-x-[-50%] translate-y-[-50%] uppercase w-[108px] cursor-pointer hover:bg-primary-container/50 transition-colors rounded px-2"
+        className="absolute flex items-center justify-center h-12 min-h-[48px] px-4 left-[194px] top-[181px] translate-x-[-50%] translate-y-[-50%] uppercase cursor-pointer rounded-lg border border-primary text-primary label-medium bg-surface touch-manipulation hover:bg-primary-container/50"
         onClick={() => setShowManualAdd(!showManualAdd)}
       >
-        <p className="text-[11px] whitespace-nowrap">Add manually</p>
+        <span className="text-sm whitespace-nowrap tracking-wide">Add manually</span>
       </button>
 
       {/* Manual Add Form */}
@@ -393,13 +391,13 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
             </div>
             <div className="flex gap-[8px] justify-end">
               <button
-                className="px-[16px] py-[6px] border border-outline rounded-sm label-medium text-on-surface hover:bg-surface-container-highest transition-colors"
+                className="px-[20px] py-3 border border-outline rounded-lg label-medium text-on-surface hover:bg-surface-container-highest transition-colors min-h-[48px] touch-manipulation"
                 onClick={() => setShowManualAdd(false)}
               >
                 Cancel
               </button>
               <button
-                className="px-[16px] py-[6px] bg-primary rounded-sm label-medium text-on-primary hover:bg-primary/90 transition-colors"
+                className="px-[20px] py-3 bg-primary rounded-lg label-medium text-on-primary hover:bg-primary/90 transition-colors min-h-[48px] touch-manipulation"
                 onClick={handleManualAdd}
               >
                 Add
@@ -457,7 +455,7 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
       <div className="absolute bg-surface bottom-0 box-border content-stretch flex gap-[16px] items-center justify-center left-0 px-0 py-[20px] w-[375px]">
         <div className="absolute border-outline-variant border-[1px_0px_0px] border-solid inset-0 pointer-events-none" />
         
-        <button className="bg-surface cursor-pointer h-[48px] md:h-[42px] relative rounded-lg shrink-0 w-[160px] border border-outline hover:bg-surface-container-high transition-colors min-h-[48px] md:min-h-0">
+        <button className="bg-surface cursor-pointer h-[48px] md:h-[42px] relative rounded-lg shrink-0 w-[160px] border border-outline hover:bg-surface-container-high transition-colors min-h-[48px] md:min-h-0 touch-manipulation">
           <div className="flex flex-row items-center justify-center relative size-full">
             <div className="box-border content-stretch flex gap-[15px] h-[42px] items-center justify-center p-[30px] relative w-[160px]">
               <div className="label-large text-on-surface text-center text-nowrap relative shrink-0 uppercase">
@@ -468,7 +466,7 @@ export default function ReturnBuilderScreen({ partner, items, onBack, onCreateRe
         </button>
         
         <button
-          className={`bg-primary cursor-pointer h-[48px] md:h-[42px] relative rounded-lg shrink-0 w-[160px] min-h-[48px] md:min-h-0 ${
+          className={`bg-primary cursor-pointer h-[48px] md:h-[42px] relative rounded-lg shrink-0 w-[160px] min-h-[48px] md:min-h-0 touch-manipulation ${
             !canCreateReturn ? 'opacity-50' : 'hover:bg-primary/90 transition-colors'
           }`}
           onClick={canCreateReturn ? handleCreateReturn : undefined}

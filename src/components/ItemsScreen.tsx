@@ -67,6 +67,13 @@ export interface Item extends BaseItem {
   lastInStoreAt?: string;
 }
 
+const STORE_HIDDEN_STATUSES: ReadonlyArray<Item['status']> = [
+  'In transit',
+  'Return - In transit'
+] as const;
+
+const STORE_HIDDEN_STATUS_SET = new Set<Item['status']>(STORE_HIDDEN_STATUSES);
+
 interface ItemsScreenProps {
   onBack: () => void;
   onNavigateToHome?: () => void;
@@ -142,7 +149,6 @@ function QuickFilterChips({
     { id: 'return-in-transit', label: 'Return in transit', count: itemCounts.returnInTransit }
   ] : [
     { id: 'all', label: 'All', count: itemCounts.all },
-    { id: 'pending', label: 'To receive', count: itemCounts.pending },
     { id: 'in-store', label: 'In Store', count: itemCounts.inStore },
     { id: 'expired', label: 'To return', count: itemCounts.expired }
   ];
@@ -376,12 +382,14 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
         <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
           <Button 
             variant="outline" 
+            size="lg"
             onClick={onClose}
             className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large touch-manipulation"
           >
             Cancel
           </Button>
           <Button 
+            size="lg"
             onClick={handleSave}
             className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
           >
@@ -612,6 +620,12 @@ export default function ItemsScreen({
   // Check if we're in partner portal mode - only show filter if viewFilter/onViewFilterChange are provided
   // These props are only provided for partner portal, not for store app
   const isPartnerPortal = !!(externalViewFilter && externalOnViewFilterChange);
+
+  useEffect(() => {
+    if (!isPartnerPortal && quickFilter === 'pending') {
+      setQuickFilter('all');
+    }
+  }, [isPartnerPortal, quickFilter]);
 
   const [items, setItems] = useState<Item[]>([
     {
@@ -1176,6 +1190,9 @@ export default function ItemsScreen({
   // Apply all filters and search
   const filteredItems = useMemo(() => {
     return items.filter(item => {
+      if (!isPartnerPortal && item.status && STORE_HIDDEN_STATUS_SET.has(item.status)) {
+        return false;
+      }
       // Partner filter: if in partner portal, only show items from selected partner
       const matchesPartner = !currentPartnerName || !item.sellerName || item.sellerName === currentPartnerName;
       
@@ -1207,7 +1224,6 @@ export default function ItemsScreen({
       } else {
         // Store app filters
         matchesQuickFilter = 
-          (quickFilter === 'pending' && (item.status === 'In transit' || item.status === 'Return - In transit')) ||
           (quickFilter === 'in-store' && (
             item.status === 'In Store' || 
             item.status === 'In Store 2nd try' ||
@@ -1261,7 +1277,8 @@ export default function ItemsScreen({
     // Filter items only by partner (for partner portal) to get base count
     const baseItems = items.filter(item => {
       const matchesPartner = !currentPartnerName || !item.sellerName || item.sellerName === currentPartnerName;
-      return matchesPartner;
+      const visibleInStore = isPartnerPortal || !item.status || !STORE_HIDDEN_STATUS_SET.has(item.status);
+      return matchesPartner && visibleInStore;
     });
 
     if (isPartnerPortal) {
@@ -1285,10 +1302,6 @@ export default function ItemsScreen({
       // Store app filter counts - need to count all items in their proper categories
       return {
         all: baseItems.length,
-        pending: baseItems.filter(item => 
-          item.status === 'In transit' || 
-          item.status === 'Return - In transit'
-        ).length,
         inStore: baseItems.filter(item => 
           item.status === 'In Store' || 
           item.status === 'In Store 2nd try' ||
@@ -1308,6 +1321,21 @@ export default function ItemsScreen({
       };
     }
   }, [items, isPartnerPortal, currentPartnerName]);
+
+  const availableBrandOptions = useMemo(() => {
+    const brandSet = new Set<string>();
+    (brands ?? []).forEach(brandRecord => {
+      if (brandRecord?.name) {
+        brandSet.add(brandRecord.name);
+      }
+    });
+    items.forEach(item => {
+      if (item.brand) {
+        brandSet.add(item.brand);
+      }
+    });
+    return Array.from(brandSet).sort((a, b) => a.localeCompare(b));
+  }, [brands, items]);
 
   useEffect(() => {
     const handleDeliveryRegistered = (event: Event) => {
@@ -1942,6 +1970,7 @@ export default function ItemsScreen({
         filters={itemFilters}
         onApplyFilters={setItemFilters}
         onResetFilters={handleClearAllFilters}
+        brandOptions={availableBrandOptions}
       />
       
       {/* Bulk Edit Modal */}

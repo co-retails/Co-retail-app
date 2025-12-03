@@ -98,6 +98,12 @@ export const ItemCard = memo(function ItemCard({
   showExternalIdOnly = false,
   showBothIds = false
 }: ItemCardProps) {
+  const thumbnailSrc = (item.image as string | undefined) || item.thumbnail || undefined;
+  const renderThumbnailFallback = (variant: 'card' | 'list') => (
+    <Package
+      className={`${variant === 'card' ? 'w-6 h-6' : 'w-5 h-5'} text-on-surface-variant/60`}
+    />
+  );
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
   const normalizeTimestamp = (value: string) => {
     if (value.includes('T')) return value;
@@ -252,7 +258,7 @@ export const ItemCard = memo(function ItemCard({
               ? { text: 'Ready', color: 'text-success' }
               : { text: 'Pending', color: 'text-on-surface-variant' };
           case 'registered':
-            return { text: 'Registered', color: 'text-success' };
+            return { text: 'Ready for Packaging', color: 'text-tertiary' };
           case 'in-transit':
             return { text: 'In Transit', color: 'text-primary' };
           case 'delivered':
@@ -299,32 +305,27 @@ export const ItemCard = memo(function ItemCard({
       ? errorMessages
       : item.errors;
 
-    return (
+  const handlePrimaryAction = onClick || onEdit;
+
+  return (
       <div className="w-full bg-surface-container hover:bg-surface-container-high border border-outline-variant rounded-lg transition-colors">
         {/* M3 Three-line List Item - Mobile Layout */}
         <button 
           className="w-full flex items-center gap-4 p-4 text-left md:hidden"
-          onClick={() => onEdit?.(item)}
-          aria-label="Edit item"
+        onClick={() => handlePrimaryAction?.(item)}
+        aria-label="View item details"
         >
           {/* Status Indicator */}
 
           
           {/* Thumbnail */}
           <div className="flex-shrink-0 w-14 h-14 bg-surface-container rounded-xl overflow-hidden">
-            {item.image || item.thumbnail ? (
-              <ImageWithFallback 
-                src={item.image || item.thumbnail || ''} 
-                alt={item.title || item.brand}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-surface-variant flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="var(--on-surface-variant)" strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Z" />
-                </svg>
-              </div>
-            )}
+            <ImageWithFallback 
+              src={thumbnailSrc}
+              alt={item.title || item.brand}
+              className="w-full h-full object-cover"
+              fallback={renderThumbnailFallback('card')}
+            />
           </div>
           
           {/* Main Content */}
@@ -523,17 +524,12 @@ export const ItemCard = memo(function ItemCard({
         
         {/* Thumbnail */}
         <div className="flex-shrink-0 w-12 h-[68px] bg-[rgba(0,0,0,0.08)] rounded flex items-center justify-center overflow-hidden">
-          {item.image || item.thumbnail ? (
-            <ImageWithFallback 
-              src={item.image || item.thumbnail || ''} 
-              alt={item.title || item.brand}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 20 20" stroke="var(--on-surface)" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-              <path d={svgPathsNew.p22bc0080} />
-            </svg>
-          )}
+          <ImageWithFallback 
+            src={thumbnailSrc}
+            alt={item.title || item.brand}
+            className="w-full h-full object-cover"
+            fallback={renderThumbnailFallback('list')}
+          />
         </div>
         
         {/* Main Content */}

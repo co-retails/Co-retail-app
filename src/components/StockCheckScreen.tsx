@@ -698,12 +698,12 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
       {/* Fixed Bottom Action Bar */}
       {scannedItems.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 md:py-6 z-20">
-          <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-3 md:gap-4 md:justify-end">
+          <div className="w-full max-w-6xl mx-auto flex flex-row flex-wrap gap-3 md:gap-4 justify-end">
             {/* Save & Close Button - full width on mobile, auto on desktop */}
             <Button 
               onClick={handleSaveAndClose}
               variant="outline"
-              className="w-full md:w-auto bg-surface border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-8 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
+              className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-surface border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-8 py-3 rounded-lg flex items-center justify-center label-large"
             >
               <Save className="w-5 h-5 mr-2" />
               Save & Close
@@ -712,7 +712,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
             <Button 
               onClick={handleComplete}
               disabled={!canComplete}
-              className="w-full md:w-auto bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-8 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
+              className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-8 py-3 rounded-lg flex items-center justify-center label-large"
             >
               Generate Report
             </Button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
@@ -11,7 +11,8 @@ import {
   PackageIcon, 
   ScanIcon,
   CheckIcon,
-  MoreVertical
+  MoreVertical,
+  ArrowLeft
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
@@ -76,12 +77,27 @@ export default function BoxDetailsSideSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col p-0 max-h-screen w-full sm:max-w-full">
+      <SheetContent
+        side="right"
+        className="flex flex-col p-0 max-h-screen w-full sm:max-w-full [&_[data-slot=sheet-close]]:hidden"
+      >
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-outline-variant flex-shrink-0">
-          <SheetTitle className="title-large">Add Items to Box</SheetTitle>
-          <SheetDescription className="body-medium">
-            Scan items or mark items as scanned to add them to the box
-          </SheetDescription>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onOpenChange(false)}
+              className="text-on-surface-variant"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="text-left">
+              <SheetTitle className="title-large">Add Items to Box</SheetTitle>
+              <SheetDescription className="body-medium">
+                Scan items or mark items as scanned to add them to the box
+              </SheetDescription>
+            </div>
+          </div>
         </SheetHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -102,10 +118,16 @@ export default function BoxDetailsSideSheet({
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'scanned' | 'not-scanned')} className="flex-1 flex flex-col min-h-0">
               <div className="flex-shrink-0 px-6 pt-4 border-b border-outline-variant bg-surface z-10">
                 <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0">
-                  <TabsTrigger value="scanned" className="rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
+                  <TabsTrigger
+                    value="scanned"
+                    className="relative rounded-lg px-4 py-3 text-on-surface-variant data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container data-[state=active]:after:absolute data-[state=active]:after:content-[''] data-[state=active]:after:bottom-1 data-[state=active]:after:left-4 data-[state=active]:after:right-4 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary"
+                  >
                     Scanned ({scannedItems.length})
                   </TabsTrigger>
-                  <TabsTrigger value="not-scanned" className="rounded-lg data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container">
+                  <TabsTrigger
+                    value="not-scanned"
+                    className="relative rounded-lg px-4 py-3 text-on-surface-variant data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container data-[state=active]:after:absolute data-[state=active]:after:content-[''] data-[state=active]:after:bottom-1 data-[state=active]:after:left-4 data-[state=active]:after:right-4 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary"
+                  >
                     Not Scanned ({notScannedItems.length})
                   </TabsTrigger>
                 </TabsList>
@@ -181,7 +203,7 @@ export default function BoxDetailsSideSheet({
                               </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Button variant="ghost" size="icon">
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -211,11 +233,11 @@ export default function BoxDetailsSideSheet({
 
         {/* Footer Actions */}
         <div className="border-t border-outline-variant px-6 py-4 flex-shrink-0">
-          <div className="flex flex-row gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Button
               variant="outline"
               onClick={onSaveAndClose}
-              className="flex-1"
+              className="h-[56px]"
               size="lg"
             >
               <span className="label-large">Save & Close</span>
@@ -223,7 +245,7 @@ export default function BoxDetailsSideSheet({
             <Button
               onClick={onContinue}
               disabled={scannedItems.length === 0}
-              className="flex-1 bg-primary text-on-primary"
+              className="h-[56px] bg-primary text-on-primary"
               size="lg"
             >
               <span className="label-large">Continue</span>

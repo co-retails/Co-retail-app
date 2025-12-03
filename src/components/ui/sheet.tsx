@@ -5,6 +5,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog@1.1.6";
 import { XIcon } from "lucide-react@0.487.0";
 
 import { cn } from "./utils";
+import { OverlayPortalProvider } from "./overlay-portal-context";
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -56,6 +57,7 @@ const SheetContent = React.forwardRef<
 >(({ className, children, side = "right", ...props }, ref) => {
   // On desktop (md and up), force all sheets to slide from right
   const [isDesktop, setIsDesktop] = React.useState(false);
+  const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
   
   React.useEffect(() => {
     const checkDesktop = () => {
@@ -130,11 +132,20 @@ const SheetContent = React.forwardRef<
     style: desktopStyle ? { ...props.style, ...desktopStyle } : props.style
   };
 
+  const assignRef = React.useCallback((node: React.ElementRef<typeof SheetPrimitive.Content> | null) => {
+    setPortalContainer(node);
+    if (typeof ref === "function") {
+      ref(node);
+    } else if (ref) {
+      (ref as React.MutableRefObject<React.ElementRef<typeof SheetPrimitive.Content> | null>).current = node;
+    }
+  }, [ref]);
+
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
-        ref={ref}
+        ref={assignRef}
         data-slot="sheet-content"
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
@@ -151,13 +162,18 @@ const SheetContent = React.forwardRef<
         )}
         {...contentProps}
       >
-        {children}
+        <OverlayPortalProvider value={portalContainer}>
+          {children}
+        </OverlayPortalProvider>
         {shouldShowFallback && (
           <span id="sheet-fallback-description" className="sr-only">
             Sheet dialog content
           </span>
         )}
-        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+        <SheetPrimitive.Close
+          data-slot="sheet-close"
+          className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none"
+        >
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>

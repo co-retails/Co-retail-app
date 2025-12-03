@@ -62,7 +62,7 @@ export default function TopNavigationBar({
                     onClick={destination.onClick}
                   >
                     <span className="label-large whitespace-nowrap">
-                      {destination.label}
+                      {destination.desktopLabel || destination.label}
                     </span>
                     
                     {/* Active Indicator - positioned at bottom of navigation bar */}

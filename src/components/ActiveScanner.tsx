@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface ActiveScannerProps {
   onScan: () => void;
@@ -7,6 +7,7 @@ interface ActiveScannerProps {
   isScanning?: boolean;
   showManualEntry?: boolean;
   onClose?: () => void;
+  showBackButton?: boolean;
 }
 
 export default function ActiveScanner({ 
@@ -14,7 +15,8 @@ export default function ActiveScanner({
   onManualEntry, 
   isScanning = false,
   showManualEntry: showManualEntryProp = true,
-  onClose 
+  onClose,
+  showBackButton = false
 }: ActiveScannerProps) {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualItemId, setManualItemId] = useState('');
@@ -35,15 +37,15 @@ export default function ActiveScanner({
 
   return (
     <div className="bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden mx-4 relative h-full">
-      {/* Close button */}
-      {onClose && (
-        <div className="absolute top-4 right-4 z-30">
+      {/* Back button */}
+      {showBackButton && onClose && (
+        <div className="absolute top-4 left-4 z-30">
           <button
             onClick={onClose}
-            className="w-10 h-10 bg-surface border border-outline rounded-full flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors shadow-md"
-            aria-label="Close scanner"
+            className="w-12 h-12 md:w-10 md:h-10 min-h-[48px] min-w-[48px] md:min-h-0 md:min-w-0 bg-surface border border-outline rounded-full flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors shadow-md touch-manipulation"
+            aria-label="Go back"
           >
-            <X className="w-5 h-5 text-on-surface" />
+            <ArrowLeft className="w-5 h-5 text-on-surface" />
           </button>
         </div>
       )}
@@ -61,8 +63,8 @@ export default function ActiveScanner({
         
         {/* Active Scanning overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <button 
-            className="w-48 h-48 border-2 border-primary rounded-lg relative hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 transition-colors cursor-pointer"
+            <button 
+              className="w-48 h-48 border-2 border-primary rounded-lg relative hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 transition-colors cursor-pointer touch-manipulation"
             onClick={onScan}
             disabled={isScanning}
             aria-label="Tap to scan"
@@ -102,7 +104,7 @@ export default function ActiveScanner({
         <div className="p-4 border-t border-outline-variant bg-surface">
           {!showManualEntry ? (
             <button 
-              className="w-full text-primary hover:bg-primary-container/10 focus:bg-primary-container/10 active:bg-primary-container/20 transition-colors py-2 rounded-md label-medium"
+              className="w-full text-primary hover:bg-primary-container/10 focus:bg-primary-container/10 active:bg-primary-container/20 transition-colors py-3 rounded-md label-medium min-h-[48px] touch-manipulation"
               onClick={() => setShowManualEntry(true)}
             >
               Add box label manually
@@ -123,17 +125,17 @@ export default function ActiveScanner({
                 className="w-full px-3 py-2 bg-surface-container border border-outline-variant rounded-md focus:border-primary focus:outline-none text-on-surface body-large"
                 autoFocus
               />
-              <div className="flex gap-2">
+              <div className="flex flex-row flex-wrap gap-2">
                 <button
                   onClick={() => setShowManualEntry(false)}
-                  className="flex-1 border border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-4 py-2 rounded-lg min-h-[48px] label-large"
+                  className="flex-1 min-w-[180px] border border-outline text-on-surface hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-4 py-3 rounded-lg h-[56px] label-large touch-manipulation"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleManualSubmit}
                   disabled={!manualItemId.trim()}
-                  className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors disabled:opacity-38 disabled:cursor-not-allowed px-4 py-2 rounded-lg min-h-[48px] label-large"
+                  className="flex-1 min-w-[180px] bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors disabled:opacity-38 disabled:cursor-not-allowed px-4 py-3 rounded-lg h-[56px] label-large touch-manipulation"
                 >
                   Add box
                 </button>

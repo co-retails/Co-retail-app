@@ -580,16 +580,16 @@ export default function ProductEditScreen({
 
       {/* Bottom Actions */}
       <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 md:px-6">
-        <div className="max-w-4xl mx-auto flex gap-3">
+        <div className="max-w-4xl mx-auto flex flex-row flex-wrap gap-3 justify-end">
           <Button
             variant="outline"
-            className="flex-1"
+            className="flex-1 md:flex-none min-w-[220px] h-[56px]"
             onClick={onBack}
           >
             Cancel
           </Button>
           <Button
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90"
+            className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-primary text-on-primary hover:bg-primary/90"
             onClick={handleSave}
           >
             <Save className="w-4 h-4 mr-2" />

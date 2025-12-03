@@ -356,6 +356,7 @@ export default function OrderDetailsScreen({
                                 <ItemCard
                                   item={baseItem}
                                   variant="order-details"
+                                  onClick={() => handleEditItem(item)}
                                   onEdit={() => handleEditItem(item)}
                                   showActions={true}
                                   showSelection={false}
@@ -417,6 +418,7 @@ export default function OrderDetailsScreen({
                                 <ItemCard
                                   item={baseItem}
                                   variant="order-details"
+                                  onClick={() => handleEditItem(item)}
                                   onEdit={() => handleEditItem(item)}
                                   showActions={true}
                                   showSelection={false}
@@ -641,12 +643,12 @@ export default function OrderDetailsScreen({
 
         {/* Action Buttons - Fixed at Bottom */}
         {orderItems.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant px-4 md:px-6 py-4 z-20 md:pl-24 flex flex-col md:flex-row gap-3 md:justify-end">
+          <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant px-4 md:px-6 py-4 z-20 md:pl-24 flex flex-row flex-wrap gap-3 justify-end">
             {/* Pending status: Add item IDs */}
             {order.status === 'pending' && canAddRetailerIds && (
               <Button 
                 onClick={handleStartScanning} 
-                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg min-h-[48px] px-6" 
+                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[56px] h-[56px] flex-1 md:flex-none" 
                 size="lg"
               >
                 <QrCodeIcon size={20} className="mr-2 flex-shrink-0" />
@@ -658,7 +660,7 @@ export default function OrderDetailsScreen({
             {canRegister && (
               <Button 
                 onClick={onRegisterOrder} 
-                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg min-h-[48px] px-6" 
+                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[56px] h-[56px] flex-1 md:flex-none" 
                 size="lg"
               >
                 <CheckIcon size={20} className="mr-2 flex-shrink-0" />
@@ -670,7 +672,7 @@ export default function OrderDetailsScreen({
             {order.status === 'registered' && onCreateDeliveryNote && (
               <Button 
                 onClick={() => onCreateDeliveryNote(orderId)} 
-                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg min-h-[48px] px-6" 
+                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[56px] h-[56px] flex-1 md:flex-none" 
                 size="lg"
               >
                 <PackageIcon size={20} className="mr-2 flex-shrink-0" />
@@ -1051,7 +1053,7 @@ export default function OrderDetailsScreen({
                 <Button 
                   onClick={() => {
                     handleCloseScanDialog();
-                    onRegisterOrder();
+                    onRegisterOrder?.();
                   }}
                   className="flex-1"
                 >

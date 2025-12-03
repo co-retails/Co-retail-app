@@ -526,18 +526,18 @@ export default function BoxManagementScreen({
 
       {/* Sticky Bottom Actions */}
       <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4">
-        <div className="flex gap-3 max-w-md mx-auto">
+        <div className="flex flex-row flex-wrap gap-3 justify-end max-w-2xl mx-auto">
           <Button
             onClick={onBack}
             variant="outline"
-            className="flex-1 border-outline text-on-surface rounded-full"
+            className="flex-1 md:flex-none min-w-[220px] h-[56px] border-outline text-on-surface rounded-lg"
           >
             Cancel
           </Button>
           <Button
             onClick={handleCreateDeliveryNote}
             disabled={registeredBoxes.length === 0}
-            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-primary hover:bg-primary/90 text-on-primary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <TruckIcon size={16} className="mr-2" />
             Register delivery note
@@ -609,20 +609,20 @@ export default function BoxManagementScreen({
               </p>
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex flex-row flex-wrap gap-3">
               <Button
                 onClick={() => {
                   setShowBoxLabelScanDialog(false);
                   setScannedBoxLabel('');
                 }}
                 variant="outline"
-                className="flex-1 border-outline text-on-surface rounded-full"
+                className="flex-1 md:flex-none min-w-[200px] h-[56px] border-outline text-on-surface rounded-lg"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCreateBoxWithLabel}
-                className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-full"
+                className="flex-1 md:flex-none min-w-[200px] h-[56px] bg-primary hover:bg-primary/90 text-on-primary rounded-lg"
               >
                 Add box
               </Button>
@@ -735,7 +735,7 @@ export default function BoxManagementScreen({
 
                 <Card>
                   <CardContent className="p-4">
-                    <div className="flex gap-3">
+                  <div className="flex gap-3">
                       <Input
                         value={scannedRetailerId}
                         onChange={(e) => setScannedRetailerId(e.target.value)}
@@ -745,7 +745,7 @@ export default function BoxManagementScreen({
                       <Button
                         onClick={handleScanRetailerId}
                         disabled={!scannedRetailerId.trim()}
-                        className="bg-primary hover:bg-primary/90 text-on-primary rounded-full"
+                      className="bg-primary hover:bg-primary/90 text-on-primary rounded-lg h-[56px] px-6"
                       >
                         Add
                       </Button>
@@ -861,12 +861,12 @@ export default function BoxManagementScreen({
             {selectedItemIds.length > 0 ? (
               <Button
                 onClick={handleAddSelectedItemsToBox}
-                className="w-full bg-primary hover:bg-primary/90 text-on-primary rounded-full"
+                className="w-full bg-primary hover:bg-primary/90 text-on-primary rounded-lg h-[56px]"
               >
                 Add {selectedItemIds.length} selected {selectedItemIds.length === 1 ? 'item' : 'items'} to box
               </Button>
             ) : (
-              <div className="flex gap-3 w-full">
+              <div className="grid grid-cols-2 gap-3 w-full">
                 <Button
                   onClick={() => {
                     setShowItemSelectionDialog(false);
@@ -875,7 +875,7 @@ export default function BoxManagementScreen({
                     toast.success(`Box ${currentBox?.qrLabel} saved`);
                   }}
                   variant="outline"
-                  className="flex-1 border-outline text-on-surface rounded-full"
+                  className="h-[56px] border-outline text-on-surface rounded-lg"
                 >
                   Save & close
                 </Button>
@@ -894,7 +894,7 @@ export default function BoxManagementScreen({
                     setSelectedItemIds([]);
                   }}
                   disabled={!currentBox || currentBox.items.length === 0}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-[56px] bg-primary hover:bg-primary/90 text-on-primary rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CheckIcon size={16} className="mr-2" />
                   Register box

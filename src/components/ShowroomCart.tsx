@@ -245,7 +245,7 @@ export default function ShowroomCart({
             <Button
               onClick={() => onCheckout('rfq', notes)}
               disabled={!canCheckout}
-              className="w-full bg-primary text-on-primary h-12"
+              className="w-full bg-primary text-on-primary h-[56px]"
             >
               Request quote
             </Button>

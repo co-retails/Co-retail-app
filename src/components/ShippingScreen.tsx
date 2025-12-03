@@ -126,6 +126,96 @@ interface ShippingScreenProps {
   onViewFilterChange?: (filter: ViewFilter) => void;
 }
 
+const getDeliveryNoteStatusDisplay = (status: DeliveryNoteStatus) => {
+  switch (status) {
+    case 'pending':
+      return 'Pending';
+    case 'packing':
+      return 'Packing';
+    case 'registered':
+      return 'In Transit';
+    case 'delivered':
+      return 'Delivered';
+    case 'partially-delivered':
+      return 'Partially Delivered';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'rejected':
+      return 'Rejected';
+    default:
+      return status;
+  }
+};
+
+const getDeliveryNoteStatusBadgeColor = (status: DeliveryNoteStatus) => {
+  switch (status) {
+    case 'pending':
+      return 'bg-warning-container text-on-warning-container';
+    case 'packing':
+    case 'registered':
+      return 'bg-primary-container text-on-primary-container';
+    case 'delivered':
+      return 'bg-success-container text-on-success-container';
+    case 'partially-delivered':
+      return 'bg-warning-container text-on-warning-container';
+    case 'cancelled':
+    case 'rejected':
+      return 'bg-error-container text-on-error-container';
+    default:
+      return 'bg-surface-container-high text-on-surface-variant';
+  }
+};
+
+const resolveDeliveryNoteParties = (
+  deliveryNote: DeliveryNote,
+  orders: ShippingPartnerOrder[],
+  stores?: StoreRecord[],
+  brands?: BrandRecord[],
+  warehouses?: Warehouse[]
+) => {
+  const primaryOrder = orders[0];
+  const resolvedStoreId = primaryOrder?.receivingStoreId || deliveryNote.storeId;
+  const storeRecord = resolvedStoreId ? stores?.find(store => store.id === resolvedStoreId) : undefined;
+  const storeName = primaryOrder?.receivingStoreName || storeRecord?.name;
+  const brandName = storeRecord ? brands?.find(brand => brand.id === storeRecord.brandId)?.name : undefined;
+  const storeCode = storeRecord?.code || deliveryNote.storeCode;
+  const receiverFromBrand = [brandName, storeCode].filter(Boolean).join(' ').trim();
+  const receiver = receiverFromBrand || storeName || deliveryNote.storeCode || '-';
+  const storeNameDisplay = receiverFromBrand && storeName && receiver !== storeName ? storeName : undefined;
+
+  const resolvedWarehouseId = primaryOrder?.warehouseId || deliveryNote.warehouseId;
+  const warehouseRecord = resolvedWarehouseId ? warehouses?.find(warehouse => warehouse.id === resolvedWarehouseId) : undefined;
+  const warehouse = primaryOrder?.warehouseName || deliveryNote.warehouseName || warehouseRecord?.name;
+
+  const sender = primaryOrder?.partnerName || deliveryNote.partnerName;
+
+  return { sender, warehouse, receiver, storeNameDisplay };
+};
+
+const resolveReturnDeliveryParties = (
+  returnDelivery: ReturnDelivery,
+  stores?: StoreRecord[],
+  brands?: BrandRecord[],
+  warehouses?: Warehouse[]
+) => {
+  const storeRecord =
+    (returnDelivery.storeId && stores?.find(store => store.id === returnDelivery.storeId)) ||
+    stores?.find(store => store.code === returnDelivery.storeCode);
+  const brand = storeRecord ? brands?.find(b => b.id === storeRecord.brandId) : undefined;
+  const storeCode = storeRecord?.code || returnDelivery.storeCode;
+  const storeNameDisplay = storeRecord?.name || returnDelivery.storeName;
+  const senderBase = [brand?.name, storeCode].filter(Boolean).join(' ').trim();
+  const sender = senderBase || storeNameDisplay || '-';
+
+  const warehouseRecord = returnDelivery.warehouseId
+    ? warehouses?.find(warehouse => warehouse.id === returnDelivery.warehouseId)
+    : undefined;
+  const warehouseName = returnDelivery.warehouseName || warehouseRecord?.name || '';
+  const receiverParts = [returnDelivery.partnerName, warehouseName].filter(Boolean);
+  const receiver = receiverParts.length > 0 ? receiverParts.join(' • ') : returnDelivery.partnerName || warehouseName || '-';
+
+  return { sender, storeNameDisplay, receiver, warehouseName };
+};
 
 
 function Tabs({ activeTab, onTabChange, userRole }: { 
@@ -264,52 +354,14 @@ function PartnerDeliveryNoteItem({
 }) {
   const relatedOrders = orders.filter(order => order.deliveryNote === deliveryNote.id);
   const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
-  
-  // Get sender and receiver from related orders
-  const senderName = relatedOrders[0]?.partnerName;
-  const receivingStoreId = relatedOrders[0]?.receivingStoreId;
-  const receivingStoreName = relatedOrders[0]?.receivingStoreName;
-  const warehouseId = relatedOrders[0]?.warehouseId;
-  const warehouseDisplay = relatedOrders[0]?.warehouseName || (warehouseId ? warehouses?.find(w => w.id === warehouseId)?.name : undefined);
-  
-  // Helper to get receiver display with brand and store code
-  const getReceiverDisplay = () => {
-    if (!receivingStoreId || !receivingStoreName) {
-      return receivingStoreName || '';
-    }
-    
-    const store = stores?.find(s => s.id === receivingStoreId);
-    if (!store) {
-      return receivingStoreName;
-    }
-    
-    const brand = brands?.find(b => b.id === store.brandId);
-    const brandName = brand?.name || '';
-    const storeCode = store.code || '';
-    
-    return `${brandName} ${storeCode}`;
-  };
-  
-  const receiverDisplay = getReceiverDisplay();
   const deliveryStatus = deliveryNote.status as DeliveryNoteStatus;
-  
-  const getStatusDisplay = (status: DeliveryNoteStatus) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'packing': return 'Packing';
-      case 'registered': return 'In Transit';
-      default: return status;
-    }
-  };
-
-  const getStatusBadgeColor = (status: DeliveryNoteStatus) => {
-    switch (status) {
-      case 'pending': return 'bg-warning-container text-on-warning-container';
-      case 'packing': return 'bg-primary-container text-on-primary-container';
-      case 'registered': return 'bg-primary-container text-on-primary-container';
-      default: return 'bg-surface-container-high text-on-surface-variant';
-    }
-  };
+  const { sender, warehouse, receiver, storeNameDisplay } = resolveDeliveryNoteParties(
+    deliveryNote,
+    relatedOrders,
+    stores,
+    brands,
+    warehouses
+  );
 
   const hasActions = isAdmin && deliveryStatus === 'pending' && onDelete;
   
@@ -332,8 +384,8 @@ function PartnerDeliveryNoteItem({
           {/* Top Line - Date and Status in smallest font (consistent with DeliveryItem) */}
           <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-wrap">
             <span>{deliveryNote.createdDate},</span>
-            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${getStatusBadgeColor(deliveryNote.status)}`}>
-              {getStatusDisplay(deliveryNote.status as DeliveryNoteStatus)}
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${getDeliveryNoteStatusBadgeColor(deliveryStatus)}`}>
+              {getDeliveryNoteStatusDisplay(deliveryStatus)}
             </span>
           </div>
           
@@ -348,16 +400,16 @@ function PartnerDeliveryNoteItem({
           </div>
           
           {/* Metadata Line - Sender/Receiver (only if requested) */}
-          {showSenderReceiver && (senderName || receiverDisplay || warehouseDisplay) && (
-            <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90">
-              {warehouseDisplay && (
-                <div className="truncate">From: {warehouseDisplay}</div>
+          {showSenderReceiver && (warehouse || sender || receiver) && (
+            <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90 space-y-0.5">
+              {warehouse ? (
+                <div className="truncate">From: {warehouse}</div>
+              ) : (
+                <div className="truncate">From: {sender || '-'}</div>
               )}
-              {!warehouseDisplay && senderName && (
-                <div className="truncate">From: {senderName}</div>
-              )}
-              {receiverDisplay && (
-                <div className="truncate">To: {receiverDisplay}</div>
+              <div className="truncate">To: {receiver || '-'}</div>
+              {storeNameDisplay && (
+                <div className="truncate text-on-surface-variant">{storeNameDisplay}</div>
               )}
             </div>
           )}
@@ -454,24 +506,7 @@ function ReturnDeliveryComponent({
     }
   };
 
-  const storeRecord =
-    (returnDelivery.storeId && stores?.find(store => store.id === returnDelivery.storeId)) ||
-    stores?.find(store => store.code === returnDelivery.storeCode);
-  const brandRecord = storeRecord ? brands?.find(brand => brand.id === storeRecord.brandId) : undefined;
-  
-  // Sender: Brand + store code
-  const senderDisplay = [brandRecord?.name, storeRecord?.code || returnDelivery.storeCode]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || returnDelivery.storeName;
-  
-  // Receiver: Partner name + warehouse
-  const warehouseRecord = warehouses?.find(warehouse => warehouse.id === returnDelivery.warehouseId);
-  const warehouseName = returnDelivery.warehouseName || warehouseRecord?.name || '';
-  const receiverDisplay = [returnDelivery.partnerName, warehouseName]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || returnDelivery.partnerName;
+  const { sender, receiver } = resolveReturnDeliveryParties(returnDelivery, stores, brands, warehouses);
 
   const handleMarkAsReturned = () => {
     if (onUpdateStatus) {
@@ -525,18 +560,18 @@ function ReturnDeliveryComponent({
           
           {/* Secondary Line - Sender (Brand + Store Code) */}
           <div className="body-small text-on-surface-variant mb-0.5">
-            <span className="block truncate">From: {senderDisplay}</span>
+            <span className="block truncate">From: {sender}</span>
           </div>
           
           {/* Secondary Line - Receiver (Partner + Warehouse) */}
           <div className="body-small text-on-surface-variant mb-0.5">
-            <span className="block truncate">To: {receiverDisplay}</span>
+            <span className="block truncate">To: {receiver}</span>
           </div>
           
-          {/* Metadata Line - Items, Boxes, and Store Code */}
+          {/* Metadata Line - Items */}
           <div className="label-small text-on-surface-variant opacity-90">
             <div className="truncate">
-              {returnDelivery.items} items • {returnDelivery.boxes} boxes
+              {returnDelivery.items} {returnDelivery.items === 1 ? 'item' : 'items'}
             </div>
           </div>
         </div>
@@ -578,7 +613,7 @@ function ReturnDeliveryComponent({
                 e.stopPropagation();
                 handleMarkAsReturned();
               }}
-              className="px-3 py-1.5 bg-primary text-on-primary rounded-full label-medium hover:bg-primary/90 transition-colors"
+              className="px-4 py-2 bg-primary text-on-primary rounded-lg label-medium hover:bg-primary/90 transition-colors min-h-[44px]"
             >
               Mark as returned
             </button>
@@ -637,6 +672,7 @@ function PartnerOrderItem({
   
   const getStatusDisplay = (status: ShippingPartnerOrder['status']) => {
     switch (status) {
+      case 'approval': return 'Approval';
       case 'pending': return 'Pending';
       case 'registered': return 'Ready for Packaging';
       case 'in-transit': return 'In Transit';
@@ -648,6 +684,7 @@ function PartnerOrderItem({
 
   const getStatusBadgeColor = (status: ShippingPartnerOrder['status']) => {
     switch (status) {
+      case 'approval': return 'bg-secondary-container text-on-secondary-container';
       case 'pending': return 'bg-warning-container text-on-warning-container';
       case 'registered': return 'bg-tertiary-container text-on-tertiary-container';
       case 'in-transit': return 'bg-primary-container text-on-primary-container';
@@ -746,8 +783,8 @@ function PartnerOrderItem({
             {getStatusDisplay(order.status)}
           </div>
           
-          {/* Action Menu for registered orders */}
-          {order.status === 'registered' && onCreateDeliveryNote && (
+          {/* Action Menu */}
+          {(order.status === 'registered' && onCreateDeliveryNote) || (isAdmin && order.status === 'pending' && onDelete) ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -759,35 +796,35 @@ function PartnerOrderItem({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem
-                  onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
-                    e.stopPropagation();
-                    onCreateDeliveryNote(order.id);
-                  }}
-                  className="gap-2"
-                >
-                  <Package className="w-4 h-4" />
-                  <span className="label-large">Create delivery note</span>
-                </DropdownMenuItem>
+                {order.status === 'registered' && onCreateDeliveryNote && (
+                  <DropdownMenuItem
+                    onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
+                      e.stopPropagation();
+                      onCreateDeliveryNote(order.id);
+                    }}
+                    className="gap-2"
+                  >
+                    <Package className="w-4 h-4" />
+                    <span className="label-large">Create delivery note</span>
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && order.status === 'pending' && onDelete && (
+                  <DropdownMenuItem
+                    onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
+                      e.stopPropagation();
+                      if (confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+                        onDelete(order.id);
+                      }
+                    }}
+                    className="gap-2 text-error focus:text-error focus:bg-error-container"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="label-large">Delete order</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-          
-          {/* Delete button for Admin on pending orders */}
-          {isAdmin && order.status === 'pending' && onDelete && (
-            <button
-              onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
-                e.stopPropagation();
-                if (confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
-                  onDelete(order.id);
-                }
-              }}
-              className="p-2 rounded-full hover:bg-error-container text-error transition-colors"
-              aria-label="Delete order"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+          ) : null}
           
           {/* Arrow for clickable items */}
           {isClickable && (
@@ -911,7 +948,7 @@ function SellpyOrderItem({
       case 'pending': return 'text-on-warning-container';
       case 'in-progress': return 'text-on-primary-container';
       case 'completed': return 'text-on-tertiary-container';
-      case 'registered': return 'text-on-success-container';
+      case 'registered': return 'text-tertiary';
       default: return 'text-on-surface-variant';
     }
   };
@@ -931,7 +968,7 @@ function SellpyOrderItem({
       case 'pending': return 'bg-warning-container text-on-warning-container';
       case 'in-progress': return 'bg-primary-container text-on-primary-container';
       case 'completed': return 'bg-tertiary-container text-on-tertiary-container';
-      case 'registered': return 'bg-success-container text-on-success-container';
+      case 'registered': return 'bg-tertiary-container text-on-tertiary-container';
       default: return 'bg-surface-container-high text-on-surface-variant';
     }
   };
@@ -1086,7 +1123,7 @@ export default function ShippingScreen({
   type SortDirection = 'asc' | 'desc' | null;
   type OrderSortField = 'date' | 'id' | 'externalId' | 'senderReceiver' | 'items' | 'orderValue' | 'salesMargin' | 'status';
   type ShipmentSortField = 'date' | 'id' | 'senderReceiver' | 'orders' | 'items' | 'boxes' | 'status';
-  type ReturnSortField = 'date' | 'id' | 'receiver' | 'warehouse' | 'items' | 'boxes' | 'status';
+type ReturnSortField = 'date' | 'id' | 'senderReceiver' | 'items' | 'status';
   
   const [orderSort, setOrderSort] = useState<{ field: OrderSortField; direction: SortDirection }>({ field: 'date', direction: 'desc' });
   const [shipmentSort, setShipmentSort] = useState<{ field: ShipmentSortField; direction: SortDirection }>({ field: 'date', direction: 'desc' });
@@ -1102,19 +1139,19 @@ export default function ShippingScreen({
     ? [
         { id: 'all' as OrderStatusFilter, label: 'All' },
         { id: 'pending' as OrderStatusFilter, label: 'Pending' },
-        { id: 'registered' as OrderStatusFilter, label: 'Registered' },
+        { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
         { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
       ]
     : [
         { id: 'all' as OrderStatusFilter, label: 'All' },
         { id: 'approval' as OrderStatusFilter, label: 'Approval' },
         { id: 'pending' as OrderStatusFilter, label: 'Pending' },
-        { id: 'registered' as OrderStatusFilter, label: 'Registered' },
+        { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
         { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
       ];
   const shipmentStatusFilterOptions: Array<{ id: ShipmentStatusFilter; label: string }> = [
     { id: 'all', label: 'All' },
-    { id: 'packing', label: 'Packing' },
+    { id: 'packing', label: 'Pending & Packing' },
     { id: 'in-transit', label: 'In transit' },
     { id: 'delivered', label: 'Delivered' }
   ];
@@ -1381,27 +1418,16 @@ useEffect(() => {
           aVal = a.deliveryId.toLowerCase();
           bVal = b.deliveryId.toLowerCase();
           break;
-        case 'receiver':
-          const aStore = a.storeId ? stores?.find(s => s.id === a.storeId) : stores?.find(s => s.code === a.storeCode);
-          const aBrand = aStore && brands ? brands.find(b => b.id === aStore.brandId) : null;
-          aVal = `${aBrand?.name || ''} ${aStore?.code || ''} ${a.storeName || ''}`.toLowerCase();
-          const bStore = b.storeId ? stores?.find(s => s.id === b.storeId) : stores?.find(s => s.code === b.storeCode);
-          const bBrand = bStore && brands ? brands.find(b => b.id === bStore.brandId) : null;
-          bVal = `${bBrand?.name || ''} ${bStore?.code || ''} ${b.storeName || ''}`.toLowerCase();
+        case 'senderReceiver': {
+          const aParties = resolveReturnDeliveryParties(a, stores, brands, warehouses);
+          const bParties = resolveReturnDeliveryParties(b, stores, brands, warehouses);
+          aVal = `${aParties.sender} ${aParties.receiver}`.toLowerCase();
+          bVal = `${bParties.sender} ${bParties.receiver}`.toLowerCase();
           break;
-        case 'warehouse':
-          const aWarehouse = a.warehouseId && warehouses ? warehouses.find(w => w.id === a.warehouseId) : null;
-          aVal = (a.warehouseName || aWarehouse?.name || '').toLowerCase();
-          const bWarehouse = b.warehouseId && warehouses ? warehouses.find(w => w.id === b.warehouseId) : null;
-          bVal = (b.warehouseName || bWarehouse?.name || '').toLowerCase();
-          break;
+        }
         case 'items':
           aVal = a.items || 0;
           bVal = b.items || 0;
-          break;
-        case 'boxes':
-          aVal = a.boxes || 0;
-          bVal = b.boxes || 0;
           break;
         case 'status':
           aVal = a.status;
@@ -2323,20 +2349,16 @@ useEffect(() => {
                             <>
                               <SortableHeader field="date" label="Date" currentSort={returnSort} onSort={handleReturnSort} />
                               <SortableHeader field="id" label="Delivery ID" currentSort={returnSort} onSort={handleReturnSort} />
-                              <SortableHeader field="receiver" label="Receiver" currentSort={returnSort} onSort={handleReturnSort} />
-                              <SortableHeader field="warehouse" label="Warehouse" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="senderReceiver" label="Sender / Receiver" currentSort={returnSort} onSort={handleReturnSort} />
                               <SortableHeader field="items" label="Items" currentSort={returnSort} onSort={handleReturnSort} align="right" />
-                              <SortableHeader field="boxes" label="Boxes" currentSort={returnSort} onSort={handleReturnSort} align="right" />
                               <SortableHeader field="status" label="Status" currentSort={returnSort} onSort={handleReturnSort} align="right" />
                             </>
                           ) : (
                             <>
                               <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
                               <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
-                              <th className="px-4 py-3 text-left title-small text-on-surface">Receiver</th>
-                              <th className="px-4 py-3 text-left title-small text-on-surface">Warehouse</th>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Receiver (Partner)</th>
                               <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
-                              <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
                               <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
                             </>
                           )}
@@ -2345,6 +2367,13 @@ useEffect(() => {
                       </thead>
                       <tbody>
                       {paginatedReturnDeliveries.map((returnDelivery) => {
+                          const { sender, storeNameDisplay, receiver } = resolveReturnDeliveryParties(
+                            returnDelivery,
+                            stores,
+                            brands,
+                            warehouses
+                          );
+                          const shouldShowStoreName = Boolean(storeNameDisplay && sender !== storeNameDisplay);
                           return (
                             <tr 
                               key={returnDelivery.id}
@@ -2356,21 +2385,21 @@ useEffect(() => {
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.deliveryId}</td>
                               <td 
-                                className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
-                              >{returnDelivery.storeName}</td>
-                              <td 
                                 className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
-                              >{returnDelivery.storeCode}</td>
+                              >
+                                <div className="space-y-0.5">
+                                  <span className="block">From: {sender}</span>
+                                  {shouldShowStoreName && (
+                                    <span className="block text-on-surface-variant">{storeNameDisplay}</span>
+                                  )}
+                                  <span className="block">To: {receiver}</span>
+                                </div>
+                              </td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.items}</td>
-                              <td 
-                                className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
-                              >{returnDelivery.boxes}</td>
                               <td 
                                 className="px-4 py-3 text-right cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
@@ -2387,7 +2416,7 @@ useEffect(() => {
                               <td className="px-4 py-3 text-right">
                                 {returnDelivery.status !== 'Returned' && onUpdateReturnDeliveryStatus && role === 'partner' && (
                                   <button 
-                                    className="px-3 py-1.5 bg-primary text-on-primary rounded-full label-medium hover:bg-primary/90 transition-colors"
+                                    className="px-4 py-2 bg-primary text-on-primary rounded-lg label-medium hover:bg-primary/90 transition-colors min-h-[44px]"
                                     onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                                       e.stopPropagation();
                                       onUpdateReturnDeliveryStatus(returnDelivery.id, 'Returned');
@@ -2451,20 +2480,16 @@ useEffect(() => {
                             <>
                               <SortableHeader field="date" label="Date" currentSort={returnSort} onSort={handleReturnSort} />
                               <SortableHeader field="id" label="Delivery ID" currentSort={returnSort} onSort={handleReturnSort} />
-                              <SortableHeader field="receiver" label="Receiver" currentSort={returnSort} onSort={handleReturnSort} />
-                              <SortableHeader field="warehouse" label="Warehouse" currentSort={returnSort} onSort={handleReturnSort} />
+                              <SortableHeader field="senderReceiver" label="Sender / Receiver" currentSort={returnSort} onSort={handleReturnSort} />
                               <SortableHeader field="items" label="Items" currentSort={returnSort} onSort={handleReturnSort} align="right" />
-                              <SortableHeader field="boxes" label="Boxes" currentSort={returnSort} onSort={handleReturnSort} align="right" />
                               <SortableHeader field="status" label="Status" currentSort={returnSort} onSort={handleReturnSort} align="right" />
                             </>
                           ) : (
                             <>
                               <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
                               <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
-                              <th className="px-4 py-3 text-left title-small text-on-surface">Receiver</th>
-                              <th className="px-4 py-3 text-left title-small text-on-surface">Warehouse</th>
+                              <th className="px-4 py-3 text-left title-small text-on-surface">Receiver (Partner)</th>
                               <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
-                              <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
                               <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
                             </>
                           )}
@@ -2473,20 +2498,12 @@ useEffect(() => {
                       </thead>
                       <tbody>
                         {paginatedReturnDeliveries.map((returnDelivery) => {
-                          const storeRecord = returnDelivery.storeId
-                            ? stores?.find(store => store.id === returnDelivery.storeId)
-                            : stores?.find(store => store.code === returnDelivery.storeCode);
-                          const brandRecord = storeRecord ? brands?.find(brand => brand.id === storeRecord.brandId) : undefined;
-                          const receiverDisplay = (() => {
-                            const brandName = brandRecord?.name;
-                            const code = storeRecord?.code || returnDelivery.storeCode;
-                            if (brandName || code) {
-                              return [brandName, code].filter(Boolean).join(' ').trim();
-                            }
-                            return returnDelivery.storeName;
-                          })();
-                          const storeNameDisplay = storeRecord?.name || returnDelivery.storeName;
-                          const warehouseName = returnDelivery.warehouseName || (returnDelivery.warehouseId ? warehouses?.find(warehouse => warehouse.id === returnDelivery.warehouseId)?.name : undefined);
+                          const partnerDisplay = returnDelivery.partnerName || '-';
+                          const warehouseDisplay =
+                            returnDelivery.warehouseName ||
+                            (returnDelivery.warehouseId
+                              ? warehouses?.find(warehouse => warehouse.id === returnDelivery.warehouseId)?.name
+                              : undefined);
 
                           return (
                             <tr 
@@ -2503,26 +2520,16 @@ useEffect(() => {
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >
                                 <div className="space-y-0.5">
-                                  <span className="block">{receiverDisplay}</span>
-                                  {storeNameDisplay && receiverDisplay !== storeNameDisplay && (
-                                    <span className="block text-on-surface-variant">{storeNameDisplay}</span>
+                                  <span className="block">{partnerDisplay}</span>
+                                  {warehouseDisplay && (
+                                    <span className="block text-on-surface-variant">{warehouseDisplay}</span>
                                   )}
                                 </div>
-                              </td>
-                              <td 
-                                className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
-                              >
-                                {warehouseName || '-'}
                               </td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                               >{returnDelivery.items}</td>
-                              <td 
-                                className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
-                              >{returnDelivery.boxes}</td>
                               <td 
                                 className="px-4 py-3 text-right cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
@@ -2595,7 +2602,7 @@ useEffect(() => {
                             case 'pending': return 'text-on-surface-variant';
                             case 'in-progress': return 'text-primary';
                             case 'completed': return 'text-tertiary';
-                            case 'registered': return 'text-success';
+                            case 'registered': return 'text-tertiary';
                             default: return 'text-on-surface-variant';
                           }
                         };
@@ -2796,27 +2803,13 @@ useEffect(() => {
                         const noteStatus = deliveryNote.status as DeliveryNoteStatus;
                         const relatedOrders = partnerOrdersList.filter(order => order.deliveryNote === deliveryNote.id);
                         const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
-                        const senderName = relatedOrders[0]?.partnerName;
-                        const receiverDisplay = getReceiverDisplay(relatedOrders[0]?.receivingStoreId, relatedOrders[0]?.receivingStoreName);
-                        const storeRecord = relatedOrders[0]?.receivingStoreId ? stores?.find(store => store.id === relatedOrders[0]?.receivingStoreId) : undefined;
-                        const storeNameDisplay = storeRecord?.name || relatedOrders[0]?.receivingStoreName;
-                        const warehouseName = relatedOrders[0]?.warehouseName || (relatedOrders[0]?.warehouseId ? warehouses?.find(warehouse => warehouse.id === relatedOrders[0]?.warehouseId)?.name : undefined);
-                        
-                        const getStatusBadgeColor = (status: DeliveryNoteStatus) => {
-                          switch (status) {
-                            case 'pending': return 'bg-warning-container text-on-warning-container';
-                            case 'registered': return 'bg-primary-container text-on-primary-container';
-                            default: return 'bg-surface-container-high text-on-surface-variant';
-                          }
-                        };
-
-                        const getStatusDisplay = (status: DeliveryNoteStatus) => {
-                          switch (status) {
-                            case 'pending': return 'Pending Shipment';
-                            case 'registered': return 'In Transit';
-                            default: return status;
-                          }
-                        };
+                        const { sender, warehouse, receiver, storeNameDisplay } = resolveDeliveryNoteParties(
+                          deliveryNote,
+                          relatedOrders,
+                          stores,
+                          brands,
+                          warehouses
+                        );
                         
                         return (
                           <tr 
@@ -2833,18 +2826,13 @@ useEffect(() => {
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                             >
                               <div className="space-y-0.5">
-                                {warehouseName && (
-                                  <span className="block">From: {warehouseName}</span>
-                                )}
-                                {!warehouseName && senderName && (
-                                  <span className="block">From: {senderName}</span>
-                                )}
-                                {receiverDisplay ? (
-                                  <span className="block">To: {receiverDisplay}</span>
+                                {warehouse ? (
+                                  <span className="block">From: {warehouse}</span>
                                 ) : (
-                                  <span className="block">To: -</span>
+                                  <span className="block">From: {sender || '-'}</span>
                                 )}
-                                {storeNameDisplay && receiverDisplay !== storeNameDisplay && (
+                                <span className="block">To: {receiver || '-'}</span>
+                                {storeNameDisplay && (
                                   <span className="block text-on-surface-variant">{storeNameDisplay}</span>
                                 )}
                               </div>
@@ -2865,8 +2853,8 @@ useEffect(() => {
                               className="px-4 py-3 text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
                             >
-                              <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(noteStatus)}`}>
-                                {getStatusDisplay(noteStatus)}
+                              <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getDeliveryNoteStatusBadgeColor(noteStatus)}`}>
+                                {getDeliveryNoteStatusDisplay(noteStatus)}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -2987,6 +2975,7 @@ useEffect(() => {
                       {paginatedPartnerOrders.map((order) => {
                         const getStatusDisplay = (status: ShippingPartnerOrder['status']) => {
                           switch (status) {
+                            case 'approval': return 'Approval';
                             case 'pending': return 'Pending';
                             case 'registered': return 'Ready for Packaging';
                             case 'in-transit': return 'In Transit';
@@ -2998,10 +2987,11 @@ useEffect(() => {
 
                         const getStatusBadgeColor = (status: ShippingPartnerOrder['status']) => {
                           switch (status) {
+                            case 'approval': return 'bg-secondary-container text-on-secondary-container';
                             case 'pending': return 'bg-warning-container text-on-warning-container';
-                            case 'registered': return 'bg-secondary-container text-on-secondary-container';
+                            case 'registered': return 'bg-tertiary-container text-on-tertiary-container';
                             case 'in-transit': return 'bg-primary-container text-on-primary-container';
-                            case 'delivered': return 'bg-tertiary-container text-on-tertiary-container';
+                            case 'delivered': return 'bg-success-container text-on-success-container';
                             case 'in-review': return 'bg-warning-container text-on-warning-container';
                             default: return 'bg-surface-container-high text-on-surface-variant';
                           }
@@ -3327,7 +3317,6 @@ useEffect(() => {
                             <td className="px-4 py-3 body-medium text-on-surface">{receiverDisplay}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">—</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.items}</td>
-                            <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.boxes}</td>
                             <td className="px-4 py-3 text-right">
                               {shouldHighlightStatus ? (
                                 <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(returnDelivery.status)}`}>

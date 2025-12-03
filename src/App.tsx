@@ -470,7 +470,7 @@ export default function App() {
     setCurrentScreenSafe('return-management');
   };
 
-  const handleUpdateReturnItem = (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan') => {
+  const handleUpdateReturnItem = (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan' | 'unscan') => {
     // Validate that the item belongs to the selected partner before allowing actions
     const item = returnItems.find(i => i.id === itemId);
     if (item && selectedPartner) {
@@ -490,6 +490,8 @@ export default function App() {
             return { ...item, selected: false };
           case 'scan':
             return { ...item, scanned: true };
+          case 'unscan':
+            return { ...item, scanned: false };
           case 'extend':
             // Extension logic - could update canExtend or other properties
             return item;
@@ -973,6 +975,46 @@ export default function App() {
         });
       }
     }
+  };
+
+  const handleUpdateBoxLabel = (boxId: string, newLabel: string) => {
+    setDeliveryNotes(prev =>
+      prev.map(note => {
+        if (note.boxes.some(box => box.id === boxId)) {
+          return {
+            ...note,
+            boxes: note.boxes.map(box =>
+              box.id === boxId ? { ...box, qrLabel: newLabel } : box
+            ),
+          };
+        }
+        return note;
+      }),
+    );
+
+    if (detailsScreenData?.type === 'shipment') {
+      const shipment = detailsScreenData.data as DeliveryNote;
+      if (shipment.boxes.some(box => box.id === boxId)) {
+        setDetailsScreenData({
+          ...detailsScreenData,
+          data: {
+            ...shipment,
+            boxes: shipment.boxes.map(box =>
+              box.id === boxId ? { ...box, qrLabel: newLabel } : box
+            ),
+          },
+        });
+      }
+    }
+
+    setSelectedDeliveryNoteBox(prev =>
+      prev && prev.box.id === boxId
+        ? {
+            ...prev,
+            box: { ...prev.box, qrLabel: newLabel },
+          }
+        : prev,
+    );
   };
 
   const handleOpenBoxDetails = (box: any) => {
@@ -2108,6 +2150,7 @@ export default function App() {
           stats={mockPartnerStats}
           recentOrders={partnerOrders}
           returnDeliveries={returnDeliveries}
+          deliveryNotes={deliveryNotes}
           brands={mockBrands}
           countries={mockCountries}
           stores={mockStores}
@@ -2420,6 +2463,7 @@ export default function App() {
             }
           }}
           onAddBox={handleAddBoxToDeliveryNote}
+          onUpdateBoxLabel={handleUpdateBoxLabel}
           onOpenBoxDetails={handleOpenBoxDetails}
           relatedOrders={(() => {
             if (detailsScreenData?.type === 'shipment') {
@@ -2647,6 +2691,7 @@ export default function App() {
               receiverStoreCode={selectedDeliveryNoteBox.receiverStoreCode}
               senderWarehouse={selectedDeliveryNoteBox.senderWarehouse}
               isAdmin={currentUserRole === 'admin'}
+              onUpdateBoxLabel={handleUpdateBoxLabel}
               onBack={() => {
                 const previousScreen = selectedDeliveryNoteBox?.previousScreen || 'order-shipment-details';
                 setSelectedDeliveryNoteBox(null);
