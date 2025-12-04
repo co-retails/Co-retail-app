@@ -1564,45 +1564,89 @@ export default function App() {
       warehouses={mockWarehouses}
     >
       {/* Store Staff Screens */}
-      {currentScreen === 'home' && (
-        <DeliveryHomeScreen 
-          onNavigateToShipping={() => {
-            // For partners, default to pending (Orders tab)
-            // For store staff, default to shipments (New tab)
-            setShippingInitialTab(currentUserRole === 'partner' ? 'pending' : 'shipments');
-            setCurrentScreenSafe('shipping');
-          }}
-          onNavigateToReturns={() => setCurrentScreenSafe('partner-selection')}
-          onNavigateToReturnsTab={() => {
-            setShippingInitialTab('returns');
-            setCurrentScreenSafe('shipping');
-          }}
-          onNavigateToItems={handleNavigateToItems}
-          onNavigateToScan={handleNavigateToScan}
-          onNavigateToSellers={handleNavigateToSellers}
-          onNavigateToStockCheck={handleNavigateToStockCheck}
-          onNavigateToAdmin={handleOpenAdminSettings}
-          deliveryStats={{
-            newDeliveries: deliveries.filter(d => d.status === 'In transit').length,
-            toReturn: mockPartners.reduce((sum, p) => sum + p.itemsToReturn, 0),
-            returns: returnDeliveries.filter(r => 
-              (r.status === 'Pending' || r.status === 'In transit') &&
-              (r.storeId === currentStoreSelection.storeId || 
-               r.storeCode === mockStores.find(s => s.id === currentStoreSelection.storeId)?.code)
-            ).length
-          }}
-          expiredItemsCount={38}
-          itemsToScanCount={289}
-          brands={mockBrands}
-          countries={mockCountries}
-          stores={mockStores}
-          currentStoreSelection={currentStoreSelection}
-          onStoreSelectionChange={setCurrentStoreSelection}
-          currentMonthlySales={currentMonthlySales}
-          monthlyGoal={monthlyGoal}
-          onGoalUpdate={setMonthlyGoal}
-        />
-      )}
+      {currentScreen === 'home' && (() => {
+        // Calculate in-transit deliveries and boxes for store staff
+        // In-transit deliveries are deliveryNotes with status 'registered' that match the current store
+        const currentStore = mockStores.find(s => s.id === currentStoreSelection.storeId);
+        const inTransitDeliveryNotes = deliveryNotes.filter(note => {
+          const matchesStore = note.storeId === currentStoreSelection.storeId || 
+            note.storeCode === currentStore?.code;
+          return note.status === 'registered' && matchesStore;
+        });
+        const inTransitDeliveriesCount = inTransitDeliveryNotes.length;
+        const inTransitBoxesCount = inTransitDeliveryNotes.reduce((sum, note) => sum + (note.boxes?.length || 0), 0);
+        
+        // Calculate days since last stock check
+        const lastStockCheckDate = availableStockCheckSessions.length > 0 
+          ? availableStockCheckSessions[0].date 
+          : null;
+        const daysSinceLastStockCheck = lastStockCheckDate 
+          ? Math.floor((Date.now() - new Date(lastStockCheckDate).getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+        
+        // Calculate in-store items count (items with status 'In Store' or 'In Store 2nd try')
+        // This is a mock calculation - in a real app, this would come from the items data
+        const inStoreItemsCount = 289; // Default value, would be calculated from actual items data
+        
+        // Calculate in-transit returns count
+        const inTransitReturnsCount = returnDeliveries.filter(r => 
+          (r.status === 'Pending' || r.status === 'In transit') &&
+          (r.storeId === currentStoreSelection.storeId || 
+           r.storeCode === mockStores.find(s => s.id === currentStoreSelection.storeId)?.code)
+        ).length;
+        
+        // Handler for scan to receive - same as in Shipping screen
+        const handleScanToReceive = () => {
+          setSelectedDelivery({
+            id: 'scan-any',
+            deliveryId: 'SCAN',
+            supplier: 'Any Supplier',
+            boxes: 0,
+            status: 'In transit',
+            date: new Date().toLocaleDateString(),
+            warehouse: 'All Warehouses'
+          });
+          setDeliveryBoxes([]);
+          setCurrentScreenSafe('receive');
+        };
+        
+        return (
+          <DeliveryHomeScreen 
+            onNavigateToShipping={() => {
+              // For partners, default to pending (Orders tab)
+              // For store staff, default to shipments (New tab)
+              setShippingInitialTab(currentUserRole === 'partner' ? 'pending' : 'shipments');
+              setCurrentScreenSafe('shipping');
+            }}
+            onNavigateToReturns={() => setCurrentScreenSafe('partner-selection')}
+            onNavigateToReturnsTab={() => {
+              setShippingInitialTab('returns');
+              setCurrentScreenSafe('shipping');
+            }}
+            onNavigateToItems={handleNavigateToItems}
+            onNavigateToScan={handleNavigateToScan}
+            onNavigateToSellers={handleNavigateToSellers}
+            onNavigateToStockCheck={handleNavigateToStockCheck}
+            onNavigateToAdmin={handleOpenAdminSettings}
+            onScanToReceive={handleScanToReceive}
+            inTransitDeliveriesCount={inTransitDeliveriesCount}
+            inTransitBoxesCount={inTransitBoxesCount}
+            daysSinceLastStockCheck={daysSinceLastStockCheck}
+            inStoreItemsCount={inStoreItemsCount}
+            inTransitReturnsCount={inTransitReturnsCount}
+            expiredItemsCount={38}
+            itemsToScanCount={289}
+            brands={mockBrands}
+            countries={mockCountries}
+            stores={mockStores}
+            currentStoreSelection={currentStoreSelection}
+            onStoreSelectionChange={setCurrentStoreSelection}
+            currentMonthlySales={currentMonthlySales}
+            monthlyGoal={monthlyGoal}
+            onGoalUpdate={setMonthlyGoal}
+          />
+        );
+      })()}
 
       {currentScreen === 'shipping' && (
         <ShippingScreen

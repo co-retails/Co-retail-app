@@ -126,7 +126,7 @@ export default function ReturnShippingLabelScreen({
 
   return (
     <div className="bg-surface min-h-screen pb-36">
-      <TopAppBar onBack={onBack} title="Shipping Label" />
+      <TopAppBar onBack={onBack} title="Shipping label" />
       
       <div className="pb-32">
         {/* Active Scanner */}
@@ -154,7 +154,7 @@ export default function ReturnShippingLabelScreen({
               value={shippingLabel}
               onChange={(e) => setShippingLabel(e.target.value)}
               placeholder="e.g., SHIP-12345678"
-              className="bg-surface-container-high"
+              className="bg-surface-container-high h-[56px] min-h-[56px] text-base"
               onKeyPress={(e) => {
                 if (e.key === 'Enter' && shippingLabel.trim()) {
                   handleRegister();
@@ -174,10 +174,10 @@ export default function ReturnShippingLabelScreen({
         <div className="px-4 md:px-6 pt-6">
           <div className="bg-surface-container border border-outline-variant rounded-lg p-4 space-y-4">
             <div className="flex flex-col gap-2">
-              <p className="label-medium text-on-surface-variant uppercase tracking-[0.5px]">Return Summary</p>
+              <p className="label-medium text-on-surface-variant tracking-[0.5px]">Return summary</p>
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="label-medium text-on-surface-variant uppercase tracking-[0.5px]">Return ID</p>
+                  <p className="label-medium text-on-surface-variant tracking-[0.5px]">Return ID</p>
                   <p className="font-mono text-on-surface text-lg">{returnId}</p>
                 </div>
                 <Button
@@ -186,7 +186,7 @@ export default function ReturnShippingLabelScreen({
                   className="border-outline text-on-surface hover:bg-surface-container-high min-h-[48px]"
                   onClick={() => handleManualEntry(returnId)}
                 >
-                  Set Return ID as label
+                  Set return ID as label
                 </Button>
               </div>
             </div>
@@ -210,14 +210,14 @@ export default function ReturnShippingLabelScreen({
           <Button 
             variant="outline"
             onClick={onBack}
-            className="flex-1 border-outline text-on-surface hover:bg-surface-container-high min-h-[64px] md:min-h-[56px]"
+            className="flex-1 border-outline text-on-surface hover:bg-surface-container-high h-[56px] min-h-[56px]"
           >
             Back
           </Button>
           <Button 
             onClick={handleRegister}
             disabled={!shippingLabel.trim()}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[64px] md:min-h-[56px]"
+            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant h-[56px] min-h-[56px]"
           >
             Register return
           </Button>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Partner } from './PartnerSelectionScreen';
 import { ItemCard, BaseItem } from './ItemCard';
 
@@ -246,10 +247,8 @@ function ReturnItemCard({
   onScanStatusChange: (id: string, markAsScanned: boolean) => void;
   daysInStore: number;
 }) {
-  const [showActions, setShowActions] = useState(false);
   const handleScanToggle = (markAsScanned: boolean) => {
     onScanStatusChange(item.id, markAsScanned);
-    setShowActions(false);
   };
 
   // Extended item with missing fields for M3 compliance
@@ -258,23 +257,28 @@ function ReturnItemCard({
     brand: 'H&M',
     category: 'Clothing',
     price: Math.floor(Math.random() * 50) + 5,
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    daysRemaining: daysInStore
   };
 
   const handleCardClick = () => onToggleSelect(item.id);
-  const moreButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setShowActions((prev) => !prev);
-  };
-  const actionClick = (markAsScanned: boolean) => {
-    handleScanToggle(markAsScanned);
-  };
   const selectionClasses = item.selected
-    ? 'border-primary bg-primary-container/20 ring-2 ring-primary/60'
-    : 'border-outline-variant';
+    ? 'border border-primary/50 bg-primary-container/15 shadow-lg'
+    : 'border border-outline-variant shadow-sm';
 
   return (
-    <div className={`relative overflow-visible rounded-2xl border bg-surface-container transition-colors ${selectionClasses}`}>
+    <div
+      className={`relative overflow-visible rounded-2xl bg-surface-container transition-all duration-200 ${selectionClasses}`}
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleCardClick();
+        }
+      }}
+    >
       <div className="flex items-start gap-3 px-4 py-3">
         {/* Main content using standardized ItemCard */}
         <div className="flex-1 min-w-0 overflow-hidden">
@@ -293,57 +297,49 @@ function ReturnItemCard({
               thumbnail: item.thumbnail,
               selected: item.selected,
               canExtend: item.canExtend,
-              partnerItemRef: item.partnerItemRef
+              partnerItemRef: item.partnerItemRef,
+              daysRemaining: daysInStore
             } as BaseItem}
             variant="items-list"
             showActions={false}
             showSelection={false}
-            onClick={handleCardClick}
           />
-          <div className="ml-1 mt-2">
-            <span className="label-small text-on-surface-variant">
-              {daysInStore} {daysInStore === 1 ? 'day' : 'days'} in store
-            </span>
-          </div>
         </div>
         
         {/* Trailing element */}
-        <button 
-          className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-          onClick={moreButtonClick}
-          aria-label="More actions"
-        >
-          <MoreVertical className="w-5 h-5 text-on-surface-variant" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button 
+              className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
+              onClick={(event) => event.stopPropagation()}
+              aria-label="More actions"
+            >
+              <MoreVertical className="w-5 h-5 text-on-surface-variant" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" onClick={(event) => event.stopPropagation()}>
+            {!isScanned ? (
+              <DropdownMenuItem
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleScanToggle(true);
+                }}
+              >
+                Mark as Scanned
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleScanToggle(false);
+                }}
+              >
+                Mark as Not scanned
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-
-      {/* Action menu */}
-      {showActions && (
-        <div className="absolute right-4 top-16 z-20 w-60 rounded-2xl border border-outline bg-surface shadow-xl">
-          <div role="menu" className="flex flex-col py-1">
-            <button
-              className="flex w-full items-center justify-between px-4 py-3 text-left label-medium text-on-surface hover:bg-surface-container-high disabled:text-on-surface-variant/60"
-              disabled={isScanned}
-              onClick={(event) => {
-                event.stopPropagation();
-                actionClick(true);
-              }}
-            >
-              Mark as Scanned
-            </button>
-            <button
-              className="flex w-full items-center justify-between px-4 py-3 text-left label-medium text-on-surface hover:bg-surface-container-high disabled:text-on-surface-variant/60"
-              disabled={!isScanned}
-              onClick={(event) => {
-                event.stopPropagation();
-                actionClick(false);
-              }}
-            >
-              Mark as Not scanned
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -427,14 +423,15 @@ function BottomActions({
 }) {
   // Show Continue button whenever onContinue is provided
   const showContinue = Boolean(onContinue);
-  
+  const buttonHeightClasses = "h-[56px] min-h-[56px]";
+
   return (
     <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4">
       <div className="flex gap-4">
         <Button 
           variant="outline"
           onClick={onSaveAndClose}
-          className="flex-1 border-outline text-on-surface hover:bg-surface-container-high min-h-[64px] md:min-h-[56px] touch-manipulation"
+          className={`flex-1 border-outline text-on-surface hover:bg-surface-container-high touch-manipulation ${buttonHeightClasses}`}
         >
           Save & close
         </Button>
@@ -442,7 +439,7 @@ function BottomActions({
           <Button 
             onClick={onContinue}
             disabled={!hasScannedItems}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[64px] md:min-h-[56px] touch-manipulation"
+            className={`flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant touch-manipulation ${buttonHeightClasses}`}
           >
             Continue
           </Button>
@@ -450,7 +447,7 @@ function BottomActions({
           <Button 
             onClick={onCreateReturn}
             disabled={!hasSelectedItems}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant min-h-[64px] md:min-h-[56px] touch-manipulation"
+            className={`flex-1 bg-primary text-on-primary hover:bg-primary/90 disabled:bg-surface-container disabled:text-on-surface-variant touch-manipulation ${buttonHeightClasses}`}
           >
             Return
           </Button>

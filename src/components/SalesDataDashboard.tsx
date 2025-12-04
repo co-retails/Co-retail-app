@@ -21,33 +21,33 @@ interface SalesData {
 const mockSalesData: SalesData = {
   yesterday: {
     categories: [
-      { name: 'Jeans', value: 55, percentage: 100 },
-      { name: 'Hoodies & Sweatshirts', value: 49, percentage: 89 },
-      { name: 'Tops', value: 45, percentage: 82 },
-      { name: 'Jackets & Coats', value: 45, percentage: 82 },
-      { name: 'Pants', value: 35, percentage: 64 }
+      { name: 'Jeans', value: 2, percentage: 100 },
+      { name: 'Tops', value: 1, percentage: 50 },
+      { name: 'Hoodies & Sweatshirts', value: 1, percentage: 50 },
+      { name: 'Jackets & Coats', value: 1, percentage: 50 },
+      { name: 'Pants', value: 0, percentage: 0 }
     ],
-    totalSoldItems: 425
+    totalSoldItems: 5
   },
   sevenDays: {
     categories: [
-      { name: 'Jeans', value: 312, percentage: 100 },
-      { name: 'Tops', value: 287, percentage: 92 },
-      { name: 'Hoodies & Sweatshirts', value: 268, percentage: 86 },
-      { name: 'Shoes', value: 245, percentage: 78 },
-      { name: 'Jackets & Coats', value: 223, percentage: 71 }
+      { name: 'Jeans', value: 12, percentage: 100 },
+      { name: 'Tops', value: 10, percentage: 83 },
+      { name: 'Hoodies & Sweatshirts', value: 7, percentage: 58 },
+      { name: 'Shoes', value: 4, percentage: 33 },
+      { name: 'Jackets & Coats', value: 2, percentage: 17 }
     ],
-    totalSoldItems: 2780
+    totalSoldItems: 35
   },
   thirtyDays: {
     categories: [
-      { name: 'Jeans', value: 1456, percentage: 100 },
-      { name: 'Tops', value: 1298, percentage: 89 },
-      { name: 'Shoes', value: 1187, percentage: 81 },
-      { name: 'Hoodies & Sweatshirts', value: 1089, percentage: 75 },
-      { name: 'Jackets & Coats', value: 987, percentage: 68 }
+      { name: 'Jeans', value: 75, percentage: 100 },
+      { name: 'Tops', value: 62, percentage: 83 },
+      { name: 'Shoes', value: 50, percentage: 67 },
+      { name: 'Hoodies & Sweatshirts', value: 43, percentage: 57 },
+      { name: 'Jackets & Coats', value: 20, percentage: 27 }
     ],
-    totalSoldItems: 11250
+    totalSoldItems: 250
   }
 };
 
@@ -115,7 +115,7 @@ export default function SalesDataDashboard() {
     <div className="space-y-4">
       <h2 className="title-medium text-on-surface">Sales data</h2>
       
-      <Card className="bg-surface-container border border-outline-variant rounded-lg">
+      <Card className="bg-surface border-0 rounded-lg">
         <CardContent className="p-0">
           {/* Header */}
           <div className="p-4 pb-2">

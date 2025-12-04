@@ -96,7 +96,7 @@ export default function MonthlyGoalTracker({
   const remaining = Math.max(monthlyGoal - currentSales, 0);
 
   return (
-    <Card className="bg-surface-container border border-outline-variant rounded-lg">
+    <Card className="bg-surface border-0 rounded-lg">
       <CardContent className="p-4">
         <div className="space-y-4">
           {/* Progress section */}
@@ -109,10 +109,12 @@ export default function MonthlyGoalTracker({
                     {Math.round(progressPercentage)}%
                   </span>
                 </div>
-                <Progress 
-                  value={progressPercentage} 
-                  className="h-2 bg-surface-variant"
-                />
+                <div className="w-full bg-surface-variant rounded-full h-2">
+                  <div 
+                    className="bg-tertiary h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
               </div>
 
               {/* Stats grid */}
@@ -149,8 +151,8 @@ export default function MonthlyGoalTracker({
 
               {/* Status message */}
               {isGoalAchieved ? (
-                <div className="bg-primary-container rounded-lg p-3 mt-3">
-                  <p className="body-small text-on-primary-container text-center">
+                <div className="bg-primary rounded-lg p-3 mt-3">
+                  <p className="body-small text-on-primary text-center">
                     🎉 Congratulations! You've exceeded your monthly goal!
                   </p>
                 </div>

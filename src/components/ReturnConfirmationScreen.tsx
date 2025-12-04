@@ -75,17 +75,18 @@ export default function ReturnConfirmationScreen({ returnOrder, onBackToHome, on
 
       {/* Fixed Bottom Actions */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background p-4">
-        <div className="flex gap-3">
+        <div className="flex flex-row gap-3 md:justify-end md:gap-4 md:max-w-xl md:ml-auto">
           <Button
             variant="outline"
-            className="flex-1 text-[12px] leading-[16px] tracking-[0.5px] border border-[var(--success-container)] text-success hover:bg-success-container/20 min-h-[64px] md:min-h-[56px]"
+            className="flex-1 text-[12px] leading-[16px] tracking-[0.5px] border border-[var(--success-container)] text-success hover:bg-success-container/20 h-[56px] min-h-[56px] md:h-[56px] md:min-h-[56px] md:max-w-[220px] md:flex-none"
             onClick={onViewInShipping}
           >
             View in Shipping
           </Button>
 
           <Button
-            className="flex-1 text-[12px] leading-[16px] tracking-[0.5px] bg-on-surface text-surface hover:bg-on-surface/90 min-h-[64px] md:min-h-[56px]"
+            className="flex-1 text-[12px] leading-[16px] tracking-[0.5px] h-[56px] min-h-[56px] md:h-[56px] md:min-h-[56px] rounded-lg md:max-w-[240px] md:flex-none"
+            style={{ backgroundColor: '#000000', color: '#FFFFFF' }}
             onClick={onBackToHome}
           >
             Back to Home

@@ -5,7 +5,7 @@ import svgPaths from "../imports/svg-8iuolkmxl8";
 import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
 import SalesDataDashboard from './SalesDataDashboard';
 import MonthlyGoalTracker, { GoalEditDialog } from './MonthlyGoalTracker';
-import { ChevronDown, Settings, Target, UserIcon, ChevronRight, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { ChevronDown, Settings, Target, UserIcon, ChevronRight, RotateCcw, ClipboardCheck, QrCode } from 'lucide-react';
 
 interface DeliveryHomeScreenProps {
   onNavigateToShipping: () => void;
@@ -16,11 +16,12 @@ interface DeliveryHomeScreenProps {
   onNavigateToSellers?: () => void;
   onNavigateToStockCheck?: () => void;
   onNavigateToAdmin?: () => void;
-  deliveryStats: {
-    newDeliveries: number;
-    toReturn: number;
-    returns: number;
-  };
+  onScanToReceive?: () => void;
+  inTransitDeliveriesCount?: number;
+  inTransitBoxesCount?: number;
+  daysSinceLastStockCheck?: number | null;
+  inStoreItemsCount?: number;
+  inTransitReturnsCount?: number;
   expiredItemsCount?: number;
   itemsToScanCount?: number;
   brands: Brand[];
@@ -144,7 +145,13 @@ export default function DeliveryHomeScreen({
   onNavigateToReturnsTab,
   onNavigateToStockCheck, 
   onNavigateToAdmin,
-  deliveryStats,
+  onNavigateToScan,
+  onScanToReceive,
+  inTransitDeliveriesCount = 0,
+  inTransitBoxesCount = 0,
+  daysSinceLastStockCheck = null,
+  inStoreItemsCount = 0,
+  inTransitReturnsCount = 0,
   expiredItemsCount = 0,
   itemsToScanCount = 0,
   brands,
@@ -185,45 +192,41 @@ export default function DeliveryHomeScreen({
         {/* Main Content */}
         <div className="px-4 md:px-6 pt-6 pb-8 space-y-8 max-w-5xl mx-auto w-full">
           
-          {/* Overview Stats - Compact Cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card 
-              className="p-4 bg-surface-container border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors"
-              onClick={onNavigateToShipping}
-            >
-              <div>
-                <p className="body-small text-on-surface-variant mb-1">Inbound deliveries</p>
-                <p className="headline-small text-on-surface">{deliveryStats.newDeliveries}</p>
-              </div>
-            </Card>
-
-            <Card 
-              className="p-4 bg-surface-container border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors"
-              onClick={onNavigateToReturnsTab || onNavigateToReturns}
-            >
-              <div>
-                <p className="body-small text-on-surface-variant mb-1">Returns ongoing</p>
-                <p className="headline-small text-on-surface">{deliveryStats.returns}</p>
-              </div>
-            </Card>
-          </div>
-          
           {/* Quick Actions */}
           <div>
             <h2 className="title-medium text-on-surface mb-4">Quick actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
+                onClick={onScanToReceive || onNavigateToShipping}
+                className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary-container">
+                    <QrCode className="w-5 h-5 text-on-primary-container" />
+                  </div>
+                  <div>
+                    <p className="title-small text-on-surface">Scan to receive</p>
+                    <p className="body-small text-on-surface-variant">
+                      {inTransitDeliveriesCount} {inTransitDeliveriesCount === 1 ? 'In transit delivery' : 'In transit deliveries'}, {inTransitBoxesCount} {inTransitBoxesCount === 1 ? 'box' : 'boxes'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+              </button>
+
+              <button
                 onClick={onNavigateToReturns}
                 className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-secondary-container shadow-sm ring-1 ring-secondary/20">
-                    <RotateCcw className="w-5 h-5 text-on-secondary-container" />
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-tertiary-container">
+                    <RotateCcw className="w-5 h-5 text-on-tertiary-container" />
                   </div>
                   <div>
                     <p className="title-small text-on-surface">Create a return</p>
                     <p className="body-small text-on-surface-variant">
                       {expiredItemsCount} item{expiredItemsCount === 1 ? '' : 's'} expired
+                      {inTransitReturnsCount > 0 && ` • ${inTransitReturnsCount} ${inTransitReturnsCount === 1 ? 'return' : 'returns'} in transit`}
                     </p>
                   </div>
                 </div>
@@ -235,13 +238,14 @@ export default function DeliveryHomeScreen({
                 className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary-container shadow-sm ring-1 ring-primary/20">
-                    <ClipboardCheck className="w-5 h-5 text-on-primary-container" />
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-secondary-container">
+                    <ClipboardCheck className="w-5 h-5 text-on-secondary-container" />
                   </div>
                   <div>
                     <p className="title-small text-on-surface">Stock check</p>
                     <p className="body-small text-on-surface-variant">
-                      {itemsToScanCount} item{itemsToScanCount === 1 ? '' : 's'} to scan
+                      {inStoreItemsCount} {inStoreItemsCount === 1 ? 'item' : 'items'} in store
+                      {daysSinceLastStockCheck !== null && ` • ${daysSinceLastStockCheck} ${daysSinceLastStockCheck === 1 ? 'day' : 'days'} since last check`}
                     </p>
                   </div>
                 </div>
