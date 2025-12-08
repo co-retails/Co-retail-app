@@ -192,17 +192,19 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
       return (
         <div className="min-h-screen bg-surface">
           <div className="bg-surface-container border-b border-outline-variant">
-            <div className="px-4 py-3">
+            <div className="px-4 md:px-6 py-3">
               <div className="flex items-center gap-3">
                 <h1 className="headline-small text-on-surface">Switch view</h1>
               </div>
             </div>
           </div>
-          <div className="p-4">
-            <RoleSwitcher
-              currentRole={state.currentUserRole}
-              onRoleChange={handlers.handleRoleChange}
-            />
+          <div className="p-4 md:p-6">
+            <div className="max-w-2xl mx-auto">
+              <RoleSwitcher
+                currentRole={state.currentUserRole}
+                onRoleChange={handlers.handleRoleChange}
+              />
+            </div>
           </div>
         </div>
       );

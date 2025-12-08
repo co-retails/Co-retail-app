@@ -63,6 +63,9 @@ function ReviewInstructions({ reportDate }: { reportDate: string }) {
       <p className="body-medium text-on-surface">
         Report date: {reportDate}
       </p>
+      <p className="body-medium text-on-surface-variant">
+        Item status: Current
+      </p>
     </div>
   );
 }
@@ -79,28 +82,44 @@ function FilterChips({
   const filters: Array<{ id: ReviewTab; label: string }> = [
     { id: 'not-scanned', label: 'Not scanned' },
     { id: 'not-found', label: 'Not found' },
-    { id: 'all-included', label: 'All included' },
     { id: 'scanned', label: 'Scanned' }
   ];
+  
+  const allIncludedFilter = { id: 'all-included' as ReviewTab, label: 'All included' };
 
   return (
     <div className="px-4 md:px-6 py-3 bg-surface border-b border-outline-variant">
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-        {filters.map((filter) => (
-          <button
-            key={filter.id}
-            className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${
-              activeTab === filter.id
-                ? 'bg-secondary-container border-secondary text-on-secondary-container'
-                : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
-            }`}
-            onClick={() => onTabChange(filter.id)}
-          >
-            <span className="label-medium">
-              {filter.label} ({counts[filter.id]})
-            </span>
-          </button>
-        ))}
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide justify-between">
+        <div className="flex gap-2">
+          {filters.map((filter) => (
+            <button
+              key={filter.id}
+              className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${
+                activeTab === filter.id
+                  ? 'bg-secondary-container border-secondary text-on-secondary-container'
+                  : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
+              }`}
+              onClick={() => onTabChange(filter.id)}
+            >
+              <span className="label-medium">
+                {filter.label} ({counts[filter.id]})
+              </span>
+            </button>
+          ))}
+        </div>
+        <button
+          key={allIncludedFilter.id}
+          className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${
+            activeTab === allIncludedFilter.id
+              ? 'bg-secondary-container border-secondary text-on-secondary-container'
+              : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
+          }`}
+          onClick={() => onTabChange(allIncludedFilter.id)}
+        >
+          <span className="label-medium">
+            {allIncludedFilter.label} ({counts[allIncludedFilter.id]})
+          </span>
+        </button>
       </div>
     </div>
   );
@@ -288,37 +307,39 @@ function ReviewItemCard({
   const menuOptions = getMenuOptions();
 
   return (
-    <div className="bg-surface-container border-b border-outline-variant last:border-b-0">
-      <div className="flex items-center gap-4 px-4 py-4">
+    <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
+      <div className={`flex items-center py-3 ${activeTab === 'all-included' ? 'px-4' : 'px-1'}`}>
         {/* Leading element - Checkbox for bulk selection (hidden for all-included tab) */}
         {activeTab !== 'all-included' && (
-          <button 
-            className="flex-shrink-0 w-12 h-12 md:w-8 md:h-8 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-            onClick={() => onToggleSelect(item.id)}
-            aria-label={isSelected ? 'Deselect item' : 'Select item'}
-          >
-          <div className="relative w-5 h-5">
-            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
-              <path 
-                clipRule="evenodd" 
-                d={isSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
-                fill={isSelected ? "var(--primary)" : "var(--outline-variant)"} 
-                fillRule="evenodd" 
-              />
-            </svg>
-            {isSelected && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          <div className="flex items-center justify-center flex-shrink-0">
+            <button 
+              className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+              onClick={() => onToggleSelect(item.id)}
+              aria-label={isSelected ? 'Deselect item' : 'Select item'}
+            >
+              <div className="relative w-6 h-6">
+                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
+                  <path 
+                    clipRule="evenodd" 
+                    d={isSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
+                    fill={isSelected ? "var(--primary)" : "var(--outline-variant)"} 
+                    fillRule="evenodd" 
+                  />
                 </svg>
+                {isSelected && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
               </div>
-            )}
+            </button>
           </div>
-        </button>
         )}
         
-        {/* Main content using standardized ItemCard */}
-        <div className="flex-1">
+        {/* Main content using standardized ItemCard - override its wrapper styles */}
+        <div className="flex-1 [&>div]:!border-0 [&>div]:!bg-transparent [&>div]:hover:!bg-transparent [&>div>div]:!px-0">
           <ItemCard
             item={{
               id: item.id,
@@ -340,12 +361,9 @@ function ReviewItemCard({
           />
         </div>
         
-        {/* Trailing element - Price and actions */}
-        <div className="flex-shrink-0 flex flex-col items-end gap-2">
-          <span className="body-small text-on-surface">
-            €{item.price}
-          </span>
-          {menuOptions.length > 0 && (
+        {/* Trailing element - Actions only (price removed) */}
+        {menuOptions.length > 0 && (
+          <div className="flex-shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button 
@@ -367,8 +385,8 @@ function ReviewItemCard({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -406,7 +424,9 @@ function ItemsList({
   }
 
   return (
-    <Card className="mx-4 mb-4 bg-surface-container border border-outline-variant overflow-hidden">
+    <Card className={`mb-4 bg-surface-container border border-outline-variant overflow-hidden ${
+      activeTab === 'all-included' ? 'mx-4 md:mx-6' : 'mx-4'
+    }`}>
       {items.map((item) => (
         <ReviewItemCard 
           key={item.id}

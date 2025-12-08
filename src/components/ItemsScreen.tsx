@@ -34,7 +34,7 @@ import { Textarea } from "./ui/textarea";
 import { Archive, Edit3, X, FilterIcon } from "lucide-react";
 import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
-import { ItemCard, BaseItem } from './ItemCard';
+import { ItemCard, BaseItem, ItemQuickAction } from './ItemCard';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
 import { UserRole } from './ItemCard';
@@ -52,7 +52,7 @@ export interface Item extends BaseItem {
   size?: string;
   color?: string;
   price: number;
-  status: 'In Store' | 'Pending' | 'To return' | 'Archived' | 'In Store 2nd try' | 'Sold' | 'Pick up' | 'Charity' | 'In transit' | 'Expired' | 'Missing' | 'Broken' | 'Return - In transit' | 'Rejected';
+  status: 'Draft' | 'In transit' | 'Available' | 'Storage' | 'Sold' | 'Returned' | 'Missing' | 'Broken' | 'Rejected';
   date: string;
   deliveryId?: string;
   sellerName?: string;
@@ -65,11 +65,17 @@ export interface Item extends BaseItem {
   statusHistory?: StatusHistoryEntry[];
   rejectReason?: 'Broken on arrival' | 'Not accepted brand' | 'Not in season';
   lastInStoreAt?: string;
+  location?: 'Warehouse' | 'In Store' | 'Back of House' | 'Partner' | 'In transit';
+  isExpired?: boolean;
+  expiredFlaggedAt?: string;
+  expiredPostponeWeeks?: number;
+  isArchived?: boolean;
+  archivedAt?: string;
 }
 
 const STORE_HIDDEN_STATUSES: ReadonlyArray<Item['status']> = [
   'In transit',
-  'Return - In transit'
+  'Draft'
 ] as const;
 
 const STORE_HIDDEN_STATUS_SET = new Set<Item['status']>(STORE_HIDDEN_STATUSES);
@@ -143,14 +149,15 @@ function QuickFilterChips({
 }) {
   const filters = isPartnerPortal ? [
     { id: 'all', label: 'All', count: itemCounts.all },
-    { id: 'in-shipment', label: 'In shipment', count: itemCounts.inShipment },
-    { id: 'in-store', label: 'In store', count: itemCounts.inStore },
+    { id: 'in-shipment', label: 'In transit', count: itemCounts.inShipment },
+    { id: 'available', label: 'Available', count: itemCounts.available },
+    { id: 'storage', label: 'Storage', count: itemCounts.storage },
     { id: 'sold', label: 'Sold', count: itemCounts.sold },
     { id: 'return-in-transit', label: 'Return in transit', count: itemCounts.returnInTransit }
   ] : [
     { id: 'all', label: 'All', count: itemCounts.all },
-    { id: 'in-store', label: 'In Store', count: itemCounts.inStore },
-    { id: 'expired', label: 'To return', count: itemCounts.expired }
+    { id: 'available', label: 'Available', count: itemCounts.available },
+    { id: 'expired', label: 'Expired flag', count: itemCounts.expired }
   ];
 
   return (
@@ -316,11 +323,15 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No change</SelectItem>
-                <SelectItem value="In Store">In Store</SelectItem>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="To return">To return</SelectItem>
-                <SelectItem value="Archived">Archived</SelectItem>
-                <SelectItem value="In Store 2nd try">In Store 2nd try</SelectItem>
+                <SelectItem value="Available">Available</SelectItem>
+                <SelectItem value="Draft">Draft</SelectItem>
+                <SelectItem value="In transit">In transit</SelectItem>
+                <SelectItem value="Storage">Storage</SelectItem>
+                <SelectItem value="Sold">Sold</SelectItem>
+                <SelectItem value="Returned">Returned</SelectItem>
+                <SelectItem value="Missing">Missing</SelectItem>
+                <SelectItem value="Broken">Broken</SelectItem>
+                <SelectItem value="Rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -401,6 +412,270 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   );
 }
 
+const initialItems: Item[] = [
+  {
+    id: 'itm-1001',
+    itemId: '684755',
+    title: 'Everyday Hoodie',
+    brand: 'H&M',
+    category: 'Hoodie',
+    size: 'M',
+    color: 'Gray',
+    price: 10,
+    status: 'Available',
+    date: '2024-11-29',
+    deliveryId: 'DEL-1001',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1732475530169-70c2cda1712f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTE5NDA5MHww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 28,
+    lastInStoreAt: '2024-11-29T10:30:00.000Z',
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-11-27 09:15', user: 'Anna S.' },
+      { status: 'In transit', timestamp: '2024-11-28 15:45', user: 'System' },
+      { status: 'Available', timestamp: '2024-11-29 10:30', user: 'Anna S.', note: 'Ready for sale' }
+    ]
+  },
+  {
+    id: 'itm-1002',
+    itemId: '684754',
+    title: 'Summer Dress Capsule',
+    brand: 'Weekday',
+    category: 'Dresses',
+    size: '36',
+    color: 'Blue',
+    price: 12,
+    status: 'In transit',
+    date: '2024-12-02',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1613966570650-add3cf83aa83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzc3xlbnwxfHx8fDE3NjEyMDc5MjF8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In transit',
+    daysRemaining: 32,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-11-30 11:00', user: 'Anna S.' },
+      { status: 'In transit', timestamp: '2024-12-02 08:15', user: 'System', note: 'Partner dispatched shipment' }
+    ]
+  },
+  {
+    id: 'itm-1003',
+    itemId: '684752',
+    title: 'Second Chance Shorts',
+    brand: 'ARKET',
+    category: 'Shorts',
+    size: 'M',
+    color: 'White',
+    price: 5,
+    status: 'Storage',
+    date: '2024-11-20',
+    deliveryId: 'DEL-0981',
+    sellerName: 'Thrifted',
+    source: 'Thrifted',
+    thumbnail: 'https://images.unsplash.com/photo-1566228015669-35f772688809?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3aGl0ZSUyMHNob3J0c3xlbnwxfHx8fDE3NjEyODk0NDh8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 14,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-11-15 14:20', user: 'John D.' },
+      { status: 'In transit', timestamp: '2024-11-16 07:10', user: 'System' },
+      { status: 'Available', timestamp: '2024-11-17 10:45', user: 'John D.' },
+      { status: 'Storage', timestamp: '2024-12-01 09:00', user: 'Anna S.', note: 'Temporarily removed from floor' }
+    ]
+  },
+  {
+    id: 'itm-1004',
+    itemId: '684751',
+    title: 'Weekend Tops Bundle',
+    brand: 'Monki',
+    category: 'Tops',
+    size: 'S',
+    color: 'Red',
+    price: 40,
+    status: 'Sold',
+    date: '2024-11-10',
+    deliveryId: 'DEL-0850',
+    sellerName: 'Thrifted',
+    source: 'Thrifted',
+    thumbnail: 'https://images.unsplash.com/photo-1761090617068-f1b3257d27ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwdG9wc3xlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 0,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-05 12:30', user: 'Anna S.' },
+      { status: 'Sold', timestamp: '2024-11-08 15:10', user: 'System' }
+    ]
+  },
+  {
+    id: 'itm-1005',
+    itemId: '684750',
+    title: 'Returned Knit Set',
+    brand: 'H&M',
+    category: 'Tops',
+    size: 'L',
+    color: 'Green',
+    price: 15,
+    status: 'Returned',
+    date: '2024-11-18',
+    deliveryId: 'DEL-0872',
+    sellerName: 'Shenzhen Fashion Manufacturing',
+    source: 'Shenzhen Fashion Manufacturing',
+    thumbnail: 'https://images.unsplash.com/photo-1761090617068-f1b3257d27ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwdG9wc3xlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Partner',
+    daysRemaining: 0,
+    orderType: 'return',
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-07 11:20', user: 'Anna S.' },
+      { status: 'Storage', timestamp: '2024-11-25 09:00', user: 'System', note: 'Marked for return' },
+      { status: 'In transit', timestamp: '2024-11-27 08:45', user: 'System', note: 'Return shipment' },
+      { status: 'Returned', timestamp: '2024-12-01 16:32', user: 'Partner Warehouse' }
+    ]
+  },
+  {
+    id: 'itm-1006',
+    itemId: '684747',
+    title: 'Missing Shorts',
+    brand: 'COS',
+    category: 'Shorts',
+    size: 'M',
+    color: 'Black',
+    price: 18,
+    status: 'Missing',
+    date: '2024-11-22',
+    deliveryId: 'DEL-0902',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1534445347662-670a224a28ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9ydHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OHww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 18,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-19 09:00', user: 'Anna S.' },
+      { status: 'Missing', timestamp: '2024-11-22 14:00', user: 'John D.', note: 'Not found during stock check' }
+    ]
+  },
+  {
+    id: 'itm-1007',
+    itemId: '684746',
+    title: 'Damaged Tee',
+    brand: 'ARKET',
+    category: 'Tops',
+    size: 'S',
+    color: 'White',
+    price: 22,
+    status: 'Broken',
+    date: '2024-11-24',
+    deliveryId: 'DEL-0910',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1761090617068-f1b3257d27ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwdG9wc3xlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 0,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-20 10:00', user: 'Anna S.' },
+      { status: 'Broken', timestamp: '2024-11-24 15:00', user: 'John D.', note: 'Zipper damaged' }
+    ]
+  },
+  {
+    id: 'itm-1008',
+    itemId: '684734',
+    title: 'High Waist Trousers',
+    brand: 'Weekday',
+    category: 'Trousers',
+    size: '28',
+    color: 'Olive',
+    price: 32,
+    status: 'Rejected',
+    date: '2024-12-02',
+    deliveryId: 'DEL-0950',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    lastInStoreAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    thumbnail: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cm91c2VycyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 0,
+    rejectReason: 'Broken on arrival',
+    statusHistory: [
+      { status: 'Available', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), user: 'John D.' },
+      { status: 'Rejected', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), user: 'John D.', note: 'Broken on arrival' }
+    ]
+  },
+  {
+    id: 'itm-1009',
+    itemId: '684733',
+    title: 'Unshipped Denim Jacket',
+    brand: 'Weekday',
+    category: 'Jackets',
+    size: 'M',
+    color: 'Blue',
+    price: 38,
+    status: 'Draft',
+    date: '2024-12-05',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Warehouse',
+    daysRemaining: 45,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-12-05 08:00', user: 'System', note: 'Awaiting quality check before shipping' }
+    ]
+  },
+  {
+    id: 'itm-1010',
+    itemId: '684741',
+    title: 'Return In Transit Hoodie',
+    brand: 'H&M',
+    category: 'Hoodie',
+    size: 'L',
+    color: 'Gray',
+    price: 30,
+    status: 'In transit',
+    date: '2024-12-03',
+    orderType: 'return',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1732475530169-70c2cda1712f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTE5NDA5MHww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In transit',
+    daysRemaining: 40,
+    statusHistory: [
+      { status: 'Storage', timestamp: '2024-12-01 08:00', user: 'Anna S.', note: 'Marked for return shipment' },
+      { status: 'In transit', timestamp: '2024-12-03 12:00', user: 'System', note: 'Return pickup completed' }
+    ]
+  },
+  {
+    id: 'itm-1011',
+    itemId: '684742',
+    title: 'Postponed Midi Skirt',
+    brand: 'Weekday',
+    category: 'Skirts',
+    size: 'S',
+    color: 'Black',
+    price: 22,
+    status: 'Available',
+    date: '2024-11-15',
+    deliveryId: 'DEL-0820',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 5,
+    isExpired: true,
+    expiredFlaggedAt: '2024-11-30T10:00:00.000Z',
+    expiredPostponeWeeks: 8,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-16 10:00', user: 'Anna S.' },
+      { status: 'Available', timestamp: '2024-11-30 10:00', user: 'System', note: 'Expired flag applied' }
+    ]
+  }
+];
 function MultiSelectActions({
   selectedCount,
   totalCount,
@@ -594,7 +869,7 @@ export default function ItemsScreen({
 
   const canRejectItem = (item: Item) => {
     if (userRole !== 'admin') return false;
-    if (item.status !== 'In Store') return false;
+    if (item.status !== 'Available') return false;
     const timestamp = getLastInStoreTimestamp(item);
     if (timestamp === undefined) return false;
     return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
@@ -622,562 +897,22 @@ export default function ItemsScreen({
   const isPartnerPortal = !!(externalViewFilter && externalOnViewFilterChange);
 
   useEffect(() => {
-    if (!isPartnerPortal && quickFilter === 'pending') {
+    if (
+      !isPartnerPortal &&
+      quickFilter !== 'all' &&
+      quickFilter !== 'available' &&
+      quickFilter !== 'expired'
+    ) {
       setQuickFilter('all');
     }
   }, [isPartnerPortal, quickFilter]);
 
-  const [items, setItems] = useState<Item[]>([
-    {
-      id: '1',
-      itemId: '684755',
-      title: 'The bread and butter collection',
-      brand: 'H&M',
-      category: 'Hoodie',
-      size: 'M',
-      color: 'Gray',
-      price: 10,
-      status: 'In Store',
-      date: '2022-06-09',
-      deliveryId: '10000005',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1732475530169-70c2cda1712f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTE5NDA5MHww&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-09 10:30', user: 'Anna S.', note: 'Item received' },
-        { status: 'In Store', timestamp: '2022-06-09 14:22', user: 'Anna S.', note: 'Ready for sale' }
-      ],
-      daysRemaining: 37
-    },
-    {
-      id: '2',
-      itemId: '684754',
-      title: 'Summer dress collection',
-      brand: 'Weekday',
-      category: 'Dresses',
-      size: '36',
-      color: 'Blue',
-      price: 12,
-      status: 'In transit',
-      date: '2022-06-09',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1613966570650-add3cf83aa83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzc3xlbnwxfHx8fDE3NjEyMDc5MjF8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-09 11:15', user: 'Anna S.' }
-      ],
-      daysRemaining: 37
-    },
-    {
-      id: '3',
-      itemId: '684753',
-      title: 'Lucy Wood',
-      brand: 'COS',
-      category: 'Shorts',
-      size: 'M',
-      color: 'Black',
-      price: 8,
-      status: 'In Store',
-      date: '2022-06-09',
-      deliveryId: 'DEL-20220609-001',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1534445347662-670a224a28ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9ydHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OHww&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-09 09:45', user: 'Anna S.' },
-        { status: 'In Store', timestamp: '2022-06-09 13:30', user: 'Anna S.' }
-      ],
-      daysRemaining: 37
-    },
-    {
-      id: '4',
-      itemId: '684752',
-      title: 'John Smith',
-      brand: 'ARKET',
-      category: 'Shorts',
-      size: 'M',
-      color: 'White',
-      price: 5,
-      status: 'In Store 2nd try',
-      date: '2022-06-10',
-      deliveryId: 'DEL-20220608-002',
-      sellerName: 'Thrifted',
-      source: 'Thrifted',
-      thumbnail: 'https://images.unsplash.com/photo-1566228015669-35f772688809?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3aGl0ZSUyMHNob3J0c3xlbnwxfHx8fDE3NjEyODk0NDh8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-08 14:20', user: 'John D.' },
-        { status: 'In Store', timestamp: '2022-06-08 16:45', user: 'John D.' },
-        { status: 'To return', timestamp: '2022-06-09 10:00', user: 'Anna S.', note: 'Not sold within time limit' },
-        { status: 'In Store 2nd try', timestamp: '2022-06-10 09:15', user: 'Anna S.', note: 'Second attempt' }
-      ],
-      daysRemaining: 30
-    },
-    {
-      id: '5',
-      itemId: '684751',
-      title: 'Thrifted items',
-      brand: 'Monki',
-      category: 'Tops',
-      size: 'S',
-      color: 'Red',
-      price: 40,
-      status: 'To return',
-      date: '2022-06-10',
-      deliveryId: 'DEL-20220605-003',
-      sellerName: 'Thrifted',
-      source: 'Thrifted',
-      thumbnail: 'https://images.unsplash.com/photo-1761090617068-f1b3257d27ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwdG9wc3xlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In transit', timestamp: '2022-06-05 11:00', user: 'John D.' },
-        { status: 'In Store', timestamp: '2022-06-05 15:20', user: 'John D.' },
-        { status: 'To return', timestamp: '2022-06-10 09:30', user: 'Anna S.', note: 'Expired - not sold' }
-      ],
-      daysRemaining: 30
-    },
-    {
-      id: '6',
-      itemId: '684750',
-      title: 'Shenzhen Fashion Item',
-      brand: 'H&M',
-      category: 'Tops',
-      size: 'L',
-      color: 'Green',
-      price: 15,
-      status: 'In Store',
-      date: '2022-06-11',
-      deliveryId: 'DEL-20220611-001',
-      sellerName: 'Shenzhen Fashion Manufacturing',
-      source: 'Shenzhen Fashion Manufacturing',
-      thumbnail: 'https://images.unsplash.com/photo-1761090617068-f1b3257d27ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwdG9wc3xlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-11 08:00', user: 'Anna S.' },
-        { status: 'In Store', timestamp: '2022-06-11 12:00', user: 'Anna S.' }
-      ],
-      daysRemaining: 40
-    },
-    {
-      id: '7',
-      itemId: '684749',
-      title: 'Pending Fashion Item',
-      brand: 'COS',
-      category: 'Dresses',
-      size: 'S',
-      color: 'Pink',
-      price: 20,
-      status: 'In transit',
-      date: '2022-06-12',
-      sellerName: 'Shenzhen Fashion Manufacturing',
-      source: 'Shenzhen Fashion Manufacturing',
-      thumbnail: 'https://images.unsplash.com/photo-1613966570650-add3cf83aa83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzc3xlbnwxfHx8fDE3NjEyMDc5MjF8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-12 10:00', user: 'Anna S.' }
-      ],
-      daysRemaining: 45
-    },
-    {
-      id: '8',
-      itemId: '684748',
-      title: 'Expired Item',
-      brand: 'H&M',
-      category: 'Tops',
-      size: 'L',
-      color: 'Green',
-      price: 15,
-      status: 'Expired',
-      date: '2022-06-11',
-      deliveryId: 'DEL-20220611-002',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1761090617068-f1b3257d27ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwdG9wc3xlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In Store', timestamp: '2022-06-11 08:00', user: 'Anna S.' },
-        { status: 'Expired', timestamp: '2022-06-25 12:00', user: 'System' }
-      ],
-      daysRemaining: 0
-    },
-    {
-      id: '9',
-      itemId: '684747',
-      title: 'Missing Item',
-      brand: 'COS',
-      category: 'Shorts',
-      size: 'M',
-      color: 'Black',
-      price: 18,
-      status: 'Missing',
-      date: '2022-06-10',
-      deliveryId: 'DEL-20220610-001',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1534445347662-670a224a28ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9ydHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OHww&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-10 09:00', user: 'Anna S.' },
-        { status: 'Missing', timestamp: '2022-06-10 14:00', user: 'John D.' }
-      ],
-      daysRemaining: 30
-    },
-    {
-      id: '10',
-      itemId: '684746',
-      title: 'Broken Item',
-      brand: 'ARKET',
-      category: 'Tops',
-      size: 'S',
-      color: 'White',
-      price: 22,
-      status: 'Broken',
-      date: '2022-06-11',
-      deliveryId: 'DEL-20220611-003',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1761090617068-f1b3257d27ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwdG9wc3xlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-11 10:00', user: 'Anna S.' },
-        { status: 'Broken', timestamp: '2022-06-11 15:00', user: 'John D.' }
-      ],
-      daysRemaining: 35
-    },
-    {
-      id: '11',
-      itemId: '684745',
-      title: 'Sold Item',
-      brand: 'Monki',
-      category: 'Dresses',
-      size: 'M',
-      color: 'Red',
-      price: 25,
-      status: 'Sold',
-      date: '2022-06-08',
-      deliveryId: 'DEL-20220608-001',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1613966570650-add3cf83aa83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzc3xlbnwxfHx8fDE3NjEyMDc5MjF8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In Store', timestamp: '2022-06-08 09:00', user: 'Anna S.' },
-        { status: 'Sold', timestamp: '2022-06-08 16:30', user: 'System' }
-      ],
-      daysRemaining: 0
-    },
-    {
-      id: '12',
-      itemId: '684744',
-      title: 'Item Without Image 1',
-      brand: 'H&M',
-      category: 'Tops',
-      size: 'M',
-      color: 'Blue',
-      price: 18,
-      status: 'In Store',
-      date: '2022-06-12',
-      deliveryId: 'DEL-20220612-001',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-12 08:00', user: 'Anna S.' },
-        { status: 'In Store', timestamp: '2022-06-12 14:00', user: 'Anna S.' }
-      ],
-      daysRemaining: 42
-    },
-    {
-      id: '13',
-      itemId: '684743',
-      title: 'Item Without Image 2',
-      brand: 'COS',
-      category: 'Dresses',
-      size: 'S',
-      color: 'Black',
-      price: 30,
-      status: 'Pending',
-      date: '2022-06-13',
-      sellerName: 'Thrifted',
-      source: 'Thrifted',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-13 09:00', user: 'John D.' }
-      ],
-      daysRemaining: 45
-    },
-    {
-      id: '14',
-      itemId: '684742',
-      title: 'Item Without Image 3',
-      brand: 'Weekday',
-      category: 'Shorts',
-      size: 'L',
-      color: 'Gray',
-      price: 12,
-      status: 'In Store',
-      date: '2022-06-13',
-      deliveryId: 'DEL-20220613-001',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-13 10:00', user: 'Anna S.' },
-        { status: 'In Store', timestamp: '2022-06-13 16:00', user: 'Anna S.' }
-      ],
-      daysRemaining: 43
-    },
-    {
-      id: '15',
-      itemId: '684741',
-      title: 'Return In Transit Item',
-      brand: 'H&M',
-      category: 'Hoodie',
-      size: 'L',
-      color: 'Gray',
-      price: 30,
-      status: 'In transit',
-      date: '2022-06-13',
-      orderType: 'return',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1732475530169-70c2cda1712f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTE5NDA5MHww&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'To return', timestamp: '2022-06-13 08:00', user: 'Anna S.' },
-        { status: 'In transit', timestamp: '2022-06-13 12:00', user: 'System' }
-      ],
-      daysRemaining: 40
-    },
-    // Additional items for Weekday Sweden Drottninggatan with various statuses
-    {
-      id: '13',
-      itemId: '684743',
-      title: 'Striped T-Shirt',
-      brand: 'Weekday',
-      category: 'Tops',
-      size: 'M',
-      color: 'Navy/White',
-      price: 12,
-      status: 'In Store',
-      date: '2022-06-13',
-      deliveryId: 'DEL-20220613-001',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In transit', timestamp: '2022-06-13 08:00', user: 'System' },
-        { status: 'In Store', timestamp: '2022-06-13 14:30', user: 'Anna S.' }
-      ],
-      daysRemaining: 42
-    },
-    {
-      id: '14',
-      itemId: '684742',
-      title: 'Wide Leg Jeans',
-      brand: 'Weekday',
-      category: 'Jeans',
-      size: '29/32',
-      color: 'Dark Blue',
-      price: 28,
-      status: 'In transit',
-      date: '2022-06-14',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1542272604-787c3835535d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqZWFucyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-14 09:00', user: 'System' }
-      ],
-      daysRemaining: 45
-    },
-    {
-      id: '15',
-      itemId: '684741',
-      title: 'Knit Cardigan',
-      brand: 'Weekday',
-      category: 'Knitwear',
-      size: 'L',
-      color: 'Beige',
-      price: 35,
-      status: 'In Store',
-      date: '2022-06-13',
-      deliveryId: 'DEL-20220613-002',
-      sellerName: 'Thrifted',
-      source: 'Thrifted',
-      thumbnail: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXJkaWdhbiUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In transit', timestamp: '2022-06-13 07:00', user: 'System' },
-        { status: 'In Store', timestamp: '2022-06-13 13:45', user: 'John D.' }
-      ],
-      daysRemaining: 41
-    },
-    {
-      id: '16',
-      itemId: '684740',
-      title: 'Midi Skirt',
-      brand: 'Weekday',
-      category: 'Skirts',
-      size: 'S',
-      color: 'Black',
-      price: 22,
-      status: 'To return',
-      date: '2022-06-07',
-      deliveryId: 'DEL-20220607-001',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In Store', timestamp: '2022-06-07 10:00', user: 'Anna S.' },
-        { status: 'To return', timestamp: '2022-06-14 16:00', user: 'System', note: 'Expired - not sold' }
-      ],
-      daysRemaining: 0
-    },
-    {
-      id: '17',
-      itemId: '684739',
-      title: 'Oversized Blazer',
-      brand: 'Weekday',
-      category: 'Jackets',
-      size: 'M',
-      color: 'Charcoal',
-      price: 45,
-      status: 'In Store 2nd try',
-      date: '2022-06-08',
-      deliveryId: 'DEL-20220608-003',
-      sellerName: 'Thrifted',
-      source: 'Thrifted',
-      thumbnail: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxibGF6ZXIlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In Store', timestamp: '2022-06-08 11:00', user: 'Anna S.' },
-        { status: 'To return', timestamp: '2022-06-13 09:00', user: 'System', note: 'Not sold within time limit' },
-        { status: 'In Store 2nd try', timestamp: '2022-06-14 10:00', user: 'John D.', note: 'Second attempt' }
-      ],
-      daysRemaining: 25
-    },
-    {
-      id: '18',
-      itemId: '684738',
-      title: 'Leather Ankle Boots',
-      brand: 'Weekday',
-      category: 'Shoes',
-      size: '38',
-      color: 'Black',
-      price: 55,
-      status: 'Sold',
-      date: '2022-06-10',
-      deliveryId: 'DEL-20220610-002',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxib290cyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In Store', timestamp: '2022-06-10 09:30', user: 'Anna S.' },
-        { status: 'Sold', timestamp: '2022-06-12 15:20', user: 'System' }
-      ],
-      daysRemaining: 0
-    },
-    {
-      id: '19',
-      itemId: '684737',
-      title: 'Cropped Hoodie',
-      brand: 'Weekday',
-      category: 'Hoodies',
-      size: 'XS',
-      color: 'Light Grey',
-      price: 18,
-      status: 'Missing',
-      date: '2022-06-11',
-      deliveryId: 'DEL-20220611-004',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In transit', timestamp: '2022-06-11 08:00', user: 'System' },
-        { status: 'Missing', timestamp: '2022-06-11 16:00', user: 'John D.', note: 'Item not found during receiving' }
-      ],
-      daysRemaining: 38
-    },
-    {
-      id: '20',
-      itemId: '684736',
-      title: 'Denim Jacket',
-      brand: 'Weekday',
-      category: 'Jackets',
-      size: 'M',
-      color: 'Light Wash',
-      price: 38,
-      status: 'In transit',
-      date: '2022-06-14',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-14 07:30', user: 'System' }
-      ],
-      daysRemaining: 45
-    },
-    {
-      id: '21',
-      itemId: '684735',
-      title: 'Turtleneck Sweater',
-      brand: 'Weekday',
-      category: 'Knitwear',
-      size: 'M',
-      color: 'Cream',
-      price: 30,
-      status: 'Broken',
-      date: '2022-06-12',
-      deliveryId: 'DEL-20220612-002',
-      sellerName: 'Thrifted',
-      source: 'Thrifted',
-      thumbnail: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzd2VhdGVyJTIwZmFzaGlvbnxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      statusHistory: [
-        { status: 'In transit', timestamp: '2022-06-12 08:00', user: 'System' },
-        { status: 'Broken', timestamp: '2022-06-12 14:00', user: 'Anna S.', note: 'Damaged during shipping' }
-      ],
-      daysRemaining: 40
-    },
-    {
-      id: '22',
-      itemId: '684734',
-      title: 'High Waist Trousers',
-      brand: 'Weekday',
-      category: 'Trousers',
-      size: '28',
-      color: 'Olive',
-      price: 32,
-      status: 'Rejected',
-      date: '2022-06-13',
-      deliveryId: 'DEL-20220613-003',
-      sellerName: 'Sellpy Operations',
-      source: 'Sellpy Operations',
-      lastInStoreAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      thumbnail: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cm91c2VycyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      selected: false,
-      rejectReason: 'Broken on arrival',
-      statusHistory: [
-        { status: 'In Store', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), user: 'John D.' },
-        { status: 'Rejected', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), user: 'John D.', note: 'Broken on arrival' }
-      ],
-      daysRemaining: 0
-    }
-  ]);
+  const [items, setItems] = useState<Item[]>(initialItems);
 
   useEffect(() => {
     setItems(prev =>
       prev.map(item => {
-        if (item.status === 'In Store' && !item.lastInStoreAt) {
+        if (item.status === 'Available' && !item.lastInStoreAt) {
           const timestamp = getLastInStoreTimestamp(item);
           const iso = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
           return { ...item, lastInStoreAt: iso };
@@ -1190,6 +925,9 @@ export default function ItemsScreen({
   // Apply all filters and search
   const filteredItems = useMemo(() => {
     return items.filter(item => {
+      if (item.isArchived) {
+        return false;
+      }
       if (!isPartnerPortal && item.status && STORE_HIDDEN_STATUS_SET.has(item.status)) {
         return false;
       }
@@ -1207,32 +945,35 @@ export default function ItemsScreen({
       if (quickFilter === 'all') {
         matchesQuickFilter = true;
       } else if (isPartnerPortal) {
-        // Partner portal filters
-        if (quickFilter === 'in-shipment') {
-          matchesQuickFilter = item.status === 'In transit' || item.status === 'Return - In transit';
-        } else if (quickFilter === 'in-store') {
-          matchesQuickFilter = item.status === 'In Store' || 
-                               item.status === 'In Store 2nd try' || 
-                               item.status === 'Expired' || 
-                               item.status === 'Missing' || 
-                               item.status === 'Broken';
-        } else if (quickFilter === 'sold') {
-          matchesQuickFilter = item.status === 'Sold';
-        } else if (quickFilter === 'return-in-transit') {
-          matchesQuickFilter = (item.status === 'In transit' || item.status === 'Return - In transit') && item.orderType === 'return';
+        switch (quickFilter) {
+          case 'in-shipment':
+            matchesQuickFilter = item.status === 'In transit';
+            break;
+          case 'available':
+            matchesQuickFilter = item.status === 'Available';
+            break;
+          case 'storage':
+            matchesQuickFilter = item.status === 'Storage';
+            break;
+          case 'sold':
+            matchesQuickFilter = item.status === 'Sold';
+            break;
+          case 'return-in-transit':
+            matchesQuickFilter = item.status === 'In transit' && item.orderType === 'return';
+            break;
+          default:
+            matchesQuickFilter = true;
         }
       } else {
-        // Store app filters
-        matchesQuickFilter = 
-          (quickFilter === 'in-store' && (
-            item.status === 'In Store' || 
-            item.status === 'In Store 2nd try' ||
-            item.status === 'Missing' ||
-            item.status === 'Broken' ||
-            item.status === 'Sold' ||
-            item.status === 'Expired'
-          )) ||
-          (quickFilter === 'expired' && (item.status === 'To return' || item.status === 'Rejected'));
+        matchesQuickFilter =
+          (quickFilter === 'available' &&
+            (item.status === 'Available' ||
+             item.status === 'Storage' ||
+             item.status === 'Missing' ||
+             item.status === 'Broken' ||
+             item.status === 'Sold' ||
+             item.status === 'Returned')) ||
+          (quickFilter === 'expired' && Boolean(item.isExpired));
       }
       
       // Advanced filter sheet filters
@@ -1245,8 +986,8 @@ export default function ItemsScreen({
       return matchesPartner && matchesQuickSearch && matchesQuickFilter && 
              matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesPrice;
     }).map(item => {
-      // Remove deliveryId from items with status "Pending"
-      if (item.status === 'Pending') {
+      // Remove deliveryId from items with status "Draft"
+      if (item.status === 'Draft') {
         const { deliveryId, ...itemWithoutDeliveryId } = item;
         return itemWithoutDeliveryId;
       }
@@ -1278,48 +1019,37 @@ export default function ItemsScreen({
     const baseItems = items.filter(item => {
       const matchesPartner = !currentPartnerName || !item.sellerName || item.sellerName === currentPartnerName;
       const visibleInStore = isPartnerPortal || !item.status || !STORE_HIDDEN_STATUS_SET.has(item.status);
-      return matchesPartner && visibleInStore;
+      return matchesPartner && visibleInStore && !item.isArchived;
     });
 
     if (isPartnerPortal) {
       return {
         all: baseItems.length,
-        inShipment: baseItems.filter(item => item.status === 'In transit' || item.status === 'Return - In transit').length,
-        inStore: baseItems.filter(item => 
-          item.status === 'In Store' || 
-          item.status === 'In Store 2nd try' || 
-          item.status === 'Expired' || 
-          item.status === 'Missing' || 
-          item.status === 'Broken'
-        ).length,
+        available: baseItems.filter(item => item.status === 'Available').length,
+        storage: baseItems.filter(item => item.status === 'Storage').length,
         sold: baseItems.filter(item => item.status === 'Sold').length,
-        returnInTransit: baseItems.filter(item => (item.status === 'In transit' || item.status === 'Return - In transit') && item.orderType === 'return').length,
-        // Keep old keys for backward compatibility
-        pending: baseItems.filter(item => item.status === 'In transit' || item.status === 'Return - In transit').length,
-        expired: baseItems.filter(item => item.status === 'To return' || item.status === 'Rejected').length
-      };
-    } else {
-      // Store app filter counts - need to count all items in their proper categories
-      return {
-        all: baseItems.length,
-        inStore: baseItems.filter(item => 
-          item.status === 'In Store' || 
-          item.status === 'In Store 2nd try' ||
-          item.status === 'Missing' || 
-          item.status === 'Broken' ||
-          item.status === 'Sold' ||
-          item.status === 'Expired'
-        ).length,
-        expired: baseItems.filter(item => 
-          item.status === 'To return' || 
-          item.status === 'Rejected'
-        ).length,
-        // Partner portal keys (for compatibility)
-        inShipment: 0,
-        sold: 0,
-        returnInTransit: 0
+        inShipment: baseItems.filter(item => item.status === 'In transit').length,
+        returnInTransit: baseItems.filter(item => item.status === 'In transit' && item.orderType === 'return').length,
+        expired: baseItems.filter(item => item.isExpired).length
       };
     }
+
+    return {
+      all: baseItems.length,
+      available: baseItems.filter(item =>
+        item.status === 'Available' ||
+        item.status === 'Storage' ||
+        item.status === 'Missing' ||
+        item.status === 'Broken' ||
+        item.status === 'Sold' ||
+        item.status === 'Returned'
+      ).length,
+      expired: baseItems.filter(item => item.isExpired).length,
+      inShipment: 0,
+      storage: baseItems.filter(item => item.status === 'Storage').length,
+      sold: baseItems.filter(item => item.status === 'Sold').length,
+      returnInTransit: baseItems.filter(item => item.status === 'In transit' && item.orderType === 'return').length
+    };
   }, [items, isPartnerPortal, currentPartnerName]);
 
   const availableBrandOptions = useMemo(() => {
@@ -1353,19 +1083,19 @@ export default function ItemsScreen({
           }
           const existingTimestamp = item.lastInStoreAt ? Date.parse(item.lastInStoreAt) : undefined;
           const incomingTimestamp = Date.parse(isoTimestamp);
-          if (existingTimestamp !== undefined && existingTimestamp >= incomingTimestamp && item.status === 'In Store') {
+          if (existingTimestamp !== undefined && existingTimestamp >= incomingTimestamp && item.status === 'Available') {
             return item;
           }
           return {
             ...item,
-            status: 'In Store',
+            status: 'Available',
             date: isoTimestamp.slice(0, 10),
             lastInStoreAt: isoTimestamp,
             rejectReason: undefined,
             statusHistory: [
               ...(item.statusHistory || []),
               {
-                status: 'In Store',
+                status: 'Available',
                 timestamp: formatted,
                 user: 'System',
                 note: 'Registered in store'
@@ -1386,7 +1116,7 @@ export default function ItemsScreen({
   const canReturnSelectedItems =
     selectedItems.length > 0 &&
     selectedItems.every(
-      (item) => item.status !== 'In transit' && item.status !== 'Return - In transit' && item.status !== 'Rejected'
+      (item) => !['In transit', 'Draft', 'Rejected', 'Returned'].includes(item.status)
     );
 
   const handleToggleSelect = (id: string) => {
@@ -1445,8 +1175,9 @@ export default function ItemsScreen({
 
     const itemsForReturn = selectedItems.map((item) => ({
       ...item,
-      status: 'Return - In transit' as Item['status'],
-      orderType: 'return' as Item['orderType']
+      status: 'In transit' as Item['status'],
+      orderType: 'return' as Item['orderType'],
+      isExpired: false
     }));
 
     const selectedIds = new Set(itemsForReturn.map((item) => item.id));
@@ -1456,9 +1187,11 @@ export default function ItemsScreen({
         selectedIds.has(item.id)
           ? ({
               ...item,
-              status: 'Return - In transit',
+              status: 'In transit',
               orderType: 'return' as Item['orderType'],
-              selected: false
+              selected: false,
+              isExpired: false,
+              location: 'In transit'
             } as Item)
           : item
       )
@@ -1475,35 +1208,45 @@ export default function ItemsScreen({
     }
   };
 
-  const handleMoreActions = (item: Item, action: 'in-store' | 'store-transfer' | 'sold' | 'missing' | 'broken' | 'rejected' | 'in-store-2nd-try') => {
+  const handleMoreActions = (item: Item, action: ItemQuickAction) => {
     const fullItem = items.find(i => i.id === item.id);
     if (!fullItem) return;
 
     let newStatus: Item['status'];
     let successMessage: string;
+    let extraUpdates: Partial<Item> = {};
 
     switch (action) {
-      case 'in-store':
-        newStatus = 'In Store';
-        successMessage = `Item ${item.itemId || item.id} marked as In Store`;
+      case 'mark-available':
+        newStatus = 'Available';
+        successMessage = `Item ${item.itemId || item.id} marked as Available`;
+        extraUpdates = {
+          lastInStoreAt: new Date().toISOString(),
+          location: 'In Store',
+          isExpired: false
+        };
         break;
       case 'store-transfer':
-        newStatus = 'In transit'; // Store transfer might need a different status, using In transit for now
+        newStatus = 'In transit';
         successMessage = `Item ${item.itemId || item.id} marked for store transfer`;
+        extraUpdates = {
+          location: 'In transit',
+          orderType: 'order'
+        };
         break;
-      case 'sold':
+      case 'mark-sold':
         newStatus = 'Sold';
         successMessage = `Item ${item.itemId || item.id} marked as Sold`;
         break;
-      case 'missing':
+      case 'mark-missing':
         newStatus = 'Missing';
         successMessage = `Item ${item.itemId || item.id} marked as Missing`;
         break;
-      case 'broken':
+      case 'mark-broken':
         newStatus = 'Broken';
         successMessage = `Item ${item.itemId || item.id} marked as Broken`;
         break;
-      case 'rejected':
+      case 'mark-rejected':
         if (!canRejectItem(fullItem)) {
           toast.error('Item can only be rejected within 24 hours of arriving in store.');
           return;
@@ -1512,15 +1255,20 @@ export default function ItemsScreen({
         setRejectReason(rejectReasons[0]);
         setShowRejectDialog(true);
         return;
-      case 'in-store-2nd-try':
-        newStatus = 'In Store 2nd try';
-        successMessage = `Item ${item.itemId || item.id} marked as In Store 2nd try`;
+      case 'mark-return-transit':
+        newStatus = 'In transit';
+        successMessage = `Item ${item.itemId || item.id} scheduled for return transit`;
+        extraUpdates = {
+          orderType: 'return',
+          location: 'In transit',
+          isExpired: false
+        };
         break;
       default:
         return;
     }
 
-    handleSaveItemDetails(fullItem.id, { status: newStatus });
+    handleSaveItemDetails(fullItem.id, { status: newStatus, ...extraUpdates });
     toast.success(successMessage);
   };
   
@@ -1586,9 +1334,24 @@ export default function ItemsScreen({
 
   const handleArchiveSelected = () => {
     const selectedIds = selectedItems.map(item => item.id);
+    const archivedAt = new Date().toISOString();
     setItems(prev => prev.map(item => 
       selectedIds.includes(item.id) 
-        ? ({ ...item, status: 'Archived', selected: false } as Item)
+        ? ({ 
+            ...item, 
+            isArchived: true, 
+            archivedAt, 
+            selected: false,
+            statusHistory: [
+              ...(item.statusHistory || []),
+              {
+                status: item.status,
+                timestamp: formatTimestamp(),
+                user: 'Current User',
+                note: 'Archive flag applied'
+              }
+            ]
+          } as Item)
         : item
     ));
     toast.success(`${selectedItems.length} items archived successfully`);
@@ -1635,8 +1398,8 @@ export default function ItemsScreen({
         delete (itemUpdates as any).comment;
       }
       
-      // Update lastInStoreAt if status changed to 'In Store'
-      if (statusChange === 'In Store') {
+      // Update lastInStoreAt if status changed to 'Available'
+      if (statusChange === 'Available') {
         itemUpdates.lastInStoreAt = new Date().toISOString();
       }
       
@@ -1674,7 +1437,7 @@ export default function ItemsScreen({
             newHistoryEntry
           ];
 
-          if (updates.status === 'In Store') {
+          if (updates.status === 'Available') {
             updatedItem.lastInStoreAt = new Date().toISOString();
           }
         }
@@ -1710,7 +1473,7 @@ export default function ItemsScreen({
               ...(item.statusHistory || []),
               newHistoryEntry
             ],
-            ...(batchNewStatus === 'In Store' ? { lastInStoreAt: new Date().toISOString() } : {})
+            ...(batchNewStatus === 'Available' ? { lastInStoreAt: new Date().toISOString() } : {})
           } as Item;
         }
         return item;
@@ -2077,14 +1840,15 @@ export default function ItemsScreen({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Select new status</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="In Store">In Store</SelectItem>
-                  <SelectItem value="In Store 2nd try">In Store 2nd try</SelectItem>
+                  <SelectItem value="Available">Available</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                  <SelectItem value="In transit">In transit</SelectItem>
+                  <SelectItem value="Storage">Storage</SelectItem>
                   <SelectItem value="Sold">Sold</SelectItem>
-                  <SelectItem value="To return">To return</SelectItem>
-                  <SelectItem value="Pick up">Pick up</SelectItem>
-                  <SelectItem value="Charity">Charity</SelectItem>
-                  <SelectItem value="Archived">Archived</SelectItem>
+                  <SelectItem value="Returned">Returned</SelectItem>
+                  <SelectItem value="Missing">Missing</SelectItem>
+                  <SelectItem value="Broken">Broken</SelectItem>
+                  <SelectItem value="Rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
             </div>

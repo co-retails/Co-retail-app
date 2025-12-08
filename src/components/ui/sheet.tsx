@@ -36,14 +36,15 @@ function SheetPortal({
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+>(({ className, style, ...props }, ref) => (
   <SheetPrimitive.Overlay
     ref={ref}
     data-slot="sheet-overlay"
     className={cn(
-      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-30 bg-black/50",
       className,
     )}
+    style={{ zIndex: style?.zIndex ?? 1000, ...style }}
     {...props}
   />
 ));
@@ -54,7 +55,7 @@ const SheetContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & {
     side?: "top" | "right" | "bottom" | "left";
   }
->(({ className, children, side = "right", ...props }, ref) => {
+>(({ className, children, side = "right", style, ...props }, ref) => {
   // On desktop (md and up), force all sheets to slide from right
   const [isDesktop, setIsDesktop] = React.useState(false);
   const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
@@ -126,10 +127,11 @@ const SheetContent = React.forwardRef<
   } : undefined;
   
   // Create content props without aria-describedby if it's undefined
+  const mergedStyle = desktopStyle ? { ...style, ...desktopStyle } : style;
   const contentProps = {
     ...props,
     ...(ariaDescribedBy && { "aria-describedby": ariaDescribedBy }),
-    style: desktopStyle ? { ...props.style, ...desktopStyle } : props.style
+    style: { zIndex: 1001, ...mergedStyle }
   };
 
   const assignRef = React.useCallback((node: React.ElementRef<typeof SheetPrimitive.Content> | null) => {

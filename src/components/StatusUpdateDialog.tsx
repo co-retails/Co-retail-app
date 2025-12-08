@@ -14,21 +14,15 @@ import { Textarea } from "./ui/textarea";
 import { UserRole } from './ItemCard';
 
 export type ItemStatus = 
-  | 'In Store' 
-  | 'Pending' 
-  | 'To return' 
-  | 'Archived' 
-  | 'In Store 2nd try' 
-  | 'Sold' 
-  | 'Pick up' 
-  | 'Charity' 
-  | 'Missing' 
-  | 'Broken' 
-  | 'Expired'
-  | 'Rejected'
+  | 'Draft'
+  | 'In transit'
+  | 'Available'
   | 'Storage'
-  | 'Pre-register'
-  | 'Waiting for payout';
+  | 'Sold'
+  | 'Returned'
+  | 'Missing'
+  | 'Broken'
+  | 'Rejected';
 
 interface StatusUpdateDialogProps {
   isOpen: boolean;
@@ -45,51 +39,40 @@ const getAvailableStatuses = (currentStatus: string | undefined, userRole: UserR
   // Admin and Store Manager can update to any status
   if (userRole === 'admin' || userRole === 'store-manager') {
     return [
-      'In Store',
-      'Pending',
-      'To return',
-      'Archived',
-      'In Store 2nd try',
+      'Draft',
+      'In transit',
+      'Available',
+      'Storage',
       'Sold',
-      'Pick up',
-      'Charity',
+      'Returned',
       'Missing',
       'Broken',
-      'Expired',
-      'Rejected',
-      'Storage',
-      'Pre-register',
-      'Waiting for payout'
+      'Rejected'
     ];
   }
 
   // Store staff have restricted transitions based on logical flow
   if (userRole === 'store-staff') {
     switch (currentStatus) {
-      case 'In Store':
-        return ['Sold', 'Pick up', 'Charity', 'Expired', 'Archived', 'Storage'];
-      case 'Pending':
-        return ['In Store', 'Missing', 'Broken', 'To return'];
-      case 'In Store 2nd try':
-        return ['Sold', 'Pick up', 'Charity', 'Expired', 'Archived', 'Storage'];
-      case 'Missing':
-        return ['In Store', 'Archived'];
-      case 'Broken':
-        return ['Archived'];
-      case 'Expired':
-        return ['To return', 'Archived'];
+      case 'Available':
+        return ['Sold', 'Missing', 'Broken'];
       case 'Storage':
-        return ['In Store', 'Archived'];
-      case 'Pre-register':
-        return ['Pending', 'In Store'];
-      case 'Waiting for payout':
-        return ['Sold', 'Archived'];
-      // Restricted statuses that store staff cannot change
-      case 'To return':
-      case 'Archived':
+        return ['Available', 'In transit', 'Missing', 'Broken', 'Sold'];
+      case 'Draft':
+        return ['In transit'];
+      case 'In transit':
+        return ['Available'];
+      case 'Missing':
+        return ['Available', 'Sold'];
+      case 'Broken':
+        return [];
+      case 'Sold':
+        return ['Available'];
+      case 'Returned':
+      case 'Rejected':
         return [];
       default:
-        return ['In Store', 'Pending', 'Archived'];
+        return ['Available'];
     }
   }
 

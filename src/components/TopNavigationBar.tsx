@@ -48,7 +48,9 @@ export default function TopNavigationBar({
           {/* Navigation Tabs */}
           <nav className="flex items-center gap-1 h-full">
             {destinations && destinations.length > 0 ? (
-              destinations.map((destination) => {
+              destinations
+                .filter(destination => !destination.hideOnDesktop)
+                .map((destination) => {
                 const isActive = activeDestination === destination.id;
                 
                 return (

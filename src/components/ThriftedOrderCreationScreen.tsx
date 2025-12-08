@@ -1,14 +1,14 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { SharedHeader } from './ui/shared-header';
-import { ItemDetailsTable, ItemDetailsTableItem } from './ItemDetailsTable';
+import { ItemDetailsTable } from './ItemDetailsTable';
+import type { ItemDetailsTableItem } from './ItemDetailsTable';
 import { 
   ArrowLeftIcon, 
   PlusIcon, 
@@ -24,7 +24,8 @@ import {
   StoreIcon
 } from 'lucide-react';
 import { Store, Brand, Country, StoreSelection } from './StoreSelector';
-import { Partner, Warehouse } from './PartnerWarehouseSelector';
+import { Partner } from './PartnerWarehouseSelector';
+import { getCurrencyFromCountry } from '../data/partnerPricing';
 import { OrderItem } from './OrderCreationScreen';
 import { 
   generateThriftedTemplateCSV, 
@@ -36,10 +37,6 @@ import {
   getAllThriftedSubcategories,
   THRIFTED_VALID_VALUES
 } from '../utils/spreadsheetUtils';
-
-// Valid values for Thrifted orders
-const VALID_CATEGORIES = ['Clothing', 'Shoes', 'Accessories', 'Other'];
-const VALID_GENDERS = ['Women', 'Men', 'Kids', 'Unisex'];
 
 type CreationStep = 'setup' | 'items';
 type CreationMethod = 'manual' | 'bulk';
@@ -75,7 +72,6 @@ export default function ThriftedOrderCreationScreen({
   const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
   const [showStoreEdit, setShowStoreEdit] = useState(!existingOrderId);
   const [orderItems, setOrderItems] = useState<OrderItem[]>(existingItems);
-  const [currentItem, setCurrentItem] = useState<Partial<OrderItem>>({});
   
   // Store selection state
   const [selectedBrandId, setSelectedBrandId] = useState<string | undefined>(existingStoreSelection?.brandId);
@@ -110,17 +106,43 @@ export default function ThriftedOrderCreationScreen({
       }
     : undefined;
 
+  const selectedCountryRecord = selectedCountryId ? countries.find(c => c.id === selectedCountryId) : undefined;
+  const selectedCurrency = selectedCountryRecord ? getCurrencyFromCountry(selectedCountryRecord.name) : undefined;
+  const partnerIdForPricing = currentPartner?.id || '2';
+
   // Validation stats
   const totalItems = orderItems.length;
   const itemsWithErrors = orderItems.filter(item => item.status === 'error').length;
   const validItems = orderItems.filter(item => item.status !== 'error').length;
 
-  // Filter items based on validation filter
-  const filteredItems = orderItems.filter(item => {
-    if (validationFilter === 'errors') return item.status === 'error';
-    if (validationFilter === 'valid') return item.status !== 'error';
-    return true;
-  });
+  // Filter items based on validation filter (only for bulk upload)
+  const filteredItems = creationMethod === 'bulk' 
+    ? orderItems.filter(item => {
+        if (validationFilter === 'errors') return item.status === 'error';
+        if (validationFilter === 'valid') return item.status !== 'error';
+        return true;
+      })
+    : orderItems; // For manual entry, show all items without filtering
+  const brandSuggestions = useMemo(() => {
+    const suggestionSet = new Set<string>();
+    brands.forEach((brand) => suggestionSet.add(brand.name));
+    orderItems.forEach((item) => {
+      if (item.brand && item.brand.trim()) {
+        suggestionSet.add(item.brand.trim());
+      }
+    });
+    return Array.from(suggestionSet).sort((a, b) => a.localeCompare(b));
+  }, [brands, orderItems]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const selector = 'input[placeholder="Enter item brand"]';
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(selector));
+    inputs.forEach((input) => input.setAttribute('list', 'thrifted-brand-suggestions'));
+    return () => {
+      inputs.forEach((input) => input.removeAttribute('list'));
+    };
+  }, [orderItems.length, filteredItems.length, validationFilter, step, canEdit]);
 
   const handleDownloadTemplate = () => {
     const template = generateThriftedTemplateCSV();
@@ -136,7 +158,7 @@ export default function ThriftedOrderCreationScreen({
       try {
         const content = e.target?.result as string;
         const csvRows = parseCSV(content);
-        const { items, errors } = convertToThriftedOrderItems(csvRows);
+        const { items } = convertToThriftedOrderItems(csvRows);
         
         if (items.length === 0) {
           setUploadError('No valid items found in the file');
@@ -200,12 +222,10 @@ export default function ThriftedOrderCreationScreen({
       source: 'manual',
       fieldErrors: {
         sku: 'Required',
-        category: 'Required (select before subcategory)',
-        subcategory: 'Required (select category first)',
+        subcategory: 'Required',
         size: 'Required',
         brand: 'Required',
         color: 'Required',
-        gender: 'Required',
         price: 'Required (Mandatory)',
         retailerItemId: 'Required (Mandatory)'
       }
@@ -214,11 +234,11 @@ export default function ThriftedOrderCreationScreen({
     setOrderItems(prev => [...prev, newItem]);
   };
 
-  const handleRemoveItem = (itemId: string) => {
+  const handleDeleteItem = (itemId: string) => {
     setOrderItems(prev => prev.filter(item => item.id !== itemId));
   };
 
-  const handleUpdateItem = (itemId: string, field: keyof OrderItem, value: any) => {
+  const handleUpdateItem = (itemId: string, field: keyof ItemDetailsTableItem, value: any) => {
     setOrderItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       
@@ -241,15 +261,30 @@ export default function ThriftedOrderCreationScreen({
       
       // When category changes, clear subcategory if it's not valid for the new category
       if (field === 'category') {
-        const validSubcategories = THRIFTED_VALID_VALUES.subcategories[value] || [];
-        if (updatedItem.subcategory && !validSubcategories.includes(updatedItem.subcategory)) {
-          updatedItem.subcategory = '';
+        const trimmedCategory = value && value.toString ? value.toString().trim() : '';
+        if (trimmedCategory && THRIFTED_VALID_VALUES.categories.includes(trimmedCategory)) {
+          const validSubcategories = THRIFTED_VALID_VALUES.subcategories[trimmedCategory as keyof typeof THRIFTED_VALID_VALUES.subcategories] || [];
+          if (updatedItem.subcategory && !validSubcategories.includes(updatedItem.subcategory)) {
+            updatedItem.subcategory = '';
+          }
+        } else if (!trimmedCategory) {
+          updatedItem.category = '';
         }
       }
-      // Note: We no longer auto-map subcategory to category - user must select category first
-      
+
+      if (field === 'subcategory') {
+        const trimmedSubcategory = value && value.toString ? value.toString().trim() : '';
+        if (trimmedSubcategory) {
+          const mappedCategory = mapSubcategoryToCategory(trimmedSubcategory);
+          if (mappedCategory) {
+            updatedItem.subcategory = trimmedSubcategory;
+            updatedItem.category = mappedCategory;
+          }
+        }
+      }
+
       // Update field errors
-      const fieldErrors = { ...updatedItem.fieldErrors };
+      const fieldErrors = { ...(updatedItem.fieldErrors || {}) };
       
       // Validate updated field
       if (actualField === 'sku') {
@@ -269,13 +304,13 @@ export default function ThriftedOrderCreationScreen({
         }
       }
       
-      // Category validation (required before subcategory)
+      // Category validation (auto-mapped but still validated when edited manually)
       if (field === 'category') {
-        if (actualValue && actualValue.toString().trim() !== '') {
-          if (THRIFTED_VALID_VALUES.categories.includes(actualValue.toString().trim())) {
+        const trimmedCategory = actualValue && actualValue.toString ? actualValue.toString().trim() : '';
+        if (trimmedCategory) {
+          if (THRIFTED_VALID_VALUES.categories.includes(trimmedCategory)) {
             delete fieldErrors.category;
-            // Clear subcategory if it's not valid for the new category
-            const validSubcategories = THRIFTED_VALID_VALUES.subcategories[actualValue.toString().trim()] || [];
+            const validSubcategories = THRIFTED_VALID_VALUES.subcategories[trimmedCategory as keyof typeof THRIFTED_VALID_VALUES.subcategories] || [];
             if (updatedItem.subcategory && !validSubcategories.includes(updatedItem.subcategory)) {
               updatedItem.subcategory = '';
               fieldErrors.subcategory = 'Select subcategory for this category';
@@ -284,29 +319,29 @@ export default function ThriftedOrderCreationScreen({
             fieldErrors.category = 'Invalid category';
           }
         } else {
-          fieldErrors.category = 'Required (select before subcategory)';
+          delete fieldErrors.category;
         }
       }
       
-      // Subcategory validation (must be valid for selected category)
+      // Subcategory validation (auto-maps category)
       if (field === 'subcategory') {
-        if (actualValue && actualValue.toString().trim() !== '') {
-          if (!updatedItem.category || !updatedItem.category.trim()) {
-            fieldErrors.subcategory = 'Select category first';
+        const trimmedSubcategory = actualValue && actualValue.toString ? actualValue.toString().trim() : '';
+        if (trimmedSubcategory) {
+          const mappedCategory = mapSubcategoryToCategory(trimmedSubcategory);
+          if (mappedCategory) {
+            updatedItem.subcategory = trimmedSubcategory;
+            updatedItem.category = mappedCategory;
+            delete fieldErrors.subcategory;
+            delete fieldErrors.category;
           } else {
-            const validSubcategories = THRIFTED_VALID_VALUES.subcategories[updatedItem.category.trim()] || [];
-            if (validSubcategories.includes(actualValue.toString().trim())) {
-              delete fieldErrors.subcategory;
-            } else {
-              fieldErrors.subcategory = 'Invalid subcategory for selected category';
-            }
+            fieldErrors.subcategory = 'Invalid subcategory';
           }
         } else {
-          fieldErrors.subcategory = 'Required (select category first)';
+          fieldErrors.subcategory = 'Required';
         }
       }
       
-      if (actualField === 'size' || actualField === 'brand' || actualField === 'color' || actualField === 'gender') {
+      if (actualField === 'size' || actualField === 'brand' || actualField === 'color') {
         if (actualValue && actualValue.toString().trim() !== '') {
           delete fieldErrors[actualField];
         } else {
@@ -350,8 +385,14 @@ export default function ThriftedOrderCreationScreen({
   // Step navigation
   const handleContinueToItems = () => {
     if (storeSelection) {
-      setStep('items');
-      setShowStoreEdit(false);
+      // For manual entry, create order immediately and go to order details screen
+      if (creationMethod === 'manual') {
+        onCreateOrder([], storeSelection, false);
+      } else {
+        // For bulk upload, go to items step to review/validate uploaded items
+        setStep('items');
+        setShowStoreEdit(false);
+      }
     }
   };
 
@@ -399,7 +440,7 @@ export default function ThriftedOrderCreationScreen({
                 <Label className="label-large text-on-surface">Brand</Label>
                 <Select 
                   value={selectedBrandId} 
-                  onValueChange={(value) => {
+                  onValueChange={(value: string) => {
                     setSelectedBrandId(value);
                     setSelectedCountryId(undefined);
                     setSelectedStoreId(undefined);
@@ -424,7 +465,7 @@ export default function ThriftedOrderCreationScreen({
                 <Label className="label-large text-on-surface">Country</Label>
                 <Select 
                   value={selectedCountryId} 
-                  onValueChange={(value) => {
+                  onValueChange={(value: string) => {
                     setSelectedCountryId(value);
                     setSelectedStoreId(undefined);
                   }}
@@ -448,7 +489,7 @@ export default function ThriftedOrderCreationScreen({
                 <Label className="label-large text-on-surface">Store</Label>
                 <Select 
                   value={selectedStoreId} 
-                  onValueChange={(value) => {
+                  onValueChange={(value: string) => {
                     setSelectedStoreId(value);
                     if (step === 'items') {
                       setShowStoreEdit(false);
@@ -632,8 +673,8 @@ export default function ThriftedOrderCreationScreen({
   // Render step 2: Items management
   const renderItemsStep = () => (
     <div className="space-y-6 pb-32">
-      {/* Re-upload Section (for bulk uploads) */}
-      {canEdit && (
+      {/* Re-upload Section (for bulk uploads only) */}
+      {canEdit && creationMethod === 'bulk' && (
         <Card className="bg-surface-container-low border-outline">
           <CardHeader>
             <CardTitle className="title-large">Import Items</CardTitle>
@@ -742,38 +783,40 @@ export default function ThriftedOrderCreationScreen({
         <CardContent>
           {orderItems.length > 0 && (
             <>
-              {/* Filter Tabs */}
-              <div className="flex gap-2 mb-4 flex-wrap">
-                <Button
-                  variant={validationFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setValidationFilter('all')}
-                  className="label-large"
-                >
-                  All ({totalItems})
-                </Button>
-                <Button
-                  variant={validationFilter === 'valid' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setValidationFilter('valid')}
-                  className="label-large"
-                >
-                  Valid ({validItems})
-                </Button>
-                {itemsWithErrors > 0 && (
+              {/* Filter Tabs - Only show for bulk upload */}
+              {creationMethod === 'bulk' && (
+                <div className="flex gap-2 mb-4 flex-wrap">
                   <Button
-                    variant={validationFilter === 'errors' ? 'default' : 'outline'}
+                    variant={validationFilter === 'all' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setValidationFilter('errors')}
+                    onClick={() => setValidationFilter('all')}
                     className="label-large"
                   >
-                    Errors ({itemsWithErrors})
+                    All ({totalItems})
                   </Button>
-                )}
-              </div>
+                  <Button
+                    variant={validationFilter === 'valid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setValidationFilter('valid')}
+                    className="label-large"
+                  >
+                    Valid ({validItems})
+                  </Button>
+                  {itemsWithErrors > 0 && (
+                    <Button
+                      variant={validationFilter === 'errors' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setValidationFilter('errors')}
+                      className="label-large"
+                    >
+                      Errors ({itemsWithErrors})
+                    </Button>
+                  )}
+                </div>
+              )}
 
-              {/* Validation Errors Summary */}
-              {itemsWithErrors > 0 && validationFilter === 'errors' && (
+              {/* Validation Errors Summary - Only show for bulk upload */}
+              {creationMethod === 'bulk' && itemsWithErrors > 0 && validationFilter === 'errors' && (
                 <Alert variant="destructive" className="mb-4">
                   <AlertTriangleIcon className="h-4 w-4" />
                   <AlertDescription className="body-small">
@@ -802,12 +845,17 @@ export default function ThriftedOrderCreationScreen({
                 showStatus={false}
                 isEditable={canEdit}
                 onUpdateItem={handleUpdateItem}
+                onDeleteItem={canEdit ? handleDeleteItem : undefined}
                 subcategoryOptions={getAllThriftedSubcategories()}
                 subcategoryLabel="Subcategory"
                 brandAsInput={true}
-                categoryOptions={THRIFTED_VALID_VALUES.categories} // Show category dropdown (required before subcategory)
+                categoryOptions={THRIFTED_VALID_VALUES.categories} // Show category dropdown (auto-mapped from subcategory)
                 hideCategoryForThrifted={false} // Show category column for cascading dropdown
                 subcategoriesByCategory={THRIFTED_VALID_VALUES.subcategories} // Provide category-to-subcategory mapping
+                requireCategoryBeforeSubcategory={false}
+                partnerId={partnerIdForPricing}
+                countryName={selectedCountryRecord?.name}
+                currency={selectedCurrency}
               />
 
               {/* Delete Items Actions */}
@@ -863,10 +911,14 @@ export default function ThriftedOrderCreationScreen({
       <SharedHeader 
         title={isEditing ? "Edit Order" : "Create New Order"}
         onBack={onBack}
-        showBackButton={true}
       />
 
       <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6 pb-32">
+        <datalist id="thrifted-brand-suggestions">
+          {brandSuggestions.map((brand) => (
+            <option key={brand} value={brand} />
+          ))}
+        </datalist>
         {/* Receiving Store Selector (always visible at top) */}
         {renderStoreSelector()}
 

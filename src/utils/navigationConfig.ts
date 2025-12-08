@@ -127,7 +127,6 @@ export function getNavigationDestinations({
     {
       id: 'shipping',
       label: 'Shipping',
-      desktopLabel: 'Orders & Shipments',
       icon: 'p20e0b980',
       onClick: handlers.handleNavigateToShipping
     }

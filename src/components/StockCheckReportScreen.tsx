@@ -46,151 +46,148 @@ function ReportDateSelector({
   availableDates: Array<{ value: string; label: string }>;
 }) {
   return (
-    <Card className="mx-4 md:mx-6 mb-6 bg-surface-container border border-outline-variant">
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          <label className="label-medium text-on-surface-variant">
-            Stock check date
-          </label>
-          <Select value={selectedDate} onValueChange={onDateChange}>
-            <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-[12px] h-[56px] px-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-on-surface-variant" />
-                <SelectValue placeholder="Select date" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              {availableDates.map((date) => (
-                <SelectItem key={date.value} value={date.value}>
-                  <span className="body-medium text-on-surface">{date.label}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {availableDates.length > 1 && (
-            <p className="body-small text-on-surface-variant">
-              {availableDates.length} stock check{availableDates.length > 1 ? 's' : ''} available. Select a date to view the report.
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-6 mb-6">
+      <div className="space-y-2">
+        <label className="label-medium text-on-surface-variant">
+          Stock check date
+        </label>
+        <Select value={selectedDate} onValueChange={onDateChange}>
+          <SelectTrigger 
+            className="w-full bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large px-4"
+          >
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-on-surface-variant" />
+              <SelectValue placeholder="Select date" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="bg-surface-container-high border border-outline">
+            {availableDates.map((date) => (
+              <SelectItem key={date.value} value={date.value} className="body-large">
+                {date.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {availableDates.length > 1 && (
+          <p className="body-small text-on-surface-variant">
+            {availableDates.length} stock check{availableDates.length > 1 ? 's' : ''} available. Select a date to view the report.
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
-function ReportSummaryCard({ session }: { session: StockCheckSession }) {
+function ReportSummaryCard({ session, onExport }: { session: StockCheckSession; onExport: () => void }) {
   const notScannedCount = session.totalItems - session.scannedItems;
   const completionPercentage = session.totalItems > 0 
     ? Math.round((session.scannedItems / session.totalItems) * 100) 
     : 0;
   
   return (
-    <Card className="mx-4 md:mx-6 mb-6 bg-surface-container border border-outline-variant">
-      <CardContent className="p-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-4">
-            <FileText className="w-5 h-5 text-on-surface-variant" />
-            <h3 className="title-medium text-on-surface">
-              Report summary
-            </h3>
-            <span className="body-small text-on-surface-variant">
-              (number of items)
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="body-medium text-on-surface">Total:</span>
-                <span className="body-medium text-on-surface">{session.totalItems}</span>
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-6 mb-6">
+      <Card className="bg-surface-container border border-outline-variant">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="w-5 h-5 text-on-surface-variant" />
+              <h3 className="title-medium text-on-surface">
+                Report summary
+              </h3>
+              <span className="body-small text-on-surface-variant">
+                (number of items)
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="body-medium text-on-surface">Total:</span>
+                  <span className="body-medium text-on-surface">{session.totalItems}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="body-medium text-on-surface">Scanned:</span>
+                  <span className="body-medium text-on-surface">{session.scannedItems}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="body-medium text-on-surface">Not scanned:</span>
+                  <span className="body-medium text-on-surface">{notScannedCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="body-medium text-on-surface">Scanned not found:</span>
+                  <span className="body-medium text-on-surface">{session.notFoundItems}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="body-medium text-on-surface">Scanned:</span>
-                <span className="body-medium text-on-surface">{session.scannedItems}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="body-medium text-on-surface">Not scanned:</span>
-                <span className="body-medium text-on-surface">{notScannedCount}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="body-medium text-on-surface">Scanned not found:</span>
-                <span className="body-medium text-on-surface">{session.notFoundItems}</span>
+              
+              {/* Visual progress indicator */}
+              <div className="flex flex-col justify-center">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="label-small text-on-surface-variant">Completion</span>
+                    <span className="label-small text-on-surface-variant">
+                      {completionPercentage}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-surface-variant rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${completionPercentage}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             
-            {/* Visual progress indicator */}
-            <div className="flex flex-col justify-center">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="label-small text-on-surface-variant">Completion</span>
-                  <span className="label-small text-on-surface-variant">
-                    {completionPercentage}%
-                  </span>
-                </div>
-                <div className="w-full bg-surface-variant rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${completionPercentage}%` }}
-                  />
-                </div>
-              </div>
+            {/* Export Report Button - moved close to report summary */}
+            <div className="pt-4 border-t border-outline-variant">
+              <Button 
+                onClick={onExport}
+                variant="outline"
+                className="w-full md:w-auto md:min-w-[220px] border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-6 py-3 rounded-lg h-[56px] flex items-center justify-center label-large"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                <span>Export Report</span>
+              </Button>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
 function InstructionsCard() {
   return (
-    <Card className="mx-4 mb-6 bg-surface-container-low border border-outline-variant">
-      <CardContent className="p-4">
-        <p className="body-medium text-on-surface-variant leading-relaxed">
-          To handle mismatch between actual stock in store and stock check report completed in the app, 
-          please click 'Review items'.
-        </p>
-      </CardContent>
-    </Card>
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-6 mb-6">
+      <Card className="bg-surface-container-low border border-outline-variant">
+        <CardContent className="p-4">
+          <p className="body-medium text-on-surface-variant leading-relaxed">
+            To handle mismatch between actual stock in store and stock check report completed in the app, 
+            please click 'Review items'.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
 function ActionButtons({ 
   onReviewItems, 
-  onDone, 
   onExport 
 }: { 
   onReviewItems: () => void; 
-  onDone: () => void;
   onExport: () => void;
 }) {
   return (
-    <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4">
-      <div className="flex gap-4 mb-3">
+    <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 md:py-6 z-20">
+      <div className="w-full max-w-6xl mx-auto flex flex-row flex-wrap gap-3 md:gap-4 md:justify-end">
         <Button 
-          variant="outline"
           onClick={onReviewItems}
-          className="flex-1 border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
+          className="w-full md:w-auto md:min-w-[220px] bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg h-[56px] flex items-center justify-center label-large"
         >
           Review Items
         </Button>
-        <Button 
-          onClick={onDone}
-          className="flex-1 bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center label-large"
-        >
-          Done
-        </Button>
       </div>
-      
-      {/* Secondary action */}
-      <Button 
-        variant="ghost"
-        onClick={onExport}
-        className="w-full text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors px-6 py-2 rounded-lg min-h-[48px] flex items-center justify-center"
-      >
-        <Download className="w-4 h-4 mr-2" />
-        <span className="label-medium">Export Report</span>
-      </Button>
     </div>
   );
 }
@@ -253,7 +250,61 @@ export default function StockCheckReportScreen({
   };
 
   const handleExport = () => {
-    // Simulate export functionality
+    // Export all item details to spreadsheet
+    if (!session.items || session.items.length === 0) {
+      const event = new CustomEvent('toast', {
+        detail: { message: 'No items to export', type: 'error' }
+      });
+      window.dispatchEvent(event);
+      return;
+    }
+
+    // Prepare CSV data with all item details
+    const headers = [
+      'Item ID',
+      'Title',
+      'Brand',
+      'Size',
+      'Color',
+      'Price',
+      'Status',
+      'Order Number',
+      'Date',
+      'Category'
+    ];
+
+    const rows = session.items.map(item => [
+      item.itemId || '',
+      item.title || '',
+      item.brand || '',
+      item.size || '',
+      item.color || '',
+      item.price?.toString() || '',
+      item.status || '',
+      item.orderNumber || '',
+      item.date || session.date,
+      item.category || ''
+    ]);
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `stock-check-report-${session.date}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
     const event = new CustomEvent('toast', {
       detail: { message: 'Report exported successfully', type: 'success' }
     });
@@ -279,7 +330,7 @@ export default function StockCheckReportScreen({
         </div>
         
         {/* Report Summary */}
-        <ReportSummaryCard session={session} />
+        <ReportSummaryCard session={session} onExport={handleExport} />
         
         {/* Instructions */}
         <InstructionsCard />
@@ -288,7 +339,6 @@ export default function StockCheckReportScreen({
       {/* Action Buttons */}
       <ActionButtons 
         onReviewItems={onReviewItems}
-        onDone={onDone}
         onExport={handleExport}
       />
     </div>

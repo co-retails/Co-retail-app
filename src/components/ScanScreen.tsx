@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { ItemCard, BaseItem } from './ItemCard';
 import { 
   DropdownMenu,
@@ -16,6 +16,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "./ui/sheet";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -200,6 +208,18 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
     priceReduction: 'none',
     comment: ''
   });
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSave = () => {
     const updates: Partial<ScannedItem> = {};
@@ -220,23 +240,35 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-surface border border-outline-variant max-w-md mx-4">
-        <DialogHeader>
-          <DialogTitle className="title-large text-on-surface">
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent 
+        side={isMobile ? "bottom" : "right"} 
+        className="bg-surface border-outline-variant p-0 flex flex-col md:max-w-[400px] md:h-full max-h-[85vh] md:max-h-full"
+      >
+        {/* Header - Fixed */}
+        <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
+          <SheetTitle className="title-large text-on-surface">
             Bulk Edit Items
-          </DialogTitle>
-          <DialogDescription className="body-medium text-on-surface-variant">
+          </SheetTitle>
+          <SheetDescription className="body-medium text-on-surface-variant">
             Edit properties for {selectedItems.length} selected items. Only filled fields will be updated.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="status" className="text-right">
+          </SheetDescription>
+        </SheetHeader>
+
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+          {/* Status Field */}
+          <div className="space-y-2">
+            <Label htmlFor="status" className="label-large text-on-surface">
               Status
             </Label>
-            <Select value={formData.status} onValueChange={(value: string) => setFormData(prev => ({ ...prev, status: value }))}>
-              <SelectTrigger className="col-span-3 bg-surface-container-high border border-outline rounded-lg">
+            <Select
+              value={formData.status}
+              onValueChange={(value: string) =>
+                setFormData(prev => ({ ...prev, status: value }))
+              }
+            >
+              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
@@ -249,20 +281,24 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="category" className="text-right">
+          
+          {/* Category Field */}
+          <div className="space-y-2">
+            <Label htmlFor="category" className="label-large text-on-surface">
               Category
             </Label>
             <Input
               id="category"
               value={formData.category}
               onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="col-span-3 bg-surface-container-high border border-outline rounded-lg"
+              className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large"
               placeholder="e.g. Hoodie, Dress, Shorts"
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="priceReduction" className="text-right">
+          
+          {/* Price % Reduction Field */}
+          <div className="space-y-2">
+            <Label htmlFor="priceReduction" className="label-large text-on-surface">
               Price % reduction
             </Label>
             <Select
@@ -271,7 +307,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
                 setFormData(prev => ({ ...prev, priceReduction: value }))
               }
             >
-              <SelectTrigger className="col-span-3 bg-surface-container-high border border-outline rounded-lg">
+              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
                 <SelectValue placeholder="Select reduction" />
               </SelectTrigger>
               <SelectContent>
@@ -282,37 +318,43 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="comment" className="text-right pt-2">
+          
+          {/* Comment Field */}
+          <div className="space-y-2">
+            <Label htmlFor="comment" className="label-large text-on-surface">
               Comment (optional)
             </Label>
             <Textarea
               id="comment"
               value={formData.comment}
               onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
-              className="col-span-3 bg-surface-container-high border border-outline rounded-lg min-h-[80px] body-large resize-none"
+              className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[80px] body-large resize-none"
               placeholder="Add a comment..."
               rows={3}
             />
           </div>
         </div>
-        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3">
+
+        {/* Footer - Fixed at bottom */}
+        <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
           <Button 
             variant="outline" 
+            size="lg"
             onClick={onClose}
-            className="w-full sm:w-auto sm:min-w-[120px]"
+            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large touch-manipulation"
           >
             Cancel
           </Button>
           <Button 
+            size="lg"
             onClick={handleSave}
-            className="w-full sm:w-auto sm:min-w-[120px]"
+            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
           >
             Update items
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 

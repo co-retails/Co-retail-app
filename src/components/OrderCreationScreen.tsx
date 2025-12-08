@@ -34,10 +34,13 @@ export interface OrderItem {
   color: string;
   price: number;
   purchasePrice?: number;
-  status: 'error';
+  status?: 'error' | 'pending' | 'scanned';
   errors?: string[];
   partnerItemId?: string; // For API integration orders
   retailerItemId?: string; // For connected retailer items
+  sku?: string; // Local SKU/partner ID reference
+  fieldErrors?: Record<string, string>;
+  imageUrl?: string;
   source: 'manual' | 'excel' | 'api-integration'; // Track source of item
 }
 

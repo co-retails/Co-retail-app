@@ -12,6 +12,7 @@ import { Separator } from './ui/separator';
 import { ItemDetailsTable, ItemDetailsTableItem } from './ItemDetailsTable';
 import { ItemCard, BaseItem } from './ItemCard';
 import { toast } from 'sonner@2.0.3';
+import StoreSelector, { type StoreSelection } from './StoreSelector';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +27,7 @@ import {
   CalendarIcon,
   MapPinIcon,
   PencilIcon,
-  Store,
+  Store as StoreIcon,
   AlertTriangleIcon,
   RotateCcw,
   CheckIcon,
@@ -95,6 +96,7 @@ interface OrderShipmentDetailsScreenProps {
   stores?: Array<{ id: string; name: string; code: string; countryId: string; brandId: string }>;
   brands?: Array<{ id: string; name: string }>;
   onUpdateBoxLabel?: (boxId: string, newLabel: string) => void;
+  onUpdateReceiver?: (orderId: string, selection: StoreSelection) => void;
 }
 
 // Valid price points for SEK (Swedish Krona) - Sellpy partner market
@@ -203,10 +205,10 @@ export default function OrderShipmentDetailsScreen({
   type,
   data,
   onBack,
-  storeName,
-  storeCode,
-  partnerName,
-  warehouseName,
+  storeName: storeNameProp,
+  storeCode: storeCodeProp,
+  partnerName: partnerNameProp,
+  warehouseName: warehouseNameProp,
   receiverLabel,
   onNavigateToRetailerIdScan,
   onRegisterOrder,
@@ -215,6 +217,7 @@ export default function OrderShipmentDetailsScreen({
   onAddBox,
   onOpenBoxDetails,
   orderItems = [],
+  onUpdateReceiver,
   onUnregisterBox,
   onDeleteBox,
   relatedOrders = [],
@@ -353,6 +356,86 @@ export default function OrderShipmentDetailsScreen({
   };
 
   const returnDelivery = type === 'return' ? (data as ReturnDelivery) : null;
+  type PartnerOrderWithMeta = PartnerOrder & {
+    partnerId?: string;
+    partnerName?: string;
+    receivingStoreId?: string;
+    receivingStoreName?: string;
+    storeCode?: string;
+    warehouseName?: string;
+  };
+  type DeliveryNoteWithMeta = DeliveryNote & {
+    partnerId?: string;
+    partnerName?: string;
+    storeId?: string;
+    storeCode?: string;
+    storeName?: string;
+    warehouseName?: string;
+  };
+  const partnerOrderData = type === 'order' ? (data as PartnerOrderWithMeta) : undefined;
+  const deliveryNoteData = type === 'shipment' ? (data as DeliveryNoteWithMeta) : undefined;
+  const candidateStoreIds = [
+    partnerOrderData?.receivingStoreId,
+    deliveryNoteData?.storeId,
+    returnDelivery?.storeId,
+  ].filter((value): value is string => Boolean(value));
+  const candidateStoreCodes = [
+    storeCodeProp,
+    partnerOrderData?.storeCode,
+    deliveryNoteData?.storeCode,
+    returnDelivery?.storeCode,
+  ].filter((value): value is string => Boolean(value));
+  const candidateStoreNames = [
+    storeNameProp,
+    partnerOrderData?.receivingStoreName,
+    deliveryNoteData?.storeName,
+    returnDelivery?.storeName,
+    receiverLabel,
+  ].filter((value): value is string => Boolean(value));
+  const receivingStore = stores?.find((store) => {
+    if (candidateStoreIds.some((id) => id === store.id)) return true;
+    if (candidateStoreCodes.some((code) => code === store.code)) return true;
+    if (candidateStoreNames.some((name) => name === store.name)) return true;
+    return false;
+  });
+  const storeName = storeNameProp || partnerOrderData?.receivingStoreName || receivingStore?.name || returnDelivery?.storeName || receiverLabel;
+  const storeCode = storeCodeProp || receivingStore?.code || returnDelivery?.storeCode || deliveryNoteData?.storeCode;
+  const partnerName = partnerNameProp || partnerOrderData?.partnerName || deliveryNoteData?.partnerName || returnDelivery?.partnerName;
+  const warehouseName = warehouseNameProp || partnerOrderData?.warehouseName || deliveryNoteData?.warehouseName || returnDelivery?.warehouseName;
+  const currentOrderId = type === 'order' ? (data as PartnerOrder).id : undefined;
+  const currentReceiverSelection = useMemo<StoreSelection | undefined>(() => {
+    if (receivingStore) {
+      return {
+        brandId: receivingStore.brandId,
+        countryId: receivingStore.countryId,
+        storeId: receivingStore.id,
+        storeCode: receivingStore.code
+      };
+    }
+    if (partnerOrderData?.receivingStoreId && stores) {
+      const match = stores.find((store) => store.id === partnerOrderData.receivingStoreId);
+      if (match) {
+        return {
+          brandId: match.brandId,
+          countryId: match.countryId,
+          storeId: match.id,
+          storeCode: match.code
+        };
+      }
+    }
+    if (storeCode && stores) {
+      const match = stores.find((store) => store.code === storeCode);
+      if (match) {
+        return {
+          brandId: match.brandId,
+          countryId: match.countryId,
+          storeId: match.id,
+          storeCode: match.code
+        };
+      }
+    }
+    return undefined;
+  }, [receivingStore, partnerOrderData?.receivingStoreId, stores, storeCode]);
   const summaryDateValue = getDate();
   const formattedSummaryDate = summaryDateValue
     ? new Date(summaryDateValue).toISOString().split('T')[0]
@@ -386,14 +469,9 @@ export default function OrderShipmentDetailsScreen({
   
   // Check if Thrifted order is editable (pending status)
   const isThriftedEditable = isThriftedOrder && isPendingOrder;
-
-  // Get currency from store/country
-  // First, try to find the store by storeCode or storeName
-  const receivingStore = stores.find(s => 
-    (storeCode && s.code === storeCode) || 
-    (storeName && s.name === storeName)
-  );
   
+  const [isReceiverSelectorOpen, setIsReceiverSelectorOpen] = useState(false);
+
   // Get brand name from store
   const receiverBrand = receivingStore 
     ? brands.find(b => b.id === receivingStore.brandId)?.name
@@ -408,19 +486,25 @@ export default function OrderShipmentDetailsScreen({
   const currency = countryName ? getCurrencyFromCountry(countryName) : undefined;
   
   // Get partner ID from partner name
-  const partnerId = partnerName === 'Sellpy Operations' || partnerName === 'Sellpy' 
-    ? '1' 
-    : partnerName === 'Thrifted' 
-    ? '2' 
-    : partnerName === 'Shenzhen Fashion Manufacturing'
-    ? '6'
-    : undefined;
+  const partnerId = partnerOrderData?.partnerId
+    || deliveryNoteData?.partnerId
+    || returnDelivery?.partnerId
+    || (
+      partnerName === 'Sellpy Operations' || partnerName === 'Sellpy' 
+        ? '1' 
+        : partnerName === 'Thrifted' 
+        ? '2' 
+        : partnerName === 'Shenzhen Fashion Manufacturing'
+        ? '6'
+        : undefined
+    );
 
   // Validation function for Thrifted items
   // For Thrifted, partners fill in subcategory, category is auto-mapped
   const validateThriftedItem = (item: DetailItem): boolean => {
-    // Mandatory: SKU
-    if (!item.sku || !item.sku.trim()) return false;
+    // Mandatory: SKU (External ID) - can be in sku or partnerItemId field
+    const externalId = item.sku || item.partnerItemId || '';
+    if (!externalId || !externalId.trim()) return false;
     
     // Mandatory: Retailer ID
     if (!item.retailerItemId || !item.retailerItemId.trim()) return false;
@@ -444,19 +528,60 @@ export default function OrderShipmentDetailsScreen({
     if (!item.color || !item.color.trim()) return false;
     if (!THRIFTED_VALID_VALUES.colors.includes(item.color.trim())) return false;
     
-    // Mandatory: Gender
-    if (!item.gender || !item.gender.trim()) return false;
-    if (!THRIFTED_VALID_VALUES.genders.includes(item.gender.trim())) return false;
-    
     // Mandatory: Price
     if (!item.price || item.price <= 0) return false;
     if (!THRIFTED_VALID_VALUES.prices.includes(item.price)) return false;
     
-    // Check if item has error status
-    if (item.status === 'error') return false;
-    
     return true;
   };
+  
+  // Helper function to validate and set field errors for a Thrifted item
+  const validateAndSetFieldErrors = (item: DetailItem): DetailItem => {
+    const isValid = validateThriftedItem(item);
+    const fieldErrors: Record<string, string> = {};
+    
+    // Check sku (External ID) - can be in sku or partnerItemId field
+    const externalId = item.sku || item.partnerItemId || '';
+    if (!externalId || !externalId.trim()) {
+      fieldErrors.sku = 'Required';
+      fieldErrors.partnerItemId = 'Required';
+    }
+    if (!item.retailerItemId || !item.retailerItemId.trim()) {
+      fieldErrors.retailerItemId = 'Required (Mandatory)';
+    }
+    if (!item.brand || !item.brand.trim()) fieldErrors.brand = 'Required';
+    if (!item.category || !item.category.trim()) {
+      fieldErrors.category = 'Required';
+    } else if (!THRIFTED_VALID_VALUES.categories.includes(item.category.trim())) {
+      fieldErrors.category = 'Invalid category';
+    }
+    if (!item.subcategory || !item.subcategory.trim()) {
+      fieldErrors.subcategory = 'Required';
+    } else if (item.category) {
+      const validSubcategories = THRIFTED_VALID_VALUES.subcategories[item.category.trim()] || [];
+      if (!validSubcategories.includes(item.subcategory.trim())) {
+        fieldErrors.subcategory = 'Invalid subcategory for selected category';
+      }
+    }
+    if (!item.size || !item.size.trim()) fieldErrors.size = 'Required';
+    if (!item.color || !item.color.trim()) fieldErrors.color = 'Required';
+    else if (!THRIFTED_VALID_VALUES.colors.includes(item.color.trim())) {
+      fieldErrors.color = 'Invalid color';
+    }
+    if (!item.price || item.price <= 0) {
+      fieldErrors.price = 'Required (Mandatory)';
+    } else if (!THRIFTED_VALID_VALUES.prices.includes(item.price)) {
+      fieldErrors.price = 'Invalid price';
+    }
+    
+    return {
+      ...item,
+      status: isValid ? undefined : 'error',
+      fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+      errors: Object.keys(fieldErrors).length > 0 ? Object.values(fieldErrors) : undefined
+    };
+  };
+
 
   // Generate mock items based on the expected count
   // Use useMemo to stabilize baseItems and prevent recalculation on every render
@@ -466,17 +591,19 @@ export default function OrderShipmentDetailsScreen({
     return generateMockItems(itemCount, type, partnerName, orderStatus);
   }, [itemCount, type, partnerName, orderStatus]);
   
-  // Use orderItems prop if provided (for Thrifted orders), otherwise use editableItems or baseItems
-  const allItems = orderItems && orderItems.length > 0 
+  // Use editableItems if it has items, otherwise use orderItems if provided, otherwise use baseItems if order has items
+  // For newly created orders (itemCount === 0), editableItems starts empty and user adds items manually
+  // For existing orders (itemCount > 0), use baseItems if orderItems not provided
+  const allItems = editableItems.length > 0
+    ? editableItems
+    : orderItems && orderItems.length > 0 
     ? orderItems.map(item => ({
         ...item,
         partnerItemId: item.partnerItemId || item.sku || item.itemId,
         subcategory: item.subcategory || '', // Preserve subcategory, don't use gender as fallback
         imageUrl: undefined
       }))
-    : editableItems.length > 0 
-    ? editableItems 
-    : baseItems;
+    : (itemCount > 0 ? baseItems : []); // Use baseItems for existing orders with items, empty array for new orders
   
   // Filter items based on validation status
   // For Thrifted orders: validate all mandatory fields
@@ -565,7 +692,7 @@ export default function OrderShipmentDetailsScreen({
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-on-surface-variant">
                   <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                    <Store size={16} />
+                    <StoreIcon size={16} />
                   </span>
                   <span className="body-small">Sender</span>
                 </div>
@@ -576,11 +703,30 @@ export default function OrderShipmentDetailsScreen({
               </div>
 
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-on-surface-variant">
-                  <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
-                    <MapPinIcon size={16} />
-                  </span>
-                  <span className="body-small">Receiver</span>
+                <div className="flex items-center justify-between text-on-surface-variant">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+                      <MapPinIcon size={16} />
+                    </span>
+                    <span className="body-small">Receiver</span>
+                  </div>
+                  {isThriftedOrder && isThriftedEditable && onUpdateReceiver && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 border-primary text-primary hover:bg-primary/10 active:bg-primary/20 font-medium shadow-sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Edit button clicked, opening StoreSelector');
+                        setIsReceiverSelectorOpen(true);
+                      }}
+                      disabled={!stores || !brands || !countries || !currentOrderId}
+                    >
+                      <PencilIcon size={16} />
+                      <span className="label-medium">Edit</span>
+                    </Button>
+                  )}
                 </div>
                 <p className="body-medium text-on-surface">
                   {receiverName}
@@ -622,7 +768,7 @@ export default function OrderShipmentDetailsScreen({
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-on-surface-variant">
                 <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <Store size={16} />
+                  <StoreIcon size={16} />
                 </span>
                 <span className="body-small">Sender (Store)</span>
               </div>
@@ -658,7 +804,7 @@ export default function OrderShipmentDetailsScreen({
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-on-surface-variant">
                 <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <Store size={16} />
+                  <StoreIcon size={16} />
                 </span>
                 <span className="body-small">Sender</span>
               </div>
@@ -671,11 +817,30 @@ export default function OrderShipmentDetailsScreen({
 
           {(receiverLabel || storeName || storeCode) && (
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-on-surface-variant">
-                <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
-                  <MapPinIcon size={16} />
-                </span>
-                <span className="body-small">Receiver</span>
+              <div className="flex items-center justify-between text-on-surface-variant">
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+                    <MapPinIcon size={16} />
+                  </span>
+                  <span className="body-small">Receiver</span>
+                </div>
+                {isThriftedOrder && isThriftedEditable && onUpdateReceiver && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-primary text-primary hover:bg-primary/10 active:bg-primary/20 font-medium shadow-sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Edit button clicked, opening StoreSelector');
+                      setIsReceiverSelectorOpen(true);
+                    }}
+                    disabled={!stores || !brands || !countries || !currentOrderId}
+                  >
+                    <PencilIcon size={16} className="w-4 h-4" />
+                    <span className="label-medium">Edit</span>
+                  </Button>
+                )}
               </div>
               <p className="body-medium text-on-surface">{receiverLabel || storeName}</p>
               {storeName && receiverLabel && receiverLabel !== storeName && (
@@ -692,21 +857,43 @@ export default function OrderShipmentDetailsScreen({
   };
   
   // Initialize editable items on mount
+  // If orderItems is provided, use it. Otherwise, if order has items (itemCount > 0), use baseItems
+  // Don't initialize if order is new (itemCount === 0) - let user add items manually
   React.useEffect(() => {
-    if (editableItems.length === 0 && orderItems && orderItems.length > 0) {
-      // Initialize with orderItems if provided
-      setEditableItems(orderItems.map(item => ({
-        ...item,
-        partnerItemId: item.partnerItemId || item.sku || item.itemId,
-        subcategory: item.subcategory || '', // Preserve subcategory, don't use gender as fallback
-        imageUrl: undefined
-      })));
-    } else if (editableItems.length === 0 && (!orderItems || orderItems.length === 0)) {
-      // Initialize with baseItems (generated mock items) if no orderItems provided
-      // Only initialize once when editableItems is empty
-      setEditableItems(baseItems);
+    if (editableItems.length === 0) {
+      if (orderItems && orderItems.length > 0) {
+        // Initialize with orderItems if provided and not empty
+        const mappedItems = orderItems.map(item => ({
+          ...item,
+          sku: item.sku || item.partnerItemId || item.itemId,
+          partnerItemId: item.partnerItemId || item.sku || item.itemId,
+          subcategory: item.subcategory || '', // Preserve subcategory, don't use gender as fallback
+          imageUrl: undefined
+        }));
+        // Validate and set field errors for Thrifted orders
+        if (isThriftedOrder && isPendingOrder) {
+          setEditableItems(mappedItems.map(item => validateAndSetFieldErrors(item)));
+        } else {
+          setEditableItems(mappedItems);
+        }
+      } else if (itemCount > 0 && baseItems.length > 0) {
+        // For existing orders with items but no orderItems prop, use baseItems
+        // Map partnerItemId to sku for consistency
+        const mappedBaseItems = baseItems.map(item => ({
+          ...item,
+          sku: item.sku || item.partnerItemId || item.itemId,
+          partnerItemId: item.partnerItemId || item.sku || item.itemId
+        }));
+        // Validate and set field errors for Thrifted orders
+        if (isThriftedOrder && isPendingOrder) {
+          setEditableItems(mappedBaseItems.map(item => validateAndSetFieldErrors(item)));
+        } else {
+          setEditableItems(mappedBaseItems);
+        }
+      }
+      // Don't initialize for new orders (itemCount === 0) - let user add items manually
     }
-  }, [orderItems]); // Remove baseItems from dependencies to avoid infinite loops
+  }, [orderItems, itemCount]); // Only depend on orderItems and itemCount, baseItems is stable via useMemo
   
   // Handler to save changes and close (for Thrifted and approval orders)
   const handleSaveAndClose = () => {
@@ -716,6 +903,11 @@ export default function OrderShipmentDetailsScreen({
     onBack();
   };
   
+  // Handler to delete item
+  const handleDeleteItem = (itemId: string) => {
+    setEditableItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
   // Handler to update item attribute
   const handleUpdateItemAttribute = (itemId: string, field: keyof DetailItem, value: any) => {
     setEditableItems(prev => {
@@ -723,18 +915,38 @@ export default function OrderShipmentDetailsScreen({
         if (item.id !== itemId) return item;
         
         const updatedItem = { ...item, [field]: value };
+
+        if (field === 'partnerItemId') {
+          const stringValue = typeof value === 'string' ? value : (value != null ? value.toString() : '');
+          updatedItem.partnerItemId = stringValue;
+          updatedItem.sku = stringValue;
+        }
         
         // For Thrifted orders, update validation status
         if (isThriftedOrder && isPendingOrder) {
           // When category changes, clear subcategory if it's not valid for the new category
           if (field === 'category') {
-            const validSubcategories = THRIFTED_VALID_VALUES.subcategories[value] || [];
-            if (updatedItem.subcategory && !validSubcategories.includes(updatedItem.subcategory)) {
-              updatedItem.subcategory = '';
+            const trimmedCategory = value && value.toString ? value.toString().trim() : '';
+            if (trimmedCategory && THRIFTED_VALID_VALUES.categories.includes(trimmedCategory)) {
+              const validSubcategories = THRIFTED_VALID_VALUES.subcategories[trimmedCategory] || [];
+              if (updatedItem.subcategory && !validSubcategories.includes(updatedItem.subcategory)) {
+                updatedItem.subcategory = '';
+              }
+            } else if (!trimmedCategory) {
+              updatedItem.category = '';
             }
           }
-          // Note: We no longer auto-map subcategory to category - user must select category first
-          
+
+          if (field === 'subcategory') {
+            const trimmedSubcategory = value && value.toString ? value.toString().trim() : '';
+            if (trimmedSubcategory) {
+              const mappedCategory = mapSubcategoryToCategory(trimmedSubcategory);
+              if (mappedCategory) {
+                updatedItem.subcategory = trimmedSubcategory;
+                updatedItem.category = mappedCategory;
+              }
+            }
+          }
           // Re-validate the item
           const isValid = validateThriftedItem(updatedItem);
           updatedItem.status = isValid ? undefined : 'error';
@@ -752,14 +964,14 @@ export default function OrderShipmentDetailsScreen({
           
           // Category is required first
           if (!updatedItem.category || !updatedItem.category.trim()) {
-            fieldErrors.category = 'Required (select before subcategory)';
+            fieldErrors.category = 'Required';
           } else if (!THRIFTED_VALID_VALUES.categories.includes(updatedItem.category.trim())) {
             fieldErrors.category = 'Invalid category';
           }
           
           // Subcategory is required and must be valid for selected category
           if (!updatedItem.subcategory || !updatedItem.subcategory.trim()) {
-            fieldErrors.subcategory = 'Required (select category first)';
+            fieldErrors.subcategory = 'Required';
           } else if (updatedItem.category) {
             const validSubcategories = THRIFTED_VALID_VALUES.subcategories[updatedItem.category.trim()] || [];
             if (!validSubcategories.includes(updatedItem.subcategory.trim())) {
@@ -771,11 +983,6 @@ export default function OrderShipmentDetailsScreen({
           if (!updatedItem.color || !updatedItem.color.trim()) fieldErrors.color = 'Required';
           else if (!THRIFTED_VALID_VALUES.colors.includes(updatedItem.color.trim())) {
             fieldErrors.color = 'Invalid color';
-          }
-          
-          if (!updatedItem.gender || !updatedItem.gender.trim()) fieldErrors.gender = 'Required';
-          else if (!THRIFTED_VALID_VALUES.genders.includes(updatedItem.gender.trim())) {
-            fieldErrors.gender = 'Invalid gender';
           }
           
           // Price is mandatory - mark clearly
@@ -890,7 +1097,6 @@ export default function OrderShipmentDetailsScreen({
         size: 'Required',
         brand: 'Required',
         color: 'Required',
-        gender: 'Required',
         price: 'Required (Mandatory)',
         retailerItemId: 'Required (Mandatory)'
       }
@@ -991,7 +1197,7 @@ export default function OrderShipmentDetailsScreen({
         rightElement={headerRightElement}
       />
 
-      <div className="flex-1 overflow-y-auto w-full px-4 md:px-6 py-4 md:py-6 pb-32 space-y-6">
+      <div className="flex-1 overflow-y-auto w-full px-4 md:px-6 py-4 md:py-6 pb-48 space-y-6">
         {/* Summary Card */}
         <Card className={summaryCardClassName}>
           <CardHeader>
@@ -1178,36 +1384,40 @@ export default function OrderShipmentDetailsScreen({
         {/* Items List - Only show for orders and returns, not for shipments (delivery notes) */}
         {type !== 'shipment' && (
           <Section title="Items">
-            {/* Validation Filter - Show for pending and approval orders */}
-            {type === 'order' && ((data as PartnerOrder).status === 'pending' || isApprovalOrder) && allItems.length > 0 && (
+            {/* Validation Filter and Add Row Button - Show for pending and approval orders */}
+            {type === 'order' && ((data as PartnerOrder).status === 'pending' || isApprovalOrder) && (
               <div className="mb-4 flex flex-wrap gap-2 items-center justify-between">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={validationFilter === 'all' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setValidationFilter('all')}
-                  >
-                    <span className="label-medium">All ({allItems.length})</span>
-                  </Button>
-                  {itemsWithErrors > 0 && (
+                {allItems.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
                     <Button
-                      variant={validationFilter === 'errors' ? 'default' : 'outline'}
+                      variant={validationFilter === 'all' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setValidationFilter('errors')}
+                      onClick={() => setValidationFilter('all')}
                     >
-                      <AlertTriangleIcon size={14} className="mr-1" />
-                      <span className="label-medium">Missing/Errors ({itemsWithErrors})</span>
+                      <span className="label-medium">All ({allItems.length})</span>
                     </Button>
-                  )}
-                  <Button
-                    variant={validationFilter === 'valid' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setValidationFilter('valid')}
-                  >
-                    <CheckIcon size={14} className="mr-1" />
-                    <span className="label-medium">Valid ({validItems})</span>
-                  </Button>
-                </div>
+                    {itemsWithErrors > 0 && (
+                      <Button
+                        variant={validationFilter === 'errors' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setValidationFilter('errors')}
+                      >
+                        <AlertTriangleIcon size={14} className="mr-1" />
+                        <span className="label-medium">Missing/Errors ({itemsWithErrors})</span>
+                      </Button>
+                    )}
+                    <Button
+                      variant={validationFilter === 'valid' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setValidationFilter('valid')}
+                    >
+                      <CheckIcon size={14} className="mr-1" />
+                      <span className="label-medium">Valid ({validItems})</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <div></div>
+                )}
                 {isThriftedEditable && (
                   <div className="flex gap-2">
                     <Button
@@ -1260,7 +1470,8 @@ export default function OrderShipmentDetailsScreen({
               </Alert>
             )}
             
-            {items.length > 0 ? (
+            {/* Show table for editable Thrifted orders even when empty, or when there are items */}
+            {(isThriftedEditable || items.length > 0) ? (
               <>
                 {type === 'return' ? (
                   // For returns: use ItemCard layout like ItemsScreen
@@ -1334,12 +1545,14 @@ export default function OrderShipmentDetailsScreen({
                     showStatus={type === 'return'}
                     isEditable={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin)} // Allow editing for Thrifted pending orders or pending/approval orders (Admins only)
                     onUpdateItem={handleUpdateItemAttribute}
+                    onDeleteItem={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin) ? handleDeleteItem : undefined}
                     subcategoryOptions={isThriftedOrder ? getAllThriftedSubcategories() : undefined}
                     subcategoryLabel={isThriftedOrder ? "Subcategory" : undefined}
                     brandAsInput={isThriftedOrder}
-                    categoryOptions={isThriftedOrder ? THRIFTED_VALID_VALUES.categories : undefined} // Show category dropdown for Thrifted (required before subcategory)
+                    categoryOptions={isThriftedOrder ? THRIFTED_VALID_VALUES.categories : undefined} // Show category dropdown for Thrifted (auto-mapped)
                     hideCategoryForThrifted={false} // Show category column for cascading dropdown
                     subcategoriesByCategory={isThriftedOrder ? THRIFTED_VALID_VALUES.subcategories : undefined} // Provide category-to-subcategory mapping
+                    requireCategoryBeforeSubcategory={!isThriftedOrder}
                     partnerId={partnerId}
                     countryName={countryName}
                     currency={currency}
@@ -1467,7 +1680,13 @@ export default function OrderShipmentDetailsScreen({
                       </Button>
                       {onRegisterOrder && (
                         <Button 
-                          onClick={onRegisterOrder}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (canRegister && onRegisterOrder) {
+                              onRegisterOrder();
+                            }
+                          }}
                           disabled={!canRegister}
                           size="lg"
                           className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
@@ -1508,7 +1727,13 @@ export default function OrderShipmentDetailsScreen({
                         </Button>
                         {onRegisterOrder && (
                           <Button 
-                            onClick={onRegisterOrder}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (canRegister && onRegisterOrder) {
+                                onRegisterOrder();
+                              }
+                            }}
                             disabled={!canRegister}
                             size="lg"
                             className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
@@ -1735,6 +1960,22 @@ export default function OrderShipmentDetailsScreen({
         </div>
       )}
 
+      {type === 'order' && isThriftedOrder && isThriftedEditable && onUpdateReceiver && (
+        <StoreSelector
+          isOpen={isReceiverSelectorOpen}
+          onClose={() => setIsReceiverSelectorOpen(false)}
+          onConfirm={(selection) => {
+            if (currentOrderId) {
+              onUpdateReceiver(currentOrderId, selection);
+            }
+            setIsReceiverSelectorOpen(false);
+          }}
+          brands={brands || []}
+          countries={countries || []}
+          stores={stores || []}
+          currentSelection={currentReceiverSelection}
+        />
+      )}
       <BoxLabelSideSheet
         isOpen={Boolean(boxBeingEdited)}
         onOpenChange={(open) => {

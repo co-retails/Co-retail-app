@@ -22,7 +22,7 @@ export const THRIFTED_VALID_VALUES = {
     'Clothing': ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Activewear', 'Swimwear'],
     'Shoes': ['Sneakers', 'Boots', 'Sandals', 'Formal', 'Flats'],
     'Accessories': ['Bags', 'Jewelry', 'Belts', 'Hats', 'Scarves', 'Sunglasses'],
-    'Other': [] // Can be extended if needed
+    'Other': [] as string[] // Can be extended if needed
   },
   genders: ['Women', 'Men', 'Kids', 'Unisex'],
   prices: [50, 75, 100, 120, 150, 200, 250, 300, 400, 500, 600, 750, 1000, 1200, 1500, 2000],

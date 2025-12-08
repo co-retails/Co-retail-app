@@ -58,15 +58,15 @@ interface ItemDetailsDialogProps {
 type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'deliveryId' | null;
 
 const AVAILABLE_STATUSES = [
+  'Draft',
   'In transit',
-  'In Store',
-  'In Store 2nd try',
+  'Available',
+  'Storage',
   'Sold',
-  'To return',
-  'Return - In transit',
-  'Pick up',
-  'Charity',
-  'Archived'
+  'Returned',
+  'Missing',
+  'Broken',
+  'Rejected'
 ];
 
 const AVAILABLE_BRANDS = [
@@ -237,19 +237,21 @@ export default function ItemDetailsDialog({
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'in store':
+      case 'available':
         return 'bg-success-container text-on-success-container';
-      case 'pending':
+      case 'in transit':
+        return 'bg-primary-container text-on-primary-container';
+      case 'draft':
         return 'bg-surface-container-high text-on-surface-variant';
-      case 'to return':
-      case 'expired':
-        return 'bg-error-container text-error';
-      case 'archived':
-        return 'bg-surface-container-highest text-on-surface-variant';
-      case 'in store 2nd try':
+      case 'storage':
         return 'bg-secondary-container text-on-secondary-container';
       case 'sold':
+      case 'returned':
         return 'bg-tertiary-container text-on-tertiary-container';
+      case 'missing':
+      case 'broken':
+      case 'rejected':
+        return 'bg-error-container text-on-error-container';
       default:
         return 'bg-surface-container-high text-on-surface-variant';
     }

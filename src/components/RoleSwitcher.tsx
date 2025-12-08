@@ -43,11 +43,11 @@ export default function RoleSwitcher({ currentRole, onRoleChange, className = ''
           </Select>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Button
             variant={currentRole === 'store-staff' ? 'default' : 'outline'}
             onClick={() => onRoleChange('store-staff')}
-            className="justify-start h-auto p-4 flex-col items-start gap-2"
+            className="flex w-full flex-col items-start gap-2 text-left whitespace-normal break-words justify-start h-auto md:h-auto p-4 md:py-4"
           >
             <div className="flex items-center gap-2 w-full">
               <UserIcon size={20} className="flex-shrink-0" />
@@ -64,7 +64,7 @@ export default function RoleSwitcher({ currentRole, onRoleChange, className = ''
           <Button
             variant={currentRole === 'partner' ? 'default' : 'outline'}
             onClick={() => onRoleChange('partner')}
-            className="justify-start h-auto p-4 flex-col items-start gap-2"
+            className="flex w-full flex-col items-start gap-2 text-left whitespace-normal break-words justify-start h-auto md:h-auto p-4 md:py-4"
           >
             <div className="flex items-center gap-2 w-full">
               <TruckIcon size={20} className="flex-shrink-0" />

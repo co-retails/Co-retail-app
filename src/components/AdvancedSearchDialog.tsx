@@ -257,7 +257,7 @@ export default function AdvancedSearchDialog({
   // Available options for dropdowns
   const brands = ['H&M', 'Weekday', 'COS', 'Monki', 'ARKET', 'Sellpy', 'Kinda Kinks'];
   const categories = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Accessories'];
-  const statuses = ['In Store', 'In transit', 'Expired B2B', 'Rejected', 'Missing', 'Sold'];
+  const statuses = ['Available', 'In transit', 'Storage', 'Draft', 'Rejected', 'Missing', 'Broken', 'Sold', 'Returned'];
   const colours = ['Black', 'White', 'Blue', 'Red', 'Gray', 'Green', 'Pink', 'Brown'];
   const patterns = ['Solid', 'Striped', 'Floral', 'Geometric', 'Animal Print', 'Abstract'];
 

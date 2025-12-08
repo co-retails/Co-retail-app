@@ -26,6 +26,7 @@ export interface StoreSelection {
   brandId: string;
   countryId: string;
   storeId: string;
+  storeCode?: string;
 }
 
 interface StoreSelectorProps {

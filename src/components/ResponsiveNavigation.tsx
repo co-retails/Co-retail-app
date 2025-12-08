@@ -9,6 +9,7 @@ interface NavigationDestination {
   icon: string;
   onClick: () => void;
   desktopLabel?: string; // Optional desktop-specific label
+  hideOnDesktop?: boolean; // Hide this item on desktop
 }
 
 interface ResponsiveNavigationProps {
@@ -191,7 +192,9 @@ function NavigationRail({ activeDestination, destinations }: ResponsiveNavigatio
       
       {/* Navigation Items */}
       <nav className="flex-1 flex flex-col gap-3 py-6 px-3">
-        {destinations.map((destination) => {
+        {destinations
+          .filter(destination => !destination.hideOnDesktop)
+          .map((destination) => {
           const isActive = activeDestination === destination.id;
           
           return (

@@ -1,17 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
-import { Badge } from './ui/badge';
-import { ArrowLeft, X, QrCode, Package, MoreVertical, CheckCircle, Circle, Save } from 'lucide-react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
-import svgPaths from "../imports/svg-7un8q74kd7";
+import { Card } from './ui/card';
+import { ArrowLeft, X, QrCode, Package, Save } from 'lucide-react';
 import { ItemCard, BaseItem } from './ItemCard';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 
 export interface StockItem {
   id: string;
@@ -88,27 +79,20 @@ function TabBar({
   activeTab, 
   onTabChange, 
   scannedCount, 
-  notScannedCount,
-  totalCount 
+  notScannedCount
 }: { 
-  activeTab: string; 
-  onTabChange: (tab: string) => void;
+  activeTab: 'scanned' | 'not-scanned'; 
+  onTabChange: (tab: 'scanned' | 'not-scanned') => void;
   scannedCount: number;
   notScannedCount: number;
-  totalCount: number;
 }) {
   const tabs = [
-    { id: 'not-scanned', label: 'Not scanned', count: notScannedCount },
-    { id: 'scanned', label: 'Scanned', count: scannedCount }
+    { id: 'not-scanned' as const, label: 'Not scanned', count: notScannedCount },
+    { id: 'scanned' as const, label: 'Scanned', count: scannedCount }
   ];
-
-  const percentage = totalCount > 0 ? (scannedCount / totalCount) * 100 : 0;
   
   return (
     <div className="bg-surface border-b border-outline-variant">
-      {/* Progress Bar */}
-
-      
       <div className="flex">
         {tabs.map((tab) => (
           <button
@@ -126,7 +110,6 @@ function TabBar({
             )}
           </button>
         ))}
-        
       </div>
     </div>
   );
@@ -134,50 +117,16 @@ function TabBar({
 
 function StockItemCard({ 
   item, 
-  onToggleSelect,
-  onUpdateStatus,
-  isSelected,
-  activeTab
+  isSelected
 }: { 
   item: StockItem; 
-  onToggleSelect: (itemId: string) => void;
-  onUpdateStatus: (itemId: string, status: 'In Store' | 'Broken') => void;
   isSelected: boolean;
-  activeTab: 'scanned' | 'not-scanned';
 }) {
-  // Hide checkbox and more menu for not-scanned items
-  const showCheckboxAndMenu = activeTab === 'scanned';
+  // Checkboxes and more menu removed from item cards in Stock check scan screen
   
   return (
     <div className="bg-surface-container border-b border-outline-variant last:border-b-0">
       <div className="flex items-center gap-3 px-3 py-2">
-        {/* Leading Element - Checkbox (only for scanned items) */}
-        {showCheckboxAndMenu && (
-          <button 
-            className="flex-shrink-0 w-12 h-12 md:w-8 md:h-8 flex items-center justify-center hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors rounded-full touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-            onClick={() => onToggleSelect(item.id)}
-            aria-label={isSelected ? 'Deselect item' : 'Select item'}
-          >
-            <div className="relative w-5 h-5">
-              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
-                <path 
-                  clipRule="evenodd" 
-                  d={isSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
-                  fill={isSelected ? "var(--primary)" : "var(--outline-variant)"} 
-                  fillRule="evenodd" 
-                />
-              </svg>
-              {isSelected && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          </button>
-        )}
-        
         {/* Main Content using standardized ItemCard */}
         <div className="flex-1">
           <ItemCard
@@ -200,36 +149,6 @@ function StockItemCard({
             showSelection={false}
           />
         </div>
-        
-        {/* Trailing Elements - More Actions Menu (only for scanned items) */}
-        {showCheckboxAndMenu && (
-          <div className="flex-shrink-0 flex items-center gap-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button 
-                  className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-                  aria-label="More actions"
-                >
-                  <MoreVertical className="w-5 h-5 text-on-surface" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-surface-container border border-outline-variant rounded-lg shadow-lg">
-                <DropdownMenuItem
-                  onClick={() => onUpdateStatus(item.id, 'In Store')}
-                  className="cursor-pointer hover:bg-surface-container-high focus:bg-surface-container-high px-4 py-2 label-medium text-on-surface"
-                >
-                  Mark as In store
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onUpdateStatus(item.id, 'Broken')}
-                  className="cursor-pointer hover:bg-error-container/20 focus:bg-error-container/20 px-4 py-2 label-medium text-error"
-                >
-                  Mark as Broken
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -237,16 +156,10 @@ function StockItemCard({
 
 function ItemsList({ 
   items, 
-  onToggleSelect,
-  onUpdateStatus,
-  selectedItems,
-  activeTab
+  selectedItems
 }: {
   items: StockItem[];
-  onToggleSelect: (itemId: string) => void;
-  onUpdateStatus: (itemId: string, status: 'In Store' | 'Broken') => void;
   selectedItems: Set<string>;
-  activeTab: 'scanned' | 'not-scanned';
 }) {
   if (items.length === 0) {
     return (
@@ -268,10 +181,7 @@ function ItemsList({
         <StockItemCard 
           key={item.id}
           item={item} 
-          onToggleSelect={onToggleSelect}
-          onUpdateStatus={onUpdateStatus}
           isSelected={selectedItems.has(item.id)}
-          activeTab={activeTab}
         />
       ))}
     </Card>
@@ -281,7 +191,7 @@ function ItemsList({
 const STOCK_CHECK_STORAGE_KEY = 'stockCheckSession';
 
 // Get today's date string
-const getToday = () => new Date().toISOString().split('T')[0];
+const getToday = (): string => new Date().toISOString().split('T')[0]!;
 
 // Load saved session from localStorage for today
 const loadSavedSession = (): StockItem[] | null => {
@@ -330,8 +240,7 @@ const loadAccumulatedItems = (): StockItem[] => {
 
 export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndClose }: StockCheckScreenProps) {
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
-  const [isScanning, setIsScanning] = useState(true); // Always start scanning
-  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [isScanning] = useState(true); // Always start scanning
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   // Load accumulated items from today's session
@@ -361,9 +270,9 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
         id: `item-${i}`,
         itemId,
         title: `Item ${i}`,
-        brand: brands[Math.floor(Math.random() * brands.length)],
-        size: sizes[Math.floor(Math.random() * sizes.length)],
-        color: colors[Math.floor(Math.random() * colors.length)],
+        brand: brands[Math.floor(Math.random() * brands.length)]!,
+        size: sizes[Math.floor(Math.random() * sizes.length)]!,
+        color: colors[Math.floor(Math.random() * colors.length)]!,
         price: Math.floor(Math.random() * 50) + 10,
         status: 'In Store',
         orderNumber: `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`,
@@ -378,7 +287,12 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
     accumulatedItems.forEach(accItem => {
       // Only add items that aren't already in the list
       if (!mergedItems.find(item => item.itemId === accItem.itemId)) {
-        mergedItems.push(accItem);
+        // Ensure all required fields are present
+        mergedItems.push({
+          ...accItem,
+          orderNumber: accItem.orderNumber ?? `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`,
+          date: accItem.date ?? getToday(),
+        });
       }
     });
     
@@ -431,9 +345,9 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
         id: `unexpected-item-${Date.now()}`,
         itemId: `${34780000 + Math.floor(Math.random() * 10000)}`,
         title: `Unexpected Item`,
-        brand: brands[Math.floor(Math.random() * brands.length)],
-        size: sizes[Math.floor(Math.random() * sizes.length)],
-        color: colors[Math.floor(Math.random() * colors.length)],
+        brand: brands[Math.floor(Math.random() * brands.length)]!,
+        size: sizes[Math.floor(Math.random() * sizes.length)]!,
+        color: colors[Math.floor(Math.random() * colors.length)]!,
         price: Math.floor(Math.random() * 50) + 10,
         status: 'Missing', // Unexpected items were not in the list, so they're Missing
         orderNumber: `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`,
@@ -465,54 +379,32 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
       // Simulate scanning an item from the expected list
       // Keep the original status, don't change it to 'Scanned'
       const randomItem = notScannedItems[Math.floor(Math.random() * notScannedItems.length)];
-      setStockItems(prev => {
-        const updated = prev.map(item => 
-          item.id === randomItem.id 
-            ? { ...item, isScanned: true }
-            : item
-        );
-        // Auto-save on scan
-        saveSessionToStorage(updated);
-        return updated;
-      });
-      setSelectedItems(prev => new Set([...prev, randomItem.id]));
-      setActiveTab('scanned');
-      
-      // Show success feedback
-      const event = new CustomEvent('toast', {
-        detail: { message: `Scanned: ${randomItem.itemId}`, type: 'success' }
-      });
-      window.dispatchEvent(event);
+      if (randomItem) {
+        setStockItems(prev => {
+          const updated = prev.map(item => 
+            item.id === randomItem.id 
+              ? { ...item, isScanned: true }
+              : item
+          );
+          // Auto-save on scan
+          saveSessionToStorage(updated);
+          return updated;
+        });
+        setSelectedItems(prev => new Set([...prev, randomItem.id]));
+        setActiveTab('scanned');
+        
+        // Show success feedback
+        const event = new CustomEvent('toast', {
+          detail: { message: `Scanned: ${randomItem.itemId}`, type: 'success' }
+        });
+        window.dispatchEvent(event);
+      }
     }
     
     // Keep scanning active for more items
     // In real implementation, camera would continue running
   };
 
-  const handleToggleSelect = (itemId: string) => {
-    setSelectedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleUpdateStatus = (itemId: string, status: 'In Store' | 'Broken') => {
-    setStockItems(prev => {
-      const updated = prev.map(item => 
-        item.id === itemId 
-          ? { ...item, status }
-          : item
-      );
-      // Auto-save on status change
-      saveSessionToStorage(updated);
-      return updated;
-    });
-  };
 
   const handleSaveAndClose = () => {
     // Save current state to localStorage
@@ -655,7 +547,6 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
           onTabChange={setActiveTab}
           scannedCount={scannedItems.length}
           notScannedCount={notScannedItems.length}
-          totalCount={stockItems.length}
         />
         
         {/* Content Area */}
@@ -670,10 +561,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
           {/* Items List */}
           <ItemsList 
             items={currentItems}
-            onToggleSelect={handleToggleSelect}
-            onUpdateStatus={handleUpdateStatus}
             selectedItems={selectedItems}
-            activeTab={activeTab}
           />
           
           {/* Progress Indicator */}

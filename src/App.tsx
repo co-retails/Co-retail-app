@@ -32,6 +32,7 @@ import OrderDetailsScreen from './components/OrderDetailsScreen';
 import RetailerIdScanScreen from './components/RetailerIdScanScreen';
 import PostRegistrationDialog from './components/PostRegistrationDialog';
 import OrderShipmentDetailsScreen, { DetailType } from './components/OrderShipmentDetailsScreen';
+import type { StoreSelection } from './components/StoreSelector';
 import DeliveryNoteBoxDetailsScreen from './components/DeliveryNoteBoxDetailsScreen';
 import { FullScreenDialog, FullScreenDialogContent } from './components/ui/full-screen-dialog';
 
@@ -883,6 +884,48 @@ export default function App() {
   const handleClosePostRegistrationDialog = () => {
     setShowPostRegistrationDialog(false);
     setRegisteredOrderId(null);
+  };
+
+  const handleUpdateOrderReceiver = (orderId: string, selection: StoreSelection) => {
+    const matchedStore =
+      mockStores.find(store => store.id === selection.storeId) ||
+      mockStores.find(store => store.code === selection.storeCode);
+
+    if (!matchedStore) {
+      toast.error('Unable to find the selected store');
+      return;
+    }
+
+    setPartnerOrders(prev =>
+      prev.map(order =>
+        order.id === orderId
+          ? {
+              ...order,
+              receivingStoreId: matchedStore.id,
+              receivingStoreName: matchedStore.name,
+            }
+          : order
+      )
+    );
+
+    setDetailsScreenData(prev => {
+      if (!prev || prev.type !== 'order') return prev;
+      const prevOrder = prev.data as PartnerOrder;
+      if (prevOrder.id !== orderId) return prev;
+      return {
+        ...prev,
+        storeName: matchedStore.name,
+        storeCode: matchedStore.code,
+        receiverLabel: matchedStore.name,
+        data: {
+          ...prevOrder,
+          receivingStoreId: matchedStore.id,
+          receivingStoreName: matchedStore.name,
+        },
+      };
+    });
+
+    toast.success('Receiver updated');
   };
 
   const handleViewOrderListFromDialog = () => {
@@ -2490,6 +2533,15 @@ export default function App() {
               setPartnerOrders(prev => prev.map(o =>
                 o.id === order.id ? { ...o, status: 'registered' } : o
               ));
+              toast.success('Order registered');
+              setDetailsScreenData(prev => {
+                if (!prev || prev.type !== 'order') return prev;
+                if ((prev.data as PartnerOrder).id !== order.id) return prev;
+                return {
+                  ...prev,
+                  data: { ...(prev.data as PartnerOrder), status: 'registered' }
+                };
+              });
             }
           }}
           onCreateDeliveryNote={(orderId) => {
@@ -2508,6 +2560,7 @@ export default function App() {
           }}
           onAddBox={handleAddBoxToDeliveryNote}
           onUpdateBoxLabel={handleUpdateBoxLabel}
+          onUpdateReceiver={handleUpdateOrderReceiver}
           onOpenBoxDetails={handleOpenBoxDetails}
           relatedOrders={(() => {
             if (detailsScreenData?.type === 'shipment') {

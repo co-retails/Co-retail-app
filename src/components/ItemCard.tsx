@@ -43,9 +43,23 @@ export interface BaseItem {
   gender?: string;
   source?: string;
   errors?: string[];
+  isExpired?: boolean;
+  expiredFlaggedAt?: string;
+  expiredPostponeWeeks?: number;
+  isArchived?: boolean;
+  archivedAt?: string;
 }
 
 export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+
+export type ItemQuickAction =
+  | 'mark-available'
+  | 'store-transfer'
+  | 'mark-sold'
+  | 'mark-missing'
+  | 'mark-broken'
+  | 'mark-rejected'
+  | 'mark-return-transit';
 
 interface OrderDetailsCardConfig {
   partnerLabel?: string;
@@ -70,7 +84,7 @@ interface OrderDetailsCardConfig {
 interface ItemCardProps {
   item: BaseItem;
   onToggleSelect?: (itemId: string) => void;
-  onMoreActions?: (item: BaseItem, action: 'in-store' | 'store-transfer' | 'sold' | 'missing' | 'broken' | 'rejected' | 'in-store-2nd-try') => void;
+  onMoreActions?: (item: BaseItem, action: ItemQuickAction) => void;
   onEdit?: (item: BaseItem) => void;
   onClick?: (item: BaseItem) => void;
   variant?: 'items-list' | 'order-details';
@@ -123,7 +137,7 @@ export const ItemCard = memo(function ItemCard({
         if (!entry) {
           continue;
         }
-        if (entry.status?.toLowerCase() === 'in store') {
+        if (entry.status?.toLowerCase() === 'in store' || entry.status?.toLowerCase() === 'available') {
           const parsed = entry.timestamp ? Date.parse(normalizeTimestamp(entry.timestamp)) : NaN;
           if (!Number.isNaN(parsed)) {
             return parsed;
@@ -136,7 +150,7 @@ export const ItemCard = memo(function ItemCard({
   const canRejectItem = () => {
     if (!onMoreActions) return false;
     if (userRole !== 'admin') return false;
-    if (!item.status || item.status.toLowerCase() !== 'in store') return false;
+    if (!item.status || item.status.toLowerCase() !== 'available') return false;
     const timestamp = getLastInStoreTimestamp();
     if (timestamp === undefined) return false;
     return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
@@ -148,50 +162,41 @@ export const ItemCard = memo(function ItemCard({
     
     const status = item.status.toLowerCase();
     const isAdmin = userRole === 'admin';
-    const actions: Array<{ action: string; label: string; icon: React.ReactNode; className?: string }> = [];
+    const actions: Array<{ action: ItemQuickAction; label: string; icon: React.ReactNode; className?: string }> = [];
 
-    // In transit items: In store, Store transfer
-    if (status === 'in transit' || status === 'return - in transit') {
+    if (status === 'in transit') {
       actions.push(
-        { action: 'in-store', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
+        { action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
         { action: 'store-transfer', label: 'Store transfer', icon: <Store className="mr-2 h-4 w-4" /> }
       );
-    }
-    // In store items: Sold (only for Admins), Missing, Broken, Rejected (only visible within 24 hours)
-    else if (status === 'in store') {
+    } else if (status === 'available') {
       if (isAdmin) {
-        actions.push({ action: 'sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
+        actions.push({ action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
       }
       actions.push(
-        { action: 'missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
-        { action: 'broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
+        { action: 'mark-missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
+        { action: 'mark-broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
       );
       if (canRejectItem()) {
-        actions.push({ action: 'rejected', label: 'Rejected', icon: <Ban className="mr-2 h-4 w-4" />, className: 'text-error' });
+        actions.push({ action: 'mark-rejected', label: 'Rejected', icon: <Ban className="mr-2 h-4 w-4" />, className: 'text-error' });
       }
-    }
-    // Expired items: Sold (only for admins), In store, In store 2nd try, Missing, Broken
-    else if (status === 'expired' || status === 'to return') {
+    } else if (status === 'storage') {
+      actions.push(
+        { action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
+        { action: 'mark-return-transit', label: 'In transit (return)', icon: <RotateCcw className="mr-2 h-4 w-4" /> },
+        { action: 'mark-missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
+        { action: 'mark-broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
+      );
       if (isAdmin) {
-        actions.push({ action: 'sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
+        actions.splice(1, 0, { action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
       }
+    } else if (status === 'missing') {
       actions.push(
-        { action: 'in-store', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
-        { action: 'in-store-2nd-try', label: 'In store 2nd try', icon: <RotateCcw className="mr-2 h-4 w-4" /> },
-        { action: 'missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
-        { action: 'broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
+        { action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
+        { action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> }
       );
-    }
-    // Missing items: In store, Sold (available to all users)
-    else if (status === 'missing') {
-      actions.push(
-        { action: 'in-store', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
-        { action: 'sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> }
-      );
-    }
-    // Sold items: In store
-    else if (status === 'sold') {
-      actions.push({ action: 'in-store', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    } else if (status === 'sold') {
+      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
     }
 
     return actions;
@@ -200,20 +205,19 @@ export const ItemCard = memo(function ItemCard({
     if (!status) return 'text-on-surface-variant';
     
     switch (status.toLowerCase()) {
-      case 'in store':
+      case 'available':
         return 'text-success';
       case 'in transit':
-      case 'pending':
+        return 'text-primary';
+      case 'draft':
         return 'text-on-surface-variant';
-      case 'to return':
-      case 'expired':
-        return 'text-error';
-      case 'archived':
-        return 'text-on-surface-variant';
-      case 'in store 2nd try':
+      case 'storage':
+        return 'text-warning';
+      case 'sold':
+      case 'returned':
         return 'text-tertiary';
-      case 'error':
-        return 'text-error';
+      case 'missing':
+      case 'broken':
       case 'rejected':
         return 'text-error';
       default:
@@ -331,7 +335,7 @@ export const ItemCard = memo(function ItemCard({
           {/* Main Content */}
           <div className="flex-1 min-w-0">
             {/* Line 1: Date • Status */}
-            <div className="flex items-center gap-1 mb-0.5 min-w-0">
+            <div className="flex items-center gap-1 mb-0.5 min-w-0 flex-wrap">
               <div className="label-small text-on-surface whitespace-nowrap flex-shrink-0">
                 {item.date || '—'}
               </div>
@@ -339,6 +343,16 @@ export const ItemCard = memo(function ItemCard({
               <div className={`label-small whitespace-nowrap truncate flex-shrink-0 ${displayStatus.color}`}>
                 {displayStatus.text}
               </div>
+              {item.isExpired && (
+                <span className="label-small text-warning whitespace-nowrap flex-shrink-0">
+                  Expired flag
+                </span>
+              )}
+              {item.isArchived && (
+                <span className="label-small text-on-surface-variant whitespace-nowrap flex-shrink-0">
+                  Archived
+                </span>
+              )}
             </div>
             
             {/* Line 2: Brand */}
@@ -494,6 +508,8 @@ export const ItemCard = memo(function ItemCard({
   }
 
   // Default items-list variant
+  const handlePrimaryAction = onClick || onEdit;
+  
   return (
     <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
       {/* M3 List Item - Based on Figma Design */}
@@ -535,7 +551,7 @@ export const ItemCard = memo(function ItemCard({
         {/* Main Content */}
         <button 
           className="flex-1 min-w-0 text-left cursor-pointer hover:opacity-80 transition-opacity pl-3"
-          onClick={() => onClick?.(item)}
+          onClick={() => handlePrimaryAction?.(item)}
         >
           {/* Line 1: Date • Status */}
           <div className="flex items-center gap-1 mb-0.5 min-w-0">

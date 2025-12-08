@@ -234,13 +234,15 @@ export default function ItemFilterSheet({
               </SelectTrigger>
               <SelectContent className="bg-surface-container-high border border-outline">
                 <SelectItem value="all" className="body-large">All statuses</SelectItem>
-                <SelectItem value="In Store" className="body-large">In Store</SelectItem>
-                <SelectItem value="Pending" className="body-large">Pending</SelectItem>
-                <SelectItem value="To return" className="body-large">To return</SelectItem>
-                <SelectItem value="In Store 2nd try" className="body-large">In Store 2nd try</SelectItem>
+                <SelectItem value="Available" className="body-large">Available</SelectItem>
+                <SelectItem value="Draft" className="body-large">Draft</SelectItem>
+                <SelectItem value="In transit" className="body-large">In transit</SelectItem>
+                <SelectItem value="Storage" className="body-large">Storage</SelectItem>
                 <SelectItem value="Sold" className="body-large">Sold</SelectItem>
-                <SelectItem value="Pick up" className="body-large">Pick up</SelectItem>
-                <SelectItem value="Charity" className="body-large">Charity</SelectItem>
+                <SelectItem value="Returned" className="body-large">Returned</SelectItem>
+                <SelectItem value="Missing" className="body-large">Missing</SelectItem>
+                <SelectItem value="Broken" className="body-large">Broken</SelectItem>
+                <SelectItem value="Rejected" className="body-large">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>

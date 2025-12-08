@@ -109,9 +109,9 @@ export default function MonthlyGoalTracker({
                     {Math.round(progressPercentage)}%
                   </span>
                 </div>
-                <div className="w-full bg-surface-variant rounded-full h-2">
+                <div className="w-full bg-surface-variant rounded-full h-2 overflow-hidden">
                   <div 
-                    className="bg-tertiary h-2 rounded-full transition-all duration-300"
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
                     style={{ width: `${progressPercentage}%` }}
                   />
                 </div>

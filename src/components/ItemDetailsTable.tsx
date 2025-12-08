@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { ItemCard, BaseItem } from './ItemCard';
 import { Input } from './ui/input';
+import { Button } from './ui/button';
 import { 
   Select,
   SelectContent,
@@ -10,7 +11,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { AlertCircleIcon, Package } from 'lucide-react';
+import { AlertCircleIcon, Package, Trash2Icon } from 'lucide-react';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { OrderItem } from './OrderCreationScreen';
 import { getPriceOptionsForCurrency } from '../data/partnerPricing';
@@ -36,6 +37,7 @@ interface ItemDetailsTableProps {
   showStatus?: boolean;
   isEditable?: boolean;
   onUpdateItem?: (itemId: string, field: keyof ItemDetailsTableItem, value: any) => void;
+  onDeleteItem?: (itemId: string) => void;
   subcategoryOptions?: string[]; // Custom subcategory options (e.g., for conditions)
   subcategoryLabel?: string; // Custom label for subcategory column
   brandAsInput?: boolean; // Use text input instead of dropdown for brand
@@ -65,6 +67,7 @@ export function ItemDetailsTable({
   showStatus = false,
   isEditable = false,
   onUpdateItem,
+  onDeleteItem,
   subcategoryOptions = SUBCATEGORY_OPTIONS,
   subcategoryLabel = 'Subcategory',
   brandAsInput = false,
@@ -251,6 +254,11 @@ export function ItemDetailsTable({
             {showStatus && (
               <th className="px-4 py-3 text-center">
                 <span className="label-medium text-on-surface">Status</span>
+              </th>
+            )}
+            {isEditable && onDeleteItem && (
+              <th className="px-4 py-3 text-right">
+                <span className="label-medium text-on-surface">Actions</span>
               </th>
             )}
           </tr>
@@ -677,6 +685,20 @@ export function ItemDetailsTable({
                       Scanned
                     </span>
                   )}
+                </td>
+              )}
+
+              {/* Delete button */}
+              {isEditable && onDeleteItem && (
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDeleteItem(item.id)}
+                    className="text-error hover:text-error hover:bg-error-container/10"
+                  >
+                    <Trash2Icon className="w-4 h-4" />
+                  </Button>
                 </td>
               )}
             </tr>

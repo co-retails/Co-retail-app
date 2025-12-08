@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Input } from './ui/input';
 import PartnerSalesReport, { SalesDataPoint } from './PartnerSalesReport';
 import PartnerStockReport, { StockReportData, TimePeriod } from './PartnerStockReport';
 import type { Store, Brand, Country } from './StoreSelector';
@@ -20,7 +21,7 @@ export interface PartnerReportsScreenProps {
 }
 
 type ReportTab = 'sales' | 'stock';
-type UnifiedTimePeriod = 'month' | 'daily' | 'sevenDays' | 'fourteenDays' | 'thirtyDays';
+type UnifiedTimePeriod = 'month' | 'daily' | 'week' | 'sevenDays' | 'fourteenDays' | 'thirtyDays' | 'dateRange';
 
 export default function PartnerReportsScreen({
   onBack,
@@ -47,6 +48,9 @@ export default function PartnerReportsScreen({
   const [selectedMonth, setSelectedMonth] = useState<string>(
     salesData[salesData.length - 1]?.month || ''
   );
+  const [selectedWeek, setSelectedWeek] = useState<string>('');
+  const [dateRangeStart, setDateRangeStart] = useState<string>('');
+  const [dateRangeEnd, setDateRangeEnd] = useState<string>('');
 
   // Set partner filter to current partner if user is a partner
   useEffect(() => {
@@ -216,7 +220,17 @@ export default function PartnerReportsScreen({
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedTimePeriod}
-                  onValueChange={(value: string) => setSelectedTimePeriod(value as UnifiedTimePeriod)}
+                  onValueChange={(value: string) => {
+                    setSelectedTimePeriod(value as UnifiedTimePeriod);
+                    // Reset date range and week when switching away
+                    if (value !== 'dateRange') {
+                      setDateRangeStart('');
+                      setDateRangeEnd('');
+                    }
+                    if (value !== 'week') {
+                      setSelectedWeek('');
+                    }
+                  }}
                 >
                   <SelectTrigger 
                     className="bg-surface-container border border-outline-variant rounded-lg min-h-[56px] h-14 body-medium min-w-[120px]"
@@ -226,9 +240,11 @@ export default function PartnerReportsScreen({
                   <SelectContent className="bg-surface-container-high border border-outline">
                     <SelectItem value="month" className="body-medium">Month</SelectItem>
                     <SelectItem value="daily" className="body-medium">Yesterday</SelectItem>
+                    <SelectItem value="week" className="body-medium">Week</SelectItem>
                     <SelectItem value="sevenDays" className="body-medium">7 Days</SelectItem>
                     <SelectItem value="fourteenDays" className="body-medium">14 Days</SelectItem>
                     <SelectItem value="thirtyDays" className="body-medium">30 Days</SelectItem>
+                    <SelectItem value="dateRange" className="body-medium">Date Range</SelectItem>
                   </SelectContent>
                 </Select>
                 {selectedTimePeriod === 'month' && (
@@ -249,6 +265,33 @@ export default function PartnerReportsScreen({
                       ))}
                     </SelectContent>
                   </Select>
+                )}
+                {selectedTimePeriod === 'week' && (
+                  <Input
+                    type="week"
+                    value={selectedWeek}
+                    onChange={(e) => setSelectedWeek(e.target.value)}
+                    className="bg-surface-container border border-outline-variant rounded-lg min-h-[56px] h-14 body-medium min-w-[150px] px-4"
+                  />
+                )}
+                {selectedTimePeriod === 'dateRange' && (
+                  <>
+                    <Input
+                      type="date"
+                      value={dateRangeStart}
+                      onChange={(e) => setDateRangeStart(e.target.value)}
+                      className="bg-surface-container border border-outline-variant rounded-lg min-h-[56px] h-14 body-medium min-w-[150px] px-4"
+                      placeholder="Start date"
+                    />
+                    <span className="text-on-surface-variant body-medium">to</span>
+                    <Input
+                      type="date"
+                      value={dateRangeEnd}
+                      onChange={(e) => setDateRangeEnd(e.target.value)}
+                      className="bg-surface-container border border-outline-variant rounded-lg min-h-[56px] h-14 body-medium min-w-[150px] px-4"
+                      placeholder="End date"
+                    />
+                  </>
                 )}
               </div>
             </div>
@@ -338,6 +381,9 @@ export default function PartnerReportsScreen({
             selectedBrandId={selectedBrandId}
             selectedCountryId={selectedCountryId}
             selectedStoreId={selectedStoreId}
+            selectedWeek={selectedWeek}
+            dateRangeStart={dateRangeStart}
+            dateRangeEnd={dateRangeEnd}
             partnerId={selectedPartnerId === 'all' ? undefined : selectedPartnerId}
           />
         )}
@@ -347,7 +393,16 @@ export default function PartnerReportsScreen({
             stores={filteredStores}
             brands={filteredBrands}
             countries={filteredCountries}
-            selectedTimePeriod={selectedTimePeriod === 'month' ? 'thirtyDays' : selectedTimePeriod as TimePeriod}
+            selectedTimePeriod={
+              selectedTimePeriod === 'month' || selectedTimePeriod === 'week' || selectedTimePeriod === 'dateRange'
+                ? 'thirtyDays'
+                : selectedTimePeriod as TimePeriod
+            }
+            originalTimePeriod={selectedTimePeriod}
+            selectedMonth={selectedMonth}
+            selectedWeek={selectedWeek}
+            dateRangeStart={dateRangeStart}
+            dateRangeEnd={dateRangeEnd}
             selectedBrandId={selectedBrandId}
             selectedCountryId={selectedCountryId}
             selectedStoreId={selectedStoreId}
