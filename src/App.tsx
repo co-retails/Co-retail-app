@@ -3436,7 +3436,11 @@ export default function App() {
             brands={mockBrands}
             partners={mockWarehousePartners}
             countries={mockCountries}
-            currentUserRole={currentUserRole === 'admin' ? 'Admin' : currentUserRole === 'partner' ? 'Partner Admin' : 'Store Manager'}
+            currentUserRole={
+              (isAdminExperienceMode && mockUserAccount?.role?.name === 'Admin')
+                ? 'Admin'
+                : (currentUserRole === 'admin' ? 'Admin' : currentUserRole === 'partner' ? 'Partner Admin' : 'Store Manager')
+            }
           />
         </Suspense>
       )}

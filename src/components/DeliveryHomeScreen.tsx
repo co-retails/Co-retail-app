@@ -6,6 +6,9 @@ import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSel
 import SalesDataDashboard from './SalesDataDashboard';
 import MonthlyGoalTracker, { GoalEditDialog } from './MonthlyGoalTracker';
 import { ChevronDown, Settings, Target, UserIcon, ChevronRight, RotateCcw, ClipboardCheck, QrCode } from 'lucide-react';
+import weekdayLogo from '../assets/weekday-logo.svg';
+import hmLogo from '../assets/hm-logo.svg';
+import cosLogo from '../assets/cos-logo.svg';
 
 interface DeliveryHomeScreenProps {
   onNavigateToShipping: () => void;
@@ -61,9 +64,39 @@ interface HeaderProps {
   currentStore: string;
   onStoreClick: () => void;
   onAdminClick?: () => void;
+  currentStoreSelection?: StoreSelection;
+  stores?: Store[];
+  brands?: Brand[];
 }
 
-function Header({ currentStore, onStoreClick, onAdminClick }: HeaderProps) {
+function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelection, stores = [], brands = [] }: HeaderProps) {
+  // Determine which logo to show based on the selected store's brand
+  const getBrandLogo = () => {
+    if (!currentStoreSelection?.storeId || !stores.length || !brands.length) {
+      return null;
+    }
+    
+    const currentStore = stores.find(store => store.id === currentStoreSelection.storeId);
+    if (!currentStore) return null;
+    
+    const brand = brands.find(b => b.id === currentStore.brandId);
+    if (!brand) return null;
+    
+    // Map brand names to logo imports
+    const brandName = brand.name.toUpperCase();
+    if (brandName === 'WEEKDAY') {
+      return weekdayLogo;
+    } else if (brandName === 'H&M' || brandName === 'H&M') {
+      return hmLogo;
+    } else if (brandName === 'COS') {
+      return cosLogo;
+    }
+    
+    return null;
+  };
+
+  const logoPath = getBrandLogo();
+
   return (
     <>
       {/* Mobile Header - Full header with logo and selector */}
@@ -79,14 +112,22 @@ function Header({ currentStore, onStoreClick, onAdminClick }: HeaderProps) {
             
             {/* Centered Logo */}
             <div className="flex flex-col items-center">
-              <div className="h-[28px] w-[153px] mb-1">
-                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
-                  <path d={svgPaths.p2523a00} fill="#1A1A1A" />
-                </svg>
-              </div>
-              <div className="label-large text-on-surface tracking-wider uppercase">
-                Resell
-              </div>
+              {logoPath ? (
+                <div className="h-[28px] mb-1 flex items-center justify-center">
+                  <img src={logoPath} alt="Brand Logo" className="h-full w-auto max-w-[153px] object-contain" />
+                </div>
+              ) : (
+                <>
+                  <div className="h-[28px] w-[153px] mb-1">
+                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
+                      <path d={svgPaths.p2523a00} fill="#1A1A1A" />
+                    </svg>
+                  </div>
+                  <div className="label-large text-on-surface tracking-wider uppercase">
+                    Resell
+                  </div>
+                </>
+              )}
             </div>
             
             {/* Admin Settings Icon */}
@@ -116,14 +157,22 @@ function Header({ currentStore, onStoreClick, onAdminClick }: HeaderProps) {
       <div className="hidden md:flex flex-col items-center px-6 py-4 bg-surface" style={{ marginTop: '4rem' }}>
         {/* Logo */}
         <div className="flex flex-col items-center mb-3">
-          <div className="h-[28px] w-[153px] mb-1">
-            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
-              <path d={svgPaths.p2523a00} fill="#1A1A1A" />
-            </svg>
-          </div>
-          <div className="label-large text-on-surface tracking-wider uppercase">
-            Resell
-          </div>
+          {logoPath ? (
+            <div className="h-[28px] flex items-center justify-center">
+              <img src={logoPath} alt="Brand Logo" className="h-full w-auto max-w-[153px] object-contain" />
+            </div>
+          ) : (
+            <>
+              <div className="h-[28px] w-[153px] mb-1">
+                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
+                  <path d={svgPaths.p2523a00} fill="#1A1A1A" />
+                </svg>
+              </div>
+              <div className="label-large text-on-surface tracking-wider uppercase">
+                Resell
+              </div>
+            </>
+          )}
         </div>
         
         {/* Store Selector */}
@@ -185,6 +234,9 @@ export default function DeliveryHomeScreen({
         currentStore={getCurrentStoreDisplay()} 
         onStoreClick={() => setIsStoreSelectorOpen(true)}
         onAdminClick={onNavigateToAdmin}
+        currentStoreSelection={currentStoreSelection}
+        stores={stores}
+        brands={brands}
       />
 
       {/* Main Content Container */}

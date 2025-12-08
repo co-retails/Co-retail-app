@@ -62,7 +62,7 @@ export default function RoleSwitcherSheet({
             <Button
               variant={currentRole === 'store-staff' ? 'default' : 'outline'}
               onClick={() => handleRoleChange('store-staff')}
-              className="w-full justify-start h-auto p-4 flex-col items-start gap-2"
+              className="flex w-full flex-col items-start gap-2 text-left whitespace-normal break-words justify-start h-auto md:h-auto p-4 md:py-4"
             >
               <div className="flex items-center gap-2 w-full">
                 <UserIcon size={20} className="flex-shrink-0" />
@@ -81,7 +81,7 @@ export default function RoleSwitcherSheet({
             <Button
               variant={currentRole === 'partner' ? 'default' : 'outline'}
               onClick={() => handleRoleChange('partner')}
-              className="w-full justify-start h-auto p-4 flex-col items-start gap-2"
+              className="flex w-full flex-col items-start gap-2 text-left whitespace-normal break-words justify-start h-auto md:h-auto p-4 md:py-4"
             >
               <div className="flex items-center gap-2 w-full">
                 <TruckIcon size={20} className="flex-shrink-0" />
@@ -100,7 +100,7 @@ export default function RoleSwitcherSheet({
             <Button
               variant={currentRole === 'buyer' ? 'default' : 'outline'}
               onClick={() => handleRoleChange('buyer')}
-              className="w-full justify-start h-auto p-4 flex-col items-start gap-2"
+              className="flex w-full flex-col items-start gap-2 text-left whitespace-normal break-words justify-start h-auto md:h-auto p-4 md:py-4"
             >
               <div className="flex items-center gap-2 w-full">
                 <ShoppingBagIcon size={20} className="flex-shrink-0" />

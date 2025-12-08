@@ -157,6 +157,7 @@ function QuickFilterChips({
   ] : [
     { id: 'all', label: 'All', count: itemCounts.all },
     { id: 'available', label: 'Available', count: itemCounts.available },
+    { id: 'storage', label: 'Storage', count: itemCounts.storage },
     { id: 'expired', label: 'Expired flag', count: itemCounts.expired }
   ];
 
@@ -341,13 +342,31 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
             <Label htmlFor="category" className="label-large text-on-surface">
               Category
             </Label>
-            <Input
-              id="category"
-              value={formData.category}
-              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large"
-              placeholder="e.g. Hoodie, Dress, Shorts"
-            />
+            <Select
+              value={formData.category || 'none'}
+              onValueChange={(value: string) =>
+                setFormData(prev => ({ ...prev, category: value === 'none' ? '' : value }))
+              }
+            >
+              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No change</SelectItem>
+                <SelectItem value="Tops">Tops</SelectItem>
+                <SelectItem value="Bottoms">Bottoms</SelectItem>
+                <SelectItem value="Dresses">Dresses</SelectItem>
+                <SelectItem value="Outerwear">Outerwear</SelectItem>
+                <SelectItem value="Shoes">Shoes</SelectItem>
+                <SelectItem value="Accessories">Accessories</SelectItem>
+                <SelectItem value="Hoodie">Hoodie</SelectItem>
+                <SelectItem value="Shorts">Shorts</SelectItem>
+                <SelectItem value="Trousers">Trousers</SelectItem>
+                <SelectItem value="Jackets">Jackets</SelectItem>
+                <SelectItem value="Skirts">Skirts</SelectItem>
+                <SelectItem value="Knitwear">Knitwear</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           {/* Price % Reduction Field */}
@@ -674,6 +693,213 @@ const initialItems: Item[] = [
       { status: 'Available', timestamp: '2024-11-16 10:00', user: 'Anna S.' },
       { status: 'Available', timestamp: '2024-11-30 10:00', user: 'System', note: 'Expired flag applied' }
     ]
+  },
+  // Weekday Sweden Drottninggatan items with different statuses
+  {
+    id: 'itm-1012',
+    itemId: '684731',
+    title: 'Classic Denim Jacket',
+    brand: 'Weekday',
+    category: 'Jackets',
+    size: 'L',
+    color: 'Light Wash',
+    price: 45,
+    status: 'Storage',
+    date: '2024-11-28',
+    deliveryId: 'DEL-0920',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 12,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-20 10:00', user: 'Anna S.' },
+      { status: 'Storage', timestamp: '2024-11-28 14:30', user: 'Anna S.', note: 'Temporarily moved to storage' }
+    ]
+  },
+  {
+    id: 'itm-1013',
+    itemId: '684730',
+    title: 'Oversized T-Shirt',
+    brand: 'Weekday',
+    category: 'Tops',
+    size: 'M',
+    color: 'White',
+    price: 12,
+    status: 'Available',
+    date: '2024-12-01',
+    deliveryId: 'DEL-0930',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    lastInStoreAt: '2024-12-01T10:00:00.000Z',
+    daysRemaining: 39,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-11-28 08:00', user: 'System' },
+      { status: 'In transit', timestamp: '2024-11-30 09:15', user: 'System' },
+      { status: 'Available', timestamp: '2024-12-01 10:00', user: 'Anna S.' }
+    ]
+  },
+  {
+    id: 'itm-1014',
+    itemId: '684729',
+    title: 'Wide Leg Jeans',
+    brand: 'Weekday',
+    category: 'Trousers',
+    size: '30/32',
+    color: 'Dark Blue',
+    price: 35,
+    status: 'Storage',
+    date: '2024-11-25',
+    deliveryId: 'DEL-0910',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1542272604-787c3835535d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqZWFucyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 15,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-18 11:00', user: 'Anna S.' },
+      { status: 'Storage', timestamp: '2024-11-25 16:00', user: 'John D.', note: 'Seasonal rotation' }
+    ]
+  },
+  {
+    id: 'itm-1015',
+    itemId: '684728',
+    title: 'Knit Cardigan',
+    brand: 'Weekday',
+    category: 'Knitwear',
+    size: 'S',
+    color: 'Beige',
+    price: 28,
+    status: 'Sold',
+    date: '2024-11-22',
+    deliveryId: 'DEL-0890',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXJkaWdhbiUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 0,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-15 09:30', user: 'Anna S.' },
+      { status: 'Sold', timestamp: '2024-11-22 14:20', user: 'System' }
+    ]
+  },
+  {
+    id: 'itm-1016',
+    itemId: '684727',
+    title: 'Midi Skirt',
+    brand: 'Weekday',
+    category: 'Skirts',
+    size: 'M',
+    color: 'Black',
+    price: 20,
+    status: 'Storage',
+    date: '2024-11-20',
+    deliveryId: 'DEL-0880',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 20,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-12 10:00', user: 'Anna S.' },
+      { status: 'Storage', timestamp: '2024-11-20 15:00', user: 'Anna S.', note: 'Space optimization' }
+    ]
+  },
+  {
+    id: 'itm-1017',
+    itemId: '684726',
+    title: 'Cropped Hoodie',
+    brand: 'Weekday',
+    category: 'Hoodie',
+    size: 'XS',
+    color: 'Light Grey',
+    price: 22,
+    status: 'In transit',
+    date: '2024-12-04',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In transit',
+    daysRemaining: 36,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-12-01 08:00', user: 'System' },
+      { status: 'In transit', timestamp: '2024-12-04 07:30', user: 'System', note: 'Partner dispatched shipment' }
+    ]
+  },
+  {
+    id: 'itm-1018',
+    itemId: '684725',
+    title: 'Denim Jacket',
+    brand: 'Weekday',
+    category: 'Jackets',
+    size: 'M',
+    color: 'Light Wash',
+    price: 40,
+    status: 'Missing',
+    date: '2024-11-15',
+    deliveryId: 'DEL-0860',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 25,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-10 09:00', user: 'Anna S.' },
+      { status: 'Missing', timestamp: '2024-11-15 16:00', user: 'John D.', note: 'Item not found during inventory check' }
+    ]
+  },
+  {
+    id: 'itm-1019',
+    itemId: '684724',
+    title: 'Turtleneck Sweater',
+    brand: 'Weekday',
+    category: 'Knitwear',
+    size: 'M',
+    color: 'Cream',
+    price: 30,
+    status: 'Broken',
+    date: '2024-11-18',
+    deliveryId: 'DEL-0870',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzd2VhdGVyJTIwZmFzaGlvbnxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 22,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-12 10:00', user: 'Anna S.' },
+      { status: 'Broken', timestamp: '2024-11-18 14:00', user: 'Anna S.', note: 'Damaged during handling' }
+    ]
+  },
+  {
+    id: 'itm-1020',
+    itemId: '684723',
+    title: 'High Waist Trousers',
+    brand: 'Weekday',
+    category: 'Trousers',
+    size: '28',
+    color: 'Olive',
+    price: 32,
+    status: 'Draft',
+    date: '2024-12-05',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cm91c2VycyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Warehouse',
+    daysRemaining: 45,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-12-05 08:00', user: 'System', note: 'Awaiting quality check' }
+    ]
   }
 ];
 function MultiSelectActions({
@@ -968,11 +1194,11 @@ export default function ItemsScreen({
         matchesQuickFilter =
           (quickFilter === 'available' &&
             (item.status === 'Available' ||
-             item.status === 'Storage' ||
              item.status === 'Missing' ||
              item.status === 'Broken' ||
              item.status === 'Sold' ||
              item.status === 'Returned')) ||
+          (quickFilter === 'storage' && item.status === 'Storage') ||
           (quickFilter === 'expired' && Boolean(item.isExpired));
       }
       
@@ -1038,15 +1264,14 @@ export default function ItemsScreen({
       all: baseItems.length,
       available: baseItems.filter(item =>
         item.status === 'Available' ||
-        item.status === 'Storage' ||
         item.status === 'Missing' ||
         item.status === 'Broken' ||
         item.status === 'Sold' ||
         item.status === 'Returned'
       ).length,
+      storage: baseItems.filter(item => item.status === 'Storage').length,
       expired: baseItems.filter(item => item.isExpired).length,
       inShipment: 0,
-      storage: baseItems.filter(item => item.status === 'Storage').length,
       sold: baseItems.filter(item => item.status === 'Sold').length,
       returnInTransit: baseItems.filter(item => item.status === 'In transit' && item.orderType === 'return').length
     };

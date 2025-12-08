@@ -287,13 +287,31 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
             <Label htmlFor="category" className="label-large text-on-surface">
               Category
             </Label>
-            <Input
-              id="category"
-              value={formData.category}
-              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large"
-              placeholder="e.g. Hoodie, Dress, Shorts"
-            />
+            <Select
+              value={formData.category || 'none'}
+              onValueChange={(value: string) =>
+                setFormData(prev => ({ ...prev, category: value === 'none' ? '' : value }))
+              }
+            >
+              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No change</SelectItem>
+                <SelectItem value="Tops">Tops</SelectItem>
+                <SelectItem value="Bottoms">Bottoms</SelectItem>
+                <SelectItem value="Dresses">Dresses</SelectItem>
+                <SelectItem value="Outerwear">Outerwear</SelectItem>
+                <SelectItem value="Shoes">Shoes</SelectItem>
+                <SelectItem value="Accessories">Accessories</SelectItem>
+                <SelectItem value="Hoodie">Hoodie</SelectItem>
+                <SelectItem value="Shorts">Shorts</SelectItem>
+                <SelectItem value="Trousers">Trousers</SelectItem>
+                <SelectItem value="Jackets">Jackets</SelectItem>
+                <SelectItem value="Skirts">Skirts</SelectItem>
+                <SelectItem value="Knitwear">Knitwear</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           {/* Price % Reduction Field */}

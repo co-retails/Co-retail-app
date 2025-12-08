@@ -1904,7 +1904,7 @@ useEffect(() => {
       {/* Spacer for top nav on desktop */}
       <div className="hidden md:block h-16"></div>
       {/* Header */}
-      <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
+      <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant">
         <div className="px-4 md:px-6 py-4 md:pt-4">
           <div className="flex items-center justify-between">
             <h3 className="headline-small text-on-surface">
@@ -1955,7 +1955,7 @@ useEffect(() => {
             )}
           </div>
           
-          {/* Filter Chips Display - Partner Portal Only - Matching ItemsScreen design */}
+          {/* Filter Chips Display - Partner Portal Only - align with Dashboard */}
           {role === 'partner' && ((viewFilter.brandIds?.length || 0) > 0 || 
             (viewFilter.countryIds?.length || 0) > 0 || 
             (viewFilter.storeIds?.length || 0) > 0) && (
@@ -1968,17 +1968,18 @@ useEffect(() => {
                   brands.filter(b => viewFilter.brandIds!.includes(b.id)).map(brand => (
                     <div 
                       key={`brand-${brand.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
+                      className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
                     >
-                      {brand.name}
+                      <span className="label-small">{brand.name}</span>
                       <button
-                        onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
-                          e.stopPropagation();
-                          handleBrandFilterChange(viewFilter.brandIds!.filter(id => id !== brand.id));
+                        onClick={() => {
+                          const newBrandIds = viewFilter.brandIds!.filter(id => id !== brand.id);
+                          handleBrandFilterChange(newBrandIds);
                         }}
-                        className="hover:opacity-70"
+                        className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
+                        aria-label={`Remove ${brand.name} filter`}
                       >
-                        <X size={12} />
+                        <X className="w-3 h-3" />
                       </button>
                     </div>
                   ))
@@ -1989,17 +1990,18 @@ useEffect(() => {
                   countries.filter(c => viewFilter.countryIds!.includes(c.id)).map(country => (
                     <div 
                       key={`country-${country.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
+                      className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
                     >
-                      {country.name}
+                      <span className="label-small">{country.name}</span>
                       <button
-                        onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
-                          e.stopPropagation();
-                          handleCountryFilterChange(viewFilter.countryIds!.filter(id => id !== country.id));
+                        onClick={() => {
+                          const newCountryIds = viewFilter.countryIds!.filter(id => id !== country.id);
+                          handleCountryFilterChange(newCountryIds);
                         }}
-                        className="hover:opacity-70"
+                        className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
+                        aria-label={`Remove ${country.name} filter`}
                       >
-                        <X size={12} />
+                        <X className="w-3 h-3" />
                       </button>
                     </div>
                   ))
@@ -2010,21 +2012,30 @@ useEffect(() => {
                   stores.filter(s => viewFilter.storeIds!.includes(s.id)).map(store => (
                     <div 
                       key={`store-${store.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
+                      className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
                     >
-                      {store.name}
+                      <span className="label-small">{store.name}</span>
                       <button
-                        onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
-                          e.stopPropagation();
-                          handleStoreFilterChange(viewFilter.storeIds!.filter(id => id !== store.id));
+                        onClick={() => {
+                          const newStoreIds = viewFilter.storeIds!.filter(id => id !== store.id);
+                          handleStoreFilterChange(newStoreIds);
                         }}
-                        className="hover:opacity-70"
+                        className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
+                        aria-label={`Remove ${store.name} filter`}
                       >
-                        <X size={12} />
+                        <X className="w-3 h-3" />
                       </button>
                     </div>
                   ))
                 }
+
+                {/* Clear All Filters Button */}
+                <button
+                  onClick={handleViewAllStores}
+                  className="inline-flex items-center h-10 md:h-8 px-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
+                >
+                  <span className="label-small">Clear all</span>
+                </button>
               </div>
             </div>
           )}
@@ -2033,7 +2044,7 @@ useEffect(() => {
             <div className="mt-4 md:max-w-sm md:w-auto">
               <Button
                 onClick={onCreateOrder}
-                className="w-full md:w-auto justify-center h-14 rounded-[12px] gap-3 bg-primary text-on-primary hover:bg-primary/90 shadow-md shadow-primary/15 transition-colors px-6"
+                className="w-full md:w-auto justify-center h-14 rounded-[12px] gap-3 bg-primary text-on-primary hover:bg-primary/90 transition-colors px-6"
               >
                 <ClipboardListIcon className="w-5 h-5" />
                 <span className="label-large">Create new order</span>

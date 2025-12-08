@@ -142,22 +142,22 @@ export default function PartnerDashboard({
   };
 
   // Filter recent orders based on current view mode
+  const selectedPartnerId = viewFilter.partnerId || currentPartnerWarehouseSelection.partnerId;
+
   const getFilteredOrders = () => {
     let filteredOrders = recentOrders;
     const selectedWarehouseId = currentPartnerWarehouseSelection.warehouseId;
     
-    // Note: Approval orders filtering will be handled by passing isAdmin prop
-    // For now, we'll filter them out - this should be updated when isAdmin prop is added
-    
+    // Always respect the currently selected partner/warehouse
+    filteredOrders = filteredOrders.filter(order => {
+      const matchesPartner = !selectedPartnerId || order.partnerId === selectedPartnerId;
+      const matchesWarehouse = !selectedWarehouseId || order.warehouseId === selectedWarehouseId;
+      return matchesPartner && matchesWarehouse;
+    });
+
     switch (viewFilter.mode) {
       case 'by-partner':
-        return viewFilter.partnerId 
-          ? filteredOrders.filter(order => {
-              const matchesPartner = order.partnerId === viewFilter.partnerId;
-              const matchesWarehouse = !selectedWarehouseId || order.warehouseId === selectedWarehouseId;
-              return matchesPartner && matchesWarehouse;
-            })
-          : [];
+        return filteredOrders;
       case 'by-store':
         // Apply all active filters
         
@@ -190,10 +190,7 @@ export default function PartnerDashboard({
         
         return filteredOrders;
       default:
-        return filteredOrders.filter(order => {
-          const matchesWarehouse = !selectedWarehouseId || order.warehouseId === selectedWarehouseId;
-          return matchesWarehouse;
-        });
+        return filteredOrders;
     }
   };
 
@@ -203,7 +200,6 @@ export default function PartnerDashboard({
     }
 
     const selectedWarehouseId = currentPartnerWarehouseSelection.warehouseId;
-    const selectedPartnerId = currentPartnerWarehouseSelection.partnerId;
 
     let filteredNotes = deliveryNotes.filter(note => {
       const matchesPartner = !selectedPartnerId || note.partnerId === selectedPartnerId;
@@ -242,7 +238,7 @@ export default function PartnerDashboard({
 
   // Calculate filtered stats based on current view mode
   const getFilteredStats = (): PartnerStats => {
-    if (viewFilter.mode === 'all' && !viewFilter.partnerId) {
+    if (viewFilter.mode === 'all' && !selectedPartnerId) {
       return stats;
     }
     const filteredOrders = getFilteredOrders();
