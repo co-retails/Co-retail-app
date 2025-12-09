@@ -31,6 +31,7 @@ export interface ItemDetails {
   status: string;
   date: string;
   deliveryId?: string;
+  boxLabel?: string;
   image?: string; // Full-size product image
   thumbnail?: string; // Thumbnail/fallback image
   daysRemaining?: number;
@@ -55,7 +56,7 @@ interface ItemDetailsDialogProps {
   priceCurrency?: string;
 }
 
-type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'deliveryId' | null;
+type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | null;
 
 const AVAILABLE_STATUSES = [
   'Draft',
@@ -729,21 +730,40 @@ export default function ItemDetailsDialog({
               {item.daysRemaining !== undefined && (
                 <div className="flex items-center gap-3">
                   <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <p className="label-small text-on-surface-variant">Days remaining</p>
-                    <p className="body-large text-on-surface">{item.daysRemaining} days</p>
+                    <p className="body-large text-on-surface">
+                      {item.daysRemaining} days
+                      {item.daysRemaining >= 7 && (
+                        <span className="body-medium text-on-surface-variant ml-2">
+                          ({Math.floor(item.daysRemaining / 7)} {Math.floor(item.daysRemaining / 7) === 1 ? 'week' : 'weeks'})
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
               )}
 
               {/* Delivery ID */}
-              {(item.deliveryId || editingField === 'deliveryId') && (
-                <EditableField
-                  field="deliveryId"
-                  label="Delivery ID"
-                  value={item.deliveryId}
-                  icon={MapPin}
-                />
+              {item.deliveryId && (
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                  <div>
+                    <p className="label-small text-on-surface-variant">Delivery ID</p>
+                    <p className="body-large text-on-surface">{item.deliveryId}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Box Label */}
+              {item.boxLabel && (
+                <div className="flex items-center gap-3">
+                  <Package className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                  <div>
+                    <p className="label-small text-on-surface-variant">Box label</p>
+                    <p className="body-large text-on-surface">{item.boxLabel}</p>
+                  </div>
+                </div>
               )}
 
               {/* Source */}

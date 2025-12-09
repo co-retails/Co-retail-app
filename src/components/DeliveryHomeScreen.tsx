@@ -95,7 +95,33 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
     return null;
   };
 
+  // Get brand-specific text to display below logo
+  const getBrandText = () => {
+    if (!currentStoreSelection?.storeId || !stores.length || !brands.length) {
+      return null;
+    }
+    
+    const currentStore = stores.find(store => store.id === currentStoreSelection.storeId);
+    if (!currentStore) return null;
+    
+    const brand = brands.find(b => b.id === currentStore.brandId);
+    if (!brand) return null;
+    
+    // Map brand names to text
+    const brandName = brand.name.toUpperCase();
+    if (brandName === 'WEEKDAY') {
+      return 'CURATED 2ND HAND';
+    } else if (brandName === 'H&M' || brandName === 'H&M') {
+      return 'PRE-LOVED';
+    } else if (brandName === 'COS') {
+      return 'RESTORE';
+    }
+    
+    return null;
+  };
+
   const logoPath = getBrandLogo();
+  const brandText = getBrandText();
 
   return (
     <>
@@ -113,9 +139,16 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
             {/* Centered Logo */}
             <div className="flex flex-col items-center">
               {logoPath ? (
-                <div className="h-[28px] mb-1 flex items-center justify-center">
-                  <img src={logoPath} alt="Brand Logo" className="h-full w-auto max-w-[153px] object-contain" />
-                </div>
+                <>
+                  <div className="h-[28px] mb-1 flex items-center justify-center">
+                    <img src={logoPath} alt="Brand Logo" className="h-full w-auto max-w-[153px] object-contain" />
+                  </div>
+                  {brandText && (
+                    <div className="label-large text-on-surface tracking-wider uppercase">
+                      {brandText}
+                    </div>
+                  )}
+                </>
               ) : (
                 <>
                   <div className="h-[28px] w-[153px] mb-1">
@@ -158,9 +191,16 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
         {/* Logo */}
         <div className="flex flex-col items-center mb-3">
           {logoPath ? (
-            <div className="h-[28px] flex items-center justify-center">
-              <img src={logoPath} alt="Brand Logo" className="h-full w-auto max-w-[153px] object-contain" />
-            </div>
+            <>
+              <div className="h-[28px] mb-1 flex items-center justify-center">
+                <img src={logoPath} alt="Brand Logo" className="h-full w-auto max-w-[153px] object-contain" />
+              </div>
+              {brandText && (
+                <div className="label-large text-on-surface tracking-wider uppercase">
+                  {brandText}
+                </div>
+              )}
+            </>
           ) : (
             <>
               <div className="h-[28px] w-[153px] mb-1">

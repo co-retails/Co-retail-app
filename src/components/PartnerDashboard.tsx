@@ -294,10 +294,12 @@ export default function PartnerDashboard({
   const filteredOrders = getFilteredOrders();
   const filteredDeliveryNotes = getFilteredDeliveryNotes();
   const currentPartner = partners.find(partner => partner.id === currentPartnerWarehouseSelection.partnerId);
+  const currentWarehouse = warehouses.find(warehouse => warehouse.id === currentPartnerWarehouseSelection.warehouseId);
   const currentPartnerName = currentPartner?.name ?? '';
   const isChinesePartner = currentPartnerName === 'Shenzhen Fashion Manufacturing';
   const isThriftedOrSellpyPartner = ['Thrifted', 'Sellpy', 'Sellpy Operations'].some(name => currentPartnerName.includes(name));
   const isThriftedPartner = currentPartnerName.includes('Thrifted');
+  const isThriftedCopenhagenHub = isThriftedPartner && currentWarehouse?.name === 'Thrifted Copenhagen Hub';
   const pendingOrdersCount = filteredStats.pendingOrders;
   const activeShipmentsCount = filteredStats.inTransitDeliveries;
   const registeredOrdersCount = filteredStats.registeredOrders;
@@ -325,6 +327,7 @@ export default function PartnerDashboard({
     ? 'No actions needed right now. Create a new Thrifted order whenever you are ready.'
     : 'No partner actions need attention right now. Start a new order whenever you are ready.';
   const quickActionEmptyStateButtonLabel = isThriftedPartner ? 'Create Thrifted order' : 'Create new order';
+  const quickActionEmptyStateButtonLabelWithOverride = isThriftedCopenhagenHub ? 'Create order' : quickActionEmptyStateButtonLabel;
 
   const getOrderStatusBadgeClass = (status: ExtendedPartnerOrder['status']) => {
     switch (status) {
@@ -676,27 +679,10 @@ export default function PartnerDashboard({
                 </button>
               )}
 
-              {onNavigateToReports && (
-                <button
-                  onClick={onNavigateToReports}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#dbeafe' }}>
-                      <BarChart3 className="w-5 h-5 text-on-surface" />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">View reports</p>
-                      <p className="body-small text-on-surface-variant">Sales & Stock analytics</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
-              )}
             </div>
 
             {onNavigateToReports && !thriftedHasActionableQuickActions && (
-              <div className="mt-4 border border-dashed border-outline-variant rounded-lg bg-surface-container-high p-4 text-center flex flex-col items-center gap-3">
+              <div className="mt-4 p-4 bg-surface-container-high border border-dashed border-outline-variant rounded-lg text-center flex flex-col items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <Sparkles className="w-6 h-6 text-primary" />
                 </div>
@@ -710,9 +696,27 @@ export default function PartnerDashboard({
                   onClick={onCreateOrder}
                 >
                   <Plus size={16} />
-                  {quickActionEmptyStateButtonLabel}
+                  {quickActionEmptyStateButtonLabelWithOverride}
                 </Button>
               </div>
+            )}
+
+            {onNavigateToReports && (
+              <button
+                onClick={onNavigateToReports}
+                className="mt-4 flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left w-full"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#dbeafe' }}>
+                    <BarChart3 className="w-5 h-5 text-on-surface" />
+                  </div>
+                  <div>
+                    <p className="title-small text-on-surface">View reports</p>
+                    <p className="body-small text-on-surface-variant">Sales & Stock analytics</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+              </button>
             )}
           </div>
         ) : (
