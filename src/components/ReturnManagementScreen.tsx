@@ -149,81 +149,27 @@ function ReturnOrderSummaryCard({ partner }: { partner: Partner }) {
   );
 }
 
+import CameraScanner from './CameraScanner';
+
 function ActiveScanner({ 
   onScan, 
   isScanning,
   unscannedCount 
 }: { 
-  onScan: () => void;
+  onScan: (result: string) => void;
   isScanning: boolean;
   unscannedCount: number;
 }) {
   return (
-    <div className="mx-4 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden">
-      {/* Camera Preview Area */}
-      <div className="relative bg-surface-variant h-64 flex items-center justify-center">
-        {/* Camera preview placeholder */}
-        <div className="absolute inset-4 border-2 border-primary rounded-lg flex items-center justify-center">
-          <div className="w-16 h-16 border-2 border-primary border-dashed rounded-lg flex items-center justify-center">
-            <QrCode className="w-8 h-8 text-primary" />
-          </div>
-        </div>
-        
-        {/* Active Scanning overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <button 
-            className="w-48 h-48 border-2 border-primary rounded-lg relative hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={onScan}
-            disabled={isScanning || unscannedCount === 0}
-            aria-label="Tap to scan"
-          >
-            {/* Animated scanning line */}
-            {!isScanning && unscannedCount > 0 && (
-              <>
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary animate-pulse"></div>
-                <div className="absolute top-8 left-0 right-0 h-px bg-primary/30 animate-bounce" style={{animationDelay: '0.5s'}}></div>
-              </>
-            )}
-            
-            {/* Corner indicators */}
-            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary"></div>
-            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary"></div>
-            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary"></div>
-            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary"></div>
-            
-            {/* Status indicator */}
-            {unscannedCount > 0 && (
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2">
-                <div className="flex items-center gap-2 bg-primary px-3 py-1 rounded-full">
-                  <div className="w-2 h-2 bg-on-primary rounded-full animate-pulse"></div>
-                  <span className="label-small text-on-primary">
-                    {isScanning ? 'SCANNING...' : 'READY TO SCAN'}
-                  </span>
-                </div>
-              </div>
-            )}
-            
-            {unscannedCount === 0 && (
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2">
-                <div className="flex items-center gap-2 bg-surface-container px-3 py-1 rounded-full">
-                  <span className="label-small text-on-surface-variant">
-                    NO ITEMS TO SCAN
-                  </span>
-                </div>
-              </div>
-            )}
-            
-            {/* Scan message overlay */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <div className="bg-primary/90 backdrop-blur-sm rounded-lg px-4 py-2 opacity-0 hover:opacity-100 transition-opacity">
-                <span className="label-medium text-on-primary">
-                  {unscannedCount > 0 ? 'Tap to scan items' : 'No items available'}
-                </span>
-              </div>
-            </div>
-          </button>
-        </div>
-      </div>
+    <div className="mx-4 mb-4">
+      <CameraScanner
+        onScan={onScan}
+        isScanning={isScanning}
+        scanMessage={unscannedCount > 0 ? 'Tap to scan items' : 'No items available'}
+        autoStart={true}
+        enableFakeScan={true}
+        height="16rem"
+      />
     </div>
   );
 }
@@ -528,26 +474,36 @@ export default function ReturnManagementScreen({
   const hasSelectedItems = selectedItems.length > 0;
   const hasScannedItems = scannedItems.length > 0;
 
-  const handleScan = () => {
+  const handleScan = (scannedCode: string) => {
     if (unscannedItems.length === 0) {
-      alert('No items available to scan');
       return;
     }
 
     setIsScanning(true);
 
-    // Simulate scanning a random item
+    // Try to find item by scanned code, otherwise pick random
     setTimeout(() => {
-      const randomItem = unscannedItems[Math.floor(Math.random() * unscannedItems.length)];
-      if (!randomItem) {
+      let itemToScan = unscannedItems.find(item => 
+        item.itemId === scannedCode || 
+        item.id === scannedCode ||
+        item.partnerItemRef === scannedCode
+      );
+      
+      if (!itemToScan) {
+        // If no match found, scan a random item
+        itemToScan = unscannedItems[Math.floor(Math.random() * unscannedItems.length)];
+      }
+      
+      if (!itemToScan) {
         setIsScanning(false);
         return;
       }
-      onUpdateItem(randomItem.id, 'scan');
-      onUpdateItem(randomItem.id, 'select');
+      
+      onUpdateItem(itemToScan.id, 'scan');
+      onUpdateItem(itemToScan.id, 'select');
       setIsScanning(false);
       setActiveTab('scanned');
-    }, 2000);
+    }, 500);
   };
 
   const handleToggleSelect = (itemId: string) => {

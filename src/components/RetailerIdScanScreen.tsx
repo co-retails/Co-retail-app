@@ -21,6 +21,7 @@ import {
 import { OrderItem } from './OrderCreationScreen';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { ItemCard, BaseItem } from './ItemCard';
+import CameraScanner from './CameraScanner';
 
 type ScanStep = 'scan-partner-qr' | 'scan-retailer-id';
 
@@ -66,11 +67,8 @@ export default function RetailerIdScanScreen({
   const completedItems = scannedConnections.length;
   const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
 
-  const handleScan = () => {
+  const handleScan = (scannedCode: string) => {
     setIsScanning(true);
-    
-    // Mock scanning with different timeouts for different steps
-    const scanDelay = scanSession.step === 'scan-partner-qr' ? 2000 : 1500;
     
     setTimeout(() => {
       setIsScanning(false);
@@ -86,13 +84,14 @@ export default function RetailerIdScanScreen({
           });
         }
       } else if (scanSession.step === 'scan-retailer-id') {
-        // Complete the connection with item ID
+        // Complete the connection with item ID using scanned code
         if (scanSession.currentItem) {
-          const mockRetailerItemId = `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+          // Use scanned code as retailer item ID, or generate one if needed
+          const retailerItemId = scannedCode || `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
           const connectedItem: OrderItem = {
             ...scanSession.currentItem,
-            retailerItemId: mockRetailerItemId,
-            itemId: mockRetailerItemId,
+            retailerItemId: retailerItemId,
+            itemId: retailerItemId,
             status: undefined
           };
           
@@ -102,7 +101,7 @@ export default function RetailerIdScanScreen({
           setScanSession({ step: 'scan-partner-qr' });
         }
       }
-    }, scanDelay);
+    }, 500);
   };
 
   const handleCancelScanning = () => {
@@ -233,53 +232,15 @@ export default function RetailerIdScanScreen({
       </div>
 
       {/* Active Scanner - Always at Top */}
-      <div className="sticky top-16 mx-4 md:mx-6 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden z-20">
-        {/* Camera Preview Area */}
-        <div className="relative bg-surface-variant h-64 flex items-center justify-center">
-          {/* Camera preview placeholder - in real implementation, this would show camera feed */}
-          <div className="absolute inset-4 border-2 border-primary rounded-lg flex items-center justify-center">
-            <div className="w-16 h-16 border-2 border-primary border-dashed rounded-lg flex items-center justify-center">
-              <QrCodeIcon className="w-8 h-8 text-primary" />
-            </div>
-          </div>
-          
-          {/* Active Scanning overlay */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <button 
-              className="w-48 h-48 border-2 border-primary rounded-lg relative hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              onClick={handleScan}
-              disabled={isScanning || totalItems === 0}
-              aria-label="Tap to scan"
-            >
-              {/* Animated scanning line */}
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary animate-pulse"></div>
-              <div className="absolute top-8 left-0 right-0 h-px bg-primary/30 animate-bounce" style={{animationDelay: '0.5s'}}></div>
-              
-              {/* Corner indicators */}
-              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary"></div>
-              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary"></div>
-              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary"></div>
-              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary"></div>
-              
-              {/* Status indicator */}
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2">
-                <div className="flex items-center gap-2 bg-primary px-3 py-1 rounded-full">
-                  <div className="w-2 h-2 bg-on-primary rounded-full animate-pulse"></div>
-                  <span className="label-small text-on-primary">
-                    {isScanning ? 'SCANNING...' : 'READY'}
-                  </span>
-                </div>
-              </div>
-              
-              {/* Scan message overlay */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="bg-primary/90 backdrop-blur-sm rounded-lg px-4 py-2 opacity-0 hover:opacity-100 transition-opacity">
-                  <span className="label-medium text-on-primary">{getStepDescription()}</span>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
+      <div className="sticky top-16 mx-4 md:mx-6 mb-4 z-20">
+        <CameraScanner
+          onScan={handleScan}
+          isScanning={isScanning}
+          scanMessage={getStepDescription()}
+          autoStart={true}
+          enableFakeScan={true}
+          height="16rem"
+        />
       </div>
 
       {/* Fixed Item Identified Section - Below Scanner */}

@@ -22,6 +22,7 @@ import {
 import { OrderItem } from './OrderCreationScreen';
 import { ItemCard } from './ItemCard';
 import svgPaths from "../imports/svg-8iuolkmxl8";
+import CameraScanner from './CameraScanner';
 
 export interface Box {
   id: string;
@@ -563,35 +564,16 @@ export default function BoxManagementScreen({
             {/* Active Scanner */}
             <Card>
               <CardContent className="p-4">
-                <div className="relative bg-surface-variant h-64 flex items-center justify-center rounded-lg">
-                  <button className="absolute inset-4 border-2 border-primary rounded-lg flex items-center justify-center hover:bg-primary/5 transition-colors">
-                    <div className="w-16 h-16 border-2 border-primary border-dashed rounded-lg flex items-center justify-center">
-                      <QrCodeIcon size={32} className="text-primary" />
-                    </div>
-                    <div 
-                      className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
-                      onClick={() => {
-                        // Simulate scanning by generating a mock barcode
-                        const mockBarcode = `BOX-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
-                        setScannedBoxLabel(mockBarcode);
-                        toast.success(`Scanned: ${mockBarcode}`);
-                      }}
-                    >
-                      <div className="bg-primary/90 backdrop-blur-sm rounded-lg px-4 py-2 opacity-0 hover:opacity-100 transition-opacity">
-                        <span className="label-medium text-on-primary">Scan QR code or barcode</span>
-                      </div>
-                    </div>
-                  </button>
-                </div>
-                
-                <div className="p-4 border-t border-outline-variant bg-surface mt-4">
-                  <div className="text-center">
-                    <p className="body-medium text-on-surface mb-2">Scan barcode or QR code</p>
-                    <p className="body-small text-on-surface-variant">
-                      Position the barcode or QR code within the camera view to scan
-                    </p>
-                  </div>
-                </div>
+                <CameraScanner
+                  onScan={(scannedCode) => {
+                    setScannedBoxLabel(scannedCode);
+                    toast.success(`Scanned: ${scannedCode}`);
+                  }}
+                  scanMessage="Scan QR code or barcode"
+                  autoStart={true}
+                  enableFakeScan={true}
+                  height="16rem"
+                />
               </CardContent>
             </Card>
             

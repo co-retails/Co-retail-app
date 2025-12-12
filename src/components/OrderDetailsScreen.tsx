@@ -136,11 +136,10 @@ export default function OrderDetailsScreen({
     }
   };
 
-  const handleScan = () => {
+  const handleScan = (scannedCode: string) => {
     setIsScanning(true);
     
-    const scanDelay = scanSession.step === 'scan-partner-qr' ? 2000 : 1500;
-    
+    // Small delay for visual feedback
     setTimeout(() => {
       setIsScanning(false);
       
@@ -157,18 +156,19 @@ export default function OrderDetailsScreen({
         }
       } else if (scanSession.step === 'scan-retailer-id') {
         if (scanSession.currentItem) {
-          const mockRetailerItemId = `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+          // Use scanned code as retailer item ID, or generate one if needed
+          const retailerItemId = scannedCode || `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
           
           // Call parent callback to update the order
           if (onItemScanned) {
-            onItemScanned(scanSession.currentItem.itemId, mockRetailerItemId);
+            onItemScanned(scanSession.currentItem.itemId, retailerItemId);
           }
           
           // Reset to scan next item
           setScanSession({ step: 'scan-partner-qr' });
         }
       }
-    }, scanDelay);
+    }, 500);
   };
 
   const handleCancelScanning = () => {

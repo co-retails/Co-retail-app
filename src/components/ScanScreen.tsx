@@ -59,57 +59,20 @@ const getTodayString = () => {
   return separatorIndex === -1 ? iso : iso.slice(0, separatorIndex);
 };
 
-function ScanViewer({ onScan }: { 
-  onScan: () => void;
-}) {
+import CameraScanner from './CameraScanner';
 
+function ScanViewer({ onScan }: { 
+  onScan: (result: string) => void;
+}) {
   return (
-    <div className="sticky top-0 md:top-16 mx-4 md:mx-6 mt-4 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden z-[90]">
-      {/* Camera Preview Area */}
-      <div className="relative bg-surface-variant h-64 flex items-center justify-center">
-        {/* Camera preview placeholder - in real implementation, this would show camera feed */}
-        <div className="absolute inset-4 border-2 border-primary rounded-lg flex items-center justify-center">
-          <div className="w-16 h-16 border-2 border-primary border-dashed rounded-lg flex items-center justify-center">
-            <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M12 12h-4.01M12 12v4.01M12 12V7.99" />
-            </svg>
-          </div>
-        </div>
-        
-        {/* Active Scanning overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <button 
-            className="w-48 h-48 border-2 border-primary rounded-lg relative hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 transition-colors cursor-pointer"
-            onClick={onScan}
-            aria-label="Tap to scan"
-          >
-            {/* Animated scanning line */}
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary animate-pulse"></div>
-            <div className="absolute top-8 left-0 right-0 h-px bg-primary/30 animate-bounce" style={{animationDelay: '0.5s'}}></div>
-            
-            {/* Corner indicators */}
-            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary"></div>
-            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary"></div>
-            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary"></div>
-            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary"></div>
-            
-            {/* Status indicator */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2">
-              <div className="flex items-center gap-2 bg-primary px-3 py-1 rounded-full">
-                <div className="w-2 h-2 bg-on-primary rounded-full animate-pulse"></div>
-                <span className="label-small text-on-primary">SCANNING</span>
-              </div>
-            </div>
-            
-            {/* Scan message overlay */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <div className="bg-primary/90 backdrop-blur-sm rounded-lg px-4 py-2 opacity-0 hover:opacity-100 transition-opacity">
-                <span className="label-medium text-on-primary">Tap to scan boxes</span>
-              </div>
-            </div>
-          </button>
-        </div>
-      </div>
+    <div className="sticky top-0 md:top-16 mx-4 md:mx-6 mt-4 mb-4 z-[90]">
+      <CameraScanner
+        onScan={onScan}
+        scanMessage="Tap to scan items"
+        autoStart={true}
+        enableFakeScan={true}
+        height="16rem"
+      />
     </div>
   );
 }
@@ -721,8 +684,21 @@ export default function ScanScreen({
     }
   };
 
-  const handleScan = () => {
-    // Simulate scanning a random item
+  const handleScan = (scannedCode: string) => {
+    // Extract item ID from scanned code (could be QR code or barcode)
+    // For now, if it's a numeric code, use it as itemId, otherwise generate one
+    let itemId: string;
+    if (/^\d+$/.test(scannedCode)) {
+      itemId = scannedCode;
+    } else if (scannedCode.startsWith('SCAN-')) {
+      // Extract from fake scan format
+      itemId = scannedCode.split('-')[1] || `${34780000 + Math.floor(Math.random() * 10000)}`;
+    } else {
+      // Use the scanned code as itemId or generate one
+      itemId = scannedCode.length > 10 ? scannedCode.substring(0, 10) : `${34780000 + Math.floor(Math.random() * 10000)}`;
+    }
+
+    // Simulate scanning a random item with the scanned code
     const brands = ['H&M', 'Weekday', 'COS', 'Monki', 'ARKET', 'Zara', 'Mango'];
     const categories = ['Dress', 'Shirt', 'Pants', 'Jacket', 'Shorts', 'Hoodie', 'Sweater'];
     const sizes = ['XS', 'S', 'M', 'L', 'XL'];
@@ -740,7 +716,7 @@ export default function ScanScreen({
 
     const newItem: ScannedItem = {
       id: Date.now().toString(),
-      itemId: `${34780000 + Math.floor(Math.random() * 10000)}`,
+      itemId,
       status: 'Available',
       date: getTodayString(),
       brand,
@@ -762,12 +738,13 @@ export default function ScanScreen({
             minute: '2-digit' 
           }).replace(',', ''),
           user: 'Scanner',
-          note: 'Auto-scanned item'
+          note: `Scanned: ${scannedCode}`
         }
       ]
     };
     
     setScannedItems(prev => [newItem, ...prev]);
+    toast.success(`Scanned item: ${itemId}`);
   };
 
   // Check if return button should be shown based on scanned/selected items status
