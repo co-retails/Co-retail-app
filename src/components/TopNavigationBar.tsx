@@ -36,12 +36,25 @@ export default function TopNavigationBar({
   }
 
   return (
-    <div className="hidden md:flex fixed top-0 left-0 right-0 z-[100] h-16 bg-surface">
-      <div className="w-full flex items-center justify-between px-6">
+    <div 
+      className="hidden md:flex fixed top-0 left-0 right-0 z-[100] h-16 backdrop-blur-sm"
+      style={{
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(208, 208, 218, 0.3)',
+      }}
+    >
+      <div className="w-full flex items-center justify-between px-8">
         {/* Left side: Logo and Navigation Tabs */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-8">
           {/* Logo */}
-          <div className="flex items-center justify-center">
+          <div 
+            className="flex items-center justify-center"
+            style={{ transition: 'transform 200ms ease' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
             <MarkResellLogo />
           </div>
           
@@ -56,20 +69,36 @@ export default function TopNavigationBar({
                 return (
                   <button
                     key={destination.id}
-                    className={`px-4 h-full flex items-center transition-colors relative ${
+                    className={`relative px-4 py-2 flex items-center rounded-lg transition-all ${
                       isActive
                         ? 'text-on-surface'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
+                    style={{
+                      backgroundColor: isActive ? 'rgba(56, 117, 202, 0.12)' : undefined,
+                      transition: 'all 200ms ease',
+                    }}
                     onClick={destination.onClick}
                   >
-                    <span className="label-large whitespace-nowrap">
+                    <span 
+                      className="label-large whitespace-nowrap"
+                      style={{ 
+                        fontWeight: isActive ? 600 : 500,
+                        transition: 'font-weight 200ms ease',
+                      }}
+                    >
                       {destination.desktopLabel || destination.label}
                     </span>
                     
-                    {/* Active Indicator - positioned at bottom of navigation bar */}
+                    {/* Active Indicator - pill background + underline */}
                     {isActive && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                      <div 
+                        className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
+                        style={{
+                          backgroundColor: 'var(--primary)',
+                          boxShadow: '0 1px 6px rgba(56, 117, 202, 0.4)'
+                        }}
+                      />
                     )}
                   </button>
                 );
@@ -81,21 +110,32 @@ export default function TopNavigationBar({
         </div>
         
         {/* Right side: User Initials and Settings */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* User Initials */}
-          <div className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center">
-            <span className="label-large text-on-secondary-container font-medium">
+          <button 
+            className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center hover:shadow-md"
+            style={{
+              border: '1px solid rgba(208, 208, 218, 0.3)',
+              transition: 'all 200ms ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <span className="label-large text-on-secondary-container" style={{ fontWeight: 600 }}>
               {userInitials}
             </span>
-          </div>
+          </button>
           
           {/* Settings Icon */}
           <button
             onClick={onSettingsClick}
-            className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
+            className="p-2 rounded-xl hover:bg-surface-container-high"
+            style={{ transition: 'all 200ms ease' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             aria-label="Settings"
           >
-            <Settings className="h-6 w-6 text-on-surface-variant" />
+            <Settings className="h-5 w-5 text-on-surface-variant" />
           </button>
         </div>
       </div>
