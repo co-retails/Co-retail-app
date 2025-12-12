@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User } from 'lucide-react';
@@ -12,7 +12,7 @@ export interface ReturnItem {
   title: string;
   size?: string;
   color?: string;
-  status: 'Expired B2B' | 'Rejected' | 'Return - In transit' | 'In store' | 'Broken' | 'In transit';
+  status: 'Rejected' | 'Available' | 'Broken' | 'In transit';
   partnerItemRef: string;
   partnerId?: string; // Partner ID to ensure items belong to the selected partner
   image?: string; // Full-size product image
@@ -22,6 +22,39 @@ export interface ReturnItem {
   scanned?: boolean;
   daysInStore?: number;
   lastInStoreAt?: string;
+}
+
+// Helper function to normalize return item statuses
+export function normalizeReturnItemStatus(status: string): ReturnItem['status'] {
+  // Convert old statuses to new ones
+  if (status === 'Expired B2B' || status === 'In store' || status === 'Expired' || status === 'Return - In transit') {
+    return 'Available';
+  }
+  // Ensure status is one of the valid values
+  const validStatuses: ReturnItem['status'][] = ['Rejected', 'Available', 'Broken', 'In transit'];
+  if (validStatuses.includes(status as ReturnItem['status'])) {
+    return status as ReturnItem['status'];
+  }
+  // Default to Available for unknown statuses
+  return 'Available';
+}
+
+// Helper function to map Item status to ReturnItem status
+export function mapItemStatusToReturnItemStatus(itemStatus: string): ReturnItem['status'] {
+  // Map Item statuses to ReturnItem statuses
+  const statusMap: Record<string, ReturnItem['status']> = {
+    'Available': 'Available',
+    'Rejected': 'Rejected',
+    'Broken': 'Broken',
+    'In transit': 'In transit',
+    'Missing': 'Available', // Missing items can be returned as Available
+    'Sold': 'Available', // Sold items can be returned as Available
+    'Returned': 'Available', // Already returned items
+    'Storage': 'Available', // Storage items can be returned
+    'Draft': 'Available' // Draft items can be returned
+  };
+  
+  return statusMap[itemStatus] || normalizeReturnItemStatus(itemStatus);
 }
 
 export interface ReturnOrder {
@@ -40,6 +73,7 @@ interface ReturnManagementScreenProps {
   onBack: () => void;
   onCreateReturn: (selectedItems: ReturnItem[]) => void;
   onContinue?: () => void; // New prop for Continue button
+  onSaveAndClose?: () => void; // Handler for Save & close button
   onUpdateItem: (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan' | 'unscan') => void;
 }
 
@@ -261,14 +295,16 @@ function ReturnItemCard({
     daysRemaining: daysInStore
   };
 
+
   const handleCardClick = () => onToggleSelect(item.id);
   const selectionClasses = item.selected
-    ? 'border border-primary/50 bg-primary-container/15 shadow-lg'
-    : 'border border-outline-variant shadow-sm';
+    ? 'border border-primary/50 bg-primary-container/15'
+    : 'border border-outline-variant';
 
   return (
     <div
-      className={`relative overflow-visible rounded-2xl bg-surface-container transition-all duration-200 ${selectionClasses}`}
+      className={`relative overflow-hidden rounded-[12px] bg-surface-container transition-all duration-200 shadow-none ${selectionClasses}`}
+      style={{ boxShadow: 'none' }}
       role="button"
       tabIndex={0}
       onClick={handleCardClick}
@@ -317,10 +353,10 @@ function ReturnItemCard({
               <MoreVertical className="w-5 h-5 text-on-surface-variant" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56" onClick={(event) => event.stopPropagation()}>
+          <DropdownMenuContent align="end" className="w-56" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
             {!isScanned ? (
               <DropdownMenuItem
-                onClick={(event) => {
+                onClick={(event: React.MouseEvent) => {
                   event.stopPropagation();
                   handleScanToggle(true);
                 }}
@@ -329,7 +365,7 @@ function ReturnItemCard({
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem
-                onClick={(event) => {
+                onClick={(event: React.MouseEvent) => {
                   event.stopPropagation();
                   handleScanToggle(false);
                 }}
@@ -463,17 +499,29 @@ export default function ReturnManagementScreen({
   onBack, 
   onCreateReturn, 
   onContinue,
+  onSaveAndClose,
   onUpdateItem 
 }: ReturnManagementScreenProps) {
-  const [activeTab, setActiveTab] = useState<'scanned' | 'unscanned'>('scanned');
-  const [isScanning, setIsScanning] = useState(false);
-
   // Filter items to only show items from the selected partner
   const partnerItems = items.filter(item => !item.partnerId || item.partnerId === partner.id);
   
   const scannedItems = partnerItems.filter(item => item.scanned);
   // Allow scanning items with any status, not just expired or rejected
-  const unscannedItems = partnerItems.filter(item => !item.scanned);
+  // Filter out "In transit" items from unscanned - they should only show if scanned
+  const unscannedItems = partnerItems.filter(item => 
+    !item.scanned && item.status !== 'In transit'
+  );
+  
+  // Set initial tab: prefer 'unscanned' if there are unscanned items, otherwise 'scanned'
+  const initialTab = unscannedItems.length > 0 ? 'unscanned' : 'scanned';
+  const [activeTab, setActiveTab] = useState<'scanned' | 'unscanned'>(initialTab);
+  const [isScanning, setIsScanning] = useState(false);
+  
+  // Update tab when items change (e.g., when opening a pending return)
+  useEffect(() => {
+    const newInitialTab = unscannedItems.length > 0 ? 'unscanned' : 'scanned';
+    setActiveTab(newInitialTab);
+  }, [unscannedItems.length]);
   
   const currentItems = activeTab === 'scanned' ? scannedItems : unscannedItems;
   const selectedItems = partnerItems.filter(item => item.selected);
@@ -528,14 +576,20 @@ export default function ReturnManagementScreen({
   };
 
   const handleSaveAndClose = () => {
-    // Save current state and return to home/previous screen
-    onBack();
+    // If onSaveAndClose handler is provided, use it; otherwise just go back
+    if (onSaveAndClose) {
+      onSaveAndClose();
+    } else {
+      // Fallback: just go back
+      onBack();
+    }
   };
 
   return (
     <div className="bg-surface min-h-screen">
       {/* Spacer for top nav on desktop */}
       <div className="hidden md:block h-16"></div>
+      
       {/* Top App Bar */}
       <TopAppBar onBack={onBack} title="Return" />
       

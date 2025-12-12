@@ -23,6 +23,7 @@ interface DeliveryHomeScreenProps {
   inTransitDeliveriesCount?: number;
   inTransitBoxesCount?: number;
   daysSinceLastStockCheck?: number | null;
+  lastStockCheckDate?: string | null;
   inStoreItemsCount?: number;
   inTransitReturnsCount?: number;
   expiredItemsCount?: number;
@@ -122,13 +123,24 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
 
   const logoPath = getBrandLogo();
   const brandText = getBrandText();
+  
+  // Check if current brand is H&M
+  const isHMBrand = () => {
+    if (!currentStoreSelection?.storeId || !stores.length || !brands.length) {
+      return false;
+    }
+    const currentStore = stores.find(store => store.id === currentStoreSelection.storeId);
+    if (!currentStore) return false;
+    const brand = brands.find(b => b.id === currentStore.brandId);
+    return brand?.name.toUpperCase() === 'H&M';
+  };
+
+  const isHM = isHMBrand();
 
   return (
     <>
       {/* Mobile Header - Full header with logo and selector */}
       <div className="w-full bg-surface border-b border-outline-variant md:hidden">
-        <StatusBarIPhone />
-        
         {/* Header Content */}
         <div className="px-4 py-3">
           {/* Top Row: Logo, Admin Icon */}
@@ -141,7 +153,12 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
               {logoPath ? (
                 <>
                   <div className="h-[28px] mb-1 flex items-center justify-center">
-                    <img src={logoPath} alt="Brand Logo" className="h-full w-auto max-w-[153px] object-contain" />
+                    <img 
+                      src={logoPath} 
+                      alt="Brand Logo" 
+                      className="h-full w-auto max-w-[153px] object-contain"
+                      style={isHM ? { filter: 'brightness(0) saturate(0)' } : undefined}
+                    />
                   </div>
                   {brandText && (
                     <div className="label-large text-on-surface tracking-wider uppercase">
@@ -193,7 +210,12 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
           {logoPath ? (
             <>
               <div className="h-[28px] mb-1 flex items-center justify-center">
-                <img src={logoPath} alt="Brand Logo" className="h-full w-auto max-w-[153px] object-contain" />
+                <img 
+                  src={logoPath} 
+                  alt="Brand Logo" 
+                  className="h-full w-auto max-w-[153px] object-contain"
+                  style={isHM ? { filter: 'brightness(0) saturate(0)' } : undefined}
+                />
               </div>
               {brandText && (
                 <div className="label-large text-on-surface tracking-wider uppercase">
@@ -239,6 +261,7 @@ export default function DeliveryHomeScreen({
   inTransitDeliveriesCount = 0,
   inTransitBoxesCount = 0,
   daysSinceLastStockCheck = null,
+  lastStockCheckDate = null,
   inStoreItemsCount = 0,
   inTransitReturnsCount = 0,
   expiredItemsCount = 0,
@@ -337,7 +360,9 @@ export default function DeliveryHomeScreen({
                     <p className="title-small text-on-surface">Stock check</p>
                     <p className="body-small text-on-surface-variant">
                       {inStoreItemsCount} {inStoreItemsCount === 1 ? 'item' : 'items'} in store
-                      {daysSinceLastStockCheck !== null && ` • ${daysSinceLastStockCheck} ${daysSinceLastStockCheck === 1 ? 'day' : 'days'} since last check`}
+                      {lastStockCheckDate && (
+                        ` • Last check ${new Date(lastStockCheckDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}`
+                      )}
                     </p>
                   </div>
                 </div>

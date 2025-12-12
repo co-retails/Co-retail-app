@@ -86,7 +86,7 @@ function NavigationBar({ activeDestination, destinations }: ResponsiveNavigation
 
   return (
     <div className="fixed bg-surface bottom-0 left-0 right-0 z-10 border-t border-outline-variant md:hidden">
-      <div className="max-w-[375px] mx-auto flex">
+      <div className="max-w-[375px] mx-auto flex pb-4">
         {destinations.map((destination) => {
           const isActive = activeDestination === destination.id;
           

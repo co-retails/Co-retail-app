@@ -104,10 +104,22 @@ function SearchBar({ searchTerm, onSearchChange, onFilterClick }: {
   onSearchChange: (value: string) => void;
   onFilterClick?: () => void;
 }) {
+  const hasText = searchTerm.length > 0;
+  // Calculate right padding based on which buttons are visible
+  let rightPadding = 'pr-4';
+  if (hasText && onFilterClick) {
+    rightPadding = 'pr-20'; // Space for both buttons
+  } else if (hasText) {
+    rightPadding = 'pr-12'; // Space for clear button
+  } else if (onFilterClick) {
+    rightPadding = 'pr-12'; // Space for filter button
+  }
+
   return (
     <div className="relative w-full mb-4 md:max-w-2xl">
       <div className="relative">
-        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5">
+        {/* Search icon on the left */}
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none z-10">
           <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
             <path clipRule="evenodd" d={svgPaths.p3938ac00} fill="var(--on-surface-variant)" fillRule="evenodd" />
           </svg>
@@ -119,19 +131,33 @@ function SearchBar({ searchTerm, onSearchChange, onFilterClick }: {
           placeholder="Search by name or ID"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full h-12 pl-10 pr-12 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
+          className={`w-full h-12 pl-10 ${rightPadding} bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large`}
         />
-        {onFilterClick && (
-          <button
-            onClick={onFilterClick}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity"
-            aria-label="Advanced search"
-          >
-            <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-              <path d={svgPaths.pe90e900} fill="var(--on-surface-variant)" />
-            </svg>
-          </button>
-        )}
+        {/* Right side buttons container */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 z-20">
+          {/* Clear button - only shown when there's text */}
+          {hasText && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity touch-manipulation"
+              aria-label="Clear search"
+            >
+              <X className="w-5 h-5 text-on-surface-variant" />
+            </button>
+          )}
+          {/* Filter button */}
+          {onFilterClick && (
+            <button
+              onClick={onFilterClick}
+              className="w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity touch-manipulation"
+              aria-label="Advanced search"
+            >
+              <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                <path d={svgPaths.pe90e900} fill="var(--on-surface-variant)" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -185,7 +211,264 @@ function QuickFilterChips({
   );
 }
 
+function UnflagExpiredSheet({ isOpen, onClose, item, onSave }: {
+  isOpen: boolean;
+  onClose: () => void;
+  item: Item | null;
+  onSave: (updates: Partial<Item>) => void;
+}) {
+  const [option, setOption] = useState<'reset' | 'postpone-4' | 'postpone-8'>('reset');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setOption('reset'); // Reset to default when sheet opens
+    }
+  }, [isOpen]);
+
+  const handleSave = () => {
+    if (!item) return;
+
+    const updates: Partial<Item> = {};
+
+    if (option === 'reset') {
+      // Reset expired time - clear all expired flags
+      updates.isExpired = false;
+      updates.expiredFlaggedAt = undefined;
+      updates.expiredPostponeWeeks = undefined;
+    } else if (option === 'postpone-4') {
+      // Flag as expired again after 4 weeks
+      updates.expiredPostponeWeeks = 4;
+      // Keep isExpired as true but update the postpone weeks
+    } else if (option === 'postpone-8') {
+      // Flag as expired again after 8 weeks
+      updates.expiredPostponeWeeks = 8;
+      // Keep isExpired as true but update the postpone weeks
+    }
+
+    onSave(updates);
+    onClose();
+  };
+
+  if (!item) return null;
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent 
+        side={isMobile ? "bottom" : "right"} 
+        className="bg-surface border-outline-variant p-0 flex flex-col md:max-w-[400px] md:h-full max-h-[85vh] md:max-h-full"
+      >
+        {/* Header - Fixed */}
+        <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
+          <SheetTitle className="title-large text-on-surface">
+            Unflag Expired Item
+          </SheetTitle>
+          <SheetDescription className="body-medium text-on-surface-variant">
+            Choose how to handle the expired flag for this item.
+          </SheetDescription>
+        </SheetHeader>
+
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+          {/* Reset Option (Default) */}
+          <button
+            onClick={() => setOption('reset')}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
+              option === 'reset'
+                ? 'border-primary bg-primary-container text-on-primary-container'
+                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                option === 'reset'
+                  ? 'border-on-primary-container bg-on-primary-container'
+                  : 'border-on-surface-variant'
+              }`}>
+                {option === 'reset' && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="title-small text-on-surface mb-1">
+                  Reset expired time
+                </div>
+                <div className="body-small text-on-surface-variant">
+                  Remove the expired flag and reset the timer as if this is a new item
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {/* Postpone 4 Weeks Option */}
+          <button
+            onClick={() => setOption('postpone-4')}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
+              option === 'postpone-4'
+                ? 'border-primary bg-primary-container text-on-primary-container'
+                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                option === 'postpone-4'
+                  ? 'border-on-primary-container bg-on-primary-container'
+                  : 'border-on-surface-variant'
+              }`}>
+                {option === 'postpone-4' && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="title-small text-on-surface mb-1">
+                  Flag as expired again after 4 weeks
+                </div>
+                <div className="body-small text-on-surface-variant">
+                  Keep the expired flag but extend the timer by 4 weeks
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {/* Postpone 8 Weeks Option */}
+          <button
+            onClick={() => setOption('postpone-8')}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
+              option === 'postpone-8'
+                ? 'border-primary bg-primary-container text-on-primary-container'
+                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                option === 'postpone-8'
+                  ? 'border-on-primary-container bg-on-primary-container'
+                  : 'border-on-surface-variant'
+              }`}>
+                {option === 'postpone-8' && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="title-small text-on-surface mb-1">
+                  Flag as expired again after 8 weeks
+                </div>
+                <div className="body-small text-on-surface-variant">
+                  Keep the expired flag but extend the timer by 8 weeks
+                </div>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {/* Footer - Fixed at bottom */}
+        <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
+          <Button 
+            variant="outline" 
+            size="lg"
+            onClick={onClose}
+            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large touch-manipulation"
+          >
+            Cancel
+          </Button>
+          <Button 
+            size="lg"
+            onClick={handleSave}
+            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
+          >
+            Confirm
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 type ActiveFilter = { key: keyof ItemFilters; label: string };
+
+function EmptyState({ 
+  hasItems, 
+  hasSearchOrFilters,
+  availableBrands,
+  onSearchChange
+}: { 
+  hasItems: boolean;
+  hasSearchOrFilters: boolean;
+  availableBrands: string[];
+  onSearchChange: (value: string) => void;
+}) {
+  // If there are items but no search/filters, show suggestions
+  if (hasItems && !hasSearchOrFilters) {
+    const suggestedBrands = availableBrands.slice(0, 3);
+    const suggestedSearches = ['Hoodie', 'Dress', 'Jacket', 'Tops'];
+    
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className="text-center max-w-md">
+          <h3 className="title-large text-on-surface mb-3">Search for items</h3>
+          <p className="body-medium text-on-surface-variant mb-6">
+            Use the search bar above or apply filters to find specific items. With many items in the system, searching helps you find what you need faster.
+          </p>
+          
+          {suggestedBrands.length > 0 && (
+            <div className="mb-6">
+              <p className="label-medium text-on-surface-variant mb-3">Try searching by brand:</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {suggestedBrands.map((brand) => (
+                  <button
+                    key={brand}
+                    onClick={() => onSearchChange(brand)}
+                    className="px-4 py-2 bg-surface-container border border-outline-variant rounded-lg label-medium text-on-surface hover:bg-surface-container-high transition-colors"
+                  >
+                    {brand}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div>
+            <p className="label-medium text-on-surface-variant mb-3">Or try searching by item type:</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {suggestedSearches.map((term) => (
+                <button
+                  key={term}
+                  onClick={() => onSearchChange(term)}
+                  className="px-4 py-2 bg-surface-container border border-outline-variant rounded-lg label-medium text-on-surface hover:bg-surface-container-high transition-colors"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // No items found with search/filters
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4">
+      <div className="text-center">
+        <h3 className="title-medium text-on-surface mb-2">No items found</h3>
+        <p className="body-medium text-on-surface-variant">
+          Try adjusting your search or filters to find what you're looking for.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function ActiveFiltersDisplay({ 
   filters, 
@@ -432,7 +715,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   );
 }
 
-const initialItems: Item[] = [
+export const initialItems: Item[] = [
   {
     id: 'itm-1001',
     itemId: '684755',
@@ -1140,7 +1423,7 @@ const initialItems: Item[] = [
     ]
   },
   {
-    id: 'itm-1030',
+    id: 'itm-1028',
     itemId: '684713',
     title: 'Crop Top',
     brand: 'Weekday',
@@ -1408,26 +1691,278 @@ const initialItems: Item[] = [
       { status: 'In transit', timestamp: '2024-12-03 07:00', user: 'System' },
       { status: 'Available', timestamp: '2024-12-04 09:00', user: 'Anna S.' }
     ]
+  },
+  // H&M Sweden Sergels Torg items with different statuses
+  {
+    id: 'itm-1052',
+    itemId: '684710',
+    title: 'Basic T-Shirt',
+    brand: 'H&M',
+    category: 'Tops',
+    size: 'L',
+    color: 'White',
+    price: 8,
+    status: 'Storage',
+    date: '2024-11-25',
+    deliveryId: 'DEL-1020',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 15,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-18 10:00', user: 'Anna S.' },
+      { status: 'Storage', timestamp: '2024-11-25 16:00', user: 'John D.', note: 'Overstock management' }
+    ]
+  },
+  {
+    id: 'itm-1053',
+    itemId: '684709',
+    title: 'Denim Jacket',
+    brand: 'H&M',
+    category: 'Jackets',
+    size: 'M',
+    color: 'Blue',
+    price: 35,
+    status: 'Available',
+    date: '2024-12-02',
+    deliveryId: 'DEL-1030',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    lastInStoreAt: '2024-12-02T10:00:00.000Z',
+    daysRemaining: 38,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-11-30 08:00', user: 'System' },
+      { status: 'In transit', timestamp: '2024-12-01 09:15', user: 'System' },
+      { status: 'Available', timestamp: '2024-12-02 10:00', user: 'Anna S.' }
+    ]
+  },
+  {
+    id: 'itm-1054',
+    itemId: '684708',
+    title: 'Slim Fit Jeans',
+    brand: 'H&M',
+    category: 'Trousers',
+    size: '32/32',
+    color: 'Dark Blue',
+    price: 25,
+    status: 'Storage',
+    date: '2024-11-20',
+    deliveryId: 'DEL-1015',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1542272604-787c3835535d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqZWFucyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 20,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-12 11:00', user: 'Anna S.' },
+      { status: 'Storage', timestamp: '2024-11-20 15:00', user: 'John D.', note: 'Inventory rotation' }
+    ]
+  },
+  {
+    id: 'itm-1055',
+    itemId: '684707',
+    title: 'Knit Cardigan',
+    brand: 'H&M',
+    category: 'Knitwear',
+    size: 'S',
+    color: 'Beige',
+    price: 22,
+    status: 'Sold',
+    date: '2024-11-18',
+    deliveryId: 'DEL-1005',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXJkaWdhbiUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 0,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-10 09:30', user: 'Anna S.' },
+      { status: 'Sold', timestamp: '2024-11-18 14:20', user: 'System' }
+    ]
+  },
+  {
+    id: 'itm-1056',
+    itemId: '684706',
+    title: 'Midi Dress',
+    brand: 'H&M',
+    category: 'Dresses',
+    size: 'M',
+    color: 'Black',
+    price: 18,
+    status: 'Storage',
+    date: '2024-11-22',
+    deliveryId: 'DEL-1012',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 18,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-15 10:00', user: 'Anna S.' },
+      { status: 'Storage', timestamp: '2024-11-22 14:00', user: 'Anna S.', note: 'Space optimization' }
+    ]
+  },
+  {
+    id: 'itm-1057',
+    itemId: '684705',
+    title: 'Hooded Sweatshirt',
+    brand: 'H&M',
+    category: 'Hoodie',
+    size: 'XL',
+    color: 'Navy',
+    price: 15,
+    status: 'In transit',
+    date: '2024-12-05',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In transit',
+    daysRemaining: 35,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-12-02 08:00', user: 'System' },
+      { status: 'In transit', timestamp: '2024-12-05 07:30', user: 'System', note: 'Partner dispatched shipment' }
+    ]
+  },
+  {
+    id: 'itm-1058',
+    itemId: '684704',
+    title: 'Leather Jacket',
+    brand: 'H&M',
+    category: 'Jackets',
+    size: 'L',
+    color: 'Black',
+    price: 45,
+    status: 'Missing',
+    date: '2024-11-12',
+    deliveryId: 'DEL-0995',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 28,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-08 09:00', user: 'Anna S.' },
+      { status: 'Missing', timestamp: '2024-11-12 16:00', user: 'John D.', note: 'Item not found during inventory check' }
+    ]
+  },
+  {
+    id: 'itm-1059',
+    itemId: '684703',
+    title: 'Wool Sweater',
+    brand: 'H&M',
+    category: 'Knitwear',
+    size: 'M',
+    color: 'Gray',
+    price: 20,
+    status: 'Broken',
+    date: '2024-11-15',
+    deliveryId: 'DEL-1000',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzd2VhdGVyJTIwZmFzaGlvbnxlbnwxfHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 25,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-10 10:00', user: 'Anna S.' },
+      { status: 'Broken', timestamp: '2024-11-15 14:00', user: 'Anna S.', note: 'Damaged during handling' }
+    ]
+  },
+  {
+    id: 'itm-1060',
+    itemId: '684702',
+    title: 'Chino Pants',
+    brand: 'H&M',
+    category: 'Trousers',
+    size: '30',
+    color: 'Khaki',
+    price: 28,
+    status: 'Draft',
+    date: '2024-12-06',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cm91c2VycyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Warehouse',
+    daysRemaining: 44,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-12-06 08:00', user: 'System', note: 'Awaiting quality check' }
+    ]
+  },
+  {
+    id: 'itm-1061',
+    itemId: '684701',
+    title: 'Striped T-Shirt',
+    brand: 'H&M',
+    category: 'Tops',
+    size: 'S',
+    color: 'Blue/White',
+    price: 9,
+    status: 'Available',
+    date: '2024-11-30',
+    deliveryId: 'DEL-1025',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    lastInStoreAt: '2024-11-30T10:00:00.000Z',
+    daysRemaining: 30,
+    statusHistory: [
+      { status: 'Draft', timestamp: '2024-11-27 08:00', user: 'System' },
+      { status: 'In transit', timestamp: '2024-11-29 09:15', user: 'System' },
+      { status: 'Available', timestamp: '2024-11-30 10:00', user: 'Anna S.' }
+    ]
+  },
+  {
+    id: 'itm-1062',
+    itemId: '684700',
+    title: 'A-Line Skirt',
+    brand: 'H&M',
+    category: 'Skirts',
+    size: 'M',
+    color: 'Navy',
+    price: 12,
+    status: 'Returned',
+    date: '2024-11-10',
+    deliveryId: 'DEL-0985',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'In Store',
+    daysRemaining: 40,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-11-05 09:00', user: 'Anna S.' },
+      { status: 'Sold', timestamp: '2024-11-08 14:00', user: 'System' },
+      { status: 'Returned', timestamp: '2024-11-10 16:00', user: 'System', note: 'Customer return' }
+    ]
   }
 ];
 function MultiSelectActions({
   selectedCount,
   totalCount,
   isAllSelected,
-  onReturnToSeller,
   onSelectAll,
   onArchive,
-  onBulkEdit,
-  canReturn
+  onBulkEdit
 }: {
   selectedCount: number;
   totalCount: number;
   isAllSelected: boolean;
-  onReturnToSeller: () => void;
   onSelectAll: () => void;
   onArchive: () => void;
   onBulkEdit: () => void;
-  canReturn: boolean;
 }) {
   // Don't show if there are no items
   if (totalCount === 0) return null;
@@ -1474,12 +2009,6 @@ function MultiSelectActions({
         {/* Right side - Actions (only show when items are selected) */}
         {hasSelectedItems && (
         <div className="flex items-center gap-2">
-          {canReturn && (
-            <Button onClick={onReturnToSeller}>
-              Return
-            </Button>
-          )}
-          
           {/* More Actions Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1530,6 +2059,10 @@ export default function ItemsScreen({
   const [itemFilters, setItemFilters] = useState<ItemFilters>(defaultFilters);
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<Item | null>(null);
+  
+  // Pagination state for performance with large item lists
+  const [loadedItemsCount, setLoadedItemsCount] = useState(50);
+  const ITEMS_PER_PAGE = 50;
 
   const partnerIdForPricing = currentPartnerWarehouseSelection?.partnerId;
 
@@ -1555,6 +2088,8 @@ export default function ItemsScreen({
   const [itemToUpdateStatus, setItemToUpdateStatus] = useState<Item | null>(null);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [itemToReject, setItemToReject] = useState<Item | null>(null);
+  const [showUnflagExpiredSheet, setShowUnflagExpiredSheet] = useState(false);
+  const [itemToUnflagExpired, setItemToUnflagExpired] = useState<Item | null>(null);
   const rejectReasons = ['Broken on arrival', 'Not accepted brand', 'Not in season'] as const;
   type RejectReason = typeof rejectReasons[number];
   const [rejectReason, setRejectReason] = useState<RejectReason>(rejectReasons[0]);
@@ -1635,25 +2170,49 @@ export default function ItemsScreen({
       !isPartnerPortal &&
       quickFilter !== 'all' &&
       quickFilter !== 'available' &&
+      quickFilter !== 'storage' &&
       quickFilter !== 'expired'
     ) {
       setQuickFilter('all');
     }
   }, [isPartnerPortal, quickFilter]);
 
-  const [items, setItems] = useState<Item[]>(initialItems);
+  // Initialize items with a deep copy to prevent mutations to initialItems
+  // Also ensure no duplicate items by ID
+  const [items, setItems] = useState<Item[]>(() => {
+    const copied = JSON.parse(JSON.stringify(initialItems));
+    // Remove duplicates by ID (keep first occurrence)
+    const seen = new Set<string>();
+    return copied.filter((item: Item) => {
+      if (seen.has(item.id)) {
+        return false;
+      }
+      seen.add(item.id);
+      return true;
+    });
+  });
 
   useEffect(() => {
-    setItems(prev =>
-      prev.map(item => {
+    setItems(prev => {
+      // Ensure no duplicates before processing
+      const seen = new Set<string>();
+      const unique = prev.filter(item => {
+        if (seen.has(item.id)) {
+          return false;
+        }
+        seen.add(item.id);
+        return true;
+      });
+      
+      return unique.map(item => {
         if (item.status === 'Available' && !item.lastInStoreAt) {
           const timestamp = getLastInStoreTimestamp(item);
           const iso = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
           return { ...item, lastInStoreAt: iso };
         }
         return item;
-      })
-    );
+      });
+    });
   }, []);
 
   // Apply all filters and search
@@ -1665,8 +2224,11 @@ export default function ItemsScreen({
       if (!isPartnerPortal && item.status && STORE_HIDDEN_STATUS_SET.has(item.status)) {
         return false;
       }
-      // Partner filter: if in partner portal, only show items from selected partner
-      const matchesPartner = !currentPartnerName || !item.sellerName || item.sellerName === currentPartnerName;
+      // Partner filter: only apply in partner portal mode
+      // In store app mode, show all items regardless of sellerName
+      const matchesPartner = isPartnerPortal 
+        ? (!currentPartnerName || !item.sellerName || item.sellerName === currentPartnerName)
+        : true;
       
       // Quick search
       const matchesQuickSearch = quickSearchTerm === '' || 
@@ -1717,8 +2279,26 @@ export default function ItemsScreen({
       const matchesColour = itemFilters.colour === 'all' || item.color === itemFilters.colour;
       const matchesPrice = item.price >= itemFilters.priceRange[0] && item.price <= itemFilters.priceRange[1];
       
+      // ViewFilter filters (for partner portal - filter by brand/store/country)
+      let matchesViewFilter = true;
+      if (isPartnerPortal && viewFilter) {
+        // Filter by brandIds if specified
+        if (viewFilter.brandIds && viewFilter.brandIds.length > 0) {
+          const itemBrand = brands.find(b => b.name === item.brand);
+          if (!itemBrand || !viewFilter.brandIds.includes(itemBrand.id)) {
+            matchesViewFilter = false;
+          }
+        }
+        
+        // Filter by storeIds if specified (items don't have storeId, so we can't filter by store directly)
+        // Store filtering would need items to have a storeId field
+        
+        // Filter by countryIds if specified (items don't have countryId, so we can't filter by country directly)
+        // Country filtering would need items to have a countryId or storeId field
+      }
+      
       return matchesPartner && matchesQuickSearch && matchesQuickFilter && 
-             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesPrice;
+             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesPrice && matchesViewFilter;
     }).map(item => {
       // Remove deliveryId from items with status "Draft"
       if (item.status === 'Draft') {
@@ -1745,15 +2325,62 @@ export default function ItemsScreen({
           return 0;
       }
     });
-  }, [items, quickSearchTerm, quickFilter, itemFilters, isPartnerPortal, currentPartnerName]);
+  }, [items, quickSearchTerm, quickFilter, itemFilters, isPartnerPortal, currentPartnerName, viewFilter, brands]);
+
+  // Paginated items - only paginate when showing "All" filter with many items
+  const paginatedItems = useMemo(() => {
+    const shouldPaginate = quickFilter === 'all' && filteredItems.length > ITEMS_PER_PAGE;
+    return shouldPaginate ? filteredItems.slice(0, loadedItemsCount) : filteredItems;
+  }, [filteredItems, quickFilter, loadedItemsCount]);
+
+  // Reset loaded items count when filters change
+  useEffect(() => {
+    setLoadedItemsCount(ITEMS_PER_PAGE);
+  }, [quickFilter, quickSearchTerm, itemFilters]);
+
+  // Handle scroll to load more items
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (quickFilter !== 'all' || filteredItems.length <= ITEMS_PER_PAGE) return;
+    
+    const target = e.currentTarget;
+    const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    
+    // Load more when within 200px of bottom
+    if (scrollBottom < 200 && loadedItemsCount < filteredItems.length) {
+      setLoadedItemsCount(prev => Math.min(prev + ITEMS_PER_PAGE, filteredItems.length));
+    }
+  };
 
   // Calculate item counts for filter chips - based on items that match partner/viewFilter, but not other filters
+  // This should match exactly what would be shown when clicking each filter chip
   const itemCounts = useMemo(() => {
-    // Filter items only by partner (for partner portal) to get base count
+    // Filter items using the same base logic as filteredItems, but without search/quickFilter/advanced filters
     const baseItems = items.filter(item => {
-      const matchesPartner = !currentPartnerName || !item.sellerName || item.sellerName === currentPartnerName;
-      const visibleInStore = isPartnerPortal || !item.status || !STORE_HIDDEN_STATUS_SET.has(item.status);
-      return matchesPartner && visibleInStore && !item.isArchived;
+      if (item.isArchived) return false;
+      
+      // Hide 'In transit' and 'Draft' items in store app mode (same as filteredItems)
+      if (!isPartnerPortal && item.status && STORE_HIDDEN_STATUS_SET.has(item.status)) {
+        return false;
+      }
+      
+      // Partner filter: only apply in partner portal mode
+      const matchesPartner = isPartnerPortal 
+        ? (!currentPartnerName || !item.sellerName || item.sellerName === currentPartnerName)
+        : true;
+      
+      // ViewFilter filters (for partner portal - filter by brand/store/country)
+      let matchesViewFilter = true;
+      if (isPartnerPortal && viewFilter) {
+        // Filter by brandIds if specified
+        if (viewFilter.brandIds && viewFilter.brandIds.length > 0) {
+          const itemBrand = brands.find(b => b.name === item.brand);
+          if (!itemBrand || !viewFilter.brandIds.includes(itemBrand.id)) {
+            matchesViewFilter = false;
+          }
+        }
+      }
+      
+      return matchesPartner && matchesViewFilter;
     });
 
     if (isPartnerPortal) {
@@ -1783,7 +2410,7 @@ export default function ItemsScreen({
       sold: baseItems.filter(item => item.status === 'Sold').length,
       returnInTransit: baseItems.filter(item => item.status === 'In transit' && item.orderType === 'return').length
     };
-  }, [items, isPartnerPortal, currentPartnerName]);
+  }, [items, isPartnerPortal, currentPartnerName, viewFilter, brands]);
 
   const availableBrandOptions = useMemo(() => {
     const brandSet = new Set<string>();
@@ -1846,11 +2473,6 @@ export default function ItemsScreen({
   }, []);
 
   const selectedItems = items.filter(item => item.selected);
-  const canReturnSelectedItems =
-    selectedItems.length > 0 &&
-    selectedItems.every(
-      (item) => !['In transit', 'Draft', 'Rejected', 'Returned'].includes(item.status)
-    );
 
   const handleToggleSelect = (id: string) => {
     setItems(prev => prev.map(item => 
@@ -1859,9 +2481,9 @@ export default function ItemsScreen({
   };
 
   const handleSelectAll = () => {
-    const allSelected = filteredItems.every(item => item.selected);
+    const allSelected = paginatedItems.every(item => item.selected);
     setItems(prev => prev.map(item => 
-      filteredItems.some(filtered => filtered.id === item.id) 
+      paginatedItems.some(filtered => filtered.id === item.id) 
         ? { ...item, selected: !allSelected }
         : item
     ));
@@ -1898,47 +2520,6 @@ export default function ItemsScreen({
            itemFilters.priceRange[0] !== 0 ||
            itemFilters.priceRange[1] !== 1000 ||
            itemFilters.sortBy !== 'date-desc';
-  };
-
-  const handleReturnToSeller = () => {
-    if (!canReturnSelectedItems) {
-      toast.error('Items must be received before they can be returned.');
-      return;
-    }
-
-    const itemsForReturn = selectedItems.map((item) => ({
-      ...item,
-      status: 'In transit' as Item['status'],
-      orderType: 'return' as Item['orderType'],
-      isExpired: false
-    }));
-
-    const selectedIds = new Set(itemsForReturn.map((item) => item.id));
-
-    setItems((prev) =>
-      prev.map((item) =>
-        selectedIds.has(item.id)
-          ? ({
-              ...item,
-              status: 'In transit',
-              orderType: 'return' as Item['orderType'],
-              selected: false,
-              isExpired: false,
-              location: 'In transit'
-            } as Item)
-          : item
-      )
-    );
-
-    if (itemsForReturn.length > 0) {
-      if (onCreateReturn) {
-        onCreateReturn(itemsForReturn);
-      } else {
-        toast.success(`Returning ${itemsForReturn.length} items to seller`);
-      }
-    } else {
-      toast.success('Return registered.');
-    }
   };
 
   const handleMoreActions = (item: Item, action: ItemQuickAction) => {
@@ -1997,6 +2578,10 @@ export default function ItemsScreen({
           isExpired: false
         };
         break;
+      case 'unflag-expired':
+        setItemToUnflagExpired(fullItem);
+        setShowUnflagExpiredSheet(true);
+        return;
       default:
         return;
     }
@@ -2182,6 +2767,21 @@ export default function ItemsScreen({
     
     // Update the selected item for details to reflect changes
     setSelectedItemForDetails(prev => prev ? { ...prev, ...updates } as Item : null);
+  };
+
+  const handleUnflagExpired = (updates: Partial<Item>) => {
+    if (!itemToUnflagExpired) return;
+
+    const successMessage = updates.isExpired === false
+      ? `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} expired flag removed`
+      : updates.expiredPostponeWeeks === 4
+      ? `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} will be flagged as expired again after 4 weeks`
+      : `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} will be flagged as expired again after 8 weeks`;
+
+    handleSaveItemDetails(itemToUnflagExpired.id, updates);
+    toast.success(successMessage);
+    setShowUnflagExpiredSheet(false);
+    setItemToUnflagExpired(null);
   };
 
   const handleBatchStatusUpdate = () => {
@@ -2388,7 +2988,10 @@ export default function ItemsScreen({
       </div>
 
       {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
-      <div className="px-4 md:px-6 pt-4 md:pt-6">
+      <div 
+        className="px-4 md:px-6 pt-4 md:pt-6 h-full overflow-y-auto"
+        onScroll={handleScroll}
+      >
         
         {/* Search Bar with Filter Icon */}
         <SearchBar 
@@ -2418,29 +3021,25 @@ export default function ItemsScreen({
         <MultiSelectActions 
           selectedCount={selectedItems.length}
           totalCount={filteredItems.length}
-          isAllSelected={filteredItems.length > 0 && filteredItems.every(item => item.selected)}
-          onReturnToSeller={handleReturnToSeller}
+          isAllSelected={paginatedItems.length > 0 && paginatedItems.every(item => item.selected)}
           onSelectAll={handleSelectAll}
           onArchive={handleArchiveSelected}
           onBulkEdit={handleBulkEdit}
-        canReturn={canReturnSelectedItems}
         />
         
         {/* Items List */}
         <div className="space-y-0 mb-4">
           {filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 px-4">
-              <div className="text-center">
-                <h3 className="title-medium text-on-surface mb-2">No items found</h3>
-                <p className="body-medium text-on-surface-variant">
-                  Try adjusting your search or filters to find what you're looking for.
-                </p>
-              </div>
-            </div>
+            <EmptyState 
+              hasItems={items.length > 0}
+              hasSearchOrFilters={quickSearchTerm !== '' || hasActiveFilters()}
+              availableBrands={availableBrandOptions}
+              onSearchChange={setQuickSearchTerm}
+            />
           ) : (
             <>
               <div className="flex flex-col gap-2">
-                {filteredItems.map((item) => (
+                {paginatedItems.map((item) => (
                   <div key={item.id} className="bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
                     <ItemCard
                       item={item}
@@ -2454,6 +3053,13 @@ export default function ItemsScreen({
                   </div>
                 ))}
               </div>
+              {quickFilter === 'all' && filteredItems.length > ITEMS_PER_PAGE && loadedItemsCount < filteredItems.length && (
+                <div className="text-center py-4">
+                  <p className="body-small text-on-surface-variant">
+                    Showing {loadedItemsCount} of {filteredItems.length} items. Scroll to load more.
+                  </p>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -2548,6 +3154,17 @@ export default function ItemsScreen({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Unflag Expired Sheet */}
+      <UnflagExpiredSheet
+        isOpen={showUnflagExpiredSheet}
+        onClose={() => {
+          setShowUnflagExpiredSheet(false);
+          setItemToUnflagExpired(null);
+        }}
+        item={itemToUnflagExpired}
+        onSave={handleUnflagExpired}
+      />
 
       {/* Batch Status Update Dialog */}
       <Dialog open={showBatchStatusUpdate} onOpenChange={setShowBatchStatusUpdate}>

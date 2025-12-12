@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { ArrowLeft, X, QrCode, Package, Save } from 'lucide-react';
+import { ArrowLeft, X, QrCode, Package } from 'lucide-react';
 import { ItemCard, BaseItem } from './ItemCard';
 
 export interface StockItem {
@@ -12,13 +11,16 @@ export interface StockItem {
   size?: string;
   color?: string;
   price: number;
-  status: 'In Store' | 'Missing' | 'Scanned' | 'Broken' | 'In Store 2nd try';
+  status: 'Available' | 'Missing' | 'Scanned' | 'Broken';
   orderNumber: string;
   date: string;
   thumbnail?: string;
   isScanned: boolean;
   isSelected: boolean;
   category?: string;
+  isExpired?: boolean;
+  expiredFlaggedAt?: string;
+  expiredPostponeWeeks?: number;
 }
 
 export interface StockCheckSession {
@@ -35,13 +37,14 @@ export interface StockCheckSession {
 interface StockCheckScreenProps {
   onBack: () => void;
   onGenerateReport: (session: StockCheckSession) => void;
-  onSaveAndClose?: () => void;
+  onNavigateToReport?: () => void;
 }
 
-function TopAppBar({ onBack, title, onClose }: { 
+function TopAppBar({ onBack, title, onClose, onNavigateToReport }: { 
   onBack: () => void; 
   title: string;
   onClose?: () => void;
+  onNavigateToReport?: () => void;
 }) {
   return (
     <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
@@ -60,16 +63,30 @@ function TopAppBar({ onBack, title, onClose }: {
           {title}
         </h1>
         
-        {/* Trailing icon - Close (optional) */}
-        {onClose && (
-          <button 
-            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X className="w-6 h-6 text-on-surface" />
-          </button>
-        )}
+        {/* Trailing actions */}
+        <div className="flex items-center gap-2">
+          {/* Report link */}
+          {onNavigateToReport && (
+            <button
+              onClick={onNavigateToReport}
+              className="px-4 py-2 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors label-medium text-primary"
+              aria-label="View stock check report"
+            >
+              View report
+            </button>
+          )}
+          
+          {/* Close button (optional) */}
+          {onClose && (
+            <button 
+              className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              <X className="w-6 h-6 text-on-surface" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -125,7 +142,7 @@ function StockItemCard({
   // Checkboxes and more menu removed from item cards in Stock check scan screen
   
   return (
-    <div className="bg-surface-container border-b border-outline-variant last:border-b-0">
+    <div className="bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
       <div className="flex items-center gap-3 px-3 py-2">
         {/* Main Content using standardized ItemCard */}
         <div className="flex-1">
@@ -176,15 +193,17 @@ function ItemsList({
   }
 
   return (
-    <Card className="mx-4 mb-4 bg-surface-container border border-outline-variant overflow-hidden">
-      {items.map((item) => (
-        <StockItemCard 
-          key={item.id}
-          item={item} 
-          isSelected={selectedItems.has(item.id)}
-        />
-      ))}
-    </Card>
+    <div className="mx-4 mb-4">
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <StockItemCard 
+            key={item.id}
+            item={item} 
+            isSelected={selectedItems.has(item.id)}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -238,7 +257,7 @@ const loadAccumulatedItems = (): StockItem[] => {
   return [];
 };
 
-export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndClose }: StockCheckScreenProps) {
+export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateToReport }: StockCheckScreenProps) {
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
   const [isScanning] = useState(true); // Always start scanning
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -274,7 +293,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
         size: sizes[Math.floor(Math.random() * sizes.length)]!,
         color: colors[Math.floor(Math.random() * colors.length)]!,
         price: Math.floor(Math.random() * 50) + 10,
-        status: 'In Store',
+        status: 'Available',
         orderNumber: `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`,
         date: getToday(),
         isScanned: isAlreadyScanned,
@@ -406,50 +425,6 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
   };
 
 
-  const handleSaveAndClose = () => {
-    // Save current state to localStorage
-    saveSessionToStorage(stockItems);
-    
-    // Also save to accumulated session (for multi-user support)
-    try {
-      const accumulated = loadAccumulatedItems();
-      const currentScanned = stockItems.filter(item => item.isScanned);
-      
-      // Merge with accumulated items by itemId
-      const itemMap = new Map<string, StockItem>();
-      
-      // Add accumulated items
-      accumulated.forEach(item => {
-        itemMap.set(item.itemId, item);
-      });
-      
-      // Add/update with current scanned items
-      currentScanned.forEach(item => {
-        const existing = itemMap.get(item.itemId);
-        if (!existing || !existing.isScanned) {
-          itemMap.set(item.itemId, item);
-        }
-      });
-      
-      const mergedItems = Array.from(itemMap.values());
-      const today = getToday();
-      const data = {
-        date: today,
-        items: mergedItems,
-        lastUpdated: new Date().toISOString()
-      };
-      localStorage.setItem(`${STOCK_CHECK_STORAGE_KEY}_${today}`, JSON.stringify(data));
-    } catch (e) {
-      console.error('Failed to save accumulated session:', e);
-    }
-    
-    if (onSaveAndClose) {
-      onSaveAndClose();
-    } else {
-      onBack();
-    }
-  };
-
   const handleComplete = () => {
     if (canComplete) {
       // Load accumulated items for the report
@@ -489,7 +464,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
       {/* Spacer for top nav on desktop */}
       <div className="hidden md:block h-16"></div>
       {/* Top App Bar */}
-      <TopAppBar onBack={onBack} title="Stock Check" />
+      <TopAppBar onBack={onBack} title="Stock Check" onNavigateToReport={onNavigateToReport} />
       
       {/* Sticky Scan View Container - Always Active */}
       <div className="sticky top-16 mx-4 mb-4 bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden z-20">
@@ -584,29 +559,18 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onSaveAndCl
       </div>
       
       {/* Fixed Bottom Action Bar */}
-      {scannedItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 md:py-6 z-20">
-          <div className="w-full max-w-6xl mx-auto flex flex-row flex-wrap gap-3 md:gap-4 justify-end">
-            {/* Save & Close Button - full width on mobile, auto on desktop */}
-            <Button 
-              onClick={handleSaveAndClose}
-              variant="outline"
-              className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-surface border-primary text-primary hover:bg-primary-container/50 focus:bg-primary-container/50 active:bg-primary-container/70 transition-colors px-8 py-3 rounded-lg flex items-center justify-center label-large"
-            >
-              <Save className="w-5 h-5 mr-2" />
-              Save & Close
-            </Button>
-            {/* Generate Report Button - full width on mobile, positioned far right on desktop */}
-            <Button 
-              onClick={handleComplete}
-              disabled={!canComplete}
-              className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-8 py-3 rounded-lg flex items-center justify-center label-large"
-            >
-              Generate Report
-            </Button>
-          </div>
+      <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 md:py-6 z-20">
+        <div className="w-full max-w-6xl mx-auto flex flex-row flex-wrap gap-3 md:gap-4 justify-end">
+          {/* Add to todays count Button - full width on mobile, positioned far right on desktop */}
+          <Button 
+            onClick={handleComplete}
+            disabled={!canComplete}
+            className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-8 py-3 rounded-lg flex items-center justify-center label-large"
+          >
+            Add to todays count
+          </Button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -67,14 +67,8 @@ function TopAppBarWithDeliveryInfo({
         {/* Delivery Info - Compact */}
         <div className="flex-1 min-w-0">
           <h1 className="title-medium text-on-surface truncate">
-            {delivery.deliveryId}
+            Delivery: {delivery.deliveryId}
           </h1>
-          <p className="body-small text-on-surface-variant truncate">
-            {delivery.sender} • {delivery.boxes} boxes
-          </p>
-          <p className="body-small text-on-surface-variant truncate">
-            Status: {delivery.status}{delivery.cancellationReason ? ` • ${delivery.cancellationReason}` : ''}
-          </p>
         </div>
 
         {userRole === 'admin' && canCancelDelivery && (
@@ -355,13 +349,6 @@ function BottomActions({
           >
             Register
           </Button>
-          {scannedCount > 0 && (
-            <div className="text-center mt-2">
-              <span className="body-small text-on-surface-variant">
-                {scannedCount}/{totalBoxes} boxes scanned
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </div>

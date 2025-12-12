@@ -3,11 +3,11 @@ import DeliveryHomeScreen from './components/DeliveryHomeScreen';
 import ShippingScreen, { Delivery, ReturnDelivery, SellpyOrder } from './components/ShippingScreen';
 import ReceiveDeliveryScreen from './components/ReceiveDeliveryScreen';
 import PartnerSelectionScreen, { Partner } from './components/PartnerSelectionScreen';
-import ReturnManagementScreen, { ReturnItem, ReturnOrder } from './components/ReturnManagementScreen';
+import ReturnManagementScreen, { ReturnItem, ReturnOrder, normalizeReturnItemStatus, mapItemStatusToReturnItemStatus } from './components/ReturnManagementScreen';
 import ReturnConfirmationScreen from './components/ReturnConfirmationScreen';
 import ReturnShippingLabelScreen from './components/ReturnShippingLabelScreen';
 import ReturnDetailsScreen, { ReturnOrderDetails, ReturnItemDetail } from './components/ReturnDetailsScreen';
-import ItemsScreen, { Item } from './components/ItemsScreen';
+import ItemsScreen, { Item, initialItems } from './components/ItemsScreen';
 import ScanScreen from './components/ScanScreen';
 import SellersScreen from './components/SellersScreen';
 import StockCheckScreen, { StockCheckSession } from './components/StockCheckScreen';
@@ -215,6 +215,7 @@ export default function App() {
     setCurrentReturnOrder,
     currentReturnOrderDetails,
     setCurrentReturnOrderDetails,
+    returnOrders,
     setReturnOrders,
     currentStockCheckSession,
     setCurrentStockCheckSession,
@@ -408,7 +409,7 @@ export default function App() {
           title: 'Vintage Denim Jacket',
           size: 'M',
           color: 'Blue',
-          status: 'In store',
+          status: 'Available',
           partnerItemRef: 'KK-VDJ-001',
           partnerId: '2', // Kinda Kinks partner ID
           selected: false,
@@ -482,29 +483,46 @@ export default function App() {
       }
     }
 
-    setReturnItems(prev => prev.map(item => {
-      if (item.id === itemId) {
-        switch (action) {
-          case 'select':
-            return { ...item, selected: true };
-          case 'deselect':
-            return { ...item, selected: false };
-          case 'scan':
-            return { ...item, scanned: true };
-          case 'unscan':
-            return { ...item, scanned: false };
-          case 'extend':
-            // Extension logic - could update canExtend or other properties
-            return item;
-          case 'missing':
-            // Mark item as missing - could update a missing flag
-            return item;
-          default:
-            return item;
+    setReturnItems(prev => {
+      const updatedItems = prev.map(item => {
+        if (item.id === itemId) {
+          switch (action) {
+            case 'select':
+              return { ...item, selected: true };
+            case 'deselect':
+              return { ...item, selected: false };
+            case 'scan':
+              return { ...item, scanned: true };
+            case 'unscan':
+              return { ...item, scanned: false };
+            case 'extend':
+              // Extension logic - could update canExtend or other properties
+              return item;
+            case 'missing':
+              // Mark item as missing - could update a missing flag
+              return item;
+            default:
+              return item;
+          }
         }
+        return item;
+      });
+      
+      // If we're working with a pending return, update the returnOrders array
+      // Use currentReturnOrder to identify which order to update
+      if (currentReturnOrder && currentScreen === 'return-management') {
+        setReturnOrders(prevOrders => prevOrders.map(order => {
+          if (order.id === currentReturnOrder.id) {
+            return { ...order, items: updatedItems };
+          }
+          return order;
+        }));
+        // Also update currentReturnOrder to keep it in sync
+        setCurrentReturnOrder({ ...currentReturnOrder, items: updatedItems });
       }
-      return item;
-    }));
+      
+      return updatedItems;
+    });
   };
 
   const createReturnOrder = (items: ReturnItem[], partnerId?: string, partnerName?: string) => {
@@ -516,13 +534,19 @@ export default function App() {
     const effectivePartnerName =
       partnerName || partnerFromWarehouse?.name || selectedPartner?.name || 'Partner';
 
+    // Normalize item statuses before creating return order
+    const normalizedItems = items.map(item => ({
+      ...item,
+      status: normalizeReturnItemStatus(item.status)
+    }));
+
     const completedOrder: ReturnOrder = {
       id: `RET-${Date.now()}`,
       partnerId: effectivePartnerId,
       partnerName: effectivePartnerName,
       status: 'Return - In transit',
       createdDate: new Date().toISOString().split('T')[0],
-      items,
+      items: normalizedItems,
       parcelId: `STORE-${Date.now()}`
     };
 
@@ -549,6 +573,83 @@ export default function App() {
       },
       ...prev
     ]);
+  };
+
+  const handleSavePendingReturn = () => {
+    // Save current return state as pending
+    if (!selectedPartner || returnItems.length === 0) {
+      toast.error('No items to save');
+      return;
+    }
+
+    const currentStore = mockStores.find((store) => store.id === currentStoreSelection.storeId);
+    const warehouse = mockWarehouses.find((w) => w.id === currentPartnerWarehouseSelection?.warehouseId);
+    
+    // Normalize item statuses before saving
+    const normalizedItems = returnItems.map(item => ({
+      ...item,
+      status: normalizeReturnItemStatus(item.status)
+    }));
+    
+    // Check if we're updating an existing pending return
+    if (currentReturnOrder) {
+      // Update existing ReturnOrder
+      const updatedOrder: ReturnOrder = {
+        ...currentReturnOrder,
+        items: normalizedItems
+      };
+      setReturnOrders(prevOrders => prevOrders.map(order => 
+        order.id === currentReturnOrder.id ? updatedOrder : order
+      ));
+      setCurrentReturnOrder(updatedOrder);
+      
+      // Update ReturnDelivery
+      setReturnDeliveries(prev => prev.map(delivery =>
+        delivery.id === currentReturnOrder.id
+          ? {
+              ...delivery,
+              items: returnItems.length,
+              boxes: Math.max(1, Math.ceil(returnItems.length / 10))
+            }
+          : delivery
+      ));
+    } else {
+      // Create new pending ReturnOrder
+      const returnOrderId = `RET-${Date.now()}`;
+      const newReturnOrder: ReturnOrder = {
+        id: returnOrderId,
+        partnerId: selectedPartner.id,
+        partnerName: selectedPartner.name,
+        status: 'Return - In transit',
+        createdDate: new Date().toISOString().split('T')[0],
+        items: normalizedItems,
+        parcelId: `STORE-${Date.now()}`
+      };
+
+      // Create ReturnDelivery with status 'Pending'
+      const returnDelivery: ReturnDelivery = {
+        id: returnOrderId,
+        date: newReturnOrder.createdDate,
+        status: 'Pending',
+        deliveryId: returnOrderId,
+        items: returnItems.length,
+        boxes: Math.max(1, Math.ceil(returnItems.length / 10)),
+        storeName: currentStore?.name || 'Current store',
+        storeCode: currentStore?.code || '',
+        partnerId: selectedPartner.id,
+        partnerName: selectedPartner.name,
+        storeId: currentStoreSelection.storeId,
+        warehouseId: currentPartnerWarehouseSelection?.warehouseId,
+        warehouseName: warehouse?.name
+      };
+
+      setReturnOrders((prev) => [...prev, newReturnOrder]);
+      setReturnDeliveries((prev) => [returnDelivery, ...prev]);
+      setCurrentReturnOrder(newReturnOrder);
+    }
+
+    toast.success('Return saved as pending');
+    handleBack();
   };
 
   const handleCreateReturn = (selectedItems: ReturnItem[]) => {
@@ -613,7 +714,7 @@ export default function App() {
       title: item.title || `${item.brand} ${item.category}`,
       size: item.size,
       color: item.color,
-      status: 'Return - In transit' as const,
+      status: mapItemStatusToReturnItemStatus(item.status),
       partnerItemRef: item.itemId,
       partnerId: partner.id, // Associate items with the selected partner
       thumbnail: item.thumbnail,
@@ -821,7 +922,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateStockItemStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => {
+  const handleUpdateStockItemStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => {
     // Update the item status in the current session
     // In a real app, this would update the backend
     // TODO: Implement backend update
@@ -1609,15 +1710,14 @@ export default function App() {
       {/* Store Staff Screens */}
       {currentScreen === 'home' && (() => {
         // Calculate in-transit deliveries and boxes for store staff
-        // In-transit deliveries are deliveryNotes with status 'registered' that match the current store
+        // In-transit inbound deliveries are from the deliveries array with status 'In transit' that match the current store
         const currentStore = mockStores.find(s => s.id === currentStoreSelection.storeId);
-        const inTransitDeliveryNotes = deliveryNotes.filter(note => {
-          const matchesStore = note.storeId === currentStoreSelection.storeId || 
-            note.storeCode === currentStore?.code;
-          return note.status === 'registered' && matchesStore;
+        const inTransitDeliveries = deliveries.filter(delivery => {
+          const matchesStore = delivery.receivingStoreId === currentStoreSelection.storeId;
+          return delivery.status === 'In transit' && matchesStore;
         });
-        const inTransitDeliveriesCount = inTransitDeliveryNotes.length;
-        const inTransitBoxesCount = inTransitDeliveryNotes.reduce((sum, note) => sum + (note.boxes?.length || 0), 0);
+        const inTransitDeliveriesCount = inTransitDeliveries.length;
+        const inTransitBoxesCount = inTransitDeliveries.reduce((sum, delivery) => sum + (delivery.boxes || 0), 0);
         
         // Calculate days since last stock check
         const lastStockCheckDate = availableStockCheckSessions.length > 0 
@@ -1627,9 +1727,31 @@ export default function App() {
           ? Math.floor((Date.now() - new Date(lastStockCheckDate).getTime()) / (1000 * 60 * 60 * 24))
           : null;
         
-        // Calculate in-store items count (items with status 'In Store' or 'In Store 2nd try')
-        // This is a mock calculation - in a real app, this would come from the items data
-        const inStoreItemsCount = 289; // Default value, would be calculated from actual items data
+        // Calculate in-store items count (items with status 'Available')
+        // Filter items that are visible in store app (exclude 'In transit' and 'Draft' statuses)
+        const inStoreItemsCount = initialItems.filter(item => {
+          if (item.isArchived) return false;
+          if (item.status && (item.status === 'In transit' || item.status === 'Draft')) return false;
+          return item.status === 'Available' || 
+                 item.status === 'Missing' || item.status === 'Broken' || item.status === 'Sold' || 
+                 item.status === 'Returned' || item.status === 'Storage';
+        }).length;
+        
+        // Calculate expired items count
+        const expiredItemsCount = initialItems.filter(item => {
+          if (item.isArchived) return false;
+          if (item.status && (item.status === 'In transit' || item.status === 'Draft')) return false;
+          return Boolean(item.isExpired);
+        }).length;
+        
+        // Calculate items to scan count (items that are available/in store and not archived)
+        // This represents items that could be scanned in stock check
+        const itemsToScanCount = initialItems.filter(item => {
+          if (item.isArchived) return false;
+          if (item.status && (item.status === 'In transit' || item.status === 'Draft')) return false;
+          return item.status === 'Available' ||
+                 item.status === 'Storage' || item.status === 'Missing' || item.status === 'Broken';
+        }).length;
         
         // Calculate in-transit returns count
         const inTransitReturnsCount = returnDeliveries.filter(r => 
@@ -1675,10 +1797,11 @@ export default function App() {
             inTransitDeliveriesCount={inTransitDeliveriesCount}
             inTransitBoxesCount={inTransitBoxesCount}
             daysSinceLastStockCheck={daysSinceLastStockCheck}
+            lastStockCheckDate={lastStockCheckDate}
             inStoreItemsCount={inStoreItemsCount}
             inTransitReturnsCount={inTransitReturnsCount}
-            expiredItemsCount={38}
-            itemsToScanCount={289}
+            expiredItemsCount={expiredItemsCount}
+            itemsToScanCount={itemsToScanCount}
             brands={mockBrands}
             countries={mockCountries}
             stores={mockStores}
@@ -1820,7 +1943,125 @@ export default function App() {
             handleViewShipmentDetails('shipment', deliveryNote, 'shipping', activeTab);
           }}
           onOpenReturnDetails={(returnDelivery, activeTab) => {
-            handleViewShipmentDetails('return', returnDelivery, 'shipping', activeTab);
+            console.log('onOpenReturnDetails called:', { 
+              status: returnDelivery.status, 
+              id: returnDelivery.id, 
+              deliveryId: returnDelivery.deliveryId,
+              returnOrdersCount: returnOrders.length,
+              returnOrderIds: returnOrders.map(o => o.id)
+            });
+            // If status is 'Pending', open ReturnManagementScreen to continue the return
+            if (returnDelivery.status === 'Pending') {
+              try {
+                // Find the related ReturnOrder (try matching by id first, then by deliveryId)
+                let relatedReturnOrder = returnOrders.find(order => order.id === returnDelivery.id);
+                
+                // If not found by id, try matching by deliveryId
+                if (!relatedReturnOrder && returnDelivery.deliveryId) {
+                  relatedReturnOrder = returnOrders.find(order => order.id === returnDelivery.deliveryId);
+                }
+                
+                console.log('Found ReturnOrder:', relatedReturnOrder ? { id: relatedReturnOrder.id, itemsCount: relatedReturnOrder.items?.length } : 'not found');
+                
+                // Find the partner from mockPartners or mockWarehousePartners
+                let partner = mockPartners.find(p => p.id === returnDelivery.partnerId);
+                
+                // If not found in mockPartners, try mockWarehousePartners
+                if (!partner) {
+                  const warehousePartner = mockWarehousePartners.find(p => p.id === returnDelivery.partnerId);
+                  if (warehousePartner) {
+                    // Convert warehouse partner to Partner format
+                    partner = {
+                      id: warehousePartner.id,
+                      name: warehousePartner.name,
+                      connectionStatus: 'connected' as const,
+                      itemsToReturn: 0
+                    };
+                  }
+                }
+                
+                // Fallback partner if not found
+                if (!partner) {
+                  partner = {
+                    id: returnDelivery.partnerId,
+                    name: returnDelivery.partnerName,
+                    connectionStatus: 'connected' as const,
+                    itemsToReturn: 0
+                  };
+                }
+                
+                // If ReturnOrder exists and has items, use it
+                if (relatedReturnOrder && relatedReturnOrder.items && relatedReturnOrder.items.length > 0) {
+                  // Normalize item statuses (convert 'Expired B2B' and 'In store' to 'Available')
+                  const normalizedItems = relatedReturnOrder.items.map(item => ({
+                    ...item,
+                    status: normalizeReturnItemStatus(item.status)
+                  }));
+                  
+                  // Set up the return items and partner for ReturnManagementScreen
+                  // Store the return order ID so we can update it later
+                  const normalizedOrder = {
+                    ...relatedReturnOrder,
+                    items: normalizedItems
+                  };
+                  setCurrentReturnOrder(normalizedOrder);
+                  setReturnItems(normalizedItems);
+                  setSelectedPartner(partner);
+                  
+                  // Navigate to return-management screen
+                  setCurrentScreenSafe('return-management');
+                  return; // Exit early to prevent fallback
+                } else {
+                  // If ReturnOrder doesn't exist, try to recreate it from available return items
+                  // Filter return items that belong to this partner
+                  const partnerReturnItems = returnItems
+                    .filter(item => !item.partnerId || item.partnerId === returnDelivery.partnerId)
+                    .map(item => ({
+                      ...item,
+                      status: normalizeReturnItemStatus(item.status)
+                    }));
+                  
+                  if (partnerReturnItems.length > 0) {
+                    // Create a ReturnOrder from available items
+                    const recreatedOrder: ReturnOrder = {
+                      id: returnDelivery.id,
+                      partnerId: returnDelivery.partnerId,
+                      partnerName: returnDelivery.partnerName,
+                      status: 'Return - In transit',
+                      createdDate: returnDelivery.date,
+                      items: partnerReturnItems,
+                      parcelId: returnDelivery.deliveryId || `STORE-${Date.now()}`
+                    };
+                    
+                    // Add to returnOrders if it doesn't exist
+                    if (!relatedReturnOrder) {
+                      setReturnOrders((prev) => [...prev, recreatedOrder]);
+                    }
+                    
+                    setCurrentReturnOrder(recreatedOrder);
+                    setReturnItems(partnerReturnItems);
+                    setSelectedPartner(partner);
+                    
+                    // Navigate to return-management screen
+                    setCurrentScreenSafe('return-management');
+                    return; // Exit early to prevent fallback
+                  } else {
+                    // If no items found, show error and fall back to details screen
+                    console.warn('ReturnOrder not found or has no items for pending return:', returnDelivery.id, 'Available returnOrders:', returnOrders.map(o => o.id));
+                    toast.error('Unable to load return items. Showing details instead.');
+                    handleViewShipmentDetails('return', returnDelivery, 'shipping', activeTab);
+                  }
+                }
+              } catch (error) {
+                console.error('Error opening pending return:', error);
+                toast.error('Error opening return. Showing details instead.');
+                // Fall back to details screen on error
+                handleViewShipmentDetails('return', returnDelivery, 'shipping', activeTab);
+              }
+            } else {
+              // For non-pending returns, use the regular details screen
+              handleViewShipmentDetails('return', returnDelivery, 'shipping', activeTab);
+            }
           }}
           onViewShowroomOrder={(orderId) => {
             const order = showroomOrders.find(o => o.id === orderId);
@@ -1866,6 +2107,15 @@ export default function App() {
             setDeliveryBoxes(prev => prev.map(b => 
               b.id === boxId ? { ...b, isScanned: true, status: 'Delivered' } : b
             ));
+          }}
+          onUpdateBoxStatus={(boxId, status) => {
+            setDeliveryBoxes(prev => prev.map(b => 
+              b.id === boxId ? { ...b, status } : b
+            ));
+            // Update selectedBox if it's the one being updated
+            if (selectedBox && selectedBox.id === boxId) {
+              setSelectedBox({ ...selectedBox, status });
+            }
           }}
           userRole={currentUserRole}
           onUpdateDeliveryStatus={(deliveryId, status, reason) => {
@@ -1941,6 +2191,26 @@ export default function App() {
                 }
               ]}
               onBack={() => setCurrentScreenSafe('delivery-details')}
+              onMarkDelivered={() => {
+                if (selectedBox) {
+                  setDeliveryBoxes(prev => prev.map(b => 
+                    b.id === selectedBox.id ? { ...b, status: 'Delivered' } : b
+                  ));
+                  setSelectedBox({ ...selectedBox, status: 'Delivered' });
+                  toast.success('Box marked as delivered');
+                }
+              }}
+              onMarkRejected={() => {
+                if (selectedBox) {
+                  setDeliveryBoxes(prev => prev.map(b => 
+                    b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b
+                  ));
+                  setSelectedBox({ ...selectedBox, status: 'Rejected' });
+                  toast.success('Box rejected');
+                }
+              }}
+              userRole={currentUserRole}
+              deliveryStatus={selectedDelivery?.status}
             />
           </FullScreenDialogContent>
         </FullScreenDialog>
@@ -2023,6 +2293,7 @@ export default function App() {
           onBack={handleBack}
           onUpdateItem={handleUpdateReturnItem}
           onCreateReturn={handleCreateReturn}
+          onSaveAndClose={handleSavePendingReturn}
           onContinue={() => {
             // Navigate to shipping label screen
             setCurrentScreenSafe('return-shipping-label');
@@ -2046,6 +2317,12 @@ export default function App() {
             const currentStore = mockStores.find((store) => store.id === currentStoreSelection.storeId);
             const warehouse = mockWarehouses.find((w) => w.id === currentPartnerWarehouseSelection?.warehouseId);
             
+            // Normalize item statuses before creating return order
+            const normalizedScannedItems = scannedItems.map(item => ({
+              ...item,
+              status: normalizeReturnItemStatus(item.status)
+            }));
+            
             // Create return order
             const returnOrderId = `RET-${Date.now()}`;
             const returnOrder: ReturnOrder = {
@@ -2054,7 +2331,7 @@ export default function App() {
               partnerName: selectedPartner.name,
               status: 'Return - In transit',
               createdDate: new Date().toISOString().split('T')[0],
-              items: scannedItems,
+              items: normalizedScannedItems,
               parcelId: shippingLabel
             };
 
@@ -2184,7 +2461,7 @@ export default function App() {
         <StockCheckScreen
           onBack={handleBackToHome}
           onGenerateReport={handleGenerateStockCheckReport}
-          onSaveAndClose={handleBackToHome}
+          onNavigateToReport={handleNavigateToStockCheckReports}
         />
       )}
 

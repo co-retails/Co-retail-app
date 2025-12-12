@@ -1,9 +1,15 @@
 import React from 'react';
 import { Card, CardContent } from './ui/card';
-import { ArrowLeft, Package } from 'lucide-react';
+import { ArrowLeft, Package, MoreVertical, CheckCircle2, XCircle } from 'lucide-react';
 import { Box } from './ReceiveDeliveryScreen';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { ItemCard, BaseItem } from './ItemCard';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 interface BoxItem {
   id: string;
@@ -24,6 +30,10 @@ interface BoxDetailsScreenProps {
   box: Box;
   items: BoxItem[];
   onBack: () => void;
+  onMarkDelivered?: () => void;
+  onMarkRejected?: () => void;
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+  deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Pending' | 'Packing';
 }
 
 function TopAppBar({ onBack }: { onBack: () => void }) {
@@ -48,7 +58,26 @@ function TopAppBar({ onBack }: { onBack: () => void }) {
   );
 }
 
-function BoxInfoCard({ box }: { box: Box }) {
+function BoxInfoCard({ 
+  box, 
+  onMarkDelivered, 
+  onMarkRejected, 
+  userRole,
+  deliveryStatus
+}: { 
+  box: Box;
+  onMarkDelivered?: () => void;
+  onMarkRejected?: () => void;
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+  deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Pending' | 'Packing';
+}) {
+  const isAdmin = userRole === 'admin';
+  const canScan = deliveryStatus === 'In transit' || !deliveryStatus; // If no deliveryStatus provided, assume it's in transit if box is
+  const isInTransit = box.status === 'In transit';
+  const showMarkDelivered = isAdmin && canScan && isInTransit && onMarkDelivered;
+  const showMarkRejected = isAdmin && canScan && isInTransit && onMarkRejected;
+  const showMenu = showMarkDelivered || showMarkRejected;
+
   return (
     <Card className="mx-4 md:mx-6 mb-6 bg-surface-container border border-outline-variant">
       <CardContent className="p-4">
@@ -62,21 +91,22 @@ function BoxInfoCard({ box }: { box: Box }) {
           <div className="flex-1 min-w-0">
             {/* Supporting text - Date and Status */}
             <div className="label-small text-on-surface-variant mb-2">
-              {box.date} • {box.status}
+              {box.date} • {box.status === 'Delivered' ? (
+                <span className="label-small px-2 py-0.5 rounded-full bg-success-container text-on-success-container">
+                  {box.status}
+                </span>
+              ) : (
+                box.status
+              )}
             </div>
             
             {/* Primary text - Box ID */}
             <h3 className="title-medium text-on-surface mb-2">
               {box.boxId}
             </h3>
-            
-            {/* Secondary text - Details */}
-            <div className="body-small text-on-surface-variant mb-3">
-              <span>Items: {box.items}</span>
-            </div>
 
             {/* Order Information */}
-            <div className="border-t border-outline-variant pt-3">
+            <div className="mb-3">
               <div className="label-small text-on-surface-variant mb-1">
                 Order Number
               </div>
@@ -87,7 +117,7 @@ function BoxInfoCard({ box }: { box: Box }) {
 
             {/* External Order */}
             {box.externalOrder && (
-              <div className="mt-3 border-t border-outline-variant pt-3">
+              <div className="mb-3">
                 <div className="label-small text-on-surface-variant mb-1">
                   External Order
                 </div>
@@ -97,6 +127,49 @@ function BoxInfoCard({ box }: { box: Box }) {
               </div>
             )}
           </div>
+
+          {/* More menu */}
+          {showMenu && (
+            <div className="flex-shrink-0 ml-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px]"
+                    aria-label="More actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="w-5 h-5 text-on-surface-variant" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64 z-50">
+                  {showMarkDelivered && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkDelivered?.();
+                      }}
+                      className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      <span className="body-medium text-on-surface">Mark as Delivered</span>
+                    </DropdownMenuItem>
+                  )}
+                  {showMarkRejected && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkRejected?.();
+                      }}
+                      className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      <span className="body-medium">Reject box</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -119,41 +192,58 @@ function ItemsList({ items }: { items: BoxItem[] }) {
   }
 
   return (
-    <Card className="mx-4 md:mx-6 mb-4 bg-surface-container border border-outline-variant overflow-hidden">
+    <div className="mx-4 md:mx-6 mb-4">
       {items.map((item) => (
-        <div key={item.id} className="border-b border-outline-variant last:border-b-0">
-          <div className="px-4 py-3">
-            <ItemCard
-              item={{
-                id: item.id,
-                itemId: item.itemId,
-                title: item.title,
-                brand: item.brand,
-                category: item.category,
-                size: item.size,
-                color: item.color,
-                price: item.price,
-                status: item.status,
-                date: item.date,
-                thumbnail: item.thumbnail,
-                orderNumber: item.orderNumber
-              } as BaseItem}
-              variant="items-list"
-              showActions={false}
-              showSelection={false}
-            />
+        <div 
+          key={item.id} 
+          className="mb-2 last:mb-0"
+        >
+          <div className="border border-outline-variant rounded-lg overflow-hidden bg-surface-container">
+            <div className="px-4 py-3">
+              <ItemCard
+                item={{
+                  id: item.id,
+                  itemId: item.itemId,
+                  title: item.title,
+                  brand: item.brand,
+                  category: item.category,
+                  size: item.size,
+                  color: item.color,
+                  price: item.price,
+                  status: item.status,
+                  date: item.date,
+                  thumbnail: item.thumbnail,
+                  orderNumber: item.orderNumber
+                } as BaseItem}
+                variant="items-list"
+                showActions={false}
+                showSelection={false}
+              />
+            </div>
           </div>
         </div>
       ))}
-    </Card>
+    </div>
   );
 }
 
 export default function BoxDetailsScreen({ 
   box, 
   items,
-  onBack 
+  onBack,
+  onMarkDelivered,
+  onMarkRejected,
+  userRole,
+  deliveryStatus
 }: BoxDetailsScreenProps) {
+  // Update item statuses if box is delivered - items should not be "In transit" anymore
+  const updatedItems = box.status === 'Delivered' 
+    ? items.map(item => ({
+        ...item,
+        status: item.status === 'In transit' ? 'Available' : item.status
+      }))
+    : items;
+
   return (
     <div className="bg-surface min-h-screen flex flex-col">
       {/* Top App Bar */}
@@ -162,17 +252,23 @@ export default function BoxDetailsScreen({
       {/* Content */}
       <div className="flex-1 pt-6 pb-6">
         {/* Box Info Card */}
-        <BoxInfoCard box={box} />
+        <BoxInfoCard 
+          box={box} 
+          onMarkDelivered={onMarkDelivered}
+          onMarkRejected={onMarkRejected}
+          userRole={userRole}
+          deliveryStatus={deliveryStatus}
+        />
         
         {/* Items count */}
         <div className="px-4 md:px-6 mb-4">
           <span className="body-medium text-on-surface-variant">
-            {items.length} item{items.length !== 1 ? 's' : ''} in this box
+            {updatedItems.length} item{updatedItems.length !== 1 ? 's' : ''} in this box
           </span>
         </div>
         
         {/* Items List */}
-        <ItemsList items={items} />
+        <ItemsList items={updatedItems} />
       </div>
     </div>
   );

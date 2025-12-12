@@ -59,7 +59,8 @@ export type ItemQuickAction =
   | 'mark-missing'
   | 'mark-broken'
   | 'mark-rejected'
-  | 'mark-return-transit';
+  | 'mark-return-transit'
+  | 'unflag-expired';
 
 interface OrderDetailsCardConfig {
   partnerLabel?: string;
@@ -164,12 +165,13 @@ export const ItemCard = memo(function ItemCard({
     const isAdmin = userRole === 'admin';
     const actions: Array<{ action: ItemQuickAction; label: string; icon: React.ReactNode; className?: string }> = [];
 
+    // Handle ItemsScreen statuses
     if (status === 'in transit') {
       actions.push(
         { action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
         { action: 'store-transfer', label: 'Store transfer', icon: <Store className="mr-2 h-4 w-4" /> }
       );
-    } else if (status === 'available') {
+    } else if (status === 'available' || status === 'in store') {
       if (isAdmin) {
         actions.push({ action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
       }
@@ -177,7 +179,7 @@ export const ItemCard = memo(function ItemCard({
         { action: 'mark-missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
         { action: 'mark-broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
       );
-      if (canRejectItem()) {
+      if (canRejectItem() || (status === 'in store' && isAdmin)) {
         actions.push({ action: 'mark-rejected', label: 'Rejected', icon: <Ban className="mr-2 h-4 w-4" />, className: 'text-error' });
       }
     } else if (status === 'storage') {
@@ -197,6 +199,26 @@ export const ItemCard = memo(function ItemCard({
       );
     } else if (status === 'sold') {
       actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    } else if (status === 'pending') {
+      // For ScanScreen: Pending items can be marked as In Store
+      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    } else if (status === 'broken') {
+      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    } else if (status === 'rejected') {
+      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    } else if (status === 'expired') {
+      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    } else if (status === 'draft') {
+      // For ItemsScreen: Draft items can be marked as Available
+      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    } else if (status === 'returned') {
+      // For ItemsScreen: Returned items can be marked as Available
+      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
+    }
+
+    // Add "Unflag expired" option for items with expired flag (regardless of status)
+    if (item.isExpired) {
+      actions.push({ action: 'unflag-expired', label: 'Unflag expired', icon: <RotateCcw className="mr-2 h-4 w-4" /> });
     }
 
     return actions;
@@ -509,6 +531,7 @@ export const ItemCard = memo(function ItemCard({
 
   // Default items-list variant
   const handlePrimaryAction = onClick || onEdit;
+  const availableActions = getAvailableActions();
   
   return (
     <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
@@ -627,7 +650,7 @@ export const ItemCard = memo(function ItemCard({
           </div>
           
           {/* More Actions */}
-          {showActions && onMoreActions && (
+          {showActions && onMoreActions && availableActions.length > 0 && (
             <div className="flex items-center justify-center h-full">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -643,7 +666,7 @@ export const ItemCard = memo(function ItemCard({
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Item actions</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {getAvailableActions().map((actionItem) => (
+                  {availableActions.map((actionItem) => (
                     <DropdownMenuItem
                       key={actionItem.action}
                       onClick={() => onMoreActions?.(item, actionItem.action as any)}

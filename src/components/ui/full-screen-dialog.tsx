@@ -140,9 +140,11 @@ const FullScreenDialogContent = React.forwardRef<
     minWidth: '360px'
   } : undefined;
   
+  // If hasDescription is true, don't set aria-describedby (let Radix handle it)
+  // Otherwise, always set it to suppress warnings
   const contentProps = {
     ...props,
-    "aria-describedby": ariaDescribedBy || "full-screen-dialog-fallback-description",
+    ...(hasDescription ? {} : { "aria-describedby": ariaDescribedBy || "full-screen-dialog-fallback-description" }),
     style: desktopStyle 
       ? { ...props.style, ...desktopStyle, zIndex: 9999 } 
       : { ...props.style, zIndex: 9999 }

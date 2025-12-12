@@ -1,22 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
 import { ArrowLeft, X, MoreVertical, CheckCircle } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { StockItem, StockCheckSession } from './StockCheckScreen';
 import { ItemCard, BaseItem } from './ItemCard';
 import svgPaths from "../imports/svg-7un8q74kd7";
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from './ui/sheet';
 
 interface StockCheckReviewScreenProps {
   session: StockCheckSession;
   onBack: () => void;
-  onUpdateItemStatus: (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => void;
+  onUpdateItemStatus: (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => void;
 }
 
 type ReviewTab = 'not-scanned' | 'not-found' | 'all-included' | 'scanned';
@@ -138,7 +146,7 @@ function BulkActionsBar({
   totalCount: number;
   isAllSelected: boolean;
   onToggleAll: () => void;
-  onBulkAction: (status: 'Missing' | 'In Store' | 'In Store 2nd try' | 'Broken') => void;
+  onBulkAction: (status: 'Missing' | 'Available' | 'Broken') => void;
   onClearSelection: () => void;
   activeTab: ReviewTab;
 }) {
@@ -158,13 +166,11 @@ function BulkActionsBar({
         ];
       case 'not-found':
         return [
-          { label: 'In store', status: 'In Store' as const, className: 'text-on-surface' },
-          { label: 'In store 2nd try', status: 'In Store 2nd try' as const, className: 'text-on-surface' }
+          { label: 'Available', status: 'Available' as const, className: 'text-on-surface' }
         ];
       case 'scanned':
         return [
-          { label: 'In store', status: 'In Store' as const, className: 'text-on-surface' },
-          { label: 'In store 2nd try', status: 'In Store 2nd try' as const, className: 'text-on-surface' },
+          { label: 'Available', status: 'Available' as const, className: 'text-on-surface' },
           { label: 'Broken', status: 'Broken' as const, className: 'text-error' }
         ];
       default:
@@ -273,7 +279,7 @@ function ReviewItemCard({
   activeTab
 }: { 
   item: StockItem; 
-  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => void;
+  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => void;
   onMoreActions: (itemId: string) => void;
   isSelected: boolean;
   onToggleSelect: (itemId: string) => void;
@@ -288,13 +294,11 @@ function ReviewItemCard({
         ];
       case 'not-found':
         return [
-          { label: 'In store', status: 'In Store' as const, className: 'text-on-surface' },
-          { label: 'In store 2nd try', status: 'In Store 2nd try' as const, className: 'text-on-surface' }
+          { label: 'Available', status: 'Available' as const, className: 'text-on-surface' }
         ];
       case 'scanned':
         return [
-          { label: 'In store', status: 'In Store' as const, className: 'text-on-surface' },
-          { label: 'In store 2nd try', status: 'In Store 2nd try' as const, className: 'text-on-surface' },
+          { label: 'Available', status: 'Available' as const, className: 'text-on-surface' },
           { label: 'Broken', status: 'Broken' as const, className: 'text-error' }
         ];
       case 'all-included':
@@ -307,7 +311,7 @@ function ReviewItemCard({
   const menuOptions = getMenuOptions();
 
   return (
-    <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
+    <div className="w-full bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
       <div className={`flex items-center py-3 ${activeTab === 'all-included' ? 'px-4' : 'px-1'}`}>
         {/* Leading element - Checkbox for bulk selection (hidden for all-included tab) */}
         {activeTab !== 'all-included' && (
@@ -402,7 +406,7 @@ function ItemsList({
   activeTab
 }: {
   items: StockItem[];
-  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => void;
+  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => void;
   onMoreActions: (itemId: string) => void;
   selectedItems: Set<string>;
   onToggleSelect: (itemId: string) => void;
@@ -424,21 +428,167 @@ function ItemsList({
   }
 
   return (
-    <Card className={`mb-4 bg-surface-container border border-outline-variant overflow-hidden ${
+    <div className={`mb-4 ${
       activeTab === 'all-included' ? 'mx-4 md:mx-6' : 'mx-4'
     }`}>
-      {items.map((item) => (
-        <ReviewItemCard 
-          key={item.id}
-          item={item} 
-          onUpdateStatus={onUpdateStatus}
-          onMoreActions={onMoreActions}
-          isSelected={selectedItems.has(item.id)}
-          onToggleSelect={onToggleSelect}
-          activeTab={activeTab}
-        />
-      ))}
-    </Card>
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <ReviewItemCard 
+            key={item.id}
+            item={item} 
+            onUpdateStatus={onUpdateStatus}
+            onMoreActions={onMoreActions}
+            isSelected={selectedItems.has(item.id)}
+            onToggleSelect={onToggleSelect}
+            activeTab={activeTab}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BulkExpiredFlagSheet({ 
+  isOpen, 
+  onClose, 
+  expiredItemsCount,
+  onUnflagExpired,
+  onKeepExpiredFlag
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  expiredItemsCount: number;
+  onUnflagExpired: () => void;
+  onKeepExpiredFlag: () => void;
+}) {
+  const [option, setOption] = useState<'unflag' | 'keep'>('unflag');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setOption('unflag'); // Reset to default when sheet opens
+    }
+  }, [isOpen]);
+
+  const handleConfirm = () => {
+    if (option === 'unflag') {
+      onUnflagExpired();
+    } else {
+      onKeepExpiredFlag();
+    }
+    onClose();
+  };
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent 
+        side={isMobile ? "bottom" : "right"} 
+        className="bg-surface border-outline-variant p-0 flex flex-col md:max-w-[400px] md:h-full max-h-[85vh] md:max-h-full"
+      >
+        {/* Header - Fixed */}
+        <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
+          <SheetTitle className="title-large text-on-surface">
+            Handle Expired Flags
+          </SheetTitle>
+          <SheetDescription className="body-medium text-on-surface-variant">
+            {expiredItemsCount} of the selected items have expired flags. Choose how to handle them.
+          </SheetDescription>
+        </SheetHeader>
+
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+          {/* Unflag Expired Option (Default) */}
+          <button
+            onClick={() => setOption('unflag')}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
+              option === 'unflag'
+                ? 'border-primary bg-primary-container text-on-primary-container'
+                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                option === 'unflag'
+                  ? 'border-on-primary-container bg-on-primary-container'
+                  : 'border-on-surface-variant'
+              }`}>
+                {option === 'unflag' && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="title-small text-on-surface mb-1">
+                  Unflag expired
+                </div>
+                <div className="body-small text-on-surface-variant">
+                  Remove the expired flag from all selected items
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {/* Keep Expired Flag Option */}
+          <button
+            onClick={() => setOption('keep')}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
+              option === 'keep'
+                ? 'border-primary bg-primary-container text-on-primary-container'
+                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                option === 'keep'
+                  ? 'border-on-primary-container bg-on-primary-container'
+                  : 'border-on-surface-variant'
+              }`}>
+                {option === 'keep' && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="title-small text-on-surface mb-1">
+                  Keep expired flag
+                </div>
+                <div className="body-small text-on-surface-variant">
+                  Keep the expired flag on all selected items
+                </div>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {/* Footer - Fixed at bottom */}
+        <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
+          <Button 
+            variant="outline" 
+            size="lg"
+            onClick={onClose}
+            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large touch-manipulation"
+          >
+            Cancel
+          </Button>
+          <Button 
+            size="lg"
+            onClick={handleConfirm}
+            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
+          >
+            Confirm
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -449,6 +599,11 @@ export default function StockCheckReviewScreen({
 }: StockCheckReviewScreenProps) {
   const [activeTab, setActiveTab] = useState<ReviewTab>('not-scanned');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [showExpiredFlagSheet, setShowExpiredFlagSheet] = useState(false);
+  const [pendingBulkAction, setPendingBulkAction] = useState<{
+    status: 'Missing' | 'Available' | 'Broken';
+    expiredItemsCount: number;
+  } | null>(null);
 
   // Use items from session if available, otherwise generate mock data
   const [reviewItems, setReviewItems] = useState<StockItem[]>(() => {
@@ -459,7 +614,7 @@ export default function StockCheckReviewScreen({
     // Fallback to mock items for demonstration
     const mockItems: StockItem[] = [];
     const brands = ['H&M', 'Weekday', 'COS', 'Monki'];
-    const statuses: Array<StockItem['status']> = ['In Store', 'Missing', 'Scanned', 'Broken', 'In Store 2nd try'];
+    const statuses: Array<StockItem['status']> = ['Available', 'Missing', 'Scanned', 'Broken'];
     
     for (let i = 1; i <= 20; i++) {
       mockItems.push({
@@ -484,7 +639,7 @@ export default function StockCheckReviewScreen({
   const getFilteredItems = (tab: ReviewTab): StockItem[] => {
     switch (tab) {
       case 'not-scanned':
-        return reviewItems.filter(item => !item.isScanned && item.status === 'In Store');
+        return reviewItems.filter(item => !item.isScanned && item.status === 'Available');
       case 'not-found':
         return reviewItems.filter(item => item.status === 'Missing');
       case 'all-included':
@@ -499,7 +654,7 @@ export default function StockCheckReviewScreen({
   // Get counts for each tab
   const getCounts = (): Record<ReviewTab, number> => {
     return {
-      'not-scanned': reviewItems.filter(item => !item.isScanned && item.status === 'In Store').length,
+      'not-scanned': reviewItems.filter(item => !item.isScanned && item.status === 'Available').length,
       'not-found': reviewItems.filter(item => item.status === 'Missing').length,
       'all-included': reviewItems.length,
       'scanned': reviewItems.filter(item => item.isScanned || item.status === 'Scanned').length
@@ -540,29 +695,80 @@ export default function StockCheckReviewScreen({
     }
   };
 
-  const handleBulkAction = (status: 'Missing' | 'In Store' | 'In Store 2nd try' | 'Broken') => {
+  const handleBulkAction = (status: 'Missing' | 'Available' | 'Broken') => {
+    // Check if we're marking items as 'Available' in the 'scanned' tab and if any have expired flags
+    if (status === 'Available' && activeTab === 'scanned') {
+      const selectedItemsList = Array.from(selectedItems);
+      const expiredItems = reviewItems.filter(
+        item => selectedItemsList.includes(item.id) && item.isExpired
+      );
+      
+      if (expiredItems.length > 0) {
+        // Show the expired flag sheet
+        setPendingBulkAction({ status, expiredItemsCount: expiredItems.length });
+        setShowExpiredFlagSheet(true);
+        return;
+      }
+    }
+    
+    // Apply the status update directly if no expired flags
+    applyBulkStatusUpdate(status, false);
+  };
+
+  const applyBulkStatusUpdate = (status: 'Missing' | 'Available' | 'Broken', unflagExpired: boolean) => {
+    const selectedCount = selectedItems.size;
+    let updatedCount = 0;
+    
     setReviewItems(prev => prev.map(item => {
       if (selectedItems.has(item.id)) {
+        updatedCount++;
         const updatedItem = {
           ...item,
           status: status,
-          isScanned: status === 'In Store' || status === 'In Store 2nd try'
+          isScanned: status === 'Available',
+          ...(unflagExpired && item.isExpired ? {
+            isExpired: false,
+            expiredFlaggedAt: undefined,
+            expiredPostponeWeeks: undefined
+          } : {})
         } as StockItem;
         onUpdateItemStatus(item.id, status);
         return updatedItem;
       }
       return item;
     }));
+    
+    // Show success message for Available or Missing status updates
+    if ((status === 'Available' || status === 'Missing') && updatedCount > 0) {
+      const statusText = status === 'Available' ? 'Available' : 'Missing';
+      toast.success(
+        `${updatedCount} ${updatedCount === 1 ? 'item' : 'items'} successfully updated to ${statusText}`
+      );
+    }
+    
     setSelectedItems(new Set());
+    setPendingBulkAction(null);
   };
 
-  const handleUpdateStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken') => {
+  const handleUnflagExpired = () => {
+    if (pendingBulkAction) {
+      applyBulkStatusUpdate(pendingBulkAction.status, true);
+    }
+  };
+
+  const handleKeepExpiredFlag = () => {
+    if (pendingBulkAction) {
+      applyBulkStatusUpdate(pendingBulkAction.status, false);
+    }
+  };
+
+  const handleUpdateStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => {
     setReviewItems(prev => prev.map(item => {
       if (item.id === itemId) {
         const updatedItem = {
           ...item,
           status: newStatus,
-          isScanned: newStatus === 'Scanned' || newStatus === 'Found' || newStatus === 'In Store' || newStatus === 'In Store 2nd try'
+          isScanned: newStatus === 'Scanned' || newStatus === 'Found' || newStatus === 'Available'
         } as StockItem;
         return updatedItem;
       }
@@ -570,10 +776,10 @@ export default function StockCheckReviewScreen({
     }));
 
     // Call parent handler - convert statuses appropriately
-    const parentStatus = newStatus === 'Found' || newStatus === 'In Store' || newStatus === 'In Store 2nd try' 
+    const parentStatus = newStatus === 'Found' || newStatus === 'Available' 
       ? 'Scanned' 
       : newStatus;
-    onUpdateItemStatus(itemId, parentStatus as 'Missing' | 'Found' | 'Scanned' | 'In Store' | 'In Store 2nd try' | 'Broken');
+    onUpdateItemStatus(itemId, parentStatus as 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken');
   };
 
   const handleMoreActions = (itemId: string) => {
@@ -632,6 +838,18 @@ export default function StockCheckReviewScreen({
           />
         </div>
       </div>
+
+      {/* Bulk Expired Flag Sheet */}
+      <BulkExpiredFlagSheet
+        isOpen={showExpiredFlagSheet}
+        onClose={() => {
+          setShowExpiredFlagSheet(false);
+          setPendingBulkAction(null);
+        }}
+        expiredItemsCount={pendingBulkAction?.expiredItemsCount || 0}
+        onUnflagExpired={handleUnflagExpired}
+        onKeepExpiredFlag={handleKeepExpiredFlag}
+      />
     </div>
   );
 }

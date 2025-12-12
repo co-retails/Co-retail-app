@@ -103,8 +103,6 @@ export default function BuyerDashboard({
     <div className="min-h-screen bg-surface pb-20 md:pb-0">
       {/* Mobile Header - Full header with logo and selector */}
       <div className="w-full bg-surface border-b border-outline-variant md:hidden">
-        <StatusBarIPhone />
-        
         {/* Header Content */}
         <div className="px-4 md:px-6 py-3">
           {/* Top Row: Logo, Admin Icon */}

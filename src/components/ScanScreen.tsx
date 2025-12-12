@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { ItemCard, BaseItem } from './ItemCard';
+import { ItemCard, BaseItem, ItemQuickAction } from './ItemCard';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -273,7 +273,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No change</SelectItem>
-                <SelectItem value="In Store">In Store</SelectItem>
+                <SelectItem value="Available">Available</SelectItem>
                 <SelectItem value="Pending">Pending</SelectItem>
                 <SelectItem value="To return">To return</SelectItem>
                 <SelectItem value="Archived">Archived</SelectItem>
@@ -464,63 +464,7 @@ export default function ScanScreen({
   currentPartnerWarehouseSelection,
   onNavigateToReturns
 }: ScanScreenProps) {
-  const [scannedItems, setScannedItems] = useState<ScannedItem[]>([
-    {
-      id: '1',
-      itemId: '685432',
-      status: 'In Store',
-      date: '2022-06-09',
-      brand: 'Zara',
-      category: 'Dress',
-      size: 'M',
-      color: 'Blue',
-      price: 8,
-      deliveryId: 'DEL-2022-0609-001',
-      sellerName: 'Maria Lopez',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-09 10:30', user: 'Scanner', note: 'Item scanned' },
-        { status: 'In Store', timestamp: '2022-06-09 11:15', user: 'Anna S.', note: 'Verified and stored' }
-      ]
-    },
-    {
-      id: '2',
-      itemId: '685455',
-      status: 'Expired',
-      date: '2022-06-10',
-      brand: 'Weekday',
-      category: 'Shorts',
-      size: 'M',
-      color: 'Black',
-      price: 10,
-      deliveryId: 'DEL-2022-0610-002',
-      sellerName: 'John Anderson',
-      selected: false,
-      statusHistory: [
-        { status: 'In transit', timestamp: '2022-06-10 09:20', user: 'Scanner' },
-        { status: 'In Store', timestamp: '2022-06-10 10:05', user: 'Maria L.' },
-        { status: 'Expired', timestamp: '2022-07-25 14:30', user: 'System', note: 'Auto-expired after 45 days' }
-      ]
-    },
-    {
-      id: '3',
-      itemId: '685489',
-      status: 'In Store',
-      date: '2022-06-10',
-      brand: 'H&M',
-      category: 'Jacket',
-      size: 'L',
-      color: 'Gray',
-      price: 40,
-      deliveryId: 'DEL-2022-0610-003',
-      sellerName: 'Sarah Johnson',
-      selected: false,
-      statusHistory: [
-        { status: 'Pending', timestamp: '2022-06-10 14:15', user: 'Scanner' },
-        { status: 'In Store', timestamp: '2022-06-10 14:45', user: 'John D.' }
-      ]
-    }
-  ]);
+  const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
 
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<ScannedItem | null>(null);
@@ -547,14 +491,22 @@ export default function ScanScreen({
     setScannedItems(prev => prev.map(item => ({ ...item, selected: !allSelected })));
   };
 
-  const handleMoreActions = (item: BaseItem, action: 'in-store' | 'store-transfer' | 'sold' | 'missing' | 'broken' | 'rejected' | 'in-store-2nd-try') => {
+  const handleMoreActions = (item: BaseItem, action: ItemQuickAction | 'in-store' | 'store-transfer' | 'sold' | 'missing' | 'broken' | 'rejected' | 'in-store-2nd-try') => {
     let newStatus: ScannedItem['status'];
     let successMessage: string;
 
-    switch (action) {
+    // Map ItemQuickAction to ScanScreen actions
+    const mappedAction = action === 'mark-available' ? 'in-store' :
+                        action === 'mark-sold' ? 'sold' :
+                        action === 'mark-missing' ? 'missing' :
+                        action === 'mark-broken' ? 'broken' :
+                        action === 'mark-rejected' ? 'rejected' :
+                        action;
+
+    switch (mappedAction) {
       case 'in-store':
-        newStatus = 'In Store';
-        successMessage = `Item ${item.itemId || item.id} marked as In Store`;
+        newStatus = 'Available';
+        successMessage = `Item ${item.itemId || item.id} marked as Available`;
         break;
       case 'store-transfer':
         newStatus = 'In transit'; // Store transfer might need a different status, using In transit for now
@@ -789,7 +741,7 @@ export default function ScanScreen({
     const newItem: ScannedItem = {
       id: Date.now().toString(),
       itemId: `${34780000 + Math.floor(Math.random() * 10000)}`,
-      status: 'In Store',
+      status: 'Available',
       date: getTodayString(),
       brand,
       category,
@@ -801,7 +753,7 @@ export default function ScanScreen({
       selected: false,
       statusHistory: [
         { 
-          status: 'In Store', 
+          status: 'Available', 
           timestamp: new Date().toLocaleString('sv-SE', { 
             year: 'numeric', 
             month: '2-digit', 
@@ -816,11 +768,10 @@ export default function ScanScreen({
     };
     
     setScannedItems(prev => [newItem, ...prev]);
-    toast.success(`Scanned: ${newItem.itemId}`);
   };
 
   // Check if return button should be shown based on scanned/selected items status
-  const returnableStatuses = ['In Store', 'Missing', 'Broken', 'Rejected', 'Expired'];
+  const returnableStatuses = ['Available', 'Missing', 'Broken', 'Rejected', 'Expired'];
   const hasReturnableItems = useMemo(() => {
     const itemsToCheck = selectedItems.length > 0 ? selectedItems : scannedItems;
     return itemsToCheck.some(item => returnableStatuses.includes(item.status || ''));
@@ -897,7 +848,7 @@ export default function ScanScreen({
                 <SelectContent>
                   <SelectItem value="none">Select new status</SelectItem>
                   <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="In Store">In Store</SelectItem>
+                  <SelectItem value="Available">Available</SelectItem>
                   <SelectItem value="In Store 2nd try">In Store 2nd try</SelectItem>
                   <SelectItem value="Sold">Sold</SelectItem>
                   <SelectItem value="To return">To return</SelectItem>
