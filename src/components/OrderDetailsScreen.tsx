@@ -253,19 +253,19 @@ export default function OrderDetailsScreen({
           </div>
 
           {/* Order Summary - Pricing Info */}
-          <div className="mt-4 pt-4 border-t border-outline-variant">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+          <div className="mt-4 pt-4">
+            <div className="grid grid-cols-2 gap-3 md:flex md:items-start md:gap-6">
               <div>
                 <p className="label-small text-on-surface-variant mb-1">Total Items</p>
                 <p className="title-medium text-on-surface">{totalItems}</p>
               </div>
               <div>
-                <p className="label-small text-on-surface-variant mb-1">Total Retail Price</p>
-                <p className="title-medium text-on-surface">${totalRetailPrice.toFixed(2)}</p>
-              </div>
-              <div>
                 <p className="label-small text-on-surface-variant mb-1">Total Purchase Price</p>
                 <p className="title-medium text-on-surface">${totalPurchasePrice.toFixed(2)}</p>
+              </div>
+              <div className="md:ml-auto">
+                <p className="label-small text-on-surface-variant mb-1">Total Retail Price</p>
+                <p className="title-medium text-on-surface">${totalRetailPrice.toFixed(2)}</p>
               </div>
               <div>
                 <p className="label-small text-on-surface-variant mb-1">Total Sales Margin</p>

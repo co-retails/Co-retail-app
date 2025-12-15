@@ -36,7 +36,27 @@ interface BoxDetailsScreenProps {
   deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Pending' | 'Packing';
 }
 
-function TopAppBar({ onBack }: { onBack: () => void }) {
+function TopAppBar({ 
+  onBack, 
+  box,
+  onMarkDelivered,
+  onMarkRejected,
+  userRole,
+  deliveryStatus
+}: { 
+  onBack: () => void;
+  box: Box;
+  onMarkDelivered?: () => void;
+  onMarkRejected?: () => void;
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+  deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Pending' | 'Packing';
+}) {
+  const canManageBox = userRole === 'admin' || userRole === 'store-staff' || userRole === 'store-manager';
+  const isInTransit = box.status === 'In transit' || box.status === 'in-transit';
+  const showMarkDelivered = canManageBox && isInTransit && onMarkDelivered;
+  const showMarkRejected = canManageBox && isInTransit && onMarkRejected;
+  const showMenu = showMarkDelivered || showMarkRejected;
+
   return (
     <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
       <div className="flex items-center h-16 px-4 md:px-6">
@@ -53,31 +73,62 @@ function TopAppBar({ onBack }: { onBack: () => void }) {
         <h1 className="title-large text-on-surface flex-1">
           Box details
         </h1>
+
+        {/* More menu */}
+        {showMenu && (
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="w-12 h-12 ml-2 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                aria-label="More actions"
+              >
+                <MoreVertical className="w-5 h-5 text-on-surface-variant" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              align="end" 
+              sideOffset={4}
+              className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64 !z-[10000]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {showMarkDelivered && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMarkDelivered?.();
+                  }}
+                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  <span className="body-medium text-on-surface">Mark as Delivered</span>
+                </DropdownMenuItem>
+              )}
+              {showMarkRejected && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMarkRejected?.();
+                  }}
+                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  <span className="body-medium">Reject box</span>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );
 }
 
 function BoxInfoCard({ 
-  box, 
-  onMarkDelivered, 
-  onMarkRejected, 
-  userRole,
-  deliveryStatus
+  box
 }: { 
   box: Box;
-  onMarkDelivered?: () => void;
-  onMarkRejected?: () => void;
-  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
-  deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Pending' | 'Packing';
 }) {
-  const isAdmin = userRole === 'admin';
-  const canScan = deliveryStatus === 'In transit' || !deliveryStatus; // If no deliveryStatus provided, assume it's in transit if box is
-  const isInTransit = box.status === 'In transit';
-  const showMarkDelivered = isAdmin && canScan && isInTransit && onMarkDelivered;
-  const showMarkRejected = isAdmin && canScan && isInTransit && onMarkRejected;
-  const showMenu = showMarkDelivered || showMarkRejected;
-
   return (
     <Card className="mx-4 md:mx-6 mb-6 bg-surface-container border border-outline-variant">
       <CardContent className="p-4">
@@ -127,49 +178,6 @@ function BoxInfoCard({
               </div>
             )}
           </div>
-
-          {/* More menu */}
-          {showMenu && (
-            <div className="flex-shrink-0 ml-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px]"
-                    aria-label="More actions"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreVertical className="w-5 h-5 text-on-surface-variant" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64 z-50">
-                  {showMarkDelivered && (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onMarkDelivered?.();
-                      }}
-                      className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      <span className="body-medium text-on-surface">Mark as Delivered</span>
-                    </DropdownMenuItem>
-                  )}
-                  {showMarkRejected && (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onMarkRejected?.();
-                      }}
-                      className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      <span className="body-medium">Reject box</span>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
@@ -247,18 +255,19 @@ export default function BoxDetailsScreen({
   return (
     <div className="bg-surface min-h-screen flex flex-col">
       {/* Top App Bar */}
-      <TopAppBar onBack={onBack} />
+      <TopAppBar 
+        onBack={onBack}
+        box={box}
+        onMarkDelivered={onMarkDelivered}
+        onMarkRejected={onMarkRejected}
+        userRole={userRole}
+        deliveryStatus={deliveryStatus}
+      />
       
       {/* Content */}
       <div className="flex-1 pt-6 pb-6">
         {/* Box Info Card */}
-        <BoxInfoCard 
-          box={box} 
-          onMarkDelivered={onMarkDelivered}
-          onMarkRejected={onMarkRejected}
-          userRole={userRole}
-          deliveryStatus={deliveryStatus}
-        />
+        <BoxInfoCard box={box} />
         
         {/* Items count */}
         <div className="px-4 md:px-6 mb-4">

@@ -32,7 +32,8 @@ import {
   RotateCcwIcon,
   TruckIcon,
   Store,
-  MapPinIcon
+  MapPinIcon,
+  Package
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
@@ -521,7 +522,7 @@ export default function DeliveryNoteDetailsScreen({
                   </div>
 
                   {/* Sender and Receiver Information */}
-                  <div className="border-t border-outline-variant pt-3">
+                  <div className="pt-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Sender */}
                       {(warehouseName || partnerName) && (
@@ -589,114 +590,144 @@ export default function DeliveryNoteDetailsScreen({
         </div>
 
         {boxes.length > 0 ? (
-          <div className="space-y-2">
-            {boxes.map((box) => {
-              const boxDate = new Date(box.createdDate).toISOString().split('T')[0];
+          <Card className="mb-4 bg-transparent border border-outline-variant overflow-hidden">
+            <CardContent className="p-0">
+              <div className="divide-y divide-outline-variant">
+                {boxes.map((box) => {
+                  const boxDate = new Date(box.createdDate).toISOString().split('T')[0];
+                  const statusDisplay = box.status === 'registered' ? 'Registered' : box.status === 'pending' ? 'Packing' : box.status === 'in-transit' ? 'In Transit' : box.status === 'delivered' ? 'Delivered' : box.status === 'rejected' ? 'Rejected' : box.status === 'cancelled' ? 'Cancelled' : box.status;
+                  const showEditLabel = box.status === 'registered';
+                  const showUnregister = box.status === 'registered';
+                  const showDelete = box.status === 'pending';
+                  const showMenu = showEditLabel || showUnregister || showDelete;
 
-              return (
-                <Card
-                  key={box.id}
-                  className="border-outline cursor-pointer hover:bg-surface-container-high transition-colors bg-surface-container"
-                  onClick={() => {
-                    if (onOpenBoxDetails) {
-                      onOpenBoxDetails(box);
-                    }
-                  }}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className="p-2 bg-primary-container rounded-lg flex-shrink-0">
-                          <BoxIcon className="w-5 h-5 text-on-primary-container" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          {/* Date and Status */}
-                          <div className="label-small text-on-surface-variant mb-1">
-                            {boxDate} • {box.status === 'registered' ? 'Registered' : box.status === 'pending' ? 'Packing' : box.status === 'in-transit' ? 'In Transit' : box.status === 'delivered' ? 'Delivered' : box.status === 'rejected' ? 'Rejected' : box.status === 'cancelled' ? 'Cancelled' : box.status}
-                          </div>
-                          {/* Box Label */}
-                          {box.status !== 'pending' && (
-                            <div className="body-medium text-on-surface mb-1">
-                              <span className="label-small text-on-surface-variant">Box Label: </span>
-                              {box.qrLabel}
-                            </div>
-                          )}
-                          {/* Box ID */}
-                          <div className="label-small text-on-surface-variant">
-                            <span className="label-small text-on-surface-variant">Box ID: </span>
-                            {box.id}
-                          </div>
-                          {/* Items count */}
-                          <div className="flex items-center gap-2 flex-wrap mt-1">
-                            <span className="body-small text-on-surface-variant">
-                              {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
-                            </span>
-                          </div>
-                        </div>
+                  return (
+                    <div
+                      key={box.id}
+                      onClick={() => {
+                        if (onOpenBoxDetails) {
+                          onOpenBoxDetails(box);
+                        }
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          if (onOpenBoxDetails) {
+                            onOpenBoxDetails(box);
+                          }
+                        }
+                      }}
+                    >
+                      {/* Leading Element - Box Icon */}
+                      <div className="flex-shrink-0 w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-on-surface-variant" />
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                            }}
-                          >
-                            <MoreVertical size={16} className="text-on-surface-variant" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {box.status === 'registered' && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setBoxBeingEdited(box);
-                              }}
-                            >
-                              <EditIcon className="mr-2 h-4 w-4" />
-                              Edit box label
-                            </DropdownMenuItem>
-                          )}
-                          {box.status === 'registered' && (
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              handleUnregisterBox(box.id);
-                            }}>
-                              <RotateCcwIcon className="mr-2 h-4 w-4" />
-                              Unregister
-                            </DropdownMenuItem>
-                          )}
-                          {box.status === 'pending' && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteBox(box.id);
-                              }}
-                              className="text-error focus:text-error"
-                            >
-                              <Trash2Icon className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+
+                      {/* Main Content */}
+                      <div className="flex-1 min-w-0">
+                        {/* Created date and Box status */}
+                        <div className="label-small text-on-surface-variant mb-1">
+                          {boxDate} • <span className={statusDisplay === 'Delivered' ? 'text-tertiary' : ''}>{statusDisplay}</span>
+                        </div>
+                        {/* Box Label */}
+                        {box.qrLabel && (
+                          <div className="body-medium text-on-surface mb-1">
+                            <span className="label-small text-on-surface-variant">Box Label: </span>
+                            {box.qrLabel}
+                          </div>
+                        )}
+                        {/* Box ID */}
+                        <div className="label-small text-on-surface-variant mb-1">
+                          <span className="label-small text-on-surface-variant">Box ID: </span>
+                          {box.id}
+                        </div>
+                        {/* Order nr */}
+                        {orderId && (
+                          <div className="body-small text-on-surface-variant">
+                            <span className="label-small text-on-surface-variant">Order nr: </span>
+                            {orderId}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Trailing Element - Items count or More menu */}
+                      <div className="flex-shrink-0 flex items-center gap-2">
+                        <div className="body-small text-on-surface-variant">
+                          {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
+                        </div>
+                        {showMenu && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                }}
+                                aria-label="More actions"
+                              >
+                                <MoreVertical className="w-4 h-4 text-on-surface-variant" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
+                              {showEditLabel && (
+                                <DropdownMenuItem
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setBoxBeingEdited(box);
+                                  }}
+                                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                                >
+                                  <EditIcon className="w-4 h-4 mr-2" />
+                                  <span className="body-medium text-on-surface">Edit box label</span>
+                                </DropdownMenuItem>
+                              )}
+                              {showUnregister && (
+                                <DropdownMenuItem
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    handleUnregisterBox(box.id);
+                                  }}
+                                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                                >
+                                  <RotateCcwIcon className="w-4 h-4 mr-2" />
+                                  <span className="body-medium text-on-surface">Unregister</span>
+                                </DropdownMenuItem>
+                              )}
+                              {showDelete && (
+                                <DropdownMenuItem
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    handleDeleteBox(box.id);
+                                  }}
+                                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+                                >
+                                  <Trash2Icon className="w-4 h-4 mr-2" />
+                                  <span className="body-medium">Delete</span>
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="py-12">
-              <EmptyState
-                icon={<PackageIcon size={48} className="text-on-surface-variant" />}
-                title="No boxes added yet"
-                description="Click Add box to start packing items"
-              />
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 px-6">
+            <Package className="w-16 h-16 text-on-surface-variant mb-4" />
+            <h3 className="title-medium text-on-surface mb-2">
+              No boxes found
+            </h3>
+            <p className="body-medium text-on-surface-variant text-center">
+              This delivery has no boxes
+            </p>
+          </div>
         )}
 
         {/* Unassigned Items List */}
@@ -725,11 +756,12 @@ export default function DeliveryNoteDetailsScreen({
                 {(expandedUnassignedItems ? availableItems : availableItems.slice(0, 5)).map((item) => (
                   <div key={item.id} className="flex items-center gap-3 p-3 bg-error-container/10 rounded-lg border border-error/20">
                     {/* Item Image */}
-                    <div className="flex-shrink-0 w-16 h-16 bg-surface-container rounded-lg overflow-hidden border border-outline-variant">
+                    <div className="flex-shrink-0 w-12 h-12 rounded overflow-hidden bg-surface-container flex items-center justify-center">
                       <ImageWithFallback
                         src={item.image || item.thumbnail || DEFAULT_IMAGE_PLACEHOLDER}
                         alt={item.itemId || item.partnerItemId || ''}
                         className="w-full h-full object-cover"
+                        fallback={<PackageIcon className="w-5 h-5 text-on-surface-variant/60" />}
                       />
                     </div>
                     {/* Item Info */}

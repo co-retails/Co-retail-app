@@ -103,9 +103,22 @@ export default function CameraScanner({
         { facingMode: 'environment' },
         {
           fps: CAMERA_CONFIG.fps,
-          qrbox: { width: 250, height: 250 },
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            // Make the scanning box responsive - use 80% of the smaller dimension
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.min(250, minEdge * 0.8);
+            return {
+              width: qrboxSize,
+              height: qrboxSize
+            };
+          },
           aspectRatio: 1.0,
-          disableFlip: false
+          disableFlip: false,
+          videoConstraints: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
         },
         (decodedText) => {
           // Success callback
@@ -232,7 +245,9 @@ export default function CameraScanner({
     }
   }, [manualValue, onManualEntry]);
 
-  const containerId = `camera-scanner-${Math.random().toString(36).substring(2, 9)}`;
+  // Use a stable container ID based on component instance
+  const containerIdRef = useRef(`camera-scanner-${Math.random().toString(36).substring(2, 9)}`);
+  const containerId = containerIdRef.current;
 
   return (
     <div className={`bg-surface-container border border-outline-variant rounded-[12px] overflow-hidden ${className}`}>
@@ -241,18 +256,34 @@ export default function CameraScanner({
         className="relative bg-surface-variant flex items-center justify-center overflow-hidden"
         style={{ height, minHeight: height }}
       >
-        {/* Camera container - only visible when camera is active */}
+        {/* Camera container - always rendered when shouldUseCamera, but styled based on state */}
         {shouldUseCamera && (
-          <div 
-            id={containerId}
-            ref={containerRef}
-            className={`absolute inset-0 w-full h-full ${cameraActive ? 'block' : 'hidden'}`}
-          />
+          <>
+            <style>{`
+              #${containerId} video {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+              }
+              #${containerId} {
+                width: 100% !important;
+                height: 100% !important;
+              }
+            `}</style>
+            <div 
+              id={containerId}
+              ref={containerRef}
+              className={`absolute inset-0 w-full h-full ${cameraActive ? 'block' : 'hidden'}`}
+              style={{ 
+                zIndex: 1
+              }}
+            />
+          </>
         )}
 
-        {/* Placeholder/Overlay - shown when camera is not active or on desktop */}
+        {/* Placeholder - shown when camera is not active or on desktop */}
         {(!cameraActive || shouldShowFakeScan) && (
-          <div className="absolute inset-4 border-2 border-primary rounded-lg flex items-center justify-center">
+          <div className="absolute inset-4 border-2 border-primary rounded-lg flex items-center justify-center z-2">
             <div className="w-16 h-16 border-2 border-primary border-dashed rounded-lg flex items-center justify-center">
               <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M12 12h-4.01M12 12v4.01M12 12V7.99" />
@@ -261,20 +292,21 @@ export default function CameraScanner({
           </div>
         )}
 
-        {/* Scanning overlay with button */}
-        <div className="absolute inset-0 flex items-center justify-center z-10">
-          <button
-            className={`w-48 h-48 border-2 border-primary rounded-lg relative transition-colors touch-manipulation ${
-              scanState === 'scanning' || isScanning
-                ? 'bg-primary/10 cursor-wait'
-                : scanState === 'success'
-                ? 'bg-primary/20 cursor-default'
-                : 'hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 cursor-pointer'
-            } ${!shouldUseCamera && !shouldShowFakeScan ? 'opacity-50 cursor-not-allowed' : ''}`}
-            onClick={shouldShowFakeScan ? handleFakeScan : undefined}
-            disabled={scanState === 'scanning' || isScanning || (!shouldUseCamera && !shouldShowFakeScan)}
-            aria-label="Scan QR code or barcode"
-          >
+        {/* Scanning overlay with button - only shown when camera is not active or for fake scan */}
+        {(!cameraActive || shouldShowFakeScan) && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <button
+              className={`w-48 h-48 border-2 border-primary rounded-lg relative transition-colors touch-manipulation ${
+                scanState === 'scanning' || isScanning
+                  ? 'bg-primary/10 cursor-wait'
+                  : scanState === 'success'
+                  ? 'bg-primary/20 cursor-default'
+                  : 'hover:bg-primary/5 focus:bg-primary/10 active:bg-primary/20 cursor-pointer'
+              } ${!shouldUseCamera && !shouldShowFakeScan ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={shouldShowFakeScan ? handleFakeScan : undefined}
+              disabled={scanState === 'scanning' || isScanning || (!shouldUseCamera && !shouldShowFakeScan)}
+              aria-label="Scan QR code or barcode"
+            >
             {/* Animated scanning line */}
             {(scanState === 'idle' || scanState === 'scanning') && (
               <>
@@ -358,6 +390,63 @@ export default function CameraScanner({
             </div>
           </button>
         </div>
+        )}
+
+        {/* Scanning frame overlay - shown when camera is active (non-interactive) */}
+        {cameraActive && !shouldShowFakeScan && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-5">
+            <div className="w-48 h-48 border-2 border-primary rounded-lg relative">
+              {/* Corner indicators */}
+              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary"></div>
+              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary"></div>
+              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary"></div>
+              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary"></div>
+            </div>
+            {/* Status indicator for active camera */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
+                scanState === 'success' 
+                  ? 'bg-success-container' 
+                  : scanState === 'error'
+                  ? 'bg-error-container'
+                  : cameraError
+                  ? 'bg-error-container'
+                  : isInitializing
+                  ? 'bg-surface-container'
+                  : 'bg-primary'
+              }`}>
+                <div className={`w-2 h-2 rounded-full ${
+                  scanState === 'success'
+                    ? 'bg-on-success-container'
+                    : scanState === 'error' || cameraError
+                    ? 'bg-on-error-container'
+                    : isInitializing
+                    ? 'bg-on-surface-variant'
+                    : 'bg-on-primary'
+                } ${(scanState === 'scanning' || scanState === 'idle') && !isInitializing && !cameraError ? 'animate-pulse' : ''}`}></div>
+                <span className={`label-small ${
+                  scanState === 'success'
+                    ? 'text-on-success-container'
+                    : scanState === 'error' || cameraError
+                    ? 'text-on-error-container'
+                    : isInitializing
+                    ? 'text-on-surface-variant'
+                    : 'text-on-primary'
+                }`}>
+                  {scanState === 'success'
+                    ? 'SCANNED!'
+                    : scanState === 'scanning'
+                    ? 'SCANNING...'
+                    : scanState === 'error' || cameraError
+                    ? 'ERROR'
+                    : isInitializing
+                    ? 'INITIALIZING...'
+                    : 'READY'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Error message */}
         {cameraError && (

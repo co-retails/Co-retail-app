@@ -94,7 +94,7 @@ interface ShippingScreenProps {
   onNavigateToScan?: () => void;
   onNavigateToSellers?: () => void;
   onScanBox?: () => void;
-  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered';
+  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered' | 'pending-packing' | 'approval';
   currentUserRole?: ShippingUserRole;
   partnerOrders?: ShippingPartnerOrder[];
   deliveryNotes?: DeliveryNote[];
@@ -1094,9 +1094,11 @@ export default function ShippingScreen({
         case 'orders':
         case 'pending':
         case 'pending-registered': // Special case: Orders tab with registered filter
+        case 'approval': // Special case: Orders tab with approval filter
           return 'pending';
         case 'returns':
           return 'returns';
+        case 'pending-packing': // Special case: Shipments tab with Pending & Packing filter
         case 'shipments':
         case 'registered':
         case 'in-transit':
@@ -1204,6 +1206,9 @@ useEffect(() => {
   }
 
   switch (initialTab) {
+    case 'approval': // Special case: Orders tab with approval filter
+      setOrderStatusFilter('approval');
+      break;
     case 'pending':
       setOrderStatusFilter('pending');
       break;
@@ -1212,6 +1217,9 @@ useEffect(() => {
       break;
     case 'registered':
       setOrderStatusFilter('registered');
+      break;
+    case 'pending-packing': // Special case: Shipments tab with Pending & Packing filter
+      setShipmentStatusFilter('packing');
       break;
     case 'shipments':
     case 'in-transit':
@@ -3328,6 +3336,7 @@ useEffect(() => {
                             <td className="px-4 py-3 body-medium text-on-surface">{receiverDisplay}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">—</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.items}</td>
+                            <td className="px-4 py-3 body-medium text-on-surface text-right">—</td>
                             <td className="px-4 py-3 text-right">
                               {shouldHighlightStatus ? (
                                 <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(returnDelivery.status)}`}>

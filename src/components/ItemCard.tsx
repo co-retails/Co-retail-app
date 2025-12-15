@@ -270,33 +270,38 @@ export const ItemCard = memo(function ItemCard({
 
     // Derive item display status from order status and item state
     const getItemDisplayStatus = () => {
-      // If item has validation errors, show error
-      if (item.status === 'error' || (errorMessages && errorMessages.length > 0)) {
-        return { text: 'Error', color: 'text-error' };
-      }
-      
       // If order status is provided, use it to determine item status
+      // For partner portal: approval, pending, and ready-for-packaging orders show "Draft" for all items
+      // In transit orders show "In Transit" for all items
       if (orderStatus) {
         switch (orderStatus) {
+          case 'approval':
           case 'pending':
-            // For pending orders, show "Ready" if retailer ID exists, otherwise "Pending"
-            return item.retailerItemId 
-              ? { text: 'Ready', color: 'text-success' }
-              : { text: 'Pending', color: 'text-on-surface-variant' };
-          case 'registered':
-            return { text: 'Ready for Packaging', color: 'text-tertiary' };
+          case 'registered': // "ready for packaging"
+            // All items in approval, pending, and ready-for-packaging orders show "Draft"
+            return { text: 'Draft', color: 'text-on-surface-variant' };
           case 'in-transit':
+            // All items in in-transit orders show "In Transit"
             return { text: 'In Transit', color: 'text-primary' };
           case 'delivered':
             return { text: 'Delivered', color: 'text-tertiary' };
           case 'in-review':
             return { text: 'In Review', color: 'text-warning' };
           default:
+            // For other order statuses, check item errors first
+            if (item.status === 'error' || (errorMessages && errorMessages.length > 0)) {
+              return { text: 'Error', color: 'text-error' };
+            }
             // Fallback: show "Ready" if retailer ID exists, otherwise use order status or "Pending"
             return item.retailerItemId
               ? { text: 'Ready', color: 'text-success' }
               : { text: orderStatus ? (orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1)) : 'Pending', color: 'text-on-surface-variant' };
         }
+      }
+      
+      // If no order status, check item errors
+      if (item.status === 'error' || (errorMessages && errorMessages.length > 0)) {
+        return { text: 'Error', color: 'text-error' };
       }
       
       // Fallback: use item status or retailer ID presence
