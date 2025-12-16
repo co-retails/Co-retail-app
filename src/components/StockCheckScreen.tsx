@@ -12,7 +12,7 @@ export interface StockItem {
   size?: string;
   color?: string;
   price: number;
-  status: 'Available' | 'Missing' | 'Scanned' | 'Broken';
+  status: 'Available' | 'Missing' | 'Broken';
   orderNumber: string;
   date: string;
   thumbnail?: string;
@@ -22,6 +22,7 @@ export interface StockItem {
   isExpired?: boolean;
   expiredFlaggedAt?: string;
   expiredPostponeWeeks?: number;
+  boxLabel?: string;
 }
 
 export interface StockCheckSession {
@@ -286,6 +287,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       const colors = ['Black', 'White', 'Blue', 'Red', 'Gray', 'Green'];
       const sizes = ['XS', 'S', 'M', 'L', 'XL'];
       
+      const boxLabels = ['BOX-123456', 'BOX-789012', 'BOX-987654', 'BOX-456789', 'BOX-234567'];
       mockItems.push({
         id: `item-${i}`,
         itemId,
@@ -298,7 +300,8 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         orderNumber: `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`,
         date: getToday(),
         isScanned: isAlreadyScanned,
-        isSelected: false
+        isSelected: false,
+        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)]
       });
     }
     
@@ -361,6 +364,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       
       // For unexpected items, they could be Missing items that were found
       // Use 'Missing' as default status for unexpected items (they were not in the list)
+      const boxLabels = ['BOX-123456', 'BOX-789012', 'BOX-987654', 'BOX-456789', 'BOX-234567'];
       const newItem: StockItem = {
         id: `unexpected-item-${Date.now()}`,
         itemId: `${34780000 + Math.floor(Math.random() * 10000)}`,
@@ -374,7 +378,8 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         date: getToday(),
         isScanned: true,
         isSelected: false,
-        category: 'Clothing'
+        category: 'Clothing',
+        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)]
       };
       
       // Add this new item to the stock check

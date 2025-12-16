@@ -527,3 +527,8 @@ export default function CameraScanner({
     </div>
   );
 }
+
+
+
+
+

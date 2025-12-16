@@ -3,7 +3,7 @@ import DeliveryHomeScreen from './components/DeliveryHomeScreen';
 import ShippingScreen, { Delivery, ReturnDelivery, SellpyOrder } from './components/ShippingScreen';
 import ReceiveDeliveryScreen from './components/ReceiveDeliveryScreen';
 import PartnerSelectionScreen, { Partner } from './components/PartnerSelectionScreen';
-import ReturnManagementScreen, { ReturnItem, ReturnOrder } from './components/ReturnManagementScreen';
+import ReturnManagementScreen, { ReturnItem, ReturnOrder, normalizeReturnItemStatus } from './components/ReturnManagementScreen';
 import ReturnConfirmationScreen from './components/ReturnConfirmationScreen';
 import ReturnShippingLabelScreen from './components/ReturnShippingLabelScreen';
 import ReturnDetailsScreen, { ReturnOrderDetails, ReturnItemDetail } from './components/ReturnDetailsScreen';
@@ -215,6 +215,7 @@ export default function App() {
     setCurrentReturnOrder,
     currentReturnOrderDetails,
     setCurrentReturnOrderDetails,
+    returnOrders,
     setReturnOrders,
     currentStockCheckSession,
     setCurrentStockCheckSession,
@@ -1609,15 +1610,35 @@ export default function App() {
       {/* Store Staff Screens */}
       {currentScreen === 'home' && (() => {
         // Calculate in-transit deliveries and boxes for store staff
-        // In-transit deliveries are deliveryNotes with status 'registered' that match the current store
+        // Match the logic used in Shipping screen: Delivery items with status 'In transit' for activeTab === 'shipments'
+        // The Shipping screen shows Delivery items (old format), not DeliveryNote items, for store staff
         const currentStore = mockStores.find(s => s.id === currentStoreSelection.storeId);
-        const inTransitDeliveryNotes = deliveryNotes.filter(note => {
-          const matchesStore = note.storeId === currentStoreSelection.storeId || 
-            note.storeCode === currentStore?.code;
-          return note.status === 'registered' && matchesStore;
+        const selectedStoreId = String(currentStoreSelection.storeId);
+        const selectedStoreCode = currentStore?.code;
+        
+        // Filter deliveries by status 'In transit' and selected store
+        // This matches the filteredDeliveries logic in ShippingScreen for store staff
+        // Note: If receivingStoreId is not set on a delivery, we include it (can't determine store)
+        const inTransitDeliveries = deliveries.filter(delivery => {
+          // Only include deliveries with status 'In transit'
+          // This matches the Shipping screen logic: activeTab === 'shipments' && delivery.status === 'In transit'
+          if (delivery.status !== 'In transit') {
+            return false;
+          }
+          
+          // Filter by selected store - check receivingStoreId if available
+          // If receivingStoreId is not set, include the delivery (can't determine store association)
+          if (delivery.receivingStoreId) {
+            const deliveryStoreId = String(delivery.receivingStoreId);
+            return deliveryStoreId === selectedStoreId;
+          }
+          
+          // If no receivingStoreId is set, include it (matches Shipping screen behavior)
+          return true;
         });
-        const inTransitDeliveriesCount = inTransitDeliveryNotes.length;
-        const inTransitBoxesCount = inTransitDeliveryNotes.reduce((sum, note) => sum + (note.boxes?.length || 0), 0);
+        
+        const inTransitDeliveriesCount = inTransitDeliveries.length;
+        const inTransitBoxesCount = inTransitDeliveries.reduce((sum, delivery) => sum + (delivery.boxes || 0), 0);
         
         // Calculate days since last stock check
         const lastStockCheckDate = availableStockCheckSessions.length > 0 
@@ -1646,7 +1667,7 @@ export default function App() {
             supplier: 'Any Supplier',
             boxes: 0,
             status: 'In transit',
-            date: new Date().toLocaleDateString(),
+            date: new Date().toISOString().split('T')[0], // Use ISO format (YYYY-MM-DD) for consistent parsing
             warehouse: 'All Warehouses'
           });
           setDeliveryBoxes([]);
@@ -1821,6 +1842,71 @@ export default function App() {
             handleViewShipmentDetails('shipment', deliveryNote, 'shipping', activeTab);
           }}
           onOpenReturnDetails={(returnDelivery, activeTab) => {
+            console.log('onOpenReturnDetails called:', { returnDelivery, status: returnDelivery.status, activeTab });
+            // If return is pending, open return management screen with scanner active
+            if (returnDelivery.status === 'Pending') {
+              console.log('Opening pending return:', returnDelivery);
+              // Find the partner for this return (try both mockPartners and mockWarehousePartners)
+              let partner: Partner | null = mockPartners.find(p => p.name === returnDelivery.partnerName) || null;
+              if (!partner) {
+                const warehousePartner = mockWarehousePartners.find(p => p.name === returnDelivery.partnerName);
+                if (warehousePartner) {
+                  // Convert WarehousePartner to Partner format (for ReturnManagementScreen)
+                  partner = {
+                    id: warehousePartner.id,
+                    name: warehousePartner.name,
+                    connectionStatus: 'connected' as const,
+                    itemsToReturn: 0
+                  };
+                }
+              }
+              console.log('Found partner:', partner);
+              if (partner) {
+                // Find items for this return (from return orders)
+                // Access returnOrders from state to ensure it's available
+                if (!state || !state.returnOrders) {
+                  console.error('State or returnOrders not available:', { state: !!state, returnOrders: state?.returnOrders });
+                }
+                const orders = (state && state.returnOrders) ? state.returnOrders : [];
+                const returnOrder = orders.find(ro => ro.id === returnDelivery.id);
+                let itemsForReturn: ReturnItem[] = [];
+                
+                if (returnOrder && returnOrder.items && returnOrder.items.length > 0) {
+                  // Set up return items from the return order
+                  // Items that were scanned should remain scanned, others should be unscanned
+                  // Normalize statuses to ensure "In store" and "Expired B2B" become "Available"
+                  itemsForReturn = returnOrder.items.map(item => ({
+                    ...item,
+                    partnerId: partner.id,
+                    status: normalizeReturnItemStatus(item.status),
+                    scanned: item.scanned || false,
+                    selected: false
+                  }));
+                } else {
+                  // If no return order exists yet, get items from mockReturnItems that match the partner
+                  // This allows the user to continue scanning items for the return
+                  // Normalize statuses to ensure "In store" and "Expired B2B" become "Available"
+                  itemsForReturn = mockReturnItems
+                    .filter((item: ReturnItem) => !item.partnerId || item.partnerId === partner.id)
+                    .map((item: ReturnItem) => ({
+                      ...item,
+                      partnerId: partner.id,
+                      status: normalizeReturnItemStatus(item.status),
+                      scanned: false,
+                      selected: false
+                    }));
+                }
+                
+                console.log('Setting up return with items:', itemsForReturn.length);
+                setReturnItems(itemsForReturn);
+                setSelectedPartner(partner);
+                setCurrentScreenSafe('return-management');
+                return;
+              } else {
+                console.log('No partner found for return:', returnDelivery.partnerName);
+              }
+            }
+            // Otherwise, open return details screen
             handleViewShipmentDetails('return', returnDelivery, 'shipping', activeTab);
           }}
           onViewShowroomOrder={(orderId) => {
@@ -1942,6 +2028,24 @@ export default function App() {
                 }
               ]}
               onBack={() => setCurrentScreenSafe('delivery-details')}
+              onMarkDelivered={() => {
+                setDeliveryBoxes(prev => prev.map(b => 
+                  b.id === selectedBox.id ? { ...b, status: 'Delivered' } : b
+                ));
+                setSelectedBox(null);
+                setCurrentScreenSafe('delivery-details');
+                toast.success('Box marked as delivered');
+              }}
+              onMarkRejected={() => {
+                setDeliveryBoxes(prev => prev.map(b => 
+                  b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b
+                ));
+                setSelectedBox(null);
+                setCurrentScreenSafe('delivery-details');
+                toast.success('Box marked as rejected');
+              }}
+              userRole={currentUserRole}
+              deliveryStatus={selectedDelivery?.status}
             />
           </FullScreenDialogContent>
         </FullScreenDialog>
@@ -2230,8 +2334,17 @@ export default function App() {
             setShippingInitialTab('pending-registered');
             setCurrentScreenSafe('shipping');
           }}
+          onViewApprovalOrders={() => {
+            // Navigate to Orders tab with approval filter
+            setShippingInitialTab('approval');
+            setCurrentScreenSafe('shipping');
+          }}
           onViewBoxes={handleNavigateToShipmentsTab}
-          onViewDeliveries={handleNavigateToShipmentsTab}
+          onViewDeliveries={() => {
+            // Navigate to shipments tab with pending-packing filter for deliveries to complete
+            setShippingInitialTab('pending-packing');
+            setCurrentScreenSafe('shipping');
+          }}
           onViewReturns={handleNavigateToReturnsTab}
           onNavigateToShowroom={handleNavigateToShowroom}
           onAdminClick={handleOpenAdminSettings}

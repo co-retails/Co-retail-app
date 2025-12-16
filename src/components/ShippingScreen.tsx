@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, X, QrCode, ClipboardListIcon, ArrowUp, ArrowDown } from 'lucide-react';
 import { UserRole } from './RoleSwitcher';
 import type { ExtendedPartnerOrder } from './PartnerDashboard';
@@ -525,16 +525,52 @@ function ReturnDeliveryComponent({
   const hasActionButton = (returnDelivery.status !== 'Returned' && onUpdateStatus) || (returnDelivery.status === 'Pending' && onCancel);
   const ComponentWrapper = onClick && !hasActionButton ? 'button' : 'div';
   
+  const handleContentClick = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!onClick) return;
+    
+    const target = e.target as HTMLElement;
+    // Check if clicking on interactive elements - buttons, menus, etc.
+    const isButton = target.closest('button');
+    const isMenuItem = target.closest('[role="menuitem"]');
+    const isMenu = target.closest('[role="menu"]');
+    const isDropdownTrigger = target.closest('[data-slot="dropdown-menu-trigger"]');
+    const isDropdownContent = target.closest('[data-slot="dropdown-menu-content"]');
+    
+    // Don't trigger if clicking on interactive elements
+    if (isButton || isMenuItem || isMenu || isDropdownTrigger || isDropdownContent) {
+      return;
+    }
+    
+    // Trigger onClick for the content area
+    e.stopPropagation();
+    if (e.type === 'touchend') {
+      e.preventDefault();
+    }
+    onClick();
+  };
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Don't prevent default - let the browser handle it naturally
+    // This allows buttons and dropdowns to work correctly
+  };
+  
   return (
     <ComponentWrapper 
       className={`bg-surface-container border-b border-outline-variant last:border-b-0 ${
-        onClick ? 'hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200 text-left w-full' : ''
+        onClick ? 'hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200 text-left w-full touch-manipulation' : ''
       }`}
-      onClick={onClick}
+      onClick={hasActionButton ? undefined : onClick}
       role={onClick && hasActionButton ? 'button' : undefined}
       tabIndex={onClick && hasActionButton ? 0 : undefined}
+      style={onClick && hasActionButton ? { WebkitTapHighlightColor: 'transparent' } : undefined}
     >
-      <div className="flex items-center gap-4 px-4 py-3">
+      <div 
+        className="flex items-center gap-4 px-4 py-3 return-delivery-content"
+        onClick={hasActionButton && onClick ? handleContentClick : undefined}
+        onTouchStart={hasActionButton && onClick ? handleTouchStart : undefined}
+        onTouchEnd={hasActionButton && onClick ? handleContentClick : undefined}
+        style={hasActionButton && onClick ? { WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' } : undefined}
+      >
         
         {/* Leading Element - Return Icon */}
         <div className="flex-shrink-0 w-10 h-10 bg-surface-container rounded-full flex items-center justify-center">
@@ -588,8 +624,15 @@ function ReturnDeliveryComponent({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                  className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                  onTouchEnd={(e: React.TouchEvent) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                  className="p-2 rounded-full hover:bg-surface-container-high transition-colors touch-manipulation"
                   aria-label="More actions"
                 >
                   <MoreVertical className="w-5 h-5 text-on-surface-variant" />
@@ -611,9 +654,14 @@ function ReturnDeliveryComponent({
             <button 
               onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
                 e.stopPropagation();
+                e.preventDefault();
                 handleMarkAsReturned();
               }}
-              className="px-4 py-2 bg-primary text-on-primary rounded-lg label-medium hover:bg-primary/90 transition-colors min-h-[44px]"
+              onTouchEnd={(e: React.TouchEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              className="px-4 py-2 bg-primary text-on-primary rounded-lg label-medium hover:bg-primary/90 transition-colors min-h-[44px] touch-manipulation"
             >
               Mark as returned
             </button>
@@ -1453,6 +1501,12 @@ useEffect(() => {
   };
 
   const filteredDeliveries = deliveries.filter(delivery => {
+    // For store staff: exclude pending deliveries - only show in-transit and delivered/cancelled
+    if ((role === 'store-staff' || role === 'admin' || role === 'store-manager') && 
+        (delivery.status === 'Pending' || delivery.status === 'Packing')) {
+      return false;
+    }
+    
     const matchesSearch = searchTerm === '' || 
       delivery.deliveryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       delivery.sender.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1832,6 +1886,11 @@ useEffect(() => {
       })();
 
       return matchesSearch && matchesStatusFilter;
+    }
+    
+    // For store staff: exclude pending delivery notes - only show in-transit (registered) and delivered/rejected
+    if ((role === 'store-staff' || role === 'admin' || role === 'store-manager') && (noteStatus === 'pending' || noteStatus === 'packing')) {
+      return false;
     }
     
     const matchesTab = (activeTab === 'pending' && noteStatus === 'pending') ||

@@ -24,7 +24,7 @@ import {
 interface StockCheckReviewScreenProps {
   session: StockCheckSession;
   onBack: () => void;
-  onUpdateItemStatus: (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => void;
+  onUpdateItemStatus: (itemId: string, newStatus: 'Missing' | 'Found' | 'Available' | 'Broken') => void;
 }
 
 type ReviewTab = 'not-scanned' | 'not-found' | 'all-included' | 'scanned';
@@ -152,8 +152,8 @@ function BulkActionsBar({
 }) {
   const hasSelectedItems = selectedCount > 0;
   
-  // Don't show multiselect for 'all-included' tab
-  if (activeTab === 'all-included') {
+  // Don't show multiselect for 'all-included' and 'not-found' tabs
+  if (activeTab === 'all-included' || activeTab === 'not-found') {
     return null;
   }
 
@@ -270,6 +270,14 @@ function BulkActionsBar({
   );
 }
 
+function NotFoundItemCard({ itemId }: { itemId: string }) {
+  return (
+    <div className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3">
+      <span className="body-large text-on-surface">{itemId}</span>
+    </div>
+  );
+}
+
 function ReviewItemCard({ 
   item, 
   onUpdateStatus,
@@ -279,7 +287,7 @@ function ReviewItemCard({
   activeTab
 }: { 
   item: StockItem; 
-  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => void;
+  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Available' | 'Broken') => void;
   onMoreActions: (itemId: string) => void;
   isSelected: boolean;
   onToggleSelect: (itemId: string) => void;
@@ -293,9 +301,7 @@ function ReviewItemCard({
           { label: 'Missing', status: 'Missing' as const, className: 'text-error' }
         ];
       case 'not-found':
-        return [
-          { label: 'Available', status: 'Available' as const, className: 'text-on-surface' }
-        ];
+        return []; // No actions for not-found items
       case 'scanned':
         return [
           { label: 'Available', status: 'Available' as const, className: 'text-on-surface' },
@@ -313,8 +319,8 @@ function ReviewItemCard({
   return (
     <div className="w-full bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
       <div className={`flex items-center py-3 ${activeTab === 'all-included' ? 'px-4' : 'px-1'}`}>
-        {/* Leading element - Checkbox for bulk selection (hidden for all-included tab) */}
-        {activeTab !== 'all-included' && (
+        {/* Leading element - Checkbox for bulk selection (hidden for all-included and not-found tabs) */}
+        {activeTab !== 'all-included' && activeTab !== 'not-found' && (
           <div className="flex items-center justify-center flex-shrink-0">
             <button 
               className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
@@ -342,8 +348,8 @@ function ReviewItemCard({
           </div>
         )}
         
-        {/* Main content using standardized ItemCard - override its wrapper styles */}
-        <div className="flex-1 [&>div]:!border-0 [&>div]:!bg-transparent [&>div]:hover:!bg-transparent [&>div>div]:!px-0">
+        {/* Main content using standardized ItemCard - same as ItemsScreen */}
+        <div className="flex-1">
           <ItemCard
             item={{
               id: item.id,
@@ -357,7 +363,8 @@ function ReviewItemCard({
               status: item.status,
               date: item.date,
               thumbnail: item.thumbnail,
-              orderNumber: item.orderNumber
+              orderNumber: item.orderNumber,
+              boxLabel: item.boxLabel
             } as BaseItem}
             variant="items-list"
             showActions={false}
@@ -406,7 +413,7 @@ function ItemsList({
   activeTab
 }: {
   items: StockItem[];
-  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => void;
+  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Available' | 'Broken') => void;
   onMoreActions: (itemId: string) => void;
   selectedItems: Set<string>;
   onToggleSelect: (itemId: string) => void;
@@ -423,6 +430,19 @@ function ItemsList({
         <p className="body-medium text-on-surface-variant text-center">
           All items have been processed
         </p>
+      </div>
+    );
+  }
+
+  // For not-found tab, show only item IDs
+  if (activeTab === 'not-found') {
+    return (
+      <div className="mb-4 mx-4 md:mx-6">
+        <div className="flex flex-col gap-2">
+          {items.map((item) => (
+            <NotFoundItemCard key={item.id} itemId={item.itemId} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -614,7 +634,8 @@ export default function StockCheckReviewScreen({
     // Fallback to mock items for demonstration
     const mockItems: StockItem[] = [];
     const brands = ['H&M', 'Weekday', 'COS', 'Monki'];
-    const statuses: Array<StockItem['status']> = ['Available', 'Missing', 'Scanned', 'Broken'];
+    const statuses: Array<StockItem['status']> = ['Available', 'Missing', 'Broken'];
+    const boxLabels = ['BOX-123456', 'BOX-789012', 'BOX-987654', 'BOX-456789', 'BOX-234567'];
     
     for (let i = 1; i <= 20; i++) {
       mockItems.push({
@@ -629,7 +650,8 @@ export default function StockCheckReviewScreen({
         orderNumber: `${100000 + i}`,
         date: '2024-12-09',
         isScanned: Math.random() > 0.5,
-        isSelected: false
+        isSelected: false,
+        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)]
       });
     }
     return mockItems;
@@ -639,13 +661,16 @@ export default function StockCheckReviewScreen({
   const getFilteredItems = (tab: ReviewTab): StockItem[] => {
     switch (tab) {
       case 'not-scanned':
-        return reviewItems.filter(item => !item.isScanned && item.status === 'Available');
+        // Show all items that are not scanned, regardless of status
+        return reviewItems.filter(item => !item.isScanned);
       case 'not-found':
-        return reviewItems.filter(item => item.status === 'Missing');
+        // Show scanned items that don't exist in the store app (unexpected items)
+        return reviewItems.filter(item => item.isScanned && item.id.startsWith('unexpected-item-'));
       case 'all-included':
         return reviewItems; // All items
       case 'scanned':
-        return reviewItems.filter(item => item.isScanned || item.status === 'Scanned');
+        // Show all scanned items, regardless of status
+        return reviewItems.filter(item => item.isScanned && !item.id.startsWith('unexpected-item-'));
       default:
         return [];
     }
@@ -654,10 +679,10 @@ export default function StockCheckReviewScreen({
   // Get counts for each tab
   const getCounts = (): Record<ReviewTab, number> => {
     return {
-      'not-scanned': reviewItems.filter(item => !item.isScanned && item.status === 'Available').length,
-      'not-found': reviewItems.filter(item => item.status === 'Missing').length,
+      'not-scanned': reviewItems.filter(item => !item.isScanned).length,
+      'not-found': reviewItems.filter(item => item.isScanned && item.id.startsWith('unexpected-item-')).length,
       'all-included': reviewItems.length,
-      'scanned': reviewItems.filter(item => item.isScanned || item.status === 'Scanned').length
+      'scanned': reviewItems.filter(item => item.isScanned && !item.id.startsWith('unexpected-item-')).length
     };
   };
 
@@ -722,10 +747,12 @@ export default function StockCheckReviewScreen({
     setReviewItems(prev => prev.map(item => {
       if (selectedItems.has(item.id)) {
         updatedCount++;
+        // Keep isScanned as is - don't change it based on status update
+        // Items should stay in their current tab (Not scanned, Scanned, etc.)
         const updatedItem = {
           ...item,
           status: status,
-          isScanned: status === 'Available',
+          // isScanned remains unchanged so items stay in same tab
           ...(unflagExpired && item.isExpired ? {
             isExpired: false,
             expiredFlaggedAt: undefined,
@@ -762,13 +789,15 @@ export default function StockCheckReviewScreen({
     }
   };
 
-  const handleUpdateStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken') => {
+  const handleUpdateStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Available' | 'Broken') => {
     setReviewItems(prev => prev.map(item => {
       if (item.id === itemId) {
+        // Keep isScanned as is - don't change it based on status update
+        // Items should stay in their current tab (Not scanned, Scanned, etc.)
         const updatedItem = {
           ...item,
-          status: newStatus,
-          isScanned: newStatus === 'Scanned' || newStatus === 'Found' || newStatus === 'Available'
+          status: newStatus
+          // isScanned remains unchanged so item stays in same tab
         } as StockItem;
         return updatedItem;
       }
@@ -777,9 +806,9 @@ export default function StockCheckReviewScreen({
 
     // Call parent handler - convert statuses appropriately
     const parentStatus = newStatus === 'Found' || newStatus === 'Available' 
-      ? 'Scanned' 
+      ? 'Available' 
       : newStatus;
-    onUpdateItemStatus(itemId, parentStatus as 'Missing' | 'Found' | 'Scanned' | 'Available' | 'Broken');
+    onUpdateItemStatus(itemId, parentStatus as 'Missing' | 'Found' | 'Available' | 'Broken');
   };
 
   const handleMoreActions = (itemId: string) => {

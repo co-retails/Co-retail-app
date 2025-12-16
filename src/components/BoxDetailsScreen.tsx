@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, Package, MoreVertical, CheckCircle2, XCircle } from 'lucide-react';
 import { Box } from './ReceiveDeliveryScreen';
-import { ImageWithFallback } from './figma/ImageWithFallback';
 import { ItemCard, BaseItem } from './ItemCard';
 import {
   DropdownMenu,
@@ -41,21 +40,34 @@ function TopAppBar({
   box,
   onMarkDelivered,
   onMarkRejected,
-  userRole,
-  deliveryStatus
+  userRole
 }: { 
   onBack: () => void;
   box: Box;
   onMarkDelivered?: () => void;
   onMarkRejected?: () => void;
   userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
-  deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Pending' | 'Packing';
 }) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  
   const canManageBox = userRole === 'admin' || userRole === 'store-staff' || userRole === 'store-manager';
-  const isInTransit = box.status === 'In transit' || box.status === 'in-transit';
+  // Show menu for any box with status "In transit", regardless of delivery status
+  const isInTransit = box.status === 'In transit';
   const showMarkDelivered = canManageBox && isInTransit && onMarkDelivered;
   const showMarkRejected = canManageBox && isInTransit && onMarkRejected;
   const showMenu = showMarkDelivered || showMarkRejected;
+  
+  // Debug logging
+  console.log('BoxDetailsScreen - Debug:', {
+    userRole,
+    canManageBox,
+    boxStatus: box.status,
+    isInTransit,
+    hasOnMarkDelivered: !!onMarkDelivered,
+    hasOnMarkRejected: !!onMarkRejected,
+    showMenu,
+    dropdownOpen
+  });
 
   return (
     <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
@@ -76,7 +88,10 @@ function TopAppBar({
 
         {/* More menu */}
         {showMenu && (
-          <DropdownMenu modal={false}>
+          <DropdownMenu open={dropdownOpen} onOpenChange={(open) => {
+            console.log('DropdownMenu onOpenChange:', open);
+            setDropdownOpen(open);
+          }}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
@@ -89,12 +104,12 @@ function TopAppBar({
             <DropdownMenuContent 
               align="end" 
               sideOffset={4}
-              className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64 !z-[10000]"
-              onClick={(e) => e.stopPropagation()}
+              className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64 z-[10001]"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               {showMarkDelivered && (
                 <DropdownMenuItem
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     onMarkDelivered?.();
                   }}
@@ -106,7 +121,7 @@ function TopAppBar({
               )}
               {showMarkRejected && (
                 <DropdownMenuItem
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     onMarkRejected?.();
                   }}
@@ -241,8 +256,7 @@ export default function BoxDetailsScreen({
   onBack,
   onMarkDelivered,
   onMarkRejected,
-  userRole,
-  deliveryStatus
+  userRole
 }: BoxDetailsScreenProps) {
   // Update item statuses if box is delivered - items should not be "In transit" anymore
   const updatedItems = box.status === 'Delivered' 
@@ -261,7 +275,6 @@ export default function BoxDetailsScreen({
         onMarkDelivered={onMarkDelivered}
         onMarkRejected={onMarkRejected}
         userRole={userRole}
-        deliveryStatus={deliveryStatus}
       />
       
       {/* Content */}

@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Edit3, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw } from "lucide-react";
+import { Edit3, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw, Flag, MapPin } from "lucide-react";
 import type { StatusHistoryEntry } from './ItemDetailsDialog';
 
 // Base item interface that works for both Item and OrderItem
@@ -37,6 +37,7 @@ export interface BaseItem {
   statusHistory?: StatusHistoryEntry[];
   rejectReason?: 'Broken on arrival' | 'Not accepted brand' | 'Not in season';
   lastInStoreAt?: string;
+  location?: 'Warehouse' | 'In transit' | 'Shopfloor' | 'Back of House' | 'Partner';
   // Order-specific fields
   partnerItemId?: string;
   retailerItemId?: string;
@@ -48,6 +49,7 @@ export interface BaseItem {
   expiredPostponeWeeks?: number;
   isArchived?: boolean;
   archivedAt?: string;
+  boxLabel?: string;
 }
 
 export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
@@ -96,6 +98,7 @@ interface ItemCardProps {
   hideSellerName?: boolean;
   showExternalIdOnly?: boolean;
   showBothIds?: boolean;
+  hideMissingAction?: boolean;
 }
 
 export const ItemCard = memo(function ItemCard({ 
@@ -111,7 +114,8 @@ export const ItemCard = memo(function ItemCard({
   orderDetailsConfig,
   hideSellerName = false,
   showExternalIdOnly = false,
-  showBothIds = false
+  showBothIds = false,
+  hideMissingAction = false
 }: ItemCardProps) {
   const thumbnailSrc = (item.image as string | undefined) || item.thumbnail || undefined;
   const renderThumbnailFallback = (variant: 'card' | 'list') => (
@@ -148,10 +152,38 @@ export const ItemCard = memo(function ItemCard({
     }
     return undefined;
   };
+
+  // Calculate days in store from lastInStoreAt
+  const calculateDaysInStore = (): number | null => {
+    const timestamp = getLastInStoreTimestamp();
+    if (timestamp === undefined) return null;
+    const now = new Date();
+    const diffTime = now.getTime() - timestamp;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays : null;
+  };
+
+  // Calculate days expired from expiredFlaggedAt
+  const calculateDaysExpired = (): number | null => {
+    if (!item.expiredFlaggedAt) return null;
+    try {
+      const expiredDate = new Date(item.expiredFlaggedAt);
+      const now = new Date();
+      const diffTime = now.getTime() - expiredDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 ? diffDays : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const daysInStore = calculateDaysInStore();
+  const daysExpired = item.isExpired ? calculateDaysExpired() : null;
   const canRejectItem = () => {
     if (!onMoreActions) return false;
     if (userRole !== 'admin') return false;
-    if (!item.status || item.status.toLowerCase() !== 'available') return false;
+    const status = item.status?.toLowerCase();
+    if (!status || (status !== 'available' && status !== 'in store')) return false;
     const timestamp = getLastInStoreTimestamp();
     if (timestamp === undefined) return false;
     return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
@@ -176,52 +208,38 @@ export const ItemCard = memo(function ItemCard({
         actions.push({ action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
       }
       actions.push(
-        { action: 'mark-missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
         { action: 'mark-broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
       );
-      if (canRejectItem() || (status === 'in store' && isAdmin)) {
+      if (canRejectItem()) {
         actions.push({ action: 'mark-rejected', label: 'Rejected', icon: <Ban className="mr-2 h-4 w-4" />, className: 'text-error' });
-      }
-    } else if (status === 'storage') {
-      actions.push(
-        { action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
-        { action: 'mark-return-transit', label: 'In transit (return)', icon: <RotateCcw className="mr-2 h-4 w-4" /> },
-        { action: 'mark-missing', label: 'Missing', icon: <AlertTriangle className="mr-2 h-4 w-4" /> },
-        { action: 'mark-broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
-      );
-      if (isAdmin) {
-        actions.splice(1, 0, { action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
       }
     } else if (status === 'missing') {
       actions.push(
-        { action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
+        { action: 'mark-available', label: 'Available', icon: <Package className="mr-2 h-4 w-4" /> },
         { action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> }
       );
-    } else if (status === 'sold') {
-      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
     } else if (status === 'pending') {
       // For ScanScreen: Pending items can be marked as In Store
-      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
-    } else if (status === 'broken') {
-      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
-    } else if (status === 'rejected') {
       actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
     } else if (status === 'expired') {
       actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
     } else if (status === 'draft') {
       // For ItemsScreen: Draft items can be marked as Available
       actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
-    } else if (status === 'returned') {
-      // For ItemsScreen: Returned items can be marked as Available
-      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
     }
+    // No actions for: sold, broken, rejected, returned
 
     // Add "Unflag expired" option for items with expired flag (regardless of status)
     if (item.isExpired) {
       actions.push({ action: 'unflag-expired', label: 'Unflag expired', icon: <RotateCcw className="mr-2 h-4 w-4" /> });
     }
 
-    return actions;
+    // Filter out "Missing" action if hideMissingAction is true
+    const filteredActions = hideMissingAction 
+      ? actions.filter(action => action.action !== 'mark-missing')
+      : actions;
+
+    return filteredActions;
   };
   const getStatusColor = (status?: string) => {
     if (!status) return 'text-on-surface-variant';
@@ -567,7 +585,7 @@ export const ItemCard = memo(function ItemCard({
         )}
         
         {/* Thumbnail */}
-        <div className="flex-shrink-0 w-12 h-[68px] bg-[rgba(0,0,0,0.08)] rounded flex items-center justify-center overflow-hidden">
+        <div className={`flex-shrink-0 w-12 h-[68px] bg-[rgba(0,0,0,0.08)] rounded flex items-center justify-center overflow-hidden ${!showSelection ? 'ml-3' : ''}`}>
           <ImageWithFallback 
             src={thumbnailSrc}
             alt={item.title || item.brand}
@@ -627,6 +645,13 @@ export const ItemCard = memo(function ItemCard({
             </div>
           </div>
           
+          {/* Line 4.5: Box Label */}
+          {item.boxLabel && (
+            <div className="label-small text-on-surface-variant mb-0.5">
+              Box label: {item.boxLabel}
+            </div>
+          )}
+          
           {/* Line 5: Seller */}
           {!hideSellerName && (
             <div className="body-small text-on-surface truncate">
@@ -643,13 +668,29 @@ export const ItemCard = memo(function ItemCard({
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-0 h-full">
           {/* Price and Days */}
-          <div className="flex flex-col items-end justify-center h-full px-0">
+          <div className={`flex flex-col items-end justify-center h-full px-0 ${!(showActions && onMoreActions && availableActions.length > 0) ? 'pr-12' : ''}`}>
             <div className="title-small text-on-surface whitespace-nowrap">
               €{item.price.toFixed(2)}
             </div>
-            {item.daysRemaining !== undefined && (
-              <div className="label-small text-on-surface whitespace-nowrap">
-                {item.daysRemaining} days
+            {item.isExpired ? (
+              // For expired items, show days in store
+              daysInStore !== null && (
+                <div className="label-small text-on-surface whitespace-nowrap">
+                  {daysInStore} {daysInStore === 1 ? 'day' : 'days'} in store
+                </div>
+              )
+            ) : (
+              // For non-expired items, show days remaining if available
+              item.daysRemaining !== undefined && (
+                <div className="label-small text-on-surface whitespace-nowrap">
+                  {item.daysRemaining} {item.daysRemaining === 1 ? 'day' : 'days'}
+                </div>
+              )
+            )}
+            {daysExpired !== null && (
+              <div className="label-small text-warning whitespace-nowrap flex items-center gap-1 mt-0.5">
+                <Flag className="w-3 h-3" />
+                {daysExpired} {daysExpired === 1 ? 'day' : 'days'} Expired
               </div>
             )}
           </div>

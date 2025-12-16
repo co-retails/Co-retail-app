@@ -31,7 +31,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Textarea } from "./ui/textarea";
-import { Archive, Edit3, X, FilterIcon } from "lucide-react";
+import { Edit3, X, FilterIcon, RefreshCw } from "lucide-react";
 import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { ItemCard, BaseItem, ItemQuickAction } from './ItemCard';
@@ -52,7 +52,7 @@ export interface Item extends BaseItem {
   size?: string;
   color?: string;
   price: number;
-  status: 'Draft' | 'In transit' | 'Available' | 'Storage' | 'Sold' | 'Returned' | 'Missing' | 'Broken' | 'Rejected';
+  status: 'Draft' | 'In transit' | 'Available' | 'Sold' | 'Returned' | 'Missing' | 'Broken' | 'Rejected';
   date: string;
   deliveryId?: string;
   boxLabel?: string;
@@ -66,7 +66,7 @@ export interface Item extends BaseItem {
   statusHistory?: StatusHistoryEntry[];
   rejectReason?: 'Broken on arrival' | 'Not accepted brand' | 'Not in season';
   lastInStoreAt?: string;
-  location?: 'Warehouse' | 'In Store' | 'Back of House' | 'Partner' | 'In transit';
+  location?: 'Warehouse' | 'In transit' | 'Shopfloor' | 'Back of House' | 'Partner';
   isExpired?: boolean;
   expiredFlaggedAt?: string;
   expiredPostponeWeeks?: number;
@@ -97,6 +97,7 @@ interface ItemsScreenProps {
   countries?: CountryRecord[];
   stores?: StoreRecord[];
   onCreateReturn?: (items: Item[]) => void;
+  expireTimeWeeks?: number; // Expire time setting for the store (in weeks)
 }
 
 function SearchBar({ searchTerm, onSearchChange, onFilterClick }: { 
@@ -174,17 +175,33 @@ function QuickFilterChips({
   itemCounts: Record<string, number>;
   isPartnerPortal?: boolean;
 }) {
+  const getAvailableLabel = () => {
+    if (activeFilter === 'available-shopfloor') return 'Available: Shopfloor';
+    if (activeFilter === 'available-back-of-house') return 'Available: Back of House';
+    return 'Available';
+  };
+
+  const handleAvailableClick = () => {
+    if (activeFilter === 'available') {
+      onFilterChange('available-shopfloor');
+    } else if (activeFilter === 'available-shopfloor') {
+      onFilterChange('available-back-of-house');
+    } else if (activeFilter === 'available-back-of-house') {
+      onFilterChange('available');
+    } else {
+      onFilterChange('available');
+    }
+  };
+
   const filters = isPartnerPortal ? [
     { id: 'all', label: 'All', count: itemCounts.all },
     { id: 'in-shipment', label: 'In transit', count: itemCounts.inShipment },
-    { id: 'available', label: 'Available', count: itemCounts.available },
-    { id: 'storage', label: 'Storage', count: itemCounts.storage },
+    { id: 'available', label: getAvailableLabel(), count: itemCounts.available },
     { id: 'sold', label: 'Sold', count: itemCounts.sold },
     { id: 'return-in-transit', label: 'Return in transit', count: itemCounts.returnInTransit }
   ] : [
     { id: 'all', label: 'All', count: itemCounts.all },
-    { id: 'available', label: 'Available', count: itemCounts.available },
-    { id: 'storage', label: 'Storage', count: itemCounts.storage },
+    { id: 'available', label: getAvailableLabel(), count: itemCounts.available },
     { id: 'expired', label: 'Expired flag', count: itemCounts.expired }
   ];
 
@@ -195,11 +212,11 @@ function QuickFilterChips({
           <button
             key={filter.id}
             className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors ${
-              activeFilter === filter.id
+              activeFilter === filter.id || activeFilter.startsWith(`${filter.id}-`)
                 ? 'bg-secondary-container border-secondary text-on-secondary-container'
                 : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
             }`}
-            onClick={() => onFilterChange(filter.id)}
+            onClick={() => filter.id === 'available' ? handleAvailableClick() : onFilterChange(filter.id)}
           >
             <span className="label-medium whitespace-nowrap">
               {filter.label} ({filter.count})
@@ -531,14 +548,17 @@ function ActiveFiltersDisplay({
 
 
 
-function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
+function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole, activeFilter }: {
   isOpen: boolean;
   onClose: () => void;
   selectedItems: Item[];
   onSave: (updates: Partial<Item>) => void;
+  userRole?: UserRole;
+  activeFilter?: string;
 }) {
   const [formData, setFormData] = useState({
     status: 'none',
+    location: 'none',
     category: '',
     priceReduction: 'none',
     comment: ''
@@ -559,6 +579,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   const handleSave = () => {
     const updates: Partial<Item> = {};
     if (formData.status !== 'none') updates.status = formData.status as Item['status'];
+    if (formData.location !== 'none') updates.location = formData.location as 'Shopfloor' | 'Back of House';
     if (formData.category) updates.category = formData.category;
     if (formData.priceReduction !== 'none') {
       const reductionPercent = parseFloat(formData.priceReduction);
@@ -570,7 +591,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
     }
     
     onSave(updates);
-    setFormData({ status: 'none', category: '', priceReduction: 'none', comment: '' });
+    setFormData({ status: 'none', location: 'none', category: '', priceReduction: 'none', comment: '' });
     onClose();
   };
 
@@ -592,104 +613,192 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
 
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-          {/* Status Field */}
-          <div className="space-y-2">
-            <Label htmlFor="status" className="label-large text-on-surface">
-              Status
-            </Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value: string) =>
-                setFormData(prev => ({ ...prev, status: value as Item['status'] | 'none' }))
-              }
-            >
-              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No change</SelectItem>
-                <SelectItem value="Available">Available</SelectItem>
-                <SelectItem value="Draft">Draft</SelectItem>
-                <SelectItem value="In transit">In transit</SelectItem>
-                <SelectItem value="Storage">Storage</SelectItem>
-                <SelectItem value="Sold">Sold</SelectItem>
-                <SelectItem value="Returned">Returned</SelectItem>
-                <SelectItem value="Missing">Missing</SelectItem>
-                <SelectItem value="Broken">Broken</SelectItem>
-                <SelectItem value="Rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Category Field */}
-          <div className="space-y-2">
-            <Label htmlFor="category" className="label-large text-on-surface">
-              Category
-            </Label>
-            <Select
-              value={formData.category || 'none'}
-              onValueChange={(value: string) =>
-                setFormData(prev => ({ ...prev, category: value === 'none' ? '' : value }))
-              }
-            >
-              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No change</SelectItem>
-                <SelectItem value="Tops">Tops</SelectItem>
-                <SelectItem value="Bottoms">Bottoms</SelectItem>
-                <SelectItem value="Dresses">Dresses</SelectItem>
-                <SelectItem value="Outerwear">Outerwear</SelectItem>
-                <SelectItem value="Shoes">Shoes</SelectItem>
-                <SelectItem value="Accessories">Accessories</SelectItem>
-                <SelectItem value="Hoodie">Hoodie</SelectItem>
-                <SelectItem value="Shorts">Shorts</SelectItem>
-                <SelectItem value="Trousers">Trousers</SelectItem>
-                <SelectItem value="Jackets">Jackets</SelectItem>
-                <SelectItem value="Skirts">Skirts</SelectItem>
-                <SelectItem value="Knitwear">Knitwear</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Price % Reduction Field */}
-          <div className="space-y-2">
-            <Label htmlFor="priceReduction" className="label-large text-on-surface">
-              Price % reduction
-            </Label>
-            <Select
-              value={formData.priceReduction}
-              onValueChange={(value: string) =>
-                setFormData(prev => ({ ...prev, priceReduction: value }))
-              }
-            >
-              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                <SelectValue placeholder="Select reduction" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No change</SelectItem>
-                <SelectItem value="10">10%</SelectItem>
-                <SelectItem value="20">20%</SelectItem>
-                <SelectItem value="30">30%</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Comment Field */}
-          <div className="space-y-2">
-            <Label htmlFor="comment" className="label-large text-on-surface">
-              Comment (optional)
-            </Label>
-            <Textarea
-              id="comment"
-              value={formData.comment}
-              onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
-              className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[80px] body-large resize-none"
-              placeholder="Add a comment..."
-              rows={3}
-            />
-          </div>
+          {/* Determine if we should show limited fields (only for expired or available filters) */}
+          {(() => {
+            const isLimitedMode = activeFilter === 'expired' || 
+                                  activeFilter === 'available' || 
+                                  activeFilter === 'available-shopfloor' || 
+                                  activeFilter === 'available-back-of-house';
+            
+            if (isLimitedMode) {
+              // Limited mode: Only show Price reduction and Location
+              return (
+                <>
+                  {/* Location Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="location" className="label-large text-on-surface">
+                      Location
+                    </Label>
+                    <Select
+                      value={formData.location}
+                      onValueChange={(value: string) =>
+                        setFormData(prev => ({ ...prev, location: value }))
+                      }
+                    >
+                      <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No change</SelectItem>
+                        <SelectItem value="Shopfloor">Shopfloor</SelectItem>
+                        <SelectItem value="Back of House">Back of House</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Price % Reduction Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="priceReduction" className="label-large text-on-surface">
+                      Price % reduction
+                    </Label>
+                    <Select
+                      value={formData.priceReduction}
+                      onValueChange={(value: string) =>
+                        setFormData(prev => ({ ...prev, priceReduction: value }))
+                      }
+                    >
+                      <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                        <SelectValue placeholder="Select reduction" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No change</SelectItem>
+                        <SelectItem value="10">10%</SelectItem>
+                        <SelectItem value="20">20%</SelectItem>
+                        <SelectItem value="30">30%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              );
+            }
+            
+            // Full mode: Show all fields
+            return (
+              <>
+                {/* Status Field - Only show to admins */}
+                {userRole === 'admin' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="status" className="label-large text-on-surface">
+                      Status
+                    </Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value: string) =>
+                        setFormData(prev => ({ ...prev, status: value as Item['status'] | 'none' }))
+                      }
+                    >
+                      <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No change</SelectItem>
+                        <SelectItem value="Available">Available</SelectItem>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="In transit">In transit</SelectItem>
+                        <SelectItem value="Sold">Sold</SelectItem>
+                        <SelectItem value="Returned">Returned</SelectItem>
+                        <SelectItem value="Missing">Missing</SelectItem>
+                        <SelectItem value="Broken">Broken</SelectItem>
+                        <SelectItem value="Rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Location Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="location" className="label-large text-on-surface">
+                    Location
+                  </Label>
+                  <Select
+                    value={formData.location}
+                    onValueChange={(value: string) =>
+                      setFormData(prev => ({ ...prev, location: value }))
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No change</SelectItem>
+                      <SelectItem value="Shopfloor">Shopfloor</SelectItem>
+                      <SelectItem value="Back of House">Back of House</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Category Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="category" className="label-large text-on-surface">
+                    Category
+                  </Label>
+                  <Select
+                    value={formData.category || 'none'}
+                    onValueChange={(value: string) =>
+                      setFormData(prev => ({ ...prev, category: value === 'none' ? '' : value }))
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No change</SelectItem>
+                      <SelectItem value="Tops">Tops</SelectItem>
+                      <SelectItem value="Bottoms">Bottoms</SelectItem>
+                      <SelectItem value="Dresses">Dresses</SelectItem>
+                      <SelectItem value="Outerwear">Outerwear</SelectItem>
+                      <SelectItem value="Shoes">Shoes</SelectItem>
+                      <SelectItem value="Accessories">Accessories</SelectItem>
+                      <SelectItem value="Hoodie">Hoodie</SelectItem>
+                      <SelectItem value="Shorts">Shorts</SelectItem>
+                      <SelectItem value="Trousers">Trousers</SelectItem>
+                      <SelectItem value="Jackets">Jackets</SelectItem>
+                      <SelectItem value="Skirts">Skirts</SelectItem>
+                      <SelectItem value="Knitwear">Knitwear</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Price % Reduction Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="priceReduction" className="label-large text-on-surface">
+                    Price % reduction
+                  </Label>
+                  <Select
+                    value={formData.priceReduction}
+                    onValueChange={(value: string) =>
+                      setFormData(prev => ({ ...prev, priceReduction: value }))
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                      <SelectValue placeholder="Select reduction" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No change</SelectItem>
+                      <SelectItem value="10">10%</SelectItem>
+                      <SelectItem value="20">20%</SelectItem>
+                      <SelectItem value="30">30%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Comment Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="comment" className="label-large text-on-surface">
+                    Comment (optional)
+                  </Label>
+                  <Textarea
+                    id="comment"
+                    value={formData.comment}
+                    onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
+                    className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[80px] body-large resize-none"
+                    placeholder="Add a comment..."
+                    rows={3}
+                  />
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Footer - Fixed at bottom */}
@@ -733,7 +842,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1732475530169-70c2cda1712f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTE5NDA5MHww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 28,
     lastInStoreAt: '2024-11-29T10:30:00.000Z',
     statusHistory: [
@@ -775,7 +884,7 @@ export const initialItems: Item[] = [
     size: 'M',
     color: 'White',
     price: 5,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-20',
     deliveryId: 'DEL-0981',
     sellerName: 'Thrifted',
@@ -788,7 +897,7 @@ export const initialItems: Item[] = [
       { status: 'Draft', timestamp: '2024-11-15 14:20', user: 'John D.' },
       { status: 'In transit', timestamp: '2024-11-16 07:10', user: 'System' },
       { status: 'Available', timestamp: '2024-11-17 10:45', user: 'John D.' },
-      { status: 'Storage', timestamp: '2024-12-01 09:00', user: 'Anna S.', note: 'Temporarily removed from floor' }
+      { status: 'Available', timestamp: '2024-12-01 09:00', user: 'Anna S.', note: 'Temporarily removed from floor' }
     ]
   },
   {
@@ -807,7 +916,7 @@ export const initialItems: Item[] = [
     source: 'Thrifted',
     thumbnail: 'https://images.unsplash.com/photo-1761090617068-f1b3257d27ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwdG9wc3xlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 0,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-05 12:30', user: 'Anna S.' },
@@ -836,7 +945,7 @@ export const initialItems: Item[] = [
     orderType: 'return',
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-07 11:20', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-25 09:00', user: 'System', note: 'Marked for return' },
+      { status: 'Available', timestamp: '2024-11-25 09:00', user: 'System', note: 'Marked for return' },
       { status: 'In transit', timestamp: '2024-11-27 08:45', user: 'System', note: 'Return shipment' },
       { status: 'Returned', timestamp: '2024-12-01 16:32', user: 'Partner Warehouse' }
     ]
@@ -857,7 +966,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1534445347662-670a224a28ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaG9ydHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OHww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 18,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-19 09:00', user: 'Anna S.' },
@@ -904,7 +1013,7 @@ export const initialItems: Item[] = [
     lastInStoreAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     thumbnail: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cm91c2VycyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 0,
     rejectReason: 'Broken on arrival',
     statusHistory: [
@@ -952,7 +1061,7 @@ export const initialItems: Item[] = [
     location: 'In transit',
     daysRemaining: 40,
     statusHistory: [
-      { status: 'Storage', timestamp: '2024-12-01 08:00', user: 'Anna S.', note: 'Marked for return shipment' },
+      { status: 'Available', timestamp: '2024-12-01 08:00', user: 'Anna S.', note: 'Marked for return shipment' },
       { status: 'In transit', timestamp: '2024-12-03 12:00', user: 'System', note: 'Return pickup completed' }
     ]
   },
@@ -966,19 +1075,20 @@ export const initialItems: Item[] = [
     color: 'Black',
     price: 22,
     status: 'Available',
-    date: '2024-11-15',
+    date: '2024-06-24',
     deliveryId: 'DEL-0820',
     sellerName: 'Sellpy Operations',
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 5,
     isExpired: true,
+    lastInStoreAt: '2024-06-24T10:00:00.000Z',
     expiredFlaggedAt: '2024-11-30T10:00:00.000Z',
     expiredPostponeWeeks: 8,
     statusHistory: [
-      { status: 'Available', timestamp: '2024-11-16 10:00', user: 'Anna S.' },
+      { status: 'Available', timestamp: '2024-06-24 10:00', user: 'Anna S.' },
       { status: 'Available', timestamp: '2024-11-30 10:00', user: 'System', note: 'Expired flag applied' }
     ]
   },
@@ -992,7 +1102,7 @@ export const initialItems: Item[] = [
     size: 'L',
     color: 'Light Wash',
     price: 45,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-28',
     deliveryId: 'DEL-0920',
     boxLabel: 'BOX-456789',
@@ -1004,7 +1114,7 @@ export const initialItems: Item[] = [
     daysRemaining: 12,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-20 10:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-28 14:30', user: 'Anna S.', note: 'Temporarily moved to storage' }
+      { status: 'Available', timestamp: '2024-11-28 14:30', user: 'Anna S.', note: 'Temporarily moved to storage' }
     ]
   },
   {
@@ -1024,7 +1134,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-12-01T10:00:00.000Z',
     daysRemaining: 39,
     statusHistory: [
@@ -1042,7 +1152,7 @@ export const initialItems: Item[] = [
     size: '30/32',
     color: 'Dark Blue',
     price: 35,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-25',
     deliveryId: 'DEL-0910',
     boxLabel: 'BOX-111222',
@@ -1054,7 +1164,7 @@ export const initialItems: Item[] = [
     daysRemaining: 15,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-18 11:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-25 16:00', user: 'John D.', note: 'Seasonal rotation' }
+      { status: 'Available', timestamp: '2024-11-25 16:00', user: 'John D.', note: 'Seasonal rotation' }
     ]
   },
   {
@@ -1074,7 +1184,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXJkaWdhbiUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 0,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-15 09:30', user: 'Anna S.' },
@@ -1090,7 +1200,7 @@ export const initialItems: Item[] = [
     size: 'M',
     color: 'Black',
     price: 20,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-20',
     deliveryId: 'DEL-0880',
     boxLabel: 'BOX-555666',
@@ -1102,7 +1212,7 @@ export const initialItems: Item[] = [
     daysRemaining: 20,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-12 10:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-20 15:00', user: 'Anna S.', note: 'Space optimization' }
+      { status: 'Available', timestamp: '2024-11-20 15:00', user: 'Anna S.', note: 'Space optimization' }
     ]
   },
   {
@@ -1146,7 +1256,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 25,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-10 09:00', user: 'Anna S.' },
@@ -1170,7 +1280,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzd2VhdGVyJTIwZmFzaGlvbnxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 22,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-12 10:00', user: 'Anna S.' },
@@ -1215,7 +1325,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-12-03T09:00:00.000Z',
     daysRemaining: 37,
     statusHistory: [
@@ -1241,7 +1351,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1542272604-787c3835535d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqZWFucyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-11-30T11:00:00.000Z',
     daysRemaining: 40,
     statusHistory: [
@@ -1267,7 +1377,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-12-01T10:30:00.000Z',
     daysRemaining: 39,
     statusHistory: [
@@ -1309,7 +1419,7 @@ export const initialItems: Item[] = [
     size: '30',
     color: 'Olive',
     price: 42,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-22',
     deliveryId: 'DEL-0990',
     boxLabel: 'BOX-334455',
@@ -1321,7 +1431,7 @@ export const initialItems: Item[] = [
     daysRemaining: 18,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-15 10:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-22 14:00', user: 'John D.', note: 'Seasonal storage' }
+      { status: 'Available', timestamp: '2024-11-22 14:00', user: 'John D.', note: 'Seasonal storage' }
     ]
   },
   {
@@ -1341,7 +1451,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzd2VhdGVyJTIwZmFzaGlvbnxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 0,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-13 09:00', user: 'Anna S.' },
@@ -1365,7 +1475,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-11-28T10:00:00.000Z',
     daysRemaining: 32,
     statusHistory: [
@@ -1391,7 +1501,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 22,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-12 09:00', user: 'Anna S.' },
@@ -1415,7 +1525,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 15,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-18 10:00', user: 'Anna S.' },
@@ -1466,7 +1576,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1566228015669-35f772688809?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3aGl0ZSUyMHNob3J0c3xlbnwxfHx8fDE3NjEyODk0NDh8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-12-02T09:30:00.000Z',
     daysRemaining: 38,
     statusHistory: [
@@ -1505,7 +1615,7 @@ export const initialItems: Item[] = [
     size: 'M',
     color: 'Blue/White',
     price: 15,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-26',
     deliveryId: 'DEL-1060',
     boxLabel: 'BOX-889900',
@@ -1517,7 +1627,7 @@ export const initialItems: Item[] = [
     daysRemaining: 14,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-19 10:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-26 15:00', user: 'John D.', note: 'Space optimization' }
+      { status: 'Available', timestamp: '2024-11-26 15:00', user: 'John D.', note: 'Space optimization' }
     ]
   },
   {
@@ -1537,7 +1647,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 0,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-12 09:00', user: 'Anna S.' },
@@ -1585,7 +1695,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cm91c2VycyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-11-29T10:00:00.000Z',
     daysRemaining: 31,
     statusHistory: [
@@ -1611,7 +1721,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 20,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-14 09:00', user: 'Anna S.' },
@@ -1635,7 +1745,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 17,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-16 10:00', user: 'Anna S.' },
@@ -1651,7 +1761,7 @@ export const initialItems: Item[] = [
     size: '30',
     color: 'Brown',
     price: 36,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-24',
     deliveryId: 'DEL-1120',
     boxLabel: 'BOX-223344',
@@ -1663,7 +1773,7 @@ export const initialItems: Item[] = [
     daysRemaining: 16,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-17 10:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-24 15:00', user: 'John D.', note: 'Seasonal storage' }
+      { status: 'Available', timestamp: '2024-11-24 15:00', user: 'John D.', note: 'Seasonal storage' }
     ]
   },
   {
@@ -1683,7 +1793,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-12-04T09:00:00.000Z',
     daysRemaining: 36,
     statusHistory: [
@@ -1702,7 +1812,7 @@ export const initialItems: Item[] = [
     size: 'L',
     color: 'White',
     price: 8,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-25',
     deliveryId: 'DEL-1020',
     sellerName: 'Sellpy Operations',
@@ -1713,7 +1823,7 @@ export const initialItems: Item[] = [
     daysRemaining: 15,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-18 10:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-25 16:00', user: 'John D.', note: 'Overstock management' }
+      { status: 'Available', timestamp: '2024-11-25 16:00', user: 'John D.', note: 'Overstock management' }
     ]
   },
   {
@@ -1732,7 +1842,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-12-02T10:00:00.000Z',
     daysRemaining: 38,
     statusHistory: [
@@ -1750,7 +1860,7 @@ export const initialItems: Item[] = [
     size: '32/32',
     color: 'Dark Blue',
     price: 25,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-20',
     deliveryId: 'DEL-1015',
     sellerName: 'Sellpy Operations',
@@ -1761,7 +1871,7 @@ export const initialItems: Item[] = [
     daysRemaining: 20,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-12 11:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-20 15:00', user: 'John D.', note: 'Inventory rotation' }
+      { status: 'Available', timestamp: '2024-11-20 15:00', user: 'John D.', note: 'Inventory rotation' }
     ]
   },
   {
@@ -1780,7 +1890,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXJkaWdhbiUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 0,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-10 09:30', user: 'Anna S.' },
@@ -1796,7 +1906,7 @@ export const initialItems: Item[] = [
     size: 'M',
     color: 'Black',
     price: 18,
-    status: 'Storage',
+    status: 'Available',
     date: '2024-11-22',
     deliveryId: 'DEL-1012',
     sellerName: 'Sellpy Operations',
@@ -1807,7 +1917,7 @@ export const initialItems: Item[] = [
     daysRemaining: 18,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-15 10:00', user: 'Anna S.' },
-      { status: 'Storage', timestamp: '2024-11-22 14:00', user: 'Anna S.', note: 'Space optimization' }
+      { status: 'Available', timestamp: '2024-11-22 14:00', user: 'Anna S.', note: 'Space optimization' }
     ]
   },
   {
@@ -1848,7 +1958,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 28,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-08 09:00', user: 'Anna S.' },
@@ -1871,7 +1981,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzd2VhdGVyJTIwZmFzaGlvbnxlbnwxfHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 25,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-10 10:00', user: 'Anna S.' },
@@ -1915,7 +2025,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     lastInStoreAt: '2024-11-30T10:00:00.000Z',
     daysRemaining: 30,
     statusHistory: [
@@ -1940,7 +2050,7 @@ export const initialItems: Item[] = [
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
     selected: false,
-    location: 'In Store',
+    location: 'Shopfloor',
     daysRemaining: 40,
     statusHistory: [
       { status: 'Available', timestamp: '2024-11-05 09:00', user: 'Anna S.' },
@@ -1954,15 +2064,19 @@ function MultiSelectActions({
   totalCount,
   isAllSelected,
   onSelectAll,
-  onArchive,
-  onBulkEdit
+  onBulkEdit,
+  onUnflagExpired,
+  hasExpiredItems,
+  activeFilter
 }: {
   selectedCount: number;
   totalCount: number;
   isAllSelected: boolean;
   onSelectAll: () => void;
-  onArchive: () => void;
   onBulkEdit: () => void;
+  onUnflagExpired?: () => void;
+  hasExpiredItems?: boolean;
+  activeFilter?: string;
 }) {
   // Don't show if there are no items
   if (totalCount === 0) return null;
@@ -2028,11 +2142,15 @@ function MultiSelectActions({
                 <Edit3 className="mr-2 h-4 w-4" />
                 <span>Bulk edit</span>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onArchive}>
-                <Archive className="mr-2 h-4 w-4" />
-                <span>Archive selected</span>
-              </DropdownMenuItem>
+              {activeFilter === 'expired' && hasExpiredItems && onUnflagExpired && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onUnflagExpired}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    <span>Unflag expired</span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -2051,7 +2169,8 @@ export default function ItemsScreen({
   brands = [] as BrandRecord[],
   countries = [] as CountryRecord[],
   stores = [] as StoreRecord[],
-  onCreateReturn
+  onCreateReturn,
+  expireTimeWeeks
 }: ItemsScreenProps) {
   const [quickFilter, setQuickFilter] = useState('all');
   const [quickSearchTerm, setQuickSearchTerm] = useState('');
@@ -2248,9 +2367,6 @@ export default function ItemsScreen({
           case 'available':
             matchesQuickFilter = item.status === 'Available';
             break;
-          case 'storage':
-            matchesQuickFilter = item.status === 'Storage';
-            break;
           case 'sold':
             matchesQuickFilter = item.status === 'Sold';
             break;
@@ -2261,15 +2377,17 @@ export default function ItemsScreen({
             matchesQuickFilter = true;
         }
       } else {
-        matchesQuickFilter =
-          (quickFilter === 'available' &&
-            (item.status === 'Available' ||
-             item.status === 'Missing' ||
-             item.status === 'Broken' ||
-             item.status === 'Sold' ||
-             item.status === 'Returned')) ||
-          (quickFilter === 'storage' && item.status === 'Storage') ||
-          (quickFilter === 'expired' && Boolean(item.isExpired));
+        if (quickFilter === 'available') {
+          matchesQuickFilter = item.status === 'Available';
+        } else if (quickFilter === 'available-shopfloor') {
+          matchesQuickFilter = item.status === 'Available' && item.location === 'Shopfloor';
+        } else if (quickFilter === 'available-back-of-house') {
+          matchesQuickFilter = item.status === 'Available' && item.location === 'Back of House';
+        } else if (quickFilter === 'expired') {
+          matchesQuickFilter = Boolean(item.isExpired);
+        } else {
+          matchesQuickFilter = true;
+        }
       }
       
       // Advanced filter sheet filters
@@ -2277,6 +2395,7 @@ export default function ItemsScreen({
       const matchesCategory = itemFilters.category === 'all' || item.category === itemFilters.category;
       const matchesStatus = itemFilters.status === 'all' || item.status === itemFilters.status;
       const matchesColour = itemFilters.colour === 'all' || item.color === itemFilters.colour;
+      const matchesLocation = itemFilters.location === 'all' || item.location === itemFilters.location;
       const matchesPrice = item.price >= itemFilters.priceRange[0] && item.price <= itemFilters.priceRange[1];
       
       // ViewFilter filters (for partner portal - filter by brand/store/country)
@@ -2298,14 +2417,33 @@ export default function ItemsScreen({
       }
       
       return matchesPartner && matchesQuickSearch && matchesQuickFilter && 
-             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesPrice && matchesViewFilter;
+             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesLocation && matchesPrice && matchesViewFilter;
     }).map(item => {
+      // Set location based on status if not already set
+      let itemWithLocation = item;
+      if (item.status === 'Draft' || item.status === 'Returned') {
+        if (!item.location || item.location !== 'Warehouse') {
+          itemWithLocation = { ...item, location: 'Warehouse' };
+        }
+      } else if (item.status === 'In transit') {
+        if (!item.location || item.location !== 'In transit') {
+          itemWithLocation = { ...item, location: 'In transit' };
+        }
+      } else if (item.status === 'Available' && !item.location) {
+        // Default available items to Shopfloor if no location set
+        itemWithLocation = { ...item, location: 'Shopfloor' };
+      } else if ((item.status === 'Broken' || item.status === 'Rejected') && item.location !== 'Back of House') {
+        itemWithLocation = { ...item, location: 'Back of House' };
+      } else {
+        itemWithLocation = item;
+      }
+      
       // Remove deliveryId from items with status "Draft"
-      if (item.status === 'Draft') {
-        const { deliveryId, ...itemWithoutDeliveryId } = item;
+      if (itemWithLocation.status === 'Draft') {
+        const { deliveryId, ...itemWithoutDeliveryId } = itemWithLocation;
         return itemWithoutDeliveryId;
       }
-      return item;
+      return itemWithLocation;
     }).sort((a, b) => {
       // Apply sorting
       switch (itemFilters.sortBy) {
@@ -2387,7 +2525,6 @@ export default function ItemsScreen({
       return {
         all: baseItems.length,
         available: baseItems.filter(item => item.status === 'Available').length,
-        storage: baseItems.filter(item => item.status === 'Storage').length,
         sold: baseItems.filter(item => item.status === 'Sold').length,
         inShipment: baseItems.filter(item => item.status === 'In transit').length,
         returnInTransit: baseItems.filter(item => item.status === 'In transit' && item.orderType === 'return').length,
@@ -2397,14 +2534,7 @@ export default function ItemsScreen({
 
     return {
       all: baseItems.length,
-      available: baseItems.filter(item =>
-        item.status === 'Available' ||
-        item.status === 'Missing' ||
-        item.status === 'Broken' ||
-        item.status === 'Sold' ||
-        item.status === 'Returned'
-      ).length,
-      storage: baseItems.filter(item => item.status === 'Storage').length,
+      available: baseItems.filter(item => item.status === 'Available').length,
       expired: baseItems.filter(item => item.isExpired).length,
       inShipment: 0,
       sold: baseItems.filter(item => item.status === 'Sold').length,
@@ -2451,6 +2581,7 @@ export default function ItemsScreen({
             status: 'Available',
             date: isoTimestamp.slice(0, 10),
             lastInStoreAt: isoTimestamp,
+            location: 'Shopfloor',
             rejectReason: undefined,
             statusHistory: [
               ...(item.statusHistory || []),
@@ -2497,6 +2628,7 @@ export default function ItemsScreen({
       case 'category':
       case 'status':
       case 'colour':
+      case 'location':
         newFilters[filterKey] = 'all';
         break;
       case 'priceRange':
@@ -2517,6 +2649,7 @@ export default function ItemsScreen({
            itemFilters.category !== 'all' ||
            itemFilters.status !== 'all' ||
            itemFilters.colour !== 'all' ||
+           itemFilters.location !== 'all' ||
            itemFilters.priceRange[0] !== 0 ||
            itemFilters.priceRange[1] !== 1000 ||
            itemFilters.sortBy !== 'date-desc';
@@ -2536,7 +2669,7 @@ export default function ItemsScreen({
         successMessage = `Item ${item.itemId || item.id} marked as Available`;
         extraUpdates = {
           lastInStoreAt: new Date().toISOString(),
-          location: 'In Store',
+          location: 'Shopfloor',
           isExpired: false
         };
         break;
@@ -2551,6 +2684,7 @@ export default function ItemsScreen({
       case 'mark-sold':
         newStatus = 'Sold';
         successMessage = `Item ${item.itemId || item.id} marked as Sold`;
+        // Keep current location when marking as sold
         break;
       case 'mark-missing':
         newStatus = 'Missing';
@@ -2559,6 +2693,9 @@ export default function ItemsScreen({
       case 'mark-broken':
         newStatus = 'Broken';
         successMessage = `Item ${item.itemId || item.id} marked as Broken`;
+        extraUpdates = {
+          location: 'Back of House'
+        };
         break;
       case 'mark-rejected':
         if (!canRejectItem(fullItem)) {
@@ -2631,6 +2768,7 @@ export default function ItemsScreen({
               ...item,
               status: 'Rejected',
               rejectReason,
+              location: 'Back of House',
               selected: false,
               date: item.date || isoTimestamp.slice(0, 10),
               statusHistory: [
@@ -2650,30 +2788,6 @@ export default function ItemsScreen({
     handleRejectDialogClose();
   };
 
-  const handleArchiveSelected = () => {
-    const selectedIds = selectedItems.map(item => item.id);
-    const archivedAt = new Date().toISOString();
-    setItems(prev => prev.map(item => 
-      selectedIds.includes(item.id) 
-        ? ({ 
-            ...item, 
-            isArchived: true, 
-            archivedAt, 
-            selected: false,
-            statusHistory: [
-              ...(item.statusHistory || []),
-              {
-                status: item.status,
-                timestamp: formatTimestamp(),
-                user: 'Current User',
-                note: 'Archive flag applied'
-              }
-            ]
-          } as Item)
-        : item
-    ));
-    toast.success(`${selectedItems.length} items archived successfully`);
-  };
 
   const handleBulkEdit = () => {
     setShowBulkEditModal(true);
@@ -2689,6 +2803,14 @@ export default function ItemsScreen({
       if (!selectedIds.includes(item.id)) return item;
       
       const itemUpdates: Partial<Item> = { ...updates, selected: false };
+      
+      // Automatically set location based on status changes
+      if (statusChange === 'Available' && !updates.location) {
+        itemUpdates.location = 'Shopfloor';
+        itemUpdates.lastInStoreAt = new Date().toISOString();
+      } else if ((statusChange === 'Broken' || statusChange === 'Rejected') && !updates.location) {
+        itemUpdates.location = 'Back of House';
+      }
       
       // Calculate new price if price reduction is specified
       if (priceReduction && typeof priceReduction === 'number') {
@@ -2742,8 +2864,19 @@ export default function ItemsScreen({
       if (item.id === itemId) {
         const updatedItem = { ...item, ...updates };
         
-        // If status changed, add to history
+        // Set location based on status if status changed
         if (updates.status && updates.status !== item.status) {
+          if (updates.status === 'Draft' || updates.status === 'Returned') {
+            updatedItem.location = 'Warehouse';
+          } else if (updates.status === 'In transit') {
+            updatedItem.location = 'In transit';
+          } else if (updates.status === 'Available') {
+            updatedItem.location = updates.location || 'Shopfloor';
+            updatedItem.lastInStoreAt = new Date().toISOString();
+          } else if (updates.status === 'Broken' || updates.status === 'Rejected') {
+            updatedItem.location = 'Back of House';
+          }
+          
           const newHistoryEntry: StatusHistoryEntry = {
             status: updates.status,
             timestamp: formatTimestamp(),
@@ -2754,10 +2887,6 @@ export default function ItemsScreen({
             ...(item.statusHistory || []),
             newHistoryEntry
           ];
-
-          if (updates.status === 'Available') {
-            updatedItem.lastInStoreAt = new Date().toISOString();
-          }
         }
         
         return updatedItem as Item;
@@ -2784,6 +2913,15 @@ export default function ItemsScreen({
     setItemToUnflagExpired(null);
   };
 
+  const handleUnflagExpiredSelected = () => {
+    // Find the first expired item in the selected items
+    const expiredItem = selectedItems.find(item => item.isExpired);
+    if (expiredItem) {
+      setItemToUnflagExpired(expiredItem);
+      setShowUnflagExpiredSheet(true);
+    }
+  };
+
   const handleBatchStatusUpdate = () => {
     if (batchNewStatus !== 'none') {
       const selectedIds = selectedItems.map(item => item.id);
@@ -2798,9 +2936,22 @@ export default function ItemsScreen({
             note: batchStatusNote || undefined
           };
           
+          // Set location based on new status
+          let location = item.location;
+          if (batchNewStatus === 'Draft' || batchNewStatus === 'Returned') {
+            location = 'Warehouse';
+          } else if (batchNewStatus === 'In transit') {
+            location = 'In transit';
+          } else if (batchNewStatus === 'Available') {
+            location = 'Shopfloor';
+          } else if (batchNewStatus === 'Broken' || batchNewStatus === 'Rejected') {
+            location = 'Back of House';
+          }
+          
           return {
             ...item,
             status: batchNewStatus as Item['status'],
+            location,
             selected: false,
             statusHistory: [
               ...(item.statusHistory || []),
@@ -3017,15 +3168,19 @@ export default function ItemsScreen({
           />
         )}
         
-        {/* Multi-select Actions */}
-        <MultiSelectActions 
-          selectedCount={selectedItems.length}
-          totalCount={filteredItems.length}
-          isAllSelected={paginatedItems.length > 0 && paginatedItems.every(item => item.selected)}
-          onSelectAll={handleSelectAll}
-          onArchive={handleArchiveSelected}
-          onBulkEdit={handleBulkEdit}
-        />
+        {/* Multi-select Actions - Only show when not on 'all' filter */}
+        {quickFilter !== 'all' && (
+          <MultiSelectActions 
+            selectedCount={selectedItems.length}
+            totalCount={filteredItems.length}
+            isAllSelected={paginatedItems.length > 0 && paginatedItems.every(item => item.selected)}
+            onSelectAll={handleSelectAll}
+            onBulkEdit={handleBulkEdit}
+            onUnflagExpired={selectedItems.some(item => item.isExpired) ? handleUnflagExpiredSelected : undefined}
+            hasExpiredItems={selectedItems.some(item => item.isExpired)}
+            activeFilter={quickFilter}
+          />
+        )}
         
         {/* Items List */}
         <div className="space-y-0 mb-4">
@@ -3047,7 +3202,7 @@ export default function ItemsScreen({
                       onMoreActions={(baseItem, action) => handleMoreActions(baseItem as Item, action)}
                       onClick={(baseItem) => handleItemClick(baseItem as Item)}
                       showActions={true}
-                      showSelection={true}
+                      showSelection={quickFilter !== 'all'}
                       userRole={userRole ?? 'store-staff'}
                     />
                   </div>
@@ -3081,6 +3236,8 @@ export default function ItemsScreen({
         onClose={() => setShowBulkEditModal(false)}
         selectedItems={selectedItems}
         onSave={handleBulkEditSave}
+        userRole={userRole}
+        activeFilter={quickFilter}
       />
 
       {/* Item Details Dialog */}
@@ -3092,6 +3249,7 @@ export default function ItemsScreen({
         statusHistory={selectedItemForDetails?.statusHistory}
         priceOptions={partnerPriceOptions}
         priceCurrency={partnerPriceOptions.length ? 'SEK' : undefined}
+        expireTimeWeeks={expireTimeWeeks}
       />
 
       {/* Status Update Dialog */}
@@ -3193,7 +3351,6 @@ export default function ItemsScreen({
                   <SelectItem value="Available">Available</SelectItem>
                   <SelectItem value="Draft">Draft</SelectItem>
                   <SelectItem value="In transit">In transit</SelectItem>
-                  <SelectItem value="Storage">Storage</SelectItem>
                   <SelectItem value="Sold">Sold</SelectItem>
                   <SelectItem value="Returned">Returned</SelectItem>
                   <SelectItem value="Missing">Missing</SelectItem>

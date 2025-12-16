@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Settings, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles } from 'lucide-react';
+import { Settings, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import type { Store, Country, Brand } from './StoreSelector';
@@ -28,6 +28,7 @@ export interface PartnerStats {
   inTransitDeliveries: number;
   totalItemsThisMonth: number;
   inReviewOrders: number;
+  approvalOrders?: number;
 }
 
 // Extended partner order interface with partner and store information
@@ -45,6 +46,7 @@ interface PartnerDashboardProps {
   onCreateOrder: () => void;
   onViewOrders: () => void;
   onViewRegisteredOrders?: () => void;
+  onViewApprovalOrders?: () => void;
   onViewBoxes: () => void;
   onViewDeliveries?: () => void;
   onViewReturns: () => void;
@@ -76,6 +78,7 @@ export default function PartnerDashboard({
   onCreateOrder,
   onViewOrders,
   onViewRegisteredOrders,
+  onViewApprovalOrders,
   onViewBoxes,
   onViewDeliveries,
   onViewReturns,
@@ -248,7 +251,8 @@ export default function PartnerDashboard({
       registeredOrders: filteredOrders.filter(order => order.status === 'registered').length,
       inTransitDeliveries: filteredOrders.filter(order => order.status === 'in-transit').length,
       totalItemsThisMonth: filteredOrders.reduce((sum, order) => sum + order.itemCount, 0),
-      inReviewOrders: filteredOrders.filter(order => order.status === 'in-review').length
+      inReviewOrders: filteredOrders.filter(order => order.status === 'in-review').length,
+      approvalOrders: filteredOrders.filter(order => order.status === 'approval').length
     };
   };
 
@@ -303,6 +307,7 @@ export default function PartnerDashboard({
   const pendingOrdersCount = filteredStats.pendingOrders;
   const activeShipmentsCount = filteredStats.inTransitDeliveries;
   const registeredOrdersCount = filteredStats.registeredOrders;
+  const approvalOrdersCount = filteredStats.approvalOrders || 0;
   const relevantReturnDeliveries = returnDeliveries.filter(delivery => {
     const matchesPartner = !currentPartnerWarehouseSelection.partnerId || delivery.partnerId === currentPartnerWarehouseSelection.partnerId;
     const matchesWarehouse = !currentPartnerWarehouseSelection.warehouseId || delivery.warehouseId === currentPartnerWarehouseSelection.warehouseId;
@@ -310,18 +315,20 @@ export default function PartnerDashboard({
   });
   const inTransitReturnCount = relevantReturnDeliveries.filter(delivery => delivery.status === 'In transit').length;
   const pendingOrdersLabel = `${pendingOrdersCount} pending ${pendingOrdersCount === 1 ? 'order' : 'orders'}`;
+  const approvalOrdersLabel = `${approvalOrdersCount} ${approvalOrdersCount === 1 ? 'order' : 'orders'} awaiting approval`;
   const inTransitReturnsLabel = `${inTransitReturnCount} in transit ${inTransitReturnCount === 1 ? 'return' : 'returns'}`;
   const deliveriesToCompleteCount = filteredDeliveryNotes.filter(note => note.status === 'pending' || note.status === 'packing').length;
   const deliveriesToCompleteLabel = `${deliveriesToCompleteCount} ${deliveriesToCompleteCount === 1 ? 'delivery' : 'deliveries'} pending/packing`;
   const activeShipmentsLabel = `${activeShipmentsCount} active ${activeShipmentsCount === 1 ? 'shipment' : 'shipments'}`;
   const showPendingOrdersAction = pendingOrdersCount > 0;
+  const showApprovalOrdersAction = approvalOrdersCount > 0;
   const showRegisteredOrdersAction = registeredOrdersCount > 0;
   const showReturnsAction = inTransitReturnCount > 0;
   const showDeliveriesAction = deliveriesToCompleteCount > 0;
   const showActiveShipmentsAction = activeShipmentsCount > 0;
   const hasShowroomQuickAction = Boolean(onNavigateToShowroom && currentPartner?.productType === 'white-label');
-  const thriftedHasActionableQuickActions = showPendingOrdersAction || showRegisteredOrdersAction || showDeliveriesAction || showReturnsAction;
-  const otherPartnersHaveActionableQuickActions = showPendingOrdersAction || showActiveShipmentsAction || showReturnsAction || showDeliveriesAction;
+  const thriftedHasActionableQuickActions = showApprovalOrdersAction || showPendingOrdersAction || showRegisteredOrdersAction || showDeliveriesAction || showReturnsAction;
+  const otherPartnersHaveActionableQuickActions = showApprovalOrdersAction || showPendingOrdersAction || showActiveShipmentsAction || showReturnsAction || showDeliveriesAction;
   const quickActionEmptyStateTitle = currentPartnerName ? `${currentPartnerName} is all set` : "You're all set";
   const quickActionEmptyStateDescription = isThriftedPartner
     ? 'No actions needed right now. Create a new Thrifted order whenever you are ready.'
@@ -605,6 +612,24 @@ export default function PartnerDashboard({
           <div>
             <h2 className="title-medium text-on-surface mb-4">Quick actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {showApprovalOrdersAction && (
+                <button
+                  onClick={onViewApprovalOrders}
+                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ffebee' }}>
+                      <CheckCircle2 className="w-5 h-5" style={{ color: '#c62828' }} />
+                    </div>
+                    <div>
+                      <p className="title-small text-on-surface">Orders to approve</p>
+                      <p className="body-small text-on-surface-variant">{approvalOrdersLabel}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                </button>
+              )}
+
               {showPendingOrdersAction && (
                 <button
                   onClick={onViewOrders}
@@ -629,8 +654,8 @@ export default function PartnerDashboard({
                   className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-tertiary-container rounded-full flex items-center justify-center">
-                      <Package className="w-5 h-5 text-on-tertiary-container" />
+                    <div className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center">
+                      <Package className="w-5 h-5 text-on-surface-variant" />
                     </div>
                     <div>
                       <p className="title-small text-on-surface">Orders to pack</p>
@@ -769,6 +794,24 @@ export default function PartnerDashboard({
               ) : (
                 <>
                   {/* Regular Partner Quick Actions */}
+                  {showApprovalOrdersAction && (
+                    <button
+                      onClick={onViewApprovalOrders}
+                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ffebee' }}>
+                          <CheckCircle2 className="w-5 h-5" style={{ color: '#c62828' }} />
+                        </div>
+                        <div>
+                          <p className="title-small text-on-surface">Orders to approve</p>
+                          <p className="body-small text-on-surface-variant">{approvalOrdersLabel}</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+                    </button>
+                  )}
+
                   {showPendingOrdersAction && (
                     <button
                       onClick={onViewOrders}

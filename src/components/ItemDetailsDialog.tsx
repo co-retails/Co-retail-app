@@ -8,9 +8,11 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Textarea } from './ui/textarea';
 import { VisuallyHidden } from './ui/visually-hidden';
-import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Camera } from 'lucide-react';
+import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Camera, ChevronDown } from 'lucide-react';
 import svgPaths from '../imports/svg-7un8q74kd7';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Badge } from './ui/badge';
@@ -37,6 +39,8 @@ export interface ItemDetails {
   daysRemaining?: number;
   source?: string;
   orderNumber?: string;
+  lastInStoreAt?: string;
+  location?: 'Warehouse' | 'In transit' | 'Shopfloor' | 'Back of House' | 'Partner';
 }
 
 export interface StatusHistoryEntry {
@@ -54,9 +58,10 @@ interface ItemDetailsDialogProps {
   statusHistory?: StatusHistoryEntry[];
   priceOptions?: number[];
   priceCurrency?: string;
+  expireTimeWeeks?: number; // Expire time setting for the store (in weeks)
 }
 
-type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | null;
+type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'location' | null;
 
 const AVAILABLE_STATUSES = [
   'Draft',
@@ -133,6 +138,11 @@ const AVAILABLE_COLORS = [
   'Multi-color'
 ];
 
+const AVAILABLE_LOCATIONS = [
+  'Shopfloor',
+  'Back of House'
+];
+
 export default function ItemDetailsDialog({ 
   item, 
   isOpen, 
@@ -140,7 +150,8 @@ export default function ItemDetailsDialog({
   onSave,
   statusHistory = [],
   priceOptions,
-  priceCurrency
+  priceCurrency,
+  expireTimeWeeks
 }: ItemDetailsDialogProps) {
   const [editingField, setEditingField] = useState<EditField>(null);
   const [editValues, setEditValues] = useState<Partial<ItemDetails>>({});
@@ -149,6 +160,7 @@ export default function ItemDetailsDialog({
   const [scannedId, setScannedId] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [openBrandPopover, setOpenBrandPopover] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -274,6 +286,22 @@ export default function ItemDetailsDialog({
     }
   };
 
+  // Calculate days in store from lastInStoreAt
+  const calculateDaysInStore = (lastInStoreAt?: string): number | null => {
+    if (!lastInStoreAt) return null;
+    try {
+      const lastInStoreDate = new Date(lastInStoreAt);
+      const now = new Date();
+      const diffTime = now.getTime() - lastInStoreDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 ? diffDays : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const daysInStore = calculateDaysInStore(item?.lastInStoreAt);
+
   const priceSelectOptions =
     priceOptions?.map((option) => ({
       value: option.toString(),
@@ -335,7 +363,53 @@ export default function ItemDetailsDialog({
             <p className="label-small text-on-surface-variant mb-1">{label}</p>
             {isEditing ? (
               <div className="flex items-center gap-2">
-                {type === 'select' ? (
+                {type === 'select' && field === 'brand' ? (
+                  <Popover open={openBrandPopover} onOpenChange={setOpenBrandPopover}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation justify-between flex-1"
+                      >
+                        <span className="truncate">
+                          {currentValue || 'Select brand'}
+                        </span>
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search brands..." />
+                        <CommandList>
+                          <CommandEmpty>No brand found.</CommandEmpty>
+                          <CommandGroup>
+                            {selectOptions.map((option) => (
+                              <CommandItem
+                                key={option.value}
+                                value={option.value}
+                                onSelect={() => {
+                                  setEditValues({
+                                    ...editValues,
+                                    [field]: option.value
+                                  });
+                                  setOpenBrandPopover(false);
+                                }}
+                                className="relative flex items-center cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 pr-8"
+                              >
+                                <span>{option.label}</span>
+                                {currentValue === option.value && (
+                                  <span className="absolute right-2 flex size-3.5 items-center justify-center">
+                                    <Check className="w-4 h-4" />
+                                  </span>
+                                )}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                ) : type === 'select' ? (
                   <Select
                     modal={false}
                     value={
@@ -715,6 +789,18 @@ export default function ItemDetailsDialog({
                 options={AVAILABLE_COLORS}
               />
 
+              {/* Location - Only show for Available items */}
+              {item.status === 'Available' && (
+                <EditableField
+                  field="location"
+                  label="Location"
+                  value={item.location}
+                  icon={MapPin}
+                  type="select"
+                  options={AVAILABLE_LOCATIONS}
+                />
+              )}
+
               <Separator className="bg-outline-variant" />
 
               {/* Date */}
@@ -733,12 +819,25 @@ export default function ItemDetailsDialog({
                   <div className="flex-1">
                     <p className="label-small text-on-surface-variant">Days remaining</p>
                     <p className="body-large text-on-surface">
-                      {item.daysRemaining} days
-                      {item.daysRemaining >= 7 && (
+                      {item.daysRemaining} {item.daysRemaining === 1 ? 'day' : 'days'}
+                      {expireTimeWeeks !== undefined && (
                         <span className="body-medium text-on-surface-variant ml-2">
-                          ({Math.floor(item.daysRemaining / 7)} {Math.floor(item.daysRemaining / 7) === 1 ? 'week' : 'weeks'})
+                          ({expireTimeWeeks} {expireTimeWeeks === 1 ? 'week' : 'weeks'})
                         </span>
                       )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Days in Store */}
+              {daysInStore !== null && (
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="label-small text-on-surface-variant">Days in store</p>
+                    <p className="body-large text-on-surface">
+                      {daysInStore} {daysInStore === 1 ? 'day' : 'days'}
                     </p>
                   </div>
                 </div>

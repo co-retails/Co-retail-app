@@ -10,8 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { AlertCircleIcon, Package, Trash2Icon } from 'lucide-react';
+import { AlertCircleIcon, Package, Trash2Icon, Check, ChevronDown } from 'lucide-react';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { OrderItem } from './OrderCreationScreen';
 import { getPriceOptionsForCurrency } from '../data/partnerPricing';
@@ -81,6 +83,7 @@ export function ItemDetailsTable({
   isAdmin = false,
 }: ItemDetailsTableProps) {
   const [mobileDetailsItem, setMobileDetailsItem] = useState<ItemDetailsTableItem | null>(null);
+  const [openBrandPopovers, setOpenBrandPopovers] = useState<Record<string, boolean>>({});
   const detailFieldMap: Partial<Record<keyof ItemDetails, keyof ItemDetailsTableItem>> = {
     brand: 'brand',
     category: 'category',
@@ -369,25 +372,53 @@ export function ItemDetailsTable({
                         }`}
                       />
                     ) : (
-                      <Select
-                        value={item.brand || undefined}
-                        onValueChange={(value) => onUpdateItem(item.id, 'brand', value)}
+                      <Popover
+                        open={openBrandPopovers[item.id] || false}
+                        onOpenChange={(open) => setOpenBrandPopovers(prev => ({ ...prev, [item.id]: open }))}
                       >
-                        <SelectTrigger className={`h-9 w-full body-medium ${
-                          item.fieldErrors?.brand 
-                            ? 'border-error focus:border-error bg-error-container/10' 
-                            : 'border-outline-variant focus:border-primary bg-surface-container'
-                        }`}>
-                          <SelectValue placeholder="Select item brand" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BRAND_OPTIONS.map((brand) => (
-                            <SelectItem key={brand} value={brand} className="body-medium">
-                              {brand}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={`h-9 w-full justify-between body-medium ${
+                              item.fieldErrors?.brand 
+                                ? 'border-error focus:border-error bg-error-container/10' 
+                                : 'border-outline-variant focus:border-primary bg-surface-container'
+                            }`}
+                          >
+                            <span className="truncate">
+                              {item.brand || 'Select item brand'}
+                            </span>
+                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search brands..." />
+                            <CommandList>
+                              <CommandEmpty>No brand found.</CommandEmpty>
+                              <CommandGroup>
+                                {BRAND_OPTIONS.map((brand) => (
+                                  <CommandItem
+                                    key={brand}
+                                    value={brand}
+                                    onSelect={() => {
+                                      onUpdateItem(item.id, 'brand', brand);
+                                      setOpenBrandPopovers(prev => ({ ...prev, [item.id]: false }));
+                                    }}
+                                    className="flex items-center justify-between cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
+                                  >
+                                    <span className="body-medium">{brand}</span>
+                                    {item.brand === brand && (
+                                      <Check className="w-4 h-4 opacity-70" />
+                                    )}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     )
                   ) : (
                     <span className="body-medium text-on-surface">{item.brand}</span>

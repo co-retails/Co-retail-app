@@ -145,11 +145,6 @@ function MultiSelectActions({ selectedCount, totalCount, isAllSelected, onSelect
                 <Edit3 className="mr-2 h-4 w-4" />
                 <span>Bulk edit</span>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onArchive}>
-                <Archive className="mr-2 h-4 w-4" />
-                <span>Archive selected</span>
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -159,14 +154,16 @@ function MultiSelectActions({ selectedCount, totalCount, isAllSelected, onSelect
   );
 }
 
-function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
+function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole = 'store-staff' }: {
   isOpen: boolean;
   onClose: () => void;
   selectedItems: ScannedItem[];
   onSave: (updates: Partial<ScannedItem>) => void;
+  userRole?: UserRole;
 }) {
   const [formData, setFormData] = useState({
     status: 'none',
+    location: 'none',
     category: '',
     priceReduction: 'none',
     comment: ''
@@ -187,6 +184,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
   const handleSave = () => {
     const updates: Partial<ScannedItem> = {};
     if (formData.status !== 'none') updates.status = formData.status;
+    if (formData.location !== 'none') updates.location = formData.location as 'Shopfloor' | 'Back of House';
     if (formData.category) updates.category = formData.category;
     if (formData.priceReduction !== 'none') {
       const reductionPercent = parseFloat(formData.priceReduction);
@@ -198,7 +196,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
     }
     
     onSave(updates);
-    setFormData({ status: 'none', category: '', priceReduction: 'none', comment: '' });
+    setFormData({ status: 'none', location: 'none', category: '', priceReduction: 'none', comment: '' });
     onClose();
   };
 
@@ -220,7 +218,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
 
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-          {/* Status Field */}
+          {/* Status Field - Only show for store staff in scanner (with limited options) or admins */}
           <div className="space-y-2">
             <Label htmlFor="status" className="label-large text-on-surface">
               Status
@@ -236,11 +234,42 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave }: {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No change</SelectItem>
-                <SelectItem value="Available">Available</SelectItem>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="To return">To return</SelectItem>
-                <SelectItem value="Archived">Archived</SelectItem>
-                <SelectItem value="In Store 2nd try">In Store 2nd try</SelectItem>
+                {userRole === 'admin' ? (
+                  <>
+                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="To return">To return</SelectItem>
+                    <SelectItem value="Archived">Archived</SelectItem>
+                    <SelectItem value="In Store 2nd try">In Store 2nd try</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem value="Broken">Broken</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Location Field */}
+          <div className="space-y-2">
+            <Label htmlFor="location" className="label-large text-on-surface">
+              Location
+            </Label>
+            <Select
+              value={formData.location}
+              onValueChange={(value: string) =>
+                setFormData(prev => ({ ...prev, location: value }))
+              }
+            >
+              <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No change</SelectItem>
+                <SelectItem value="Shopfloor">Shopfloor</SelectItem>
+                <SelectItem value="Back of House">Back of House</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -399,6 +428,7 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
                     showActions={true}
                     showSelection={true}
                     userRole={userRole}
+                    hideMissingAction={true}
                   />
                 </div>
               ))}
@@ -566,6 +596,13 @@ export default function ScanScreen({
       if (!selectedIds.includes(item.id)) return item;
       
       const itemUpdates: Partial<ScannedItem> = { ...updates, selected: false };
+      
+      // Automatically set location based on status changes
+      if (statusChange === 'Available' && !updates.location) {
+        itemUpdates.location = 'Shopfloor';
+      } else if (statusChange === 'Broken' && !updates.location) {
+        itemUpdates.location = 'Back of House';
+      }
       
       // Calculate new price if price reduction is specified
       if (priceReduction && typeof priceReduction === 'number') {
@@ -787,6 +824,7 @@ export default function ScanScreen({
         onClose={() => setShowBulkEditModal(false)}
         selectedItems={selectedItems}
         onSave={handleBulkEditSave}
+        userRole={userRole}
       />
 
       {/* Item Details Dialog */}

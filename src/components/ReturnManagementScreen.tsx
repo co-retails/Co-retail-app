@@ -241,7 +241,6 @@ function ReturnItemCard({
     daysRemaining: daysInStore
   };
 
-
   const handleCardClick = () => onToggleSelect(item.id);
   const selectionClasses = item.selected
     ? 'border border-primary/50 bg-primary-container/15'
@@ -261,66 +260,77 @@ function ReturnItemCard({
         }
       }}
     >
-      <div className="flex items-start gap-3 px-4 py-3">
-        {/* Main content using standardized ItemCard */}
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <ItemCard
-            item={{
-              id: item.id,
-              itemId: item.itemId,
-              title: item.title,
-              brand: extendedItem.brand,
-              category: extendedItem.category,
-              size: item.size,
-              color: item.color,
-              price: extendedItem.price,
-              status: item.status,
-              date: extendedItem.date,
-              thumbnail: item.thumbnail,
-              selected: item.selected,
-              canExtend: item.canExtend,
-              partnerItemRef: item.partnerItemRef,
-              daysRemaining: daysInStore
-            } as BaseItem}
-            variant="items-list"
-            showActions={false}
-            showSelection={false}
-          />
+      <div className="[&>div]:!bg-transparent [&>div]:border-b-0 [&>div]:hover:!bg-transparent">
+        <div className="flex items-center">
+          {/* Main content using standardized ItemCard */}
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <ItemCard
+              item={{
+                id: item.id,
+                itemId: item.itemId,
+                title: item.title,
+                brand: extendedItem.brand,
+                category: extendedItem.category,
+                size: item.size,
+                color: item.color,
+                price: extendedItem.price,
+                status: item.status,
+                date: extendedItem.date,
+                thumbnail: item.thumbnail,
+                selected: item.selected,
+                canExtend: item.canExtend,
+                partnerItemRef: item.partnerItemRef,
+                daysRemaining: daysInStore
+              } as BaseItem}
+              variant="items-list"
+              showActions={false}
+              showSelection={false}
+            />
+          </div>
+          
+          {/* Trailing Elements - Match ItemCard's trailing elements positioning */}
+          <div className="flex-shrink-0 flex items-center gap-0 h-full">
+            {/* More Actions */}
+            <div className="flex items-center justify-center h-full">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button 
+                    className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                    onClick={(event) => event.stopPropagation()}
+                    aria-label="More actions"
+                  >
+                    <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                      <circle cx="12" cy="5" r="2" fill="var(--on-surface)" />
+                      <circle cx="12" cy="12" r="2" fill="var(--on-surface)" />
+                      <circle cx="12" cy="19" r="2" fill="var(--on-surface)" />
+                    </svg>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
+                  {!isScanned ? (
+                    <DropdownMenuItem
+                      onClick={(event: React.MouseEvent) => {
+                        event.stopPropagation();
+                        handleScanToggle(true);
+                      }}
+                    >
+                      Mark as Scanned
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={(event: React.MouseEvent) => {
+                        event.stopPropagation();
+                        handleScanToggle(false);
+                      }}
+                    >
+                      Mark as Not scanned
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
         </div>
-        
-        {/* Trailing element */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button 
-              className="flex-shrink-0 w-12 h-12 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-              onClick={(event) => event.stopPropagation()}
-              aria-label="More actions"
-            >
-              <MoreVertical className="w-5 h-5 text-on-surface-variant" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
-            {!isScanned ? (
-              <DropdownMenuItem
-                onClick={(event: React.MouseEvent) => {
-                  event.stopPropagation();
-                  handleScanToggle(true);
-                }}
-              >
-                Mark as Scanned
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem
-                onClick={(event: React.MouseEvent) => {
-                  event.stopPropagation();
-                  handleScanToggle(false);
-                }}
-              >
-                Mark as Not scanned
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );

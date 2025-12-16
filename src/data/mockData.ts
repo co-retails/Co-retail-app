@@ -45,7 +45,8 @@ export const mockDeliveries: Delivery[] = [
     partnerId: '1',
     partnerName: 'Sellpy',
     warehouseId: '1',
-    warehouseName: 'Stockholm Central Warehouse'
+    warehouseName: 'Stockholm Central Warehouse',
+    receivingStoreId: '1' // Drottninggatan 63 (default store)
   },
   {
     id: '3',

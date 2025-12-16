@@ -20,6 +20,7 @@ export interface ItemFilters {
   category: string;
   status: string;
   colour: string;
+  location: string;
   priceRange: [number, number];
   sortBy: 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 }
@@ -29,6 +30,7 @@ export const defaultFilters: ItemFilters = {
   category: 'all',
   status: 'all',
   colour: 'all',
+  location: 'all',
   priceRange: [0, 1000],
   sortBy: 'date-desc'
 };
@@ -237,12 +239,34 @@ export default function ItemFilterSheet({
                 <SelectItem value="Available" className="body-large">Available</SelectItem>
                 <SelectItem value="Draft" className="body-large">Draft</SelectItem>
                 <SelectItem value="In transit" className="body-large">In transit</SelectItem>
-                <SelectItem value="Storage" className="body-large">Storage</SelectItem>
                 <SelectItem value="Sold" className="body-large">Sold</SelectItem>
                 <SelectItem value="Returned" className="body-large">Returned</SelectItem>
                 <SelectItem value="Missing" className="body-large">Missing</SelectItem>
                 <SelectItem value="Broken" className="body-large">Broken</SelectItem>
                 <SelectItem value="Rejected" className="body-large">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Location Filter */}
+          <div className="space-y-2">
+            <Label htmlFor="location" className="label-large text-on-surface">
+              Location
+            </Label>
+            <Select
+              value={localFilters.location}
+              onValueChange={(value) => updateFilter('location', value)}
+            >
+              <SelectTrigger 
+                id="location"
+                className="bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large"
+              >
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent className="bg-surface-container-high border border-outline">
+                <SelectItem value="all" className="body-large">All locations</SelectItem>
+                <SelectItem value="Shopfloor" className="body-large">Shopfloor</SelectItem>
+                <SelectItem value="Back of House" className="body-large">Back of House</SelectItem>
               </SelectContent>
             </Select>
           </div>

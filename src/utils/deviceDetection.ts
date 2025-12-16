@@ -38,3 +38,8 @@ export function hasCameraSupport(): boolean {
   if (typeof navigator === 'undefined') return false;
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 }
+
+
+
+
+

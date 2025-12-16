@@ -1332,7 +1332,11 @@ export default function OrderShipmentDetailsScreen({
                                         <MoreVertical className="w-4 h-4 text-on-surface-variant" />
                                       </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
+                                    <DropdownMenuContent 
+                                      align="end" 
+                                      className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64 z-[10000]"
+                                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                    >
                                       {showUnregister && (
                                         <DropdownMenuItem
                                           onClick={(e: React.MouseEvent) => {
