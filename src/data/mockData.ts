@@ -1922,10 +1922,11 @@ export const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: 'DN-2024-001',
     orderId: 'SEL-2024-001',
+    externalOrderId: 'SLPY-EXT-2024-001',
     boxes: [
       {
         id: 'BOX-001',
-        qrLabel: 'QR-20241209-001',
+        qrLabel: 'QR-20251210-001',
         items: [
           {
             id: 'SEL-ITEM-001',
@@ -1958,13 +1959,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             source: 'api-integration'
           }
         ],
-        status: 'registered',
-        createdDate: '2024-12-09'
+        status: 'in-transit',
+        createdDate: '2025-12-10'
       }
     ],
-    status: 'delivered',
-    createdDate: '2024-12-09',
-    shipmentDate: '2024-12-10',
+    status: 'registered',
+    createdDate: '2025-12-10',
+    shipmentDate: '2025-12-11',
     partnerId: '1',
     partnerName: 'Sellpy',
     warehouseId: '1',
@@ -1975,10 +1976,11 @@ export const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: 'DN-2024-002',
     orderId: 'SEL-2024-004',
+    externalOrderId: 'SLPY-EXT-2024-004',
     boxes: [
       {
         id: 'BOX-002',
-        qrLabel: 'QR-20241206-001',
+        qrLabel: 'QR-20241205-001',
         items: [
           {
             id: 'SEL-ITEM-301',
@@ -1996,13 +1998,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             source: 'api-integration'
           }
         ],
-        status: 'registered',
-        createdDate: '2024-12-06'
+        status: 'in-transit',
+        createdDate: '2025-12-25'
       }
     ],
     status: 'registered',
-    createdDate: '2024-12-06',
-    shipmentDate: '2024-12-07',
+    createdDate: '2025-12-25',
+    shipmentDate: '2025-12-26',
     partnerId: '1',
     partnerName: 'Sellpy',
     warehouseId: '1',
@@ -2013,10 +2015,11 @@ export const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: 'DN-2024-003',
     orderId: 'SEL-2024-005',
+    externalOrderId: 'SLPY-EXT-2024-005',
     boxes: [
       {
         id: 'BOX-003',
-        qrLabel: 'QR-20241205-001',
+        qrLabel: 'QR-20251215-001',
         items: [
           {
             id: 'SEL-ITEM-401',
@@ -2033,13 +2036,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             source: 'api-integration'
           }
         ],
-        status: 'registered',
-        createdDate: '2024-12-05'
+        status: 'in-transit',
+        createdDate: '2025-12-15'
       }
     ],
     status: 'registered',
-    createdDate: '2024-12-05',
-    shipmentDate: '2024-12-06',
+    createdDate: '2025-12-15',
+    shipmentDate: '2025-12-16',
     partnerId: '1',
     partnerName: 'Sellpy',
     warehouseId: '1',
@@ -2050,10 +2053,11 @@ export const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: 'DN-2024-004',
     orderId: 'SEL-2024-007',
+    externalOrderId: 'SLPY-EXT-2024-007',
     boxes: [
       {
         id: 'BOX-004',
-        qrLabel: 'QR-20241210-002',
+        qrLabel: 'QR-20251220-002',
         items: [
           {
             id: 'SEL-ITEM-601',
@@ -2084,12 +2088,12 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             source: 'api-integration'
           }
         ],
-        status: 'registered',
-        createdDate: '2024-12-10'
+        status: 'delivered',
+        createdDate: '2025-12-20'
       },
       {
         id: 'BOX-005',
-        qrLabel: 'QR-20241210-003',
+        qrLabel: 'QR-20251220-003',
         items: [
           {
             id: 'SEL-ITEM-603',
@@ -2106,13 +2110,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             source: 'api-integration'
           }
         ],
-        status: 'registered',
-        createdDate: '2024-12-10'
+        status: 'in-transit',
+        createdDate: '2025-12-20'
       }
     ],
-    status: 'delivered',
-    createdDate: '2024-12-10',
-    shipmentDate: '2024-12-11',
+    status: 'partially-delivered',
+    createdDate: '2025-12-20',
+    shipmentDate: '2025-12-21',
     partnerId: '1',
     partnerName: 'Sellpy',
     warehouseId: '1',
@@ -2123,10 +2127,11 @@ export const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: 'DN-2024-005',
     orderId: 'SEL-2024-008',
+    externalOrderId: 'SLPY-EXT-2024-008',
     boxes: [
       {
         id: 'BOX-006',
-        qrLabel: 'QR-20241209-002',
+        qrLabel: 'QR-20251218-002',
         items: [
           {
             id: 'SEL-ITEM-701',
@@ -2171,12 +2176,12 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             source: 'api-integration'
           }
         ],
-        status: 'registered',
-        createdDate: '2024-12-09'
+        status: 'in-transit',
+        createdDate: '2025-12-18'
       },
       {
         id: 'BOX-007',
-        qrLabel: 'QR-20241209-003',
+        qrLabel: 'QR-20251218-003',
         items: [
           {
             id: 'SEL-ITEM-704',
@@ -2207,13 +2212,13 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             source: 'api-integration'
           }
         ],
-        status: 'registered',
-        createdDate: '2024-12-09'
+        status: 'in-transit',
+        createdDate: '2025-12-18'
       }
     ],
     status: 'registered',
-    createdDate: '2024-12-09',
-    shipmentDate: '2024-12-10',
+    createdDate: '2025-12-18',
+    shipmentDate: '2025-12-19',
     partnerId: '1',
     partnerName: 'Sellpy',
     warehouseId: '1',
@@ -2221,10 +2226,93 @@ export const mockDeliveryNotes: DeliveryNote[] = [
     storeId: '2',
     storeCode: 'SE0520'
   },
+  {
+    id: 'DN-2024-010',
+    orderId: 'SEL-2024-011',
+    externalOrderId: 'SLPY-EXT-2024-011',
+    boxes: [
+      {
+        id: 'BOX-012',
+        qrLabel: 'QR-20251222-001',
+        items: [
+          {
+            id: 'SEL-ITEM-801',
+            itemId: 'SEL-ITM-801',
+            brand: 'H&M',
+            gender: 'Unisex',
+            category: 'Clothing',
+            subcategory: 'Tops',
+            size: 'L',
+            color: 'Gray',
+            price: 25.00,
+            status: undefined,
+            partnerItemId: 'HM-801',
+            source: 'api-integration'
+          }
+        ],
+        status: 'delivered',
+        createdDate: '2025-12-22'
+      },
+      {
+        id: 'BOX-013',
+        qrLabel: 'QR-20251222-002',
+        items: [
+          {
+            id: 'SEL-ITEM-802',
+            itemId: 'SEL-ITM-802',
+            brand: 'COS',
+            gender: 'Women',
+            category: 'Clothing',
+            subcategory: 'Dresses',
+            size: 'S',
+            color: 'Black',
+            price: 55.00,
+            status: undefined,
+            partnerItemId: 'COS-802',
+            source: 'api-integration'
+          }
+        ],
+        status: 'in-transit',
+        createdDate: '2025-12-22'
+      },
+      {
+        id: 'BOX-014',
+        qrLabel: 'QR-20251222-003',
+        items: [
+          {
+            id: 'SEL-ITEM-803',
+            itemId: 'SEL-ITM-803',
+            brand: 'H&M',
+            gender: 'Men',
+            category: 'Clothing',
+            subcategory: 'Bottoms',
+            size: '32',
+            color: 'Navy',
+            price: 30.00,
+            status: undefined,
+            partnerItemId: 'HM-803',
+            source: 'api-integration'
+          }
+        ],
+        status: 'delivered',
+        createdDate: '2025-12-22'
+      }
+    ],
+    status: 'partially-delivered',
+    createdDate: '2025-12-22',
+    shipmentDate: '2025-12-23',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    storeId: '1',
+    storeCode: 'SE0655'
+  },
   // Pending delivery notes (Sellpy only)
   {
     id: 'DN-2024-006',
     orderId: 'SEL-ORD-2024-101',
+    externalOrderId: 'SLPY-EXT-ORD-2024-101',
     boxes: [],
     status: 'pending',
     createdDate: '2024-12-11',
@@ -2238,6 +2326,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: 'DN-2024-007',
     orderId: 'SEL-ORD-2024-103',
+    externalOrderId: 'SLPY-EXT-ORD-2024-103',
     boxes: [
       {
         id: 'BOX-008',
@@ -2289,6 +2378,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: 'DN-2024-008',
     orderId: 'SEL-ORD-2024-107',
+    externalOrderId: 'SLPY-EXT-ORD-2024-107',
     boxes: [
       {
         id: 'BOX-009',
@@ -2375,6 +2465,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
   {
     id: 'DN-2024-009',
     orderId: 'SEL-ORD-2024-105',
+    externalOrderId: 'SLPY-EXT-ORD-2024-105',
     boxes: [
       {
         id: 'BOX-011',

@@ -46,6 +46,7 @@ interface AdminSettingsSheetProps {
   onLogout: () => void;
   onRoleSwitcherClick?: () => void;
   onNavigateToStockCheckReport?: () => void;
+  onNavigateToShippingReport?: () => void;
   onNavigateToPartnerReports?: () => void;
   onNavigateToPortalConfiguration?: () => void;
   onNavigateToPartnerSettings?: () => void;
@@ -74,6 +75,7 @@ export default function AdminSettingsSheet({
   onLogout,
   onRoleSwitcherClick,
   onNavigateToStockCheckReport,
+  onNavigateToShippingReport,
   onNavigateToPartnerReports,
   onNavigateToPortalConfiguration,
   onNavigateToPartnerSettings,
@@ -113,6 +115,13 @@ export default function AdminSettingsSheet({
   const handleStockCheckReport = () => {
     if (onNavigateToStockCheckReport) {
       onNavigateToStockCheckReport();
+      onClose();
+    }
+  };
+
+  const handleShippingReport = () => {
+    if (onNavigateToShippingReport) {
+      onNavigateToShippingReport();
       onClose();
     }
   };
@@ -180,6 +189,14 @@ export default function AdminSettingsSheet({
           description: 'Access historical stock check sessions',
           icon: <Package className="w-6 h-6" />,
           onClick: handleStockCheckReport
+        },
+        {
+          id: 'shipping-report',
+          title: 'Shipping report',
+          description: 'Monitor B2B deliveries and boxes',
+          icon: <BarChart3 className="w-6 h-6" />,
+          onClick: handleShippingReport,
+          brandAdminOnly: true
         },
         {
           id: 'partner-reports',

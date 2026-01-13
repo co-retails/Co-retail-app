@@ -87,7 +87,8 @@ export type Screen =
   | 'partner-settings'
   | 'store-user-access'
   | 'partner-user-access'
-  | 'partner-reports';
+  | 'partner-reports'
+  | 'shipping-report';
 
 /**
  * Central state management hook for the entire application

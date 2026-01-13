@@ -93,6 +93,13 @@ export function useNavigationHandlers({
       setCurrentScreen('home');
     } else if (currentScreen === 'store-user-access' || currentScreen === 'partner-user-access') {
       setCurrentScreen('home');
+    } else if (currentScreen === 'shipping-report' || currentScreen === 'partner-reports') {
+      // Navigate back based on user role
+      if (currentUserRole === 'admin' || currentUserRole === 'store-staff') {
+        setCurrentScreen('home');
+      } else {
+        setCurrentScreen('partner-dashboard');
+      }
     } else {
       setCurrentScreen('home');
     }

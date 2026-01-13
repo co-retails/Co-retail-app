@@ -35,6 +35,7 @@ export interface Box {
 export interface DeliveryNote {
   id: string;
   orderId: string;
+  externalOrderId?: string;
   boxes: Box[];
   status: 'pending' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
   createdDate: string;

@@ -70,6 +70,7 @@ const PartnerUserAccessScreen = React.lazy(() => import('./components/PartnerUse
 
 // Reports Components - Lazy loaded
 const PartnerReportsScreen = React.lazy(() => import('./components/PartnerReportsScreen'));
+const ShippingReportScreen = React.lazy(() => import('./components/ShippingReportScreen'));
 
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
@@ -2399,6 +2400,28 @@ export default function App() {
         </React.Suspense>
       )}
 
+      {currentScreen === 'shipping-report' && (
+        <React.Suspense fallback={<LoadingFallback />}>
+          <ShippingReportScreen
+            onBack={() => {
+              // Navigate back based on user role
+              if (currentUserRole === 'admin' || currentUserRole === 'store-staff') {
+                setCurrentScreenSafe('home');
+              } else {
+                setCurrentScreenSafe('partner-dashboard');
+              }
+            }}
+            deliveryNotes={deliveryNotes}
+            stores={mockStores}
+            brands={mockBrands}
+            countries={mockCountries}
+            partners={mockWarehousePartners}
+            currentUserRole={currentUserRole}
+            userBrandIds={mockUserAccount.role.name === 'Brand Admin' ? ['1', '2', '3', '4'] : undefined}
+          />
+        </React.Suspense>
+      )}
+
       {currentScreen === 'order-creation' && (() => {
         const currentPartner = mockWarehousePartners?.find(p => p.id === currentPartnerWarehouseSelection?.partnerId);
         const isThriftedPartner = currentPartner?.name === 'Thrifted';
@@ -3627,6 +3650,10 @@ export default function App() {
         onLogout={handleLogout}
         onRoleSwitcherClick={handleOpenRoleSwitcher}
         onNavigateToStockCheckReport={handleNavigateToStockCheckReports}
+        onNavigateToShippingReport={() => {
+          setIsAdminSettingsSheetOpen(false);
+          setCurrentScreenSafe('shipping-report');
+        }}
         onNavigateToPartnerReports={() => {
           setIsAdminSettingsSheetOpen(false);
           setCurrentScreenSafe('partner-reports');
