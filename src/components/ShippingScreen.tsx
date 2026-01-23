@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, X, QrCode, ClipboardListIcon, ArrowUp, ArrowDown } from 'lucide-react';
+import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, X, QrCode, ClipboardListIcon, ArrowUp, ArrowDown, Plus } from 'lucide-react';
 import { UserRole } from './RoleSwitcher';
 import type { ExtendedPartnerOrder } from './PartnerDashboard';
 import { DeliveryNote } from './BoxManagementScreen';
@@ -94,7 +94,7 @@ interface ShippingScreenProps {
   onNavigateToScan?: () => void;
   onNavigateToSellers?: () => void;
   onScanBox?: () => void;
-  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered' | 'pending-packing' | 'approval';
+  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered' | 'pending-packing' | 'approval' | 'returns-returned' | 'returns-in-transit' | 'pending-pending' | 'in-transit-filter';
   currentUserRole?: ShippingUserRole;
   partnerOrders?: ShippingPartnerOrder[];
   deliveryNotes?: DeliveryNote[];
@@ -105,9 +105,9 @@ interface ShippingScreenProps {
   onSelectSellpyOrder?: (order: SellpyOrder) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
   onCancelReturn?: (deliveryId: string, reason?: string) => void;
-  onOpenOrderDetails?: (order: ShippingPartnerOrder, activeTab?: ShippingTab) => void;
-  onOpenShipmentDetails?: (deliveryNote: DeliveryNote, activeTab?: ShippingTab) => void;
-  onOpenReturnDetails?: (returnDelivery: ReturnDelivery, activeTab?: ShippingTab) => void;
+  onOpenOrderDetails?: (order: ShippingPartnerOrder, activeTab?: ShippingTab, activeFilter?: string) => void;
+  onOpenShipmentDetails?: (deliveryNote: DeliveryNote, activeTab?: ShippingTab, activeFilter?: string) => void;
+  onOpenReturnDetails?: (returnDelivery: ReturnDelivery, activeTab?: ShippingTab, activeFilter?: string) => void;
   showroomOrders?: ShowroomOrder[];
   onViewShowroomOrder?: (orderId: string) => void;
   sellpyOrders?: SellpyOrder[];
@@ -237,20 +237,20 @@ function Tabs({ activeTab, onTabChange, userRole }: {
 
   return (
     <div className="bg-surface w-full mb-4">
-      <div className="flex border-b border-outline-variant">
+      <div className="flex border-b border-outline-variant overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className="flex-1 pb-3 pt-2 px-4 relative"
+            className="flex-1 md:flex-none pb-3 pt-2 px-4 md:px-6 relative whitespace-nowrap"
             onClick={() => onTabChange(tab.id)}
           >
-            <div className={`title-small text-center ${
+            <div className={`title-small text-center md:text-left ${
               activeTab === tab.id ? 'text-on-surface' : 'text-on-surface-variant'
             }`}>
               {tab.label}
             </div>
             {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
+              <div className="absolute bottom-0 left-2 md:left-4 right-2 md:right-4 h-0.5 bg-primary rounded-full" />
             )}
           </button>
         ))}
@@ -1143,13 +1143,17 @@ export default function ShippingScreen({
         case 'pending':
         case 'pending-registered': // Special case: Orders tab with registered filter
         case 'approval': // Special case: Orders tab with approval filter
+        case 'pending-pending': // Special case: Orders tab with pending filter
           return 'pending';
         case 'returns':
+        case 'returns-returned':
+        case 'returns-in-transit':
           return 'returns';
         case 'pending-packing': // Special case: Shipments tab with Pending & Packing filter
         case 'shipments':
         case 'registered':
         case 'in-transit':
+        case 'in-transit-filter': // Special case: Shipments tab with in-transit filter
         case 'all':
         case 'delivered':
           return 'in-transit';
@@ -1258,6 +1262,10 @@ useEffect(() => {
       setOrderStatusFilter('approval');
       break;
     case 'pending':
+      // 'pending' without specific filter encoding means 'all' filter
+      // Don't override - keep as 'all' (already set above)
+      break;
+    case 'pending-pending': // Special case: Orders tab with pending filter
       setOrderStatusFilter('pending');
       break;
     case 'pending-registered': // Special case: Orders tab with registered filter
@@ -1271,6 +1279,12 @@ useEffect(() => {
       break;
     case 'shipments':
     case 'in-transit':
+      // 'in-transit' without specific filter encoding means 'all' filter
+      // Don't override - keep as 'all' (already set above)
+      break;
+    case 'in-transit-filter': // Special case: Shipments tab with in-transit filter
+      setShipmentStatusFilter('in-transit');
+      break;
     case 'all':
       setShipmentStatusFilter('in-transit');
       break;
@@ -1278,6 +1292,13 @@ useEffect(() => {
       setShipmentStatusFilter('delivered');
       break;
     case 'returns':
+      // 'returns' without specific filter encoding means 'all' filter
+      // Don't override - keep as 'all' (already set above)
+      break;
+    case 'returns-returned':
+      setReturnStatusFilter('returned');
+      break;
+    case 'returns-in-transit':
       setReturnStatusFilter('in-transit');
       break;
     default:
@@ -2113,8 +2134,8 @@ useEffect(() => {
                 onClick={onCreateOrder}
                 className="w-full md:w-auto justify-center h-14 rounded-[12px] gap-3 bg-primary text-on-primary hover:bg-primary/90 transition-colors px-6"
               >
-                <ClipboardListIcon className="w-5 h-5" />
-                <span className="label-large">Create new order</span>
+                <Plus className="w-5 h-5" />
+                <span className="label-large">Create order</span>
               </Button>
             </div>
           )}
@@ -2368,7 +2389,7 @@ useEffect(() => {
         {/* Count Display - Hidden for partner portal orders, shipments, and returns tabs (counts shown in filter chips) */}
         {!(role === 'partner' && ((activeTab === 'pending' && showOrders && !isChinesePartner) || (activeTab === 'in-transit' && showDeliveryNotes) || activeTab === 'returns')) && (
           <div className="mb-3">
-            <span className="body-medium text-on-surface-variant">
+            <span className="body-medium text-on-surface font-normal">
               {showReturns ?
                 `${filteredReturnDeliveries.length} return deliveries` :
                 showSellpyOrders ?
@@ -2404,7 +2425,7 @@ useEffect(() => {
                           returnDelivery={returnDelivery}
                           onUpdateStatus={onUpdateReturnDeliveryStatus}
                           onCancel={onCancelReturn}
-                          onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                          onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                           stores={stores}
                           brands={brands}
                           warehouses={warehouses}
@@ -2460,11 +2481,11 @@ useEffect(() => {
                               <td className="px-4 py-3 body-small text-on-surface-variant">{returnDelivery.date}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >{returnDelivery.deliveryId}</td>
                               <td 
                                 className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >
                                 <div className="space-y-0.5">
                                   <span className="block">From: {sender}</span>
@@ -2476,11 +2497,11 @@ useEffect(() => {
                               </td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >{returnDelivery.items}</td>
                               <td 
                                 className="px-4 py-3 text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >
                                 <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${
                                   returnDelivery.status === 'Pending' ? 'bg-warning-container text-on-warning-container' :
@@ -2535,7 +2556,7 @@ useEffect(() => {
                           returnDelivery={returnDelivery}
                           onUpdateStatus={onUpdateReturnDeliveryStatus}
                           onCancel={onCancelReturn}
-                          onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                          onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                           stores={stores}
                           brands={brands}
                           warehouses={warehouses}
@@ -2591,11 +2612,11 @@ useEffect(() => {
                               <td className="px-4 py-3 body-small text-on-surface-variant">{returnDelivery.date}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >{returnDelivery.deliveryId}</td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >
                                 <div className="space-y-0.5">
                                   <span className="block">{partnerDisplay}</span>
@@ -2606,11 +2627,11 @@ useEffect(() => {
                               </td>
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >{returnDelivery.items}</td>
                               <td 
                                 className="px-4 py-3 text-right cursor-pointer"
-                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                                onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >
                                 <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${
                                   returnDelivery.status === 'Pending' ? 'bg-warning-container text-on-warning-container' :
@@ -2831,7 +2852,7 @@ useEffect(() => {
                       <PartnerDeliveryNoteItem 
                         deliveryNote={deliveryNote}
                         orders={partnerOrdersList}
-                        onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
+                        onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                         isAdmin={isAdmin}
                         onDelete={onDeleteDeliveryNote}
                         showSenderReceiver={true}
@@ -2897,11 +2918,11 @@ useEffect(() => {
                             <td className="px-4 py-3 body-small text-on-surface-variant">{deliveryNote.createdDate}</td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >{deliveryNote.id}</td>
                             <td 
                               className="px-4 py-3 body-small text-on-surface-variant cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >
                               <div className="space-y-0.5">
                                 {warehouse ? (
@@ -2917,19 +2938,19 @@ useEffect(() => {
                             </td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >{relatedOrders.length}</td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >{totalItems}</td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >{deliveryNote.boxes?.length || 0}</td>
                             <td 
                               className="px-4 py-3 text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
+                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >
                               <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getDeliveryNoteStatusBadgeColor(noteStatus)}`}>
                                 {getDeliveryNoteStatusDisplay(noteStatus)}
@@ -2963,7 +2984,7 @@ useEffect(() => {
                               ) : (
                                 <button 
                                   className="p-2 text-on-surface-variant cursor-pointer"
-                                  onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab)}
+                                  onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                                 >
                                   <ChevronRight className="w-5 h-5" />
                                 </button>
@@ -2989,7 +3010,7 @@ useEffect(() => {
                           if (order.status === 'pending' && order.partnerName === 'Sellpy Operations') {
                             handleSellpyOrderSelect(order.id);
                           } else if (onOpenOrderDetails) {
-                            onOpenOrderDetails(order, activeTab);
+                            onOpenOrderDetails(order, activeTab, orderStatusFilter);
                           }
                         }}
                         isClickable={true}
@@ -3093,7 +3114,7 @@ useEffect(() => {
                                 if (isSellpyPending) {
                                   handleSellpyOrderSelect(order.id);
                                 } else if (onOpenOrderDetails) {
-                                  onOpenOrderDetails(order);
+                                  onOpenOrderDetails(order, activeTab, orderStatusFilter);
                                 }
                               }}
                             >{order.id}</td>
@@ -3104,7 +3125,7 @@ useEffect(() => {
                                   if (isSellpyPending) {
                                     handleSellpyOrderSelect(order.id);
                                   } else if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
+                                    onOpenOrderDetails(order, activeTab, orderStatusFilter);
                                   }
                                 }}
                               >
@@ -3117,7 +3138,7 @@ useEffect(() => {
                                 if (isSellpyPending) {
                                   handleSellpyOrderSelect(order.id);
                                 } else if (onOpenOrderDetails) {
-                                  onOpenOrderDetails(order);
+                                  onOpenOrderDetails(order, activeTab, orderStatusFilter);
                                 }
                               }}
                             >
@@ -3144,7 +3165,7 @@ useEffect(() => {
                                 if (isSellpyPending) {
                                   handleSellpyOrderSelect(order.id);
                                 } else if (onOpenOrderDetails) {
-                                  onOpenOrderDetails(order);
+                                  onOpenOrderDetails(order, activeTab, orderStatusFilter);
                                 }
                               }}
                             >{order.itemCount}</td>
@@ -3154,7 +3175,7 @@ useEffect(() => {
                                 if (isSellpyPending) {
                                   handleSellpyOrderSelect(order.id);
                                 } else if (onOpenOrderDetails) {
-                                  onOpenOrderDetails(order);
+                                  onOpenOrderDetails(order, activeTab, orderStatusFilter);
                                 }
                               }}
                             >
@@ -3167,7 +3188,7 @@ useEffect(() => {
                                   if (isSellpyPending) {
                                     handleSellpyOrderSelect(order.id);
                                   } else if (onOpenOrderDetails) {
-                                    onOpenOrderDetails(order);
+                                    onOpenOrderDetails(order, activeTab, orderStatusFilter);
                                   }
                                 }}
                               >
@@ -3180,7 +3201,7 @@ useEffect(() => {
                                 if (isSellpyPending) {
                                   handleSellpyOrderSelect(order.id);
                                 } else if (onOpenOrderDetails) {
-                                  onOpenOrderDetails(order);
+                                  onOpenOrderDetails(order, activeTab, orderStatusFilter);
                                 }
                               }}
                             >
@@ -3236,7 +3257,7 @@ useEffect(() => {
                                       handleSellpyOrderSelect(order.id);
                                     } else {
                                       if (onOpenOrderDetails) {
-                                        onOpenOrderDetails(order, activeTab);
+                                        onOpenOrderDetails(order, activeTab, orderStatusFilter);
                                       }
                                     }
                                   }}
@@ -3387,7 +3408,7 @@ useEffect(() => {
                         return (
                           <tr 
                             key={returnDelivery.id}
-                            onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
+                            onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                             className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-3 body-medium text-on-surface-variant">{returnDelivery.date}</td>

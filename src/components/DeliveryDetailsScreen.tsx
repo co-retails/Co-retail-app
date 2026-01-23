@@ -143,7 +143,14 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
           <div className="flex-1 min-w-0">
             {/* Supporting text - Date and Status */}
             <div className="label-small text-on-surface-variant mb-2">
-              <span>{new Date(delivery.date).toISOString().split('T')[0]}, New - </span>
+              <span>
+                {(() => {
+                  if (!delivery.date) return 'Date not available, New - ';
+                  const date = new Date(delivery.date);
+                  if (isNaN(date.getTime())) return 'Invalid date, New - ';
+                  return `${date.toISOString().split('T')[0]}, New - `;
+                })()}
+              </span>
               {isDelivered ? (
                 <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeClass(delivery.status)}`}>
                   {statusDisplay}

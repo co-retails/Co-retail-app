@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { ArrowLeft, X, MoreVertical, CheckCircle } from 'lucide-react';
+import { Checkbox } from './ui/checkbox';
+import { Label } from './ui/label';
+import { ArrowLeft, X, MoreVertical, CheckCircle, RefreshCw } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { StockItem, StockCheckSession } from './StockCheckScreen';
 import { ItemCard, BaseItem } from './ItemCard';
 import svgPaths from "../imports/svg-7un8q74kd7";
+import svgPathsNew from "../imports/svg-9jzmb4i3sv";
 import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import {
@@ -81,11 +86,15 @@ function ReviewInstructions({ reportDate }: { reportDate: string }) {
 function FilterChips({ 
   activeTab, 
   onTabChange, 
-  counts 
+  counts,
+  showExpiredOnly,
+  onToggleExpiredFilter
 }: { 
   activeTab: ReviewTab; 
   onTabChange: (tab: ReviewTab) => void;
   counts: Record<ReviewTab, number>;
+  showExpiredOnly: boolean;
+  onToggleExpiredFilter: () => void;
 }) {
   const filters: Array<{ id: ReviewTab; label: string }> = [
     { id: 'not-scanned', label: 'Not scanned' },
@@ -129,6 +138,21 @@ function FilterChips({
           </span>
         </button>
       </div>
+      {/* Expired filter toggle - only show in scanned tab */}
+      {activeTab === 'scanned' && (
+        <div className="mt-3 pt-3 border-t border-outline-variant">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              id="expired-filter"
+              checked={showExpiredOnly}
+              onCheckedChange={() => onToggleExpiredFilter()}
+            />
+            <Label htmlFor="expired-filter" className="body-medium text-on-surface cursor-pointer">
+              Show only expired
+            </Label>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -140,7 +164,8 @@ function BulkActionsBar({
   onToggleAll,
   onBulkAction,
   onClearSelection,
-  activeTab
+  activeTab,
+  onUnflagExpired
 }: {
   selectedCount: number;
   totalCount: number;
@@ -149,6 +174,7 @@ function BulkActionsBar({
   onBulkAction: (status: 'Missing' | 'Available' | 'Broken') => void;
   onClearSelection: () => void;
   activeTab: ReviewTab;
+  onUnflagExpired: () => void;
 }) {
   const hasSelectedItems = selectedCount > 0;
   
@@ -181,89 +207,89 @@ function BulkActionsBar({
   const menuOptions = getMenuOptions();
 
   return (
-    <div className={`sticky top-0 z-10 border-b border-outline-variant px-4 py-3 ${
+    <div className={`sticky top-0 z-10 border-b border-outline-variant ${
       hasSelectedItems ? 'bg-primary-container' : 'bg-surface-container'
     }`}>
-      <div className="flex items-center gap-3">
-        {/* Select all checkbox */}
-        <button 
-          className="flex items-center justify-center hover:opacity-80 focus:opacity-80 active:opacity-60 transition-opacity"
-          onClick={onToggleAll}
-          aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
-        >
-          <div className="relative w-6 h-6 flex-shrink-0">
-            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
-              <path 
-                clipRule="evenodd" 
-                d={isAllSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
-                fill={isAllSelected ? "var(--primary)" : "var(--outline-variant)"} 
-                fillRule="evenodd" 
-              />
-            </svg>
-            {isAllSelected && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-            )}
+      <div className="flex items-center justify-between px-1 py-3 min-h-[48px]">
+        {/* Left side - Select all and count */}
+        <div className="flex items-center gap-3">
+          <button 
+            className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
+            onClick={onToggleAll}
+            aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
+          >
+            <div className="relative w-6 h-6">
+              <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
+                <path 
+                  clipRule="evenodd" 
+                  d={isAllSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
+                  fill={isAllSelected ? "var(--primary)" : "var(--outline-variant)"} 
+                  fillRule="evenodd" 
+                />
+              </svg>
+              {isAllSelected && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg className="w-3 h-3" fill="white" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          </button>
+          
+          <div className={`body-medium font-normal ${
+            hasSelectedItems ? 'text-on-primary-container' : 'text-on-surface'
+          }`}>
+            {hasSelectedItems 
+              ? `${selectedCount} selected`
+              : `${totalCount} ${totalCount === 1 ? 'item' : 'items'}`
+            }
           </div>
-        </button>
-
-        {/* Count */}
-        <span className={`body-medium flex-1 ${
-          hasSelectedItems ? 'text-on-primary-container' : 'text-on-surface'
-        }`}>
-          {hasSelectedItems 
-            ? `${selectedCount} item${selectedCount > 1 ? 's' : ''} selected`
-            : `${totalCount} item${totalCount !== 1 ? 's' : ''}`
-          }
-        </span>
-
-        {/* More menu - only show when items are selected and menu has options */}
+        </div>
+        
+        {/* Right side - Actions (only show when items are selected) */}
         {hasSelectedItems && menuOptions.length > 0 && (
-          <>
+          <div className="flex items-center gap-2">
+            {/* More Actions Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className={`w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0 ${
-                    hasSelectedItems 
-                      ? 'hover:bg-on-primary-container/10 focus:bg-on-primary-container/10 active:bg-on-primary-container/20'
-                      : 'hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
-                  }`}
+                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
                   aria-label="More actions"
                 >
-                  <MoreVertical className={`w-5 h-5 ${
-                    hasSelectedItems ? 'text-on-primary-container' : 'text-on-surface'
-                  }`} />
+                  <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                    <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+                  </svg>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-surface-container border border-outline-variant rounded-lg shadow-lg">
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Bulk Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {menuOptions.map((option) => (
                   <DropdownMenuItem
                     key={option.status}
                     onClick={() => onBulkAction(option.status)}
-                    className={`cursor-pointer hover:bg-surface-container-high focus:bg-surface-container-high px-4 py-2 label-medium ${option.className}`}
+                    className={`cursor-pointer ${option.className}`}
                   >
-                    {option.label}
+                    <span>{option.label}</span>
                   </DropdownMenuItem>
                 ))}
+                {/* Unflag expired option - only show in scanned tab */}
+                {activeTab === 'scanned' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={onUnflagExpired}
+                      className="cursor-pointer"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      <span>Unflag expired</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
-            <button
-              onClick={onClearSelection}
-              className={`w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0 ${
-                hasSelectedItems 
-                  ? 'hover:bg-on-primary-container/10 focus:bg-on-primary-container/10 active:bg-on-primary-container/20'
-                  : 'hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
-              }`}
-              aria-label="Clear selection"
-            >
-              <X className={`w-5 h-5 ${
-                hasSelectedItems ? 'text-on-primary-container' : 'text-on-surface'
-              }`} />
-            </button>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -378,20 +404,24 @@ function ReviewItemCard({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button 
-                  className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
+                  className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
                   aria-label="More actions"
                 >
-                  <MoreVertical className="w-4 h-4 text-on-surface-variant" />
+                  <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                    <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+                  </svg>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-surface-container border border-outline-variant rounded-lg shadow-lg">
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Item actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {menuOptions.map((option) => (
                   <DropdownMenuItem
                     key={option.status}
                     onClick={() => onUpdateStatus(item.id, option.status)}
-                    className={`cursor-pointer hover:bg-surface-container-high focus:bg-surface-container-high px-4 py-2 label-medium ${option.className}`}
+                    className={`cursor-pointer ${option.className}`}
                   >
-                    {option.label}
+                    <span>{option.label}</span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -620,6 +650,7 @@ export default function StockCheckReviewScreen({
   const [activeTab, setActiveTab] = useState<ReviewTab>('not-scanned');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showExpiredFlagSheet, setShowExpiredFlagSheet] = useState(false);
+  const [showExpiredOnly, setShowExpiredOnly] = useState(false);
   const [pendingBulkAction, setPendingBulkAction] = useState<{
     status: 'Missing' | 'Available' | 'Broken';
     expiredItemsCount: number;
@@ -659,30 +690,43 @@ export default function StockCheckReviewScreen({
 
   // Filter items by tab
   const getFilteredItems = (tab: ReviewTab): StockItem[] => {
+    let filtered: StockItem[] = [];
     switch (tab) {
       case 'not-scanned':
         // Show all items that are not scanned, regardless of status
-        return reviewItems.filter(item => !item.isScanned);
+        filtered = reviewItems.filter(item => !item.isScanned);
+        break;
       case 'not-found':
         // Show scanned items that don't exist in the store app (unexpected items)
-        return reviewItems.filter(item => item.isScanned && item.id.startsWith('unexpected-item-'));
+        filtered = reviewItems.filter(item => item.isScanned && item.id.startsWith('unexpected-item-'));
+        break;
       case 'all-included':
-        return reviewItems; // All items
+        filtered = reviewItems; // All items
+        break;
       case 'scanned':
         // Show all scanned items, regardless of status
-        return reviewItems.filter(item => item.isScanned && !item.id.startsWith('unexpected-item-'));
+        filtered = reviewItems.filter(item => item.isScanned && !item.id.startsWith('unexpected-item-'));
+        // Apply expired filter if active
+        if (showExpiredOnly) {
+          filtered = filtered.filter(item => item.isExpired === true);
+        }
+        break;
       default:
-        return [];
+        filtered = [];
     }
+    return filtered;
   };
 
   // Get counts for each tab
   const getCounts = (): Record<ReviewTab, number> => {
+    const scannedItems = reviewItems.filter(item => item.isScanned && !item.id.startsWith('unexpected-item-'));
     return {
       'not-scanned': reviewItems.filter(item => !item.isScanned).length,
       'not-found': reviewItems.filter(item => item.isScanned && item.id.startsWith('unexpected-item-')).length,
       'all-included': reviewItems.length,
-      'scanned': reviewItems.filter(item => item.isScanned && !item.id.startsWith('unexpected-item-')).length
+      'scanned': showExpiredOnly 
+        ? scannedItems.filter(item => item.isExpired === true).length
+        : scannedItems.length
     };
   };
 
@@ -789,6 +833,32 @@ export default function StockCheckReviewScreen({
     }
   };
 
+  const handleUnflagExpiredBulk = () => {
+    const selectedCount = selectedItems.size;
+    let updatedCount = 0;
+    
+    setReviewItems(prev => prev.map(item => {
+      if (selectedItems.has(item.id) && item.isExpired) {
+        updatedCount++;
+        return {
+          ...item,
+          isExpired: false,
+          expiredFlaggedAt: undefined,
+          expiredPostponeWeeks: undefined
+        } as StockItem;
+      }
+      return item;
+    }));
+    
+    if (updatedCount > 0) {
+      toast.success(
+        `${updatedCount} ${updatedCount === 1 ? 'item' : 'items'} successfully unflagged`
+      );
+    }
+    
+    setSelectedItems(new Set());
+  };
+
   const handleUpdateStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Available' | 'Broken') => {
     setReviewItems(prev => prev.map(item => {
       if (item.id === itemId) {
@@ -838,8 +908,18 @@ export default function StockCheckReviewScreen({
             setActiveTab(tab);
             // Clear selection when changing tabs
             setSelectedItems(new Set());
+            // Reset expired filter when leaving scanned tab
+            if (tab !== 'scanned') {
+              setShowExpiredOnly(false);
+            }
           }}
           counts={counts}
+          showExpiredOnly={showExpiredOnly}
+          onToggleExpiredFilter={() => {
+            setShowExpiredOnly(prev => !prev);
+            // Clear selection when toggling filter
+            setSelectedItems(new Set());
+          }}
         />
         
         {/* Bulk Actions Bar - moved below tabs */}
@@ -851,6 +931,7 @@ export default function StockCheckReviewScreen({
           onBulkAction={handleBulkAction}
           onClearSelection={() => setSelectedItems(new Set())}
           activeTab={activeTab}
+          onUnflagExpired={handleUnflagExpiredBulk}
         />
         
         {/* Content Area */}

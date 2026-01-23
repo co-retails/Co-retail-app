@@ -158,7 +158,7 @@ export default function DeliveryNoteDetailsScreen({
     };
 
     setBoxes([...boxes, newBox]);
-    toast.success(`Box ${code} added`);
+    // Toast message removed - visual feedback already shown in scan area
   };
 
   const updateBoxLabel = (boxId: string, label: string) => {
@@ -195,7 +195,7 @@ export default function DeliveryNoteDetailsScreen({
     setBoxes([...boxes, newBox]);
     setManualBoxLabel('');
     setDialogMode(null);
-    toast.success(`Box ${newBox.qrLabel} added`);
+    // Toast message removed - visual feedback already shown in scan area
   };
 
   // Handle add box - opens box details side sheet
@@ -274,7 +274,6 @@ export default function DeliveryNoteDetailsScreen({
     setShowBoxLabelSheet(false);
     setCurrentBoxItems([]);
     setTempBoxId(null);
-    toast.success(`Box ${label} registered`);
   };
 
   const handleEditedBoxLabelSave = (label: string) => {
@@ -479,7 +478,6 @@ export default function DeliveryNoteDetailsScreen({
     };
 
     onCreateDeliveryNote(deliveryNote);
-    toast.success('Delivery note registered successfully');
   };
 
   return (

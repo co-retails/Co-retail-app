@@ -69,7 +69,7 @@ export default function ThriftedOrderCreationScreen({
   orderStatus = 'pending'
 }: ThriftedOrderCreationScreenProps) {
   const [step, setStep] = useState<CreationStep>(existingOrderId ? 'items' : 'setup');
-  const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
+  const [creationMethod, setCreationMethod] = useState<CreationMethod>('bulk');
   const [showStoreEdit, setShowStoreEdit] = useState(!existingOrderId);
   const [orderItems, setOrderItems] = useState<OrderItem[]>(existingItems);
   
@@ -568,15 +568,15 @@ export default function ThriftedOrderCreationScreen({
               disabled={!canEdit}
               className={`p-4 border rounded-xl transition-colors text-left ${
                 creationMethod === 'bulk'
-                  ? 'border-secondary bg-secondary-container'
+                  ? 'border-primary bg-primary-container'
                   : 'border-outline hover:bg-surface-container-high'
               } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-lg ${
                   creationMethod === 'bulk'
-                    ? 'bg-secondary text-on-secondary'
-                    : 'bg-secondary-container text-on-secondary-container'
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-primary-container text-on-primary-container'
                 }`}>
                   <FileSpreadsheetIcon className="w-5 h-5" />
                 </div>

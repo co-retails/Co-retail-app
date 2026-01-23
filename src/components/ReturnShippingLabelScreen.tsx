@@ -2,9 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { ArrowLeft, QrCode } from 'lucide-react';
+import { ArrowLeft, QrCode, X } from 'lucide-react';
 import { ReturnItem } from './ReturnManagementScreen';
 import { Partner } from './PartnerSelectionScreen';
+import CameraScanner from './CameraScanner';
+import {
+  FullScreenDialog,
+  FullScreenDialogContent,
+  FullScreenDialogDescription,
+  FullScreenDialogTitle,
+  FullScreenDialogClose
+} from './ui/full-screen-dialog';
 
 interface ReturnShippingLabelScreenProps {
   partner: Partner;
@@ -87,6 +95,7 @@ export default function ReturnShippingLabelScreen({
 }: ReturnShippingLabelScreenProps) {
   const [shippingLabel, setShippingLabel] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [showScanScreen, setShowScanScreen] = useState(false);
   const [returnId] = useState(() => {
     const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const randomSegment = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -109,6 +118,17 @@ export default function ReturnShippingLabelScreen({
       setShippingLabel(mockLabel);
       setIsScanning(false);
     }, 2000);
+  };
+
+  const handleBarcodeScan = (scannedCode: string) => {
+    // Set the scanned code as the shipping label
+    setShippingLabel(scannedCode);
+    // Close the scan screen
+    setShowScanScreen(false);
+    // Focus back on the input field
+    setTimeout(() => {
+      shippingLabelInputRef.current?.focus();
+    }, 100);
   };
 
   const handleManualEntry = (label: string) => {
@@ -148,20 +168,30 @@ export default function ReturnShippingLabelScreen({
                 Auto-focused for quick entry
               </span>
             </div>
-            <Input
-              id="shippingLabel"
-              ref={shippingLabelInputRef}
-              value={shippingLabel}
-              onChange={(e) => setShippingLabel(e.target.value)}
-              placeholder="e.g., SHIP-12345678"
-              className="bg-surface-container-high h-[56px] min-h-[56px] text-base"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && shippingLabel.trim()) {
-                  handleRegister();
-                }
-              }}
-              autoFocus
-            />
+            <div className="relative">
+              <Input
+                id="shippingLabel"
+                ref={shippingLabelInputRef}
+                value={shippingLabel}
+                onChange={(e) => setShippingLabel(e.target.value)}
+                placeholder="e.g., SHIP-12345678"
+                className="bg-surface-container-high h-[56px] min-h-[56px] text-base pr-14"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && shippingLabel.trim()) {
+                    handleRegister();
+                  }
+                }}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowScanScreen(true)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-lg hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface-container-highest transition-colors touch-manipulation"
+                aria-label="Scan shipping label barcode"
+              >
+                <QrCode className="w-5 h-5 text-on-surface-variant" />
+              </button>
+            </div>
             {shippingLabel && (
               <p className="body-small text-on-surface-variant">
                 Current label: <span className="font-medium text-on-surface">{shippingLabel}</span>
@@ -223,6 +253,57 @@ export default function ReturnShippingLabelScreen({
           </Button>
         </div>
       </div>
+
+      {/* Scan Screen Dialog */}
+      <FullScreenDialog open={showScanScreen} onOpenChange={setShowScanScreen}>
+        <FullScreenDialogContent className="flex flex-col p-0 bg-surface">
+          {/* Header */}
+          <div className="bg-surface-container border-b border-outline-variant sticky top-0 z-10">
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FullScreenDialogClose asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high h-12 w-12 touch-manipulation"
+                      aria-label="Close scan screen"
+                    >
+                      <X size={20} />
+                    </Button>
+                  </FullScreenDialogClose>
+                  <div>
+                    <FullScreenDialogTitle className="headline-small text-on-surface">
+                      Scan shipping label
+                    </FullScreenDialogTitle>
+                    <FullScreenDialogDescription className="body-small text-on-surface-variant">
+                      Position the barcode within the frame
+                    </FullScreenDialogDescription>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Scanner Content */}
+          <div className="flex-1 overflow-y-auto pb-safe">
+            <div className="p-4">
+              <div className="bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
+                <CameraScanner
+                  onScan={handleBarcodeScan}
+                  scanMessage="Scan shipping label barcode"
+                  autoStart={true}
+                  enableFakeScan={true}
+                  height="400px"
+                />
+              </div>
+              <p className="body-small text-on-surface-variant mt-4 text-center">
+                Scan the barcode on your shipping label. The label will be automatically filled in.
+              </p>
+            </div>
+          </div>
+        </FullScreenDialogContent>
+      </FullScreenDialog>
     </div>
   );
 }

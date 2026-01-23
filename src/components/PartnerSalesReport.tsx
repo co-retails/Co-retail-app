@@ -26,6 +26,7 @@ export interface PartnerSalesReportProps {
   dateRangeStart?: string;
   dateRangeEnd?: string;
   partnerId?: string;
+  currency?: string;
 }
 
 type ViewMode = 'overview' | 'by-store' | 'by-brand';
@@ -37,6 +38,32 @@ const CHART_COLORS = [
   'hsl(var(--chart-4))',
   'hsl(var(--chart-5))',
 ];
+
+// Exchange rates (mock - in production would come from API or configuration)
+const EXCHANGE_RATES: Record<string, number> = {
+  SEK: 1,      // Base currency
+  EUR: 0.087,  // 1 SEK = 0.087 EUR (approx 11.5 SEK per EUR)
+  USD: 0.093,  // 1 SEK = 0.093 USD (approx 10.8 SEK per USD)
+  GBP: 0.076,  // 1 SEK = 0.076 GBP (approx 13.2 SEK per GBP)
+  NOK: 1.0,    // 1 SEK = 1.0 NOK (approximate)
+  DKK: 0.65    // 1 SEK = 0.65 DKK (approx 1.54 SEK per DKK)
+};
+
+const convertCurrency = (amount: number, fromCurrency: string, toCurrency: string): number => {
+  if (fromCurrency === toCurrency) return amount;
+  // Convert from SEK to target currency
+  if (fromCurrency === 'SEK') {
+    return amount * (EXCHANGE_RATES[toCurrency] || 1);
+  }
+  // Convert from target currency back to SEK, then to new currency
+  const sekAmount = amount / (EXCHANGE_RATES[fromCurrency] || 1);
+  return sekAmount * (EXCHANGE_RATES[toCurrency] || 1);
+};
+
+const formatCurrency = (amount: number, currency: string): string => {
+  const converted = convertCurrency(amount, 'SEK', currency);
+  return `${converted.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${currency}`;
+};
 
 export default function PartnerSalesReport({
   salesData,
@@ -51,7 +78,8 @@ export default function PartnerSalesReport({
   selectedWeek,
   dateRangeStart,
   dateRangeEnd,
-  partnerId
+  partnerId,
+  currency = 'SEK'
 }: PartnerSalesReportProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
 
@@ -657,8 +685,8 @@ export default function PartnerSalesReport({
               <span className="body-medium text-on-surface-variant">Sold Value</span>
               <DollarSign className="h-5 w-5 text-chart-1" />
             </div>
-            <p className="display-small text-on-surface">{Math.round(soldValueForPeriod).toLocaleString()}</p>
-            <p className="body-small text-on-surface-variant mt-1">SEK {getPeriodLabel()}</p>
+            <p className="display-small text-on-surface">{formatCurrency(soldValueForPeriod, currency)}</p>
+            <p className="body-small text-on-surface-variant mt-1">{getPeriodLabel()}</p>
           </CardContent>
         </Card>
 
@@ -690,8 +718,8 @@ export default function PartnerSalesReport({
               <span className="body-medium text-on-surface-variant">Avg Sold Value</span>
               <DollarSign className="h-5 w-5 text-chart-3" />
             </div>
-            <p className="display-small text-on-surface">{Math.round(monthlyAverageSoldValue).toLocaleString()}</p>
-            <p className="body-small text-on-surface-variant mt-1">SEK per month</p>
+            <p className="display-small text-on-surface">{formatCurrency(monthlyAverageSoldValue, currency)}</p>
+            <p className="body-small text-on-surface-variant mt-1">per month</p>
           </CardContent>
         </Card>
       </div>

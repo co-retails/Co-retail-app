@@ -8,13 +8,16 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Checkbox } from './ui/checkbox';
 import PartnerSalesReport, { SalesDataPoint } from './PartnerSalesReport';
 import PartnerStockReport, { StockReportData, TimePeriod } from './PartnerStockReport';
+import PartnerItemStatusReport from './PartnerItemStatusReport';
 import type { Store, Brand, Country } from './StoreSelector';
 import { Partner as WarehousePartner } from './PartnerWarehouseSelector';
+import type { Item } from './ItemsScreen';
 
 export interface PartnerReportsScreenProps {
   onBack: () => void;
   salesData: SalesDataPoint[];
   stockData: StockReportData;
+  items: Item[];
   stores: Store[];
   brands: Brand[];
   countries: Country[];
@@ -23,13 +26,14 @@ export interface PartnerReportsScreenProps {
   currentUserRole?: 'admin' | 'partner' | 'store-staff' | 'buyer';
 }
 
-type ReportTab = 'sales' | 'stock';
+type ReportTab = 'sales' | 'stock' | 'item-status';
 type UnifiedTimePeriod = 'month' | 'daily' | 'week' | 'sevenDays' | 'fourteenDays' | 'thirtyDays' | 'dateRange';
 
 export default function PartnerReportsScreen({
   onBack,
   salesData,
   stockData,
+  items,
   stores,
   brands,
   countries,
@@ -54,6 +58,7 @@ export default function PartnerReportsScreen({
   const [selectedWeek, setSelectedWeek] = useState<string>('');
   const [dateRangeStart, setDateRangeStart] = useState<string>('');
   const [dateRangeEnd, setDateRangeEnd] = useState<string>('');
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('SEK');
 
   // Set partner filter to current partner if user is a partner
   useEffect(() => {
@@ -237,6 +242,19 @@ export default function PartnerReportsScreen({
             >
               <span className="label-large">Stock Report</span>
               {activeTab === 'stock' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('item-status')}
+              className={`relative px-6 py-3 transition-colors ${
+                activeTab === 'item-status'
+                  ? 'text-primary'
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <span className="label-large">Item Status</span>
+              {activeTab === 'item-status' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
               )}
             </button>
@@ -497,6 +515,29 @@ export default function PartnerReportsScreen({
                 </PopoverContent>
               </Popover>
             </div>
+
+            {/* Currency Filter */}
+            <div className="flex items-center gap-2">
+              <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Currency:</label>
+              <Select
+                value={selectedCurrency}
+                onValueChange={setSelectedCurrency}
+              >
+                <SelectTrigger 
+                  className="bg-surface-container border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[100px] min-h-[48px] md:min-h-0 [&[data-size=default]]:!h-12 md:[&[data-size=default]]:!h-10"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-surface-container-high border border-outline">
+                  <SelectItem value="SEK" className="body-medium">SEK</SelectItem>
+                  <SelectItem value="EUR" className="body-medium">EUR</SelectItem>
+                  <SelectItem value="USD" className="body-medium">USD</SelectItem>
+                  <SelectItem value="GBP" className="body-medium">GBP</SelectItem>
+                  <SelectItem value="NOK" className="body-medium">NOK</SelectItem>
+                  <SelectItem value="DKK" className="body-medium">DKK</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -518,6 +559,7 @@ export default function PartnerReportsScreen({
             dateRangeStart={dateRangeStart}
             dateRangeEnd={dateRangeEnd}
             partnerId={selectedPartnerIds.length === 0 ? undefined : selectedPartnerIds.length === 1 ? selectedPartnerIds[0] : undefined}
+            currency={selectedCurrency}
           />
         )}
         {activeTab === 'stock' && (
@@ -539,6 +581,24 @@ export default function PartnerReportsScreen({
             selectedBrandId={selectedBrandIds.length === 0 ? 'all' : selectedBrandIds.length === 1 ? selectedBrandIds[0] : 'all'}
             selectedCountryId={selectedCountryIds.length === 0 ? 'all' : selectedCountryIds.length === 1 ? selectedCountryIds[0] : 'all'}
             selectedStoreId={selectedStoreIds.length === 0 ? 'all' : selectedStoreIds.length === 1 ? selectedStoreIds[0] : 'all'}
+            partnerId={selectedPartnerIds.length === 0 ? undefined : selectedPartnerIds.length === 1 ? selectedPartnerIds[0] : undefined}
+            currency={selectedCurrency}
+          />
+        )}
+        {activeTab === 'item-status' && (
+          <PartnerItemStatusReport
+            items={items}
+            stores={filteredStores}
+            brands={filteredBrands}
+            countries={filteredCountries}
+            selectedTimePeriod={selectedTimePeriod}
+            selectedBrandIds={selectedBrandIds}
+            selectedCountryIds={selectedCountryIds}
+            selectedStoreIds={selectedStoreIds}
+            selectedMonth={selectedMonth}
+            selectedWeek={selectedWeek}
+            dateRangeStart={dateRangeStart}
+            dateRangeEnd={dateRangeEnd}
             partnerId={selectedPartnerIds.length === 0 ? undefined : selectedPartnerIds.length === 1 ? selectedPartnerIds[0] : undefined}
           />
         )}

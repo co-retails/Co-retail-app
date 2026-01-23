@@ -66,8 +66,8 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
     { id: 'monki', name: 'Monki', code: 'MK' }
   ];
 
-  // Mock attributes (only dropdown/chips types)
-  const attributes: Attribute[] = [
+  // Mock attributes (only dropdown/chips types) - memoized to prevent infinite loops
+  const attributes: Attribute[] = useMemo(() => [
     {
       id: 'category',
       key: 'category',
@@ -180,7 +180,7 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
       lastEditedBy: 'Admin',
       createdAt: '2024-05-10'
     }
-  ];
+  ], []);
 
   const [selectedBrand, setSelectedBrand] = useState<string>(() => brands[0].id);
   const [selectedAttribute, setSelectedAttribute] = useState<string>(() => {
@@ -233,6 +233,7 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
 
   const currentAttribute = attributes.find((a) => a.id === selectedAttribute);
 
+  // Sync selectedAttribute when selectedBrand changes
   useEffect(() => {
     const brandSpecificAttributes = attributes.filter(
       (attr) =>
@@ -240,10 +241,16 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
         (attr.inputType === 'dropdown' || attr.inputType === 'chips')
     );
 
-    if (!brandSpecificAttributes.find((attr) => attr.id === selectedAttribute)) {
-      setSelectedAttribute(brandSpecificAttributes[0]?.id ?? '');
+    if (brandSpecificAttributes.length > 0) {
+      setSelectedAttribute((currentAttribute) => {
+        const isValidAttribute = brandSpecificAttributes.some((attr) => attr.id === currentAttribute);
+        if (!isValidAttribute) {
+          return brandSpecificAttributes[0].id;
+        }
+        return currentAttribute; // Keep current if valid
+      });
     }
-  }, [attributes, selectedBrand, selectedAttribute]);
+  }, [selectedBrand, attributes]); // attributes is now memoized so it won't cause infinite loops
 
   const brandAttributes = useMemo(
     () =>

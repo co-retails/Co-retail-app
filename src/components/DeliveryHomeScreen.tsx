@@ -34,7 +34,7 @@ interface DeliveryHomeScreenProps {
   currentStoreSelection: StoreSelection;
   onStoreSelectionChange: (selection: StoreSelection) => void;
   currentMonthlySales: number;
-  monthlyGoal: number;
+  monthlyGoal: number | null;
   onGoalUpdate: (newGoal: number) => void;
 }
 
