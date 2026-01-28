@@ -265,10 +265,10 @@ export default function PartnerReportsScreen({
       {/* Global Filters - Compact Single Row */}
       <div className="w-full bg-surface border-b border-outline-variant sticky top-[145px] z-10" id="reports-filters">
         <div className="px-4 md:px-6 py-3 max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-end gap-3 flex-wrap">
             {/* Partner Filter - Multiselect for Admins, Read-only display for Partners */}
-            <div className="flex items-center gap-2">
-              <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Partner:</label>
+            <div className="flex flex-col gap-1">
+              <label className="label-small text-on-surface-variant whitespace-nowrap">Partner</label>
               {canChangePartner ? (
                 <Popover>
                   <PopoverTrigger asChild>
@@ -315,8 +315,8 @@ export default function PartnerReportsScreen({
             </div>
 
             {/* Time Period */}
-            <div className="flex items-center gap-2">
-              <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Time Period:</label>
+            <div className="flex flex-col gap-1">
+              <label className="label-small text-on-surface-variant whitespace-nowrap">Time Period</label>
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedTimePeriod}
@@ -397,8 +397,8 @@ export default function PartnerReportsScreen({
             </div>
 
             {/* Brand Filter - Multiselect */}
-            <div className="flex items-center gap-2">
-              <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Brand:</label>
+            <div className="flex flex-col gap-1">
+              <label className="label-small text-on-surface-variant whitespace-nowrap">Brand</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -437,8 +437,8 @@ export default function PartnerReportsScreen({
             </div>
 
             {/* Country Filter - Multiselect */}
-            <div className="flex items-center gap-2">
-              <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Country:</label>
+            <div className="flex flex-col gap-1">
+              <label className="label-small text-on-surface-variant whitespace-nowrap">Country</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -477,8 +477,8 @@ export default function PartnerReportsScreen({
             </div>
 
             {/* Store Filter - Multiselect */}
-            <div className="flex items-center gap-2">
-              <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Store:</label>
+            <div className="flex flex-col gap-1">
+              <label className="label-small text-on-surface-variant whitespace-nowrap">Store</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -517,8 +517,8 @@ export default function PartnerReportsScreen({
             </div>
 
             {/* Currency Filter */}
-            <div className="flex items-center gap-2">
-              <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Currency:</label>
+            <div className="flex flex-col gap-1">
+              <label className="label-small text-on-surface-variant whitespace-nowrap">Currency</label>
               <Select
                 value={selectedCurrency}
                 onValueChange={setSelectedCurrency}
