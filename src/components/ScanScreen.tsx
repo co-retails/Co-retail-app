@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { ItemCard, BaseItem, ItemQuickAction } from './ItemCard';
 import { 
   DropdownMenu,
@@ -458,6 +458,7 @@ export default function ScanScreen({
   onNavigateToReturns
 }: ScanScreenProps) {
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
+  const lastScannedItemIdRef = useRef<string | null>(null);
 
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<ScannedItem | null>(null);
@@ -754,6 +755,7 @@ export default function ScanScreen({
     const newItem: ScannedItem = {
       id: Date.now().toString(),
       itemId,
+      title: `${brand} ${category}`,
       status: 'Available',
       date: getTodayString(),
       brand,
@@ -780,9 +782,25 @@ export default function ScanScreen({
       ]
     };
     
+    // Add item to scanned items list
     setScannedItems(prev => [newItem, ...prev]);
-    toast.success(`Scanned item: ${itemId}`);
+    // Track the scanned item ID for auto-opening dialog
+    lastScannedItemIdRef.current = newItem.id;
+    // Automatically open item details dialog when item is scanned
+    setSelectedItemForDetails(newItem);
+    // Toast message removed - visual feedback already shown in scan area
   };
+
+  // Auto-open item details dialog when a new item is scanned
+  useEffect(() => {
+    if (lastScannedItemIdRef.current && scannedItems.length > 0) {
+      const lastScannedItem = scannedItems.find(item => item.id === lastScannedItemIdRef.current);
+      if (lastScannedItem && !selectedItemForDetails) {
+        setSelectedItemForDetails(lastScannedItem);
+        lastScannedItemIdRef.current = null; // Reset after opening
+      }
+    }
+  }, [scannedItems, selectedItemForDetails]);
 
   // Check if return button should be shown based on scanned/selected items status
   const returnableStatuses = ['Available', 'Missing', 'Broken', 'Rejected', 'Expired'];
@@ -803,39 +821,33 @@ export default function ScanScreen({
       <div className="hidden md:block h-16"></div>
       <ScanViewer onScan={handleScan} />
       
-      <ScannedItemsSection 
-        items={scannedItems}
-        onClearItems={handleClearItems}
-        onToggleSelect={handleToggleSelect}
-        onMoreActions={handleMoreActions}
-        onClick={handleItemClick}
-        userRole={userRole}
-        onSelectAll={handleSelectAll}
-        selectedCount={selectedItems.length}
-        totalCount={scannedItems.length}
-        isAllSelected={scannedItems.length > 0 && scannedItems.every(item => item.selected)}
-        onArchive={handleArchiveSelected}
-        onBulkEdit={handleBulkEdit}
-      />
-
-      {/* Bulk Edit Modal */}
-      <BulkEditModal 
-        isOpen={showBulkEditModal}
-        onClose={() => setShowBulkEditModal(false)}
-        selectedItems={selectedItems}
-        onSave={handleBulkEditSave}
-        userRole={userRole}
-      />
+      {/* Empty state - main scan screen */}
+      <div className="flex-1 flex flex-col items-center justify-center py-16 px-4">
+        <svg className="w-16 h-16 text-on-surface-variant mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M12 12h-4.01M12 12v4.01M12 12V7.99" />
+        </svg>
+        <h3 className="title-medium text-on-surface mb-2">
+          Scan an item
+        </h3>
+        <p className="body-medium text-on-surface-variant text-center">
+          Use the scanner above to scan items
+        </p>
+      </div>
 
       {/* Item Details Dialog */}
       <ItemDetailsDialog
         item={selectedItemForDetails as ItemDetails | null}
         isOpen={!!selectedItemForDetails}
-        onClose={() => setSelectedItemForDetails(null)}
+        onClose={() => {
+          setSelectedItemForDetails(null);
+          // Clear scanned items when closing dialog to return to clean scan screen
+          setScannedItems([]);
+        }}
         onSave={handleSaveItemDetails}
         statusHistory={selectedItemForDetails?.statusHistory}
         priceOptions={partnerPriceOptions}
         priceCurrency={partnerPriceOptions.length ? 'SEK' : undefined}
+        userRole={userRole}
       />
 
       {/* Batch Status Update Dialog */}
@@ -925,18 +937,6 @@ export default function ScanScreen({
         itemTitle={itemToUpdateStatus?.brand}
         userRole={userRole}
       />
-
-      {/* Bottom Return Action */}
-      {hasReturnableItems && onNavigateToReturns && (
-        <div className="sticky bottom-0 bg-surface border-t border-outline-variant p-4 z-10">
-          <Button 
-            onClick={handleReturn}
-            className="w-full bg-primary text-on-primary hover:bg-primary/90"
-          >
-            Return
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

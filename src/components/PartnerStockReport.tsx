@@ -48,6 +48,7 @@ export interface PartnerStockReportProps {
   selectedWeek?: string;
   dateRangeStart?: string;
   dateRangeEnd?: string;
+  currency?: string;
 }
 
 export type TimePeriod = 'daily' | 'sevenDays' | 'fourteenDays' | 'thirtyDays';
@@ -68,6 +69,32 @@ const CATEGORIES = [
   'Other'
 ];
 
+// Exchange rates (mock - in production would come from API or configuration)
+const EXCHANGE_RATES: Record<string, number> = {
+  SEK: 1,      // Base currency
+  EUR: 0.087,  // 1 SEK = 0.087 EUR (approx 11.5 SEK per EUR)
+  USD: 0.093,  // 1 SEK = 0.093 USD (approx 10.8 SEK per USD)
+  GBP: 0.076,  // 1 SEK = 0.076 GBP (approx 13.2 SEK per GBP)
+  NOK: 1.0,    // 1 SEK = 1.0 NOK (approximate)
+  DKK: 0.65    // 1 SEK = 0.65 DKK (approx 1.54 SEK per DKK)
+};
+
+const convertCurrency = (amount: number, fromCurrency: string, toCurrency: string): number => {
+  if (fromCurrency === toCurrency) return amount;
+  // Convert from SEK to target currency
+  if (fromCurrency === 'SEK') {
+    return amount * (EXCHANGE_RATES[toCurrency] || 1);
+  }
+  // Convert from target currency back to SEK, then to new currency
+  const sekAmount = amount / (EXCHANGE_RATES[fromCurrency] || 1);
+  return sekAmount * (EXCHANGE_RATES[toCurrency] || 1);
+};
+
+const formatCurrency = (amount: number, currency: string): string => {
+  const converted = convertCurrency(amount, 'SEK', currency);
+  return `${converted.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${currency}`;
+};
+
 export default function PartnerStockReport({
   stockData,
   stores,
@@ -82,7 +109,8 @@ export default function PartnerStockReport({
   selectedMonth,
   selectedWeek,
   dateRangeStart,
-  dateRangeEnd
+  dateRangeEnd,
+  currency = 'SEK'
 }: PartnerStockReportProps) {
 
   // Filter and aggregate data by category
@@ -474,13 +502,16 @@ export default function PartnerStockReport({
       return `Previous Month: ${prevMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     }
     if (originalTimePeriod === 'week' && selectedWeek) {
-      const [year, week] = selectedWeek.split('-W');
-      const weekNum = parseInt(week);
-      if (weekNum > 1) {
-        return `Previous Week: Week ${weekNum - 1}, ${year}`;
-      } else {
-        const prevYear = parseInt(year) - 1;
-        return `Previous Week: Week 52, ${prevYear}`;
+      const parts = selectedWeek.split('-W');
+      if (parts.length === 2) {
+        const [year, week] = parts;
+        const weekNum = parseInt(week || '1');
+        if (weekNum > 1) {
+          return `Previous Week: Week ${weekNum - 1}, ${year}`;
+        } else {
+          const prevYear = parseInt(year || '2024') - 1;
+          return `Previous Week: Week 52, ${prevYear}`;
+        }
       }
     }
     if (originalTimePeriod === 'dateRange' && dateRangeStart && dateRangeEnd) {
@@ -552,8 +583,8 @@ export default function PartnerStockReport({
               <span className="body-medium text-on-surface-variant">Stock Value</span>
               <DollarSign className="h-5 w-5 text-chart-1" />
             </div>
-            <p className="display-small text-on-surface">{Math.round(totals.stockValue).toLocaleString()}</p>
-            <p className="body-small text-on-surface-variant mt-1">SEK total inventory value</p>
+            <p className="display-small text-on-surface">{formatCurrency(totals.stockValue, currency)}</p>
+            <p className="body-small text-on-surface-variant mt-1">total inventory value</p>
           </CardContent>
         </Card>
 
@@ -563,8 +594,8 @@ export default function PartnerStockReport({
               <span className="body-medium text-on-surface-variant">Average Price</span>
               <DollarSign className="h-5 w-5 text-chart-2" />
             </div>
-            <p className="display-small text-on-surface">{Math.round(totals.averagePrice).toLocaleString()}</p>
-            <p className="body-small text-on-surface-variant mt-1">SEK per item</p>
+            <p className="display-small text-on-surface">{formatCurrency(totals.averagePrice, currency)}</p>
+            <p className="body-small text-on-surface-variant mt-1">per item</p>
           </CardContent>
         </Card>
 
@@ -579,116 +610,6 @@ export default function PartnerStockReport({
           </CardContent>
         </Card>
       </div>
-
-      {/* Daily Stock Trend Chart */}
-      {dailyStockChartData.length > 0 && (
-        <Card className="bg-surface-container border border-outline-variant rounded-lg">
-          <CardContent className="p-6">
-            <h3 className="title-medium text-on-surface mb-4">
-              Total Stock per Day - {getDisplayPeriodLabelWithPrevious()}
-            </h3>
-            <div className="w-full" style={{ height: '400px' }}>
-              <ChartContainer 
-                config={{
-                  'Selected Period': { label: getDisplayPeriodLabel(), color: '#2563eb' },
-                  'Last Month': { label: 'Last Month', color: '#4b5563' }
-                }} 
-                className="h-full w-full [&]:!aspect-auto"
-              >
-                <LineChart data={dailyStockChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--outline-variant))" />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="hsl(var(--on-surface-variant))"
-                    style={{ fontSize: '12px' }}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--on-surface-variant))"
-                    style={{ fontSize: '12px' }}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="Selected Period" 
-                    stroke="#2563eb" 
-                    strokeWidth={3}
-                    dot={{ r: 5, fill: '#2563eb' }}
-                    activeDot={{ r: 7, fill: '#2563eb' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="Last Month" 
-                    stroke="#4b5563" 
-                    strokeWidth={3}
-                    strokeDasharray="5 5"
-                    dot={{ r: 5, fill: '#4b5563' }}
-                    activeDot={{ r: 7, fill: '#4b5563' }}
-                  />
-                </LineChart>
-              </ChartContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Stock Value by Category Chart */}
-      {stockValueChartData.length > 0 && (
-        <Card className="bg-surface-container border border-outline-variant rounded-lg">
-          <CardContent className="p-6">
-            <h3 className="title-medium text-on-surface mb-4">
-              Stock Value by Category - {getDisplayPeriodLabelWithPrevious()}
-            </h3>
-            <div className="w-full" style={{ height: '400px' }}>
-              <ChartContainer 
-                config={{
-                  'Current Period': { label: getDisplayPeriodLabel(), color: '#2563eb' },
-                  'Previous Period': { label: 'Previous Period', color: '#4b5563' }
-                }} 
-                className="h-full w-full [&]:!aspect-auto"
-              >
-                <BarChart data={stockValueChartData}>
-                  <defs>
-                    <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
-                      <stop offset="50%" stopColor="#3b82f6" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity={1} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--outline-variant))" />
-                  <XAxis 
-                    dataKey="category" 
-                    stroke="hsl(var(--on-surface-variant))"
-                    style={{ fontSize: '12px' }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={100}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--on-surface-variant))"
-                    style={{ fontSize: '12px' }}
-                  />
-                  <ChartTooltip 
-                    content={<ChartTooltipContent />}
-                    formatter={(value: number) => `SEK ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                  />
-                  <Legend />
-                  <Bar 
-                    dataKey="Current Period" 
-                    fill="url(#blueGradient)" 
-                    radius={[8, 8, 0, 0]} 
-                  />
-                  <Bar 
-                    dataKey="Previous Period" 
-                    fill="#4b5563" 
-                    radius={[8, 8, 0, 0]} 
-                  />
-                </BarChart>
-              </ChartContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Stock Count by Category Chart */}
       <Card className="bg-surface-container border border-outline-variant rounded-lg">
@@ -811,10 +732,10 @@ export default function PartnerStockReport({
                         <div className="flex items-center gap-2">
                           {item.category}
                           {isLowStock && (
-                            <AlertCircle className="h-4 w-4 text-error" title="Low stock" />
+                            <AlertCircle className="h-4 w-4 text-error" />
                           )}
                           {isHighSellThrough && (
-                            <TrendingUp className="h-4 w-4 text-chart-2" title="High sell-through rate" />
+                            <TrendingUp className="h-4 w-4 text-chart-2" />
                           )}
                         </div>
                       </td>
@@ -875,6 +796,116 @@ export default function PartnerStockReport({
           </div>
         </CardContent>
       </Card>
+
+      {/* Stock Value by Category Chart */}
+      {stockValueChartData.length > 0 && (
+        <Card className="bg-surface-container border border-outline-variant rounded-lg">
+          <CardContent className="p-6">
+            <h3 className="title-medium text-on-surface mb-4">
+              Stock Value by Category - {getDisplayPeriodLabelWithPrevious()}
+            </h3>
+            <div className="w-full" style={{ height: '400px' }}>
+              <ChartContainer 
+                config={{
+                  'Current Period': { label: getDisplayPeriodLabel(), color: '#2563eb' },
+                  'Previous Period': { label: 'Previous Period', color: '#4b5563' }
+                }} 
+                className="h-full w-full [&]:!aspect-auto"
+              >
+                <BarChart data={stockValueChartData}>
+                  <defs>
+                    <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
+                      <stop offset="50%" stopColor="#3b82f6" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity={1} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--outline-variant))" />
+                  <XAxis 
+                    dataKey="category" 
+                    stroke="hsl(var(--on-surface-variant))"
+                    style={{ fontSize: '12px' }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--on-surface-variant))"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />}
+                    formatter={(value: number) => formatCurrency(value, currency)}
+                  />
+                  <Legend />
+                  <Bar 
+                    dataKey="Current Period" 
+                    fill="url(#blueGradient)" 
+                    radius={[8, 8, 0, 0]} 
+                  />
+                  <Bar 
+                    dataKey="Previous Period" 
+                    fill="#4b5563" 
+                    radius={[8, 8, 0, 0]} 
+                  />
+                </BarChart>
+              </ChartContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Daily Stock Trend Chart */}
+      {dailyStockChartData.length > 0 && (
+        <Card className="bg-surface-container border border-outline-variant rounded-lg">
+          <CardContent className="p-6">
+            <h3 className="title-medium text-on-surface mb-4">
+              Total Stock per Day - {getDisplayPeriodLabelWithPrevious()}
+            </h3>
+            <div className="w-full" style={{ height: '400px' }}>
+              <ChartContainer 
+                config={{
+                  'Selected Period': { label: getDisplayPeriodLabel(), color: '#2563eb' },
+                  'Last Month': { label: 'Last Month', color: '#4b5563' }
+                }} 
+                className="h-full w-full [&]:!aspect-auto"
+              >
+                <LineChart data={dailyStockChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--outline-variant))" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="hsl(var(--on-surface-variant))"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--on-surface-variant))"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Selected Period" 
+                    stroke="#2563eb" 
+                    strokeWidth={3}
+                    dot={{ r: 5, fill: '#2563eb' }}
+                    activeDot={{ r: 7, fill: '#2563eb' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Last Month" 
+                    stroke="#4b5563" 
+                    strokeWidth={3}
+                    strokeDasharray="5 5"
+                    dot={{ r: 5, fill: '#4b5563' }}
+                    activeDot={{ r: 7, fill: '#4b5563' }}
+                  />
+                </LineChart>
+              </ChartContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

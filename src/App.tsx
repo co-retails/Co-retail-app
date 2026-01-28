@@ -7,7 +7,7 @@ import ReturnManagementScreen, { ReturnItem, ReturnOrder, normalizeReturnItemSta
 import ReturnConfirmationScreen from './components/ReturnConfirmationScreen';
 import ReturnShippingLabelScreen from './components/ReturnShippingLabelScreen';
 import ReturnDetailsScreen, { ReturnOrderDetails, ReturnItemDetail } from './components/ReturnDetailsScreen';
-import ItemsScreen, { Item } from './components/ItemsScreen';
+import ItemsScreen, { Item, initialItems } from './components/ItemsScreen';
 import ScanScreen from './components/ScanScreen';
 import SellersScreen from './components/SellersScreen';
 import StockCheckScreen, { StockCheckSession } from './components/StockCheckScreen';
@@ -271,7 +271,10 @@ export default function App() {
     currentScreen,
     setCurrentScreen: setCurrentScreenSafe,
     setShippingInitialTab,
-    currentUserRole: currentUserRole as 'store-staff' | 'partner' | 'buyer'
+    currentUserRole: currentUserRole as 'store-staff' | 'partner' | 'buyer',
+    receivePreviousScreen: state.receivePreviousScreen,
+    returnManagementPreviousScreen: state.returnManagementPreviousScreen,
+    returnManagementPreviousTab: state.returnManagementPreviousTab
   });
 
   const {
@@ -470,6 +473,9 @@ export default function App() {
       // For other partners, initialize as empty array to allow scanning any items
       setReturnItems([]);
     }
+    // Clear previous screen tracking since we're coming from partner-selection (normal flow)
+    state.setReturnManagementPreviousScreen(null);
+    state.setReturnManagementPreviousTab(undefined);
     setCurrentScreenSafe('return-management');
   };
 
@@ -628,6 +634,9 @@ export default function App() {
     // Set up the return items and partner for ReturnManagementScreen
     setReturnItems(returnItems);
     setSelectedPartner(partner);
+    // Clear previous screen tracking since we're coming from partner-selection (normal flow)
+    state.setReturnManagementPreviousScreen(null);
+    state.setReturnManagementPreviousTab(undefined);
     setCurrentScreenSafe('return-management');
   };
 
@@ -867,7 +876,8 @@ export default function App() {
 
   const handleNavigateToReturnsTab = () => {
     setCurrentScreenSafe('shipping');
-    setShippingInitialTab('returns');
+    // Navigate to Returns tab with In transit filter (for "Mark as returned" action)
+    setShippingInitialTab('returns-in-transit');
   };
 
   const handleSellpyOrderClick = (order: SellpyOrder) => {
@@ -1201,7 +1211,56 @@ export default function App() {
     }
   };
 
-  const handleViewShipmentDetails = (type: DetailType, data: PartnerOrder | DeliveryNote | ReturnDelivery, previousScreen?: Screen, previousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered') => {
+  // Helper function to encode tab and filter into initialTab value
+  const encodeTabAndFilter = (tab: string | undefined, filter: string | undefined): string | undefined => {
+    if (!tab) return undefined;
+    
+    // Handle Orders tab (pending) filters
+    if (tab === 'pending') {
+      if (filter === 'approval') {
+        return 'approval';
+      } else if (filter === 'pending') {
+        // Need to encode 'pending' filter explicitly - use 'pending-pending' to distinguish from 'all' filter
+        return 'pending-pending';
+      } else if (filter === 'registered') {
+        return 'pending-registered';
+      } else if (filter === 'in-transit') {
+        return 'pending'; // Default to pending tab
+      } else if (filter === 'all' || !filter) {
+        return 'pending'; // Default to pending tab with all filter
+      }
+    }
+    
+    // Handle Shipments tab (in-transit) filters
+    if (tab === 'in-transit') {
+      if (filter === 'packing') {
+        return 'pending-packing';
+      } else if (filter === 'delivered') {
+        return 'delivered';
+      } else if (filter === 'in-transit') {
+        // Need to encode 'in-transit' filter explicitly - use 'in-transit-filter' to distinguish from 'all' filter
+        return 'in-transit-filter';
+      } else if (filter === 'all' || !filter) {
+        return 'in-transit'; // Default to in-transit tab with all filter
+      }
+    }
+    
+    // Handle Returns tab filters
+    if (tab === 'returns') {
+      if (filter === 'returned') {
+        return 'returns-returned';
+      } else if (filter === 'in-transit') {
+        return 'returns-in-transit';
+      } else if (filter === 'all' || !filter) {
+        return 'returns'; // Default to returns tab with all filter
+      }
+    }
+    
+    // Return the tab as-is if no filter encoding needed
+    return tab;
+  };
+
+  const handleViewShipmentDetails = (type: DetailType, data: PartnerOrder | DeliveryNote | ReturnDelivery, previousScreen?: Screen, previousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered', previousFilter?: 'packing' | 'in-transit' | 'delivered' | 'all' | 'returned' | 'approval' | 'pending' | 'registered') => {
     let metadata: {
       storeName?: string;
       storeCode?: string;
@@ -1230,7 +1289,8 @@ export default function App() {
       data,
       ...metadata,
       previousScreen: previousScreen || currentScreen, // Track where we came from
-      previousTab: previousTab // Track which tab was active
+      previousTab: previousTab, // Track which tab was active
+      previousFilter: previousFilter // Track which filter chip was active
     });
     setCurrentScreenSafe('order-shipment-details');
   };
@@ -1617,6 +1677,15 @@ export default function App() {
         const selectedStoreId = String(currentStoreSelection.storeId);
         const selectedStoreCode = currentStore?.code;
         
+        // Check if current store is H&M Germany (Berlin Alexanderplatz)
+        // Store ID: '30', Brand ID: '4' (H&M), Country ID: '28' (Germany)
+        const isHMGermany = currentStoreSelection.storeId === '30' && 
+                            currentStoreSelection.brandId === '4' && 
+                            currentStoreSelection.countryId === '28';
+        
+        // Use null goal for H&M Germany to demonstrate empty state, otherwise use the state value
+        const displayMonthlyGoal = isHMGermany ? null : monthlyGoal;
+        
         // Filter deliveries by status 'In transit' and selected store
         // This matches the filteredDeliveries logic in ShippingScreen for store staff
         // Note: If receivingStoreId is not set on a delivery, we include it (can't determine store)
@@ -1662,6 +1731,9 @@ export default function App() {
         
         // Handler for scan to receive - same as in Shipping screen
         const handleScanToReceive = () => {
+          // Track that we came from home screen
+          console.log('[handleScanToReceive] Setting receivePreviousScreen to home');
+          state.setReceivePreviousScreen('home');
           setSelectedDelivery({
             id: 'scan-any',
             deliveryId: 'SCAN',
@@ -1708,7 +1780,7 @@ export default function App() {
             currentStoreSelection={currentStoreSelection}
             onStoreSelectionChange={setCurrentStoreSelection}
             currentMonthlySales={currentMonthlySales}
-            monthlyGoal={monthlyGoal}
+            monthlyGoal={displayMonthlyGoal}
             onGoalUpdate={setMonthlyGoal}
           />
         );
@@ -1719,6 +1791,9 @@ export default function App() {
           deliveries={deliveries}
           returnDeliveries={returnDeliveries}
           onScanBox={() => {
+            // Track that we came from shipping screen
+            console.log('[onScanBox] Setting receivePreviousScreen to shipping');
+            state.setReceivePreviousScreen('shipping');
             // Set a generic delivery for scanning any box
             setSelectedDelivery({
               id: 'scan-any',
@@ -1753,6 +1828,11 @@ export default function App() {
                 date: delivery.date,
                 isScanned: initialStatus === 'Delivered',
                 deliveryId: delivery.id as string,
+                deliveryLabel: delivery.deliveryId,
+                partnerId: delivery.partnerId,
+                partnerName: delivery.partnerName || delivery.sender,
+                warehouseId: delivery.warehouseId,
+                warehouseName: delivery.warehouseName,
                 cancellationReason: initialStatus === 'Cancelled' ? (delivery.cancellationReason || 'Missing box') : undefined
               });
             }
@@ -1776,11 +1856,11 @@ export default function App() {
             setSelectedSellpyOrder(order);
             setCurrentScreenSafe('order-details');
           }}
-          onOpenOrderDetails={(order, activeTab) => {
+          onOpenOrderDetails={(order, activeTab, activeFilter) => {
             setSelectedPartnerOrder(order);
-            handleViewShipmentDetails('order', order, 'shipping', activeTab);
+            handleViewShipmentDetails('order', order, 'shipping', activeTab, activeFilter as 'approval' | 'pending' | 'registered' | 'in-transit' | 'all' | undefined);
           }}
-          onOpenShipmentDetails={(deliveryNote, activeTab) => {
+          onOpenShipmentDetails={(deliveryNote, activeTab, activeFilter) => {
             // For pending/packing delivery notes, show the delivery note creation screen
             if (deliveryNote.status === 'pending' || deliveryNote.status === 'packing') {
               // Find the related order to get order items
@@ -1833,17 +1913,18 @@ export default function App() {
                   warehouseName: warehouseName,
                   orderItems: orderItems,
                   previousScreen: 'shipping',
-                  previousTab: activeTab
+                  previousTab: activeTab,
+                  previousFilter: activeFilter as 'packing' | 'in-transit' | 'delivered' | 'all' | undefined
                 });
                 setCurrentScreenSafe('delivery-note-creation');
                 return;
               }
             }
             // For other statuses, use the regular details screen
-            handleViewShipmentDetails('shipment', deliveryNote, 'shipping', activeTab);
+            handleViewShipmentDetails('shipment', deliveryNote, 'shipping', activeTab, activeFilter as 'packing' | 'in-transit' | 'delivered' | 'all' | undefined);
           }}
-          onOpenReturnDetails={(returnDelivery, activeTab) => {
-            console.log('onOpenReturnDetails called:', { returnDelivery, status: returnDelivery.status, activeTab });
+          onOpenReturnDetails={(returnDelivery, activeTab, activeFilter) => {
+            console.log('onOpenReturnDetails called:', { returnDelivery, status: returnDelivery.status, activeTab, activeFilter });
             // If return is pending, open return management screen with scanner active
             if (returnDelivery.status === 'Pending') {
               console.log('Opening pending return:', returnDelivery);
@@ -1899,6 +1980,11 @@ export default function App() {
                 }
                 
                 console.log('Setting up return with items:', itemsForReturn.length);
+                // Track that we came from shipping screen with returns tab
+                const tabToRestore = activeTab === 'returns' ? 'returns' : (activeTab || 'returns');
+                console.log('[onOpenReturnDetails] Setting returnManagementPreviousScreen to shipping, tab:', tabToRestore);
+                state.setReturnManagementPreviousScreen('shipping');
+                state.setReturnManagementPreviousTab(tabToRestore);
                 setReturnItems(itemsForReturn);
                 setSelectedPartner(partner);
                 setCurrentScreenSafe('return-management');
@@ -1908,7 +1994,10 @@ export default function App() {
               }
             }
             // Otherwise, open return details screen
-            handleViewShipmentDetails('return', returnDelivery, 'shipping', activeTab);
+            // Ensure we pass 'returns' as the tab if activeTab is 'returns', otherwise use activeTab
+            const tabToRestore = activeTab === 'returns' ? 'returns' : (activeTab || 'returns');
+            console.log('Opening return details, will restore tab:', tabToRestore, 'filter:', activeFilter);
+            handleViewShipmentDetails('return', returnDelivery, 'shipping', tabToRestore, activeFilter as 'in-transit' | 'returned' | 'all' | undefined);
           }}
           onViewShowroomOrder={(orderId) => {
             const order = showroomOrders.find(o => o.id === orderId);
@@ -1937,6 +2026,8 @@ export default function App() {
       {currentScreen === 'delivery-details' && selectedDelivery && (
         <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
           if (!open) {
+            // If we have a tracked tab from shipping, restore it
+            // For now, just go back to shipping - tab restoration can be added if needed
             setCurrentScreenSafe('shipping');
           }
         }}>
@@ -1945,7 +2036,11 @@ export default function App() {
           delivery={selectedDelivery}
           boxes={deliveryBoxes}
           onBack={() => setCurrentScreenSafe('shipping')}
-          onScanToReceive={() => setCurrentScreenSafe('receive')}
+          onScanToReceive={() => {
+            // Track that we came from delivery-details (which came from shipping)
+            state.setReceivePreviousScreen('shipping');
+            setCurrentScreenSafe('receive');
+          }}
           onSelectBox={(box) => {
             setSelectedBox(box);
             setCurrentScreenSafe('box-details');
@@ -1982,7 +2077,6 @@ export default function App() {
                 )
               );
               setSelectedDelivery({ ...selectedDelivery, status: 'In transit' });
-              toast.success('Delivery registered successfully');
               setCurrentScreenSafe('shipping');
             }
           }}
@@ -2058,6 +2152,8 @@ export default function App() {
           boxes={deliveryBoxes}
           userRole={currentUserRole}
           onBoxesChange={setDeliveryBoxes}
+          allDeliveries={deliveries}
+          currentStoreSelection={currentStoreSelection}
           onUpdateDeliveryStatus={(deliveryId, status, reason) => {
             setDeliveries(prevDeliveries =>
               prevDeliveries.map(delivery =>
@@ -2080,7 +2176,7 @@ export default function App() {
               );
             }
           }}
-          onBack={() => setCurrentScreenSafe('delivery-details')}
+          onBack={handleBack}
           onRegister={(delivery, scannedBoxes) => {
             // Update the boxes in state
             setDeliveryBoxes(prev => prev.map(box => {
@@ -2188,7 +2284,6 @@ export default function App() {
             
             // Navigate to success screen
             setCurrentScreenSafe('return-confirmation');
-            toast.success('Return registered successfully');
           }}
         />
       )}
@@ -2326,8 +2421,8 @@ export default function App() {
           onBack={handleBack}
           onCreateOrder={handleCreateOrder}
           onViewOrders={() => {
-            // Navigate to shipping screen with Orders tab (pending tab for partners)
-            setShippingInitialTab('pending');
+            // Navigate to shipping screen with Orders tab and Pending filter
+            setShippingInitialTab('pending-pending');
             setCurrentScreenSafe('shipping');
           }}
           onViewRegisteredOrders={() => {
@@ -2390,6 +2485,7 @@ export default function App() {
             onBack={() => setCurrentScreenSafe('partner-dashboard')}
             salesData={mockSalesReportData}
             stockData={mockStockReportData}
+            items={initialItems}
             stores={mockStores}
             brands={mockBrands}
             countries={mockCountries}
@@ -2598,15 +2694,19 @@ export default function App() {
       {currentScreen === 'order-shipment-details' && detailsScreenData && (
         <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
           if (!open) {
+            console.log('Closing order-shipment-details, previousScreen:', detailsScreenData.previousScreen, 'previousTab:', detailsScreenData.previousTab);
             // Restore the tab if we came from shipping screen
             if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
+              console.log('Restoring shipping tab to:', detailsScreenData.previousTab);
               setShippingInitialTab(detailsScreenData.previousTab);
             }
             
             // Navigate back to the previous screen if specified, otherwise use default handleBack
             if (detailsScreenData.previousScreen) {
+              console.log('Navigating back to:', detailsScreenData.previousScreen);
               setCurrentScreenSafe(detailsScreenData.previousScreen);
             } else {
+              console.log('No previousScreen, using handleBack');
               handleBack();
             }
           }
@@ -2616,15 +2716,20 @@ export default function App() {
           type={detailsScreenData.type}
           data={detailsScreenData.data}
           onBack={() => {
-            // Restore the tab if we came from shipping screen
-            if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
-              setShippingInitialTab(detailsScreenData.previousTab);
-            }
-            
-            // Navigate back to the previous screen if specified, otherwise use default handleBack
-            if (detailsScreenData.previousScreen) {
+            console.log('OrderShipmentDetailsScreen onBack called, previousScreen:', detailsScreenData.previousScreen, 'previousTab:', detailsScreenData.previousTab, 'previousFilter:', detailsScreenData.previousFilter);
+            // Restore the tab and filter if we came from shipping screen
+            if (detailsScreenData.previousScreen === 'shipping') {
+              const tabToRestore = encodeTabAndFilter(detailsScreenData.previousTab, detailsScreenData.previousFilter);
+              console.log('Restoring shipping tab to:', tabToRestore, 'with filter:', detailsScreenData.previousFilter);
+              if (tabToRestore) {
+                setShippingInitialTab(tabToRestore as any);
+              }
+              setCurrentScreenSafe('shipping');
+            } else if (detailsScreenData.previousScreen) {
+              console.log('Navigating back to:', detailsScreenData.previousScreen);
               setCurrentScreenSafe(detailsScreenData.previousScreen);
             } else {
+              console.log('No previousScreen, using handleBack');
               handleBack();
             }
           }}
@@ -2896,8 +3001,6 @@ export default function App() {
                       order.id === shipment.orderId ? { ...order, status: 'in-transit' as const } : order
                     ));
                   }
-                  
-                  toast.success('Delivery note registered successfully');
                 };
               }
             }
@@ -3036,11 +3139,17 @@ export default function App() {
         return (
           <DeliveryNoteDetailsScreen
             onBack={() => {
-              // Restore the tab if we came from shipping screen
-              if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
-                setShippingInitialTab(detailsScreenData.previousTab);
+              // Restore the tab and filter if we came from shipping screen
+              if (detailsScreenData.previousScreen === 'shipping') {
+                const tabToRestore = encodeTabAndFilter(detailsScreenData.previousTab, detailsScreenData.previousFilter);
+                console.log('DeliveryNoteCreationScreen onBack: Restoring shipping tab to:', tabToRestore, 'with filter:', detailsScreenData.previousFilter);
+                if (tabToRestore) {
+                  setShippingInitialTab(tabToRestore as any);
+                }
+                setCurrentScreenSafe('shipping');
+              } else {
+                handleBack();
               }
-              handleBack();
             }}
             orderId={orderId}
             orderItems={orderItems}

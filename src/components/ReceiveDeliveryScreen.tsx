@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Checkbox } from './ui/checkbox';
@@ -24,6 +24,11 @@ export interface Box {
   date: string;
   isScanned: boolean;
   deliveryId?: string;
+  deliveryLabel?: string; // Display label for delivery (e.g., deliveryId)
+  partnerId?: string;
+  partnerName?: string; // Sender/partner name
+  warehouseId?: string;
+  warehouseName?: string;
   cancellationReason?: 'Missing box';
 }
 
@@ -37,6 +42,8 @@ interface ReceiveDeliveryScreenProps {
   userRole?: ReceiveUserRole;
   onBoxesChange?: (boxes: Box[]) => void;
   onUpdateDeliveryStatus?: (deliveryId: string, status: Delivery['status'], reason?: string) => void;
+  allDeliveries?: Delivery[]; // All deliveries for matching scanned boxes
+  currentStoreSelection?: { storeId: string; storeCode?: string }; // Current store for filtering deliveries
 }
 
 function TopAppBarWithDeliveryInfo({ 
@@ -221,10 +228,27 @@ function BoxCard({
         </div>
         
         {/* Fourth Line - Order nr */}
-        <div className="body-small text-on-surface-variant">
+        <div className="body-small text-on-surface-variant mb-1">
           <span className="label-small text-on-surface-variant">Order nr: </span>
           {box.orderNumber}
         </div>
+        
+        {/* Fifth Line - Sender/Partner and Delivery (if available) */}
+        {(box.partnerName || box.deliveryLabel) && (
+          <div className="body-small text-on-surface-variant">
+            {box.partnerName && (
+              <span className="label-small text-on-surface-variant">Sender: </span>
+            )}
+            {box.partnerName || ''}
+            {box.partnerName && box.deliveryLabel && ' • '}
+            {box.deliveryLabel && (
+              <>
+                <span className="label-small text-on-surface-variant">Delivery: </span>
+                {box.deliveryLabel}
+              </>
+            )}
+          </div>
+        )}
       </div>
       
       {/* Trailing Element - Items count or More menu */}
@@ -380,7 +404,9 @@ export default function ReceiveDeliveryScreen({
   boxes: initialBoxes,
   userRole,
   onBoxesChange,
-  onUpdateDeliveryStatus
+  onUpdateDeliveryStatus,
+  allDeliveries = [],
+  currentStoreSelection
 }: ReceiveDeliveryScreenProps) {
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
   const [isScanning, setIsScanning] = useState(false);
@@ -388,10 +414,63 @@ export default function ReceiveDeliveryScreen({
   const isAdmin = userRole === 'admin';
   const canScan = delivery.status === 'In transit';
 
+  // Generate boxes from all in-transit deliveries to the current store
+  const generateAllInTransitBoxes = useMemo(() => {
+    const allBoxes: Box[] = [];
+    
+    // Get all in-transit deliveries to the current store
+    const inTransitDeliveries = allDeliveries.filter(d => {
+      if (d.status !== 'In transit') return false;
+      // Match by storeId or storeCode
+      if (currentStoreSelection?.storeId && d.receivingStoreId === currentStoreSelection.storeId) return true;
+      if (currentStoreSelection?.storeCode) {
+        // Try to match by store code if available
+        const storeCode = currentStoreSelection.storeCode;
+        // This is a simple match - in real app, you'd have storeCode in delivery
+        return true; // Include all in-transit deliveries when scanning from home
+      }
+      // If no store selection, include all in-transit deliveries
+      return true;
+    });
+
+    // Generate boxes for each in-transit delivery
+    inTransitDeliveries.forEach(deliveryItem => {
+      for (let i = 1; i <= deliveryItem.boxes; i++) {
+        allBoxes.push({
+          id: `box-${deliveryItem.id}-${i}`,
+          boxId: `BOX-${deliveryItem.deliveryId.slice(-6)}-${i.toString().padStart(3, '0')}`,
+          orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+          externalOrder: `EXT-${Math.floor(10000 + Math.random() * 90000)}`,
+          items: Math.floor(20 + Math.random() * 100),
+          status: 'In transit',
+          date: deliveryItem.date,
+          isScanned: false,
+          deliveryId: deliveryItem.id,
+          deliveryLabel: deliveryItem.deliveryId,
+          partnerId: deliveryItem.partnerId,
+          partnerName: deliveryItem.partnerName || deliveryItem.sender,
+          warehouseId: deliveryItem.warehouseId,
+          warehouseName: deliveryItem.warehouseName
+        });
+      }
+    });
+
+    return allBoxes;
+  }, [allDeliveries, currentStoreSelection]);
+
   // Generate mock boxes for the delivery or use provided boxes
   const [boxes, setBoxes] = useState<Box[]>(() => {
     if (initialBoxes && initialBoxes.length > 0) {
-      return initialBoxes;
+      // Ensure boxes have partner/delivery info if missing
+      return initialBoxes.map(box => ({
+        ...box,
+        deliveryId: box.deliveryId || delivery.id,
+        deliveryLabel: box.deliveryLabel || delivery.deliveryId,
+        partnerId: box.partnerId || delivery.partnerId,
+        partnerName: box.partnerName || delivery.partnerName || delivery.sender,
+        warehouseId: box.warehouseId || delivery.warehouseId,
+        warehouseName: box.warehouseName || delivery.warehouseName
+      }));
     }
     
     const mockBoxes: Box[] = [];
@@ -404,11 +483,18 @@ export default function ReceiveDeliveryScreen({
         items: Math.floor(20 + Math.random() * 100),
         status: 'In transit',
         date: delivery.date,
-        isScanned: false
+        isScanned: false,
+        deliveryId: delivery.id,
+        deliveryLabel: delivery.deliveryId,
+        partnerId: delivery.partnerId,
+        partnerName: delivery.partnerName || delivery.sender,
+        warehouseId: delivery.warehouseId,
+        warehouseName: delivery.warehouseName
       });
     }
     return mockBoxes;
   });
+
 
   const applyBoxUpdate = (updater: (prev: Box[]) => Box[]) => {
     setBoxes(prev => {
@@ -423,19 +509,47 @@ export default function ReceiveDeliveryScreen({
   }, [activeTab, boxes]);
 
   const scannedBoxes = boxes.filter(box => box.isScanned);
-  const notScannedBoxes = boxes.filter(box => !box.isScanned);
+  
+  // For "Not scanned" tab: show all in-transit boxes from all deliveries (not scanned)
+  // Merge boxes from all deliveries with currently scanned boxes
+  const allNotScannedBoxes = useMemo(() => {
+    // Get all boxes from in-transit deliveries
+    const allInTransitBoxes = generateAllInTransitBoxes;
+    
+    // Get scanned box IDs to exclude them
+    const scannedBoxIds = new Set(boxes.filter(b => b.isScanned).map(b => b.id));
+    
+    // Filter out already scanned boxes and merge with existing boxes
+    const existingBoxIds = new Set(boxes.map(b => b.id));
+    const newBoxes = allInTransitBoxes.filter(box => 
+      !scannedBoxIds.has(box.id) && !existingBoxIds.has(box.id)
+    );
+    
+    // Combine existing unscanned boxes with new boxes from all deliveries
+    const existingNotScanned = boxes.filter(box => !box.isScanned);
+    return [...existingNotScanned, ...newBoxes];
+  }, [boxes, generateAllInTransitBoxes]);
+  
+  const notScannedBoxes = activeTab === 'not-scanned' && delivery.deliveryId === 'SCAN' 
+    ? allNotScannedBoxes 
+    : boxes.filter(box => !box.isScanned);
   const currentBoxes = activeTab === 'scanned' ? scannedBoxes : notScannedBoxes;
   const canRegister = canScan && scannedBoxes.length > 0;
 
   const markBoxesAsScanned = (boxIds: string[]) => {
     if (!boxIds.length) return;
-    applyBoxUpdate(prev =>
-      prev.map(box =>
+    console.log('[ReceiveDeliveryScreen] markBoxesAsScanned called with:', boxIds);
+    console.log('[ReceiveDeliveryScreen] Current boxes before update:', boxes.map(b => ({ id: b.id, boxId: b.boxId, isScanned: b.isScanned })));
+    
+    applyBoxUpdate(prev => {
+      const updated = prev.map(box =>
         boxIds.includes(box.id)
           ? { ...box, isScanned: true, status: 'In transit' as const, cancellationReason: undefined }
           : box
-      )
-    );
+      );
+      console.log('[ReceiveDeliveryScreen] Updated boxes:', updated.map(b => ({ id: b.id, boxId: b.boxId, isScanned: b.isScanned })));
+      return updated;
+    });
   };
 
   const markBoxesAsUnscanned = (boxIds: string[]) => {
@@ -472,25 +586,89 @@ export default function ReceiveDeliveryScreen({
     setActiveTab('scanned');
   };
 
-  const handleScan = () => {
-    if (!canScan || notScannedBoxes.length === 0) {
+  const handleScan = (scannedCode: string) => {
+    console.log('[ReceiveDeliveryScreen] handleScan called with code:', scannedCode);
+    console.log('[ReceiveDeliveryScreen] canScan:', canScan);
+    console.log('[ReceiveDeliveryScreen] Current boxes:', boxes.map(b => ({ id: b.id, boxId: b.boxId, isScanned: b.isScanned })));
+    
+    if (!canScan) {
+      console.log('[ReceiveDeliveryScreen] Cannot scan - canScan is false');
       return;
     }
     
-    setIsScanning(true);
+    // Find the box that matches the scanned code from all boxes
+    // Try to match by boxId first, then by any part of the scanned code
+    const matchingBox = boxes.find(box => {
+      // Only consider unscanned boxes
+      if (box.isScanned) return false;
+      // Exact match on boxId
+      if (box.boxId === scannedCode) return true;
+      // Match if scanned code contains boxId
+      if (scannedCode.includes(box.boxId)) return true;
+      // Match if boxId contains scanned code
+      if (box.boxId.includes(scannedCode)) return true;
+      return false;
+    });
     
-    // Simulate scanning a random box
-    setTimeout(() => {
-      const randomBox = notScannedBoxes[Math.floor(Math.random() * notScannedBoxes.length)];
-      if (!randomBox) {
-        setIsScanning(false);
-        return;
+    // If no match found, use the first unscanned box (fallback for testing)
+    const unscannedBoxes = boxes.filter(box => !box.isScanned);
+    let boxToScan = matchingBox || unscannedBoxes[0];
+    
+    // If no box exists or no match found (scan any box mode from home screen), try to match with existing deliveries
+    if (!boxToScan) {
+      // Try to find a matching delivery from scanned code
+      let matchedDelivery: Delivery | null = null;
+      
+      // Try to match by deliveryId in scanned code
+      if (allDeliveries.length > 0) {
+        matchedDelivery = allDeliveries.find(d => {
+          // Check if scanned code contains deliveryId or vice versa
+          return scannedCode.includes(d.deliveryId) || 
+                 d.deliveryId.includes(scannedCode) ||
+                 scannedCode.includes(d.id) ||
+                 d.id.includes(scannedCode);
+        }) || null;
       }
-      markBoxesAsScanned([randomBox.id]);
-      setIsScanning(false);
+      
+      // If no delivery match, try to find by box pattern in existing boxes from other deliveries
+      // For now, create a new box with partner/delivery info if matched, or generic if not
+      const newBox: Box = {
+        id: `box-${Date.now()}`,
+        boxId: scannedCode, // Use scanned code as boxId
+        orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+        externalOrder: `EXT-${Math.floor(10000 + Math.random() * 90000)}`,
+        items: Math.floor(20 + Math.random() * 100),
+        status: 'In transit',
+        date: matchedDelivery?.date || delivery.date || new Date().toISOString().split('T')[0],
+        isScanned: true, // Mark as scanned immediately since we're creating it from a scan
+        deliveryId: matchedDelivery?.id,
+        deliveryLabel: matchedDelivery?.deliveryId || 'Unknown Delivery',
+        partnerId: matchedDelivery?.partnerId,
+        partnerName: matchedDelivery?.partnerName || matchedDelivery?.sender || 'Unknown Partner',
+        warehouseId: matchedDelivery?.warehouseId,
+        warehouseName: matchedDelivery?.warehouseName
+      };
+      
+      console.log('[ReceiveDeliveryScreen] Creating new box:', newBox);
+      applyBoxUpdate(prev => [...prev, newBox]);
       setActiveTab('scanned');
-      toast.success(`Scanned ${randomBox.boxId}`);
-    }, 1500);
+      return;
+    }
+    
+    console.log('[ReceiveDeliveryScreen] Matching box:', matchingBox);
+    console.log('[ReceiveDeliveryScreen] Box to scan:', boxToScan);
+    console.log('[ReceiveDeliveryScreen] Unscanned boxes count:', unscannedBoxes.length);
+    
+    if (!boxToScan) {
+      console.log('[ReceiveDeliveryScreen] No box to scan found');
+      return;
+    }
+    
+    // Mark the box as scanned immediately
+    markBoxesAsScanned([boxToScan.id]);
+    // Switch to scanned tab to show the result
+    setActiveTab('scanned');
+    // Toast message removed - visual feedback already shown in scan area
   };
 
   const handleMarkScanned = (boxId: string) => {
@@ -575,7 +753,6 @@ export default function ReceiveDeliveryScreen({
       setSelectedBoxIds([]);
       setActiveTab('scanned');
       setIsScanning(false);
-      toast.success(`Registered ${scannedBoxes.length} box${scannedBoxes.length === 1 ? '' : 'es'} successfully`);
       onUpdateDeliveryStatus?.(delivery.id, 'Delivered');
     }
   };
@@ -641,8 +818,8 @@ export default function ReceiveDeliveryScreen({
           <div className="px-4 md:px-6 mb-4">
             <span className="body-medium text-on-surface-variant">
               {activeTab === 'scanned' 
-                ? `${scannedBoxes.length}/${delivery.boxes} boxes`
-                : `${notScannedBoxes.length}/${delivery.boxes} boxes`
+                ? `${scannedBoxes.length} ${scannedBoxes.length === 1 ? 'box' : 'boxes'} scanned`
+                : `${notScannedBoxes.length} ${notScannedBoxes.length === 1 ? 'box' : 'boxes'} not scanned`
               }
             </span>
           </div>

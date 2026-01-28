@@ -42,7 +42,7 @@ export default function BoxLabelSideSheet({
     // Simulate scanning - in real app this would use camera
     const mockLabel = `BOX-${Date.now().toString().slice(-6)}`;
     setBoxLabel(mockLabel);
-    toast.success(`Box label scanned: ${mockLabel}`);
+    // Toast message removed - visual feedback already shown in scan area
   };
 
   const handleManualEntry = (label: string) => {

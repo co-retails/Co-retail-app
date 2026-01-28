@@ -258,7 +258,7 @@ export default function PartnerSettingsScreen({
                   <span className="body-medium text-on-surface-variant">weeks</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Label className="body-medium text-on-surface">Second-try span:</Label>
+                  <Label className="body-medium text-on-surface">Flag again as Expired after:</Label>
                   <Input
                     type="number"
                     value={policy.commission?.secondTrySpanWeeks || ''}
@@ -274,53 +274,6 @@ export default function PartnerSettingsScreen({
                   />
                   <span className="body-medium text-on-surface-variant">weeks</span>
                 </div>
-              </div>
-              <p className="body-small text-on-surface-variant pl-1">
-                Impacts B2B Expired → Return creation window in Store app
-              </p>
-            </div>
-
-            {/* Not claimed boxes */}
-            <div className="space-y-4 p-4 bg-surface-container rounded-lg border border-outline-variant">
-              <Label className="body-large font-medium text-on-surface">Not claimed boxes/deliveries</Label>
-              
-              <div className="space-y-4 pl-2">
-                <div className="flex items-center gap-3">
-                  <Label className="body-medium text-on-surface">Missing boxes: Cancel after</Label>
-                  <Input
-                    type="number"
-                    value={policy.notClaimedBoxes.missingBoxesCancelAfterWeeks || ''}
-                    onChange={(e) => updatePolicy({
-                      notClaimedBoxes: {
-                        ...policy.notClaimedBoxes,
-                        missingBoxesCancelAfterWeeks: parseInt(e.target.value) || undefined
-                      }
-                    })}
-                    disabled={isReadOnly}
-                    className={`w-32 h-12 md:h-10 bg-surface-container border border-outline-variant rounded-lg ${!isReadOnly ? 'focus-visible:border-primary focus-visible:ring-primary/20' : ''}`}
-                    placeholder="4"
-                  />
-                  <span className="body-medium text-on-surface-variant">weeks</span>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <Label className="body-medium text-on-surface">Missing deliveries: Cancel after</Label>
-                  <Input
-                    type="number"
-                    value={policy.notClaimedBoxes.missingDeliveriesCancelAfterWeeks || ''}
-                    onChange={(e) => updatePolicy({
-                      notClaimedBoxes: {
-                        ...policy.notClaimedBoxes,
-                        missingDeliveriesCancelAfterWeeks: parseInt(e.target.value) || undefined
-                      }
-                    })}
-                    disabled={isReadOnly}
-                    className={`w-32 h-12 md:h-10 bg-surface-container border border-outline-variant rounded-lg ${!isReadOnly ? 'focus-visible:border-primary focus-visible:ring-primary/20' : ''}`}
-                    placeholder="4"
-                  />
-                  <span className="body-medium text-on-surface-variant">weeks</span>
-                </div>
-                
               </div>
             </div>
 
@@ -425,37 +378,6 @@ export default function PartnerSettingsScreen({
               </div>
             </div>
 
-            {/* Return orders SLA */}
-            <div className="space-y-4 p-4 bg-surface-container rounded-lg border border-outline-variant">
-              <div className="flex items-center gap-2">
-                <Label className="body-large font-medium text-on-surface">Return orders SLA</Label>
-                <HelpCircle className="w-4 h-4 text-on-surface-variant" />
-              </div>
-              
-              <div className="space-y-4 pl-2">
-                <div className="flex items-center gap-3">
-                  <Label className="body-medium text-on-surface">
-                    Partner must receive (scan) returns within
-                  </Label>
-                  <Input
-                    type="number"
-                    value={policy.returnOrdersSLA.partnerMustReceiveWithinWeeks || ''}
-                    onChange={(e) => updatePolicy({
-                      returnOrdersSLA: {
-                        ...policy.returnOrdersSLA,
-                        partnerMustReceiveWithinWeeks: parseInt(e.target.value) || undefined
-                      }
-                    })}
-                    disabled={isReadOnly}
-                    className={`w-32 h-12 md:h-10 bg-surface-container border border-outline-variant rounded-lg ${!isReadOnly ? 'focus-visible:border-primary focus-visible:ring-primary/20' : ''}`}
-                    placeholder="4"
-                  />
-                  <span className="body-medium text-on-surface-variant">weeks</span>
-                </div>
-                
-              </div>
-            </div>
-
           </CardContent>
         </Card>
 
@@ -465,31 +387,6 @@ export default function PartnerSettingsScreen({
             <CardTitle className="title-medium text-on-surface">Partner portal</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
-            {/* Not received returns */}
-            <div className="space-y-4 p-4 bg-surface-container rounded-lg border border-outline-variant">
-              <Label className="body-large font-medium text-on-surface">Not received returns</Label>
-              
-              <div className="space-y-4 pl-2">
-                <div className="flex items-center gap-3">
-                  <Label className="body-medium text-on-surface">Auto-close after</Label>
-                  <Input
-                    type="number"
-                    value={policy.notReceivedReturnOrders.autoCloseAfterWeeks || ''}
-                    onChange={(e) => updatePolicy({
-                      notReceivedReturnOrders: {
-                        ...policy.notReceivedReturnOrders,
-                        autoCloseAfterWeeks: parseInt(e.target.value) || undefined
-                      }
-                    })}
-                    disabled={isReadOnly}
-                    className={`w-32 h-12 md:h-10 bg-surface-container border border-outline-variant rounded-lg ${!isReadOnly ? 'focus-visible:border-primary focus-visible:ring-primary/20' : ''}`}
-                    placeholder="4"
-                  />
-                  <span className="body-medium text-on-surface-variant">weeks</span>
-                </div>
-              </div>
-            </div>
-
             {/* Mandatory fields */}
             <div className="space-y-4 p-4 bg-surface-container rounded-lg border border-outline-variant">
               <Label className="body-large font-medium text-on-surface">Mandatory fields (item intake)</Label>

@@ -83,7 +83,7 @@ export default function DeliveryNoteBoxDetailsScreen({
       if (!boxItems.some(item => item.id === randomItem.id)) {
         setBoxItems(prev => [...prev, randomItem]);
         setScannedItemIds(prev => new Set([...prev, randomItem.id]));
-        toast.success(`Item ${randomItem.itemId || randomItem.partnerItemId} scanned`);
+        // Toast message removed - visual feedback already shown in scan area
       } else {
         toast.error('Item already in box');
       }
@@ -103,7 +103,7 @@ export default function DeliveryNoteBoxDetailsScreen({
       if (!boxItems.some(boxItem => boxItem.id === item.id)) {
         setBoxItems(prev => [...prev, item]);
         setScannedItemIds(prev => new Set([...prev, item.id]));
-        toast.success(`Item ${itemId} added`);
+        // Toast message removed - visual feedback already shown in scan area
       } else {
         toast.error('Item already in box');
       }

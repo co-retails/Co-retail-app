@@ -5,20 +5,16 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { 
-  Settings, 
   Users, 
   Package, 
-  Flag, 
   Store, 
   ChevronRight,
   LogOut,
   Cog,
-  Sparkles,
   BarChart3,
   UserIcon
 } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
-import svgPaths from '../imports/svg-hxa7jl3k8x';
 
 export interface UserRole {
   id: string;
@@ -239,13 +235,6 @@ export default function AdminSettingsSheet({
           icon: <Cog className="w-6 h-6" />,
           onClick: handlePortalConfiguration,
           adminOnly: true
-        },
-        {
-          id: 'notification-settings',
-          title: 'Notification settings',
-          description: 'Configure push and email notifications',
-          icon: <Flag className="w-6 h-6" />,
-          onClick: () => {} // Placeholder for future implementation
         },
         {
           id: 'partner-settings',

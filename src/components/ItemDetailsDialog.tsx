@@ -40,7 +40,7 @@ export interface ItemDetails {
   source?: string;
   orderNumber?: string;
   lastInStoreAt?: string;
-  location?: 'Warehouse' | 'In transit' | 'Shopfloor' | 'Back of House' | 'Partner';
+  location?: 'Warehouse' | 'In transit' | 'Store';
 }
 
 export interface StatusHistoryEntry {
@@ -59,6 +59,7 @@ interface ItemDetailsDialogProps {
   priceOptions?: number[];
   priceCurrency?: string;
   expireTimeWeeks?: number; // Expire time setting for the store (in weeks)
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer'; // User role to determine if location can be edited
 }
 
 type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'location' | null;
@@ -139,8 +140,9 @@ const AVAILABLE_COLORS = [
 ];
 
 const AVAILABLE_LOCATIONS = [
-  'Shopfloor',
-  'Back of House'
+  'Warehouse',
+  'In transit',
+  'Store'
 ];
 
 export default function ItemDetailsDialog({ 
@@ -151,7 +153,8 @@ export default function ItemDetailsDialog({
   statusHistory = [],
   priceOptions,
   priceCurrency,
-  expireTimeWeeks
+  expireTimeWeeks,
+  userRole
 }: ItemDetailsDialogProps) {
   const [editingField, setEditingField] = useState<EditField>(null);
   const [editValues, setEditValues] = useState<Partial<ItemDetails>>({});
@@ -789,8 +792,8 @@ export default function ItemDetailsDialog({
                 options={AVAILABLE_COLORS}
               />
 
-              {/* Location - Only show for Available items */}
-              {item.status === 'Available' && (
+              {/* Location - Only visible/editable for admin (location is system-managed) */}
+              {userRole === 'admin' && (
                 <EditableField
                   field="location"
                   label="Location"

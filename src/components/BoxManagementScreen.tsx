@@ -177,7 +177,7 @@ export default function BoxManagementScreen({
     setBoxes(prev => [...prev, newBox]);
     setScannedBoxLabel('');
     setShowBoxLabelScanDialog(false);
-    toast.success(`Box "${scannedBoxLabel}" added successfully!`);
+    // Toast message removed - visual feedback already shown in scan area
   };
 
   const handleOpenBoxForEditing = (box: Box) => {
@@ -229,8 +229,6 @@ export default function BoxManagementScreen({
         ? { ...b, status: 'registered' as const }
         : b
     ));
-
-    toast.success(`Box ${box.qrLabel} registered with ${box.items.length} items`);
   };
 
   const handleCreateDeliveryNote = () => {
@@ -568,7 +566,7 @@ export default function BoxManagementScreen({
                 <CameraScanner
                   onScan={(scannedCode) => {
                     setScannedBoxLabel(scannedCode);
-                    toast.success(`Scanned: ${scannedCode}`);
+                    // Toast message removed - visual feedback already shown in scan area
                   }}
                   scanMessage="Scan QR code or barcode"
                   autoStart={true}
@@ -691,7 +689,7 @@ export default function BoxManagementScreen({
 
                               // Add item to box automatically with the scanned item ID
                               handleAddItemToBox({ ...matchingItem, retailerItemId: mockRetailerId });
-                              toast.success(`Scanned and added: ${mockRetailerId} - ${matchingItem.brand} ${matchingItem.category}`);
+                              // Toast message removed - visual feedback already shown in scan area
                               setScannedRetailerId(''); // Clear the input
                             } else {
                               toast.error('No items available to scan');

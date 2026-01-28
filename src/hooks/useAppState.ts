@@ -98,7 +98,10 @@ export function useAppState() {
   // Navigation state
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
-  const [shippingInitialTab, setShippingInitialTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined>(undefined);
+  const [shippingInitialTab, setShippingInitialTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'pending-packing' | 'returns-returned' | 'returns-in-transit' | 'approval' | 'pending-registered' | 'pending-pending' | 'in-transit-filter' | undefined>(undefined);
+  const [receivePreviousScreen, setReceivePreviousScreen] = useState<Screen | null>(null);
+  const [returnManagementPreviousScreen, setReturnManagementPreviousScreen] = useState<Screen | null>(null);
+  const [returnManagementPreviousTab, setReturnManagementPreviousTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined>(undefined);
   
   // Role management state
   const [currentUserRole, setCurrentUserRole] = useState<AppUserRole>('store-staff');
@@ -166,7 +169,7 @@ export function useAppState() {
   const [userRole] = useState<UserRole>('Store Manager');
   
   // Monthly goal state
-  const [monthlyGoal, setMonthlyGoal] = useState(500);
+  const [monthlyGoal, setMonthlyGoal] = useState<number | null>(500);
   const [currentMonthlySales] = useState(287);
   
   // Details screen state
@@ -181,6 +184,7 @@ export function useAppState() {
     orderItems?: OrderItem[]; // Store order items for newly created orders
     previousScreen?: Screen; // Track where we came from for back navigation
     previousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered'; // Track which tab was active
+    previousFilter?: 'packing' | 'in-transit' | 'delivered' | 'all' | 'returned' | 'approval' | 'pending' | 'registered'; // Track which filter chip was active
   } | null>(null);
   
   // Digital Showroom state
@@ -207,6 +211,12 @@ export function useAppState() {
     setSelectedDelivery,
     shippingInitialTab,
     setShippingInitialTab,
+    receivePreviousScreen,
+    setReceivePreviousScreen,
+    returnManagementPreviousScreen,
+    setReturnManagementPreviousScreen,
+    returnManagementPreviousTab,
+    setReturnManagementPreviousTab,
     
     // Role management
     currentUserRole,

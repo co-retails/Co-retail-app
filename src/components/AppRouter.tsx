@@ -593,9 +593,6 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
               )
             );
             
-            // Show success message
-            toast.success('Delivery note registered successfully');
-            
             // Navigate back to partner dashboard
             state.setCurrentScreen('partner-dashboard');
           }}

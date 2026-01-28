@@ -54,7 +54,7 @@ export default function BoxDetailsSideSheet({
     if (notScannedItems.length > 0) {
       const randomItem = notScannedItems[Math.floor(Math.random() * notScannedItems.length)];
       onItemScanned(randomItem);
-      toast.success(`Item ${randomItem.itemId || randomItem.partnerItemId} scanned`);
+      // Toast message removed - visual feedback already shown in scan area
     } else {
       toast.error('No items available to scan');
     }
@@ -69,7 +69,7 @@ export default function BoxDetailsSideSheet({
     
     if (item) {
       onItemScanned(item);
-      toast.success(`Item ${itemId} added`);
+      // Toast message removed - visual feedback already shown in scan area
     } else {
       toast.error(`Item ${itemId} not found`);
     }
@@ -115,25 +115,39 @@ export default function BoxDetailsSideSheet({
 
           {/* Tabs and Items Lists - Scrollable */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'scanned' | 'not-scanned')} className="flex-1 flex flex-col min-h-0">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'scanned' | 'not-scanned')} className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div className="flex-shrink-0 px-6 pt-4 border-b border-outline-variant bg-surface z-10">
-                <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0">
+                <TabsList className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 h-auto">
                   <TabsTrigger
                     value="scanned"
-                    className="relative rounded-lg px-4 py-3 text-on-surface-variant data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container data-[state=active]:after:absolute data-[state=active]:after:content-[''] data-[state=active]:after:bottom-1 data-[state=active]:after:left-4 data-[state=active]:after:right-4 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary"
+                    className={`relative rounded-lg px-4 py-3 transition-colors ${
+                      activeTab === 'scanned'
+                        ? 'bg-primary-container text-on-primary-container'
+                        : 'text-on-surface-variant hover:bg-surface-container-high'
+                    }`}
                   >
-                    Scanned ({scannedItems.length})
+                    <span className="title-small">Scanned ({scannedItems.length})</span>
+                    {activeTab === 'scanned' && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
                   </TabsTrigger>
                   <TabsTrigger
                     value="not-scanned"
-                    className="relative rounded-lg px-4 py-3 text-on-surface-variant data-[state=active]:bg-primary-container data-[state=active]:text-on-primary-container data-[state=active]:after:absolute data-[state=active]:after:content-[''] data-[state=active]:after:bottom-1 data-[state=active]:after:left-4 data-[state=active]:after:right-4 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary"
+                    className={`relative rounded-lg px-4 py-3 transition-colors ${
+                      activeTab === 'not-scanned'
+                        ? 'bg-primary-container text-on-primary-container'
+                        : 'text-on-surface-variant hover:bg-surface-container-high'
+                    }`}
                   >
-                    Not Scanned ({notScannedItems.length})
+                    <span className="title-small">Not Scanned ({notScannedItems.length})</span>
+                    {activeTab === 'not-scanned' && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-              <TabsContent value="scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0 min-h-0">
+              <TabsContent value="scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0 min-h-0 data-[state=active]:flex">
                 {scannedItems.length > 0 ? (
                   <div className="space-y-2">
                     {scannedItems.map((item) => (
@@ -171,55 +185,53 @@ export default function BoxDetailsSideSheet({
                 )}
               </TabsContent>
 
-              <TabsContent value="not-scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0 min-h-0">
+              <TabsContent value="not-scanned" className="flex-1 overflow-y-auto px-6 py-4 mt-0 min-h-0 data-[state=active]:flex">
                 {notScannedItems.length > 0 ? (
-                  <>
-                    <div className="space-y-2">
-                      {notScannedItems.map((item) => (
-                        <Card key={item.id} className="border-outline-variant bg-surface-container">
-                          <CardContent className="p-3">
-                            <div className="flex items-start gap-3">
-                              <div className="flex-1">
-                                <ItemCard
-                                  item={{
-                                    id: item.id,
-                                    itemId: item.itemId || item.partnerItemId || '',
-                                    brand: item.brand,
-                                    category: item.category,
-                                    size: item.size,
-                                    color: item.color,
-                                    price: item.price,
-                                    status: item.status !== 'error' ? undefined : 'Invalid',
-                                    retailerItemId: item.retailerItemId,
-                                    partnerItemId: item.partnerItemId,
-                                    gender: item.gender,
-                                    subcategory: item.subcategory,
-                                    source: item.source
-                                  } as BaseItem}
-                                  variant="items-list"
-                                  showActions={false}
-                                  showSelection={false}
-                                />
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => onMarkAsScanned(item)}>
-                                    <CheckIcon className="mr-2 h-4 w-4" />
-                                    Mark as scanned
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                  <div className="space-y-2">
+                    {notScannedItems.map((item) => (
+                      <Card key={item.id} className="border-outline-variant bg-surface-container">
+                        <CardContent className="p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1">
+                              <ItemCard
+                                item={{
+                                  id: item.id,
+                                  itemId: item.itemId || item.partnerItemId || '',
+                                  brand: item.brand,
+                                  category: item.category,
+                                  size: item.size,
+                                  color: item.color,
+                                  price: item.price,
+                                  status: item.status !== 'error' ? undefined : 'Invalid',
+                                  retailerItemId: item.retailerItemId,
+                                  partnerItemId: item.partnerItemId,
+                                  gender: item.gender,
+                                  subcategory: item.subcategory,
+                                  source: item.source
+                                } as BaseItem}
+                                variant="items-list"
+                                showActions={false}
+                                showSelection={false}
+                              />
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => onMarkAsScanned(item)}>
+                                  <CheckIcon className="mr-2 h-4 w-4" />
+                                  Mark as scanned
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center py-12">
                     <PackageIcon className="w-12 h-12 text-on-surface-variant mx-auto mb-4" />

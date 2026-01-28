@@ -6,6 +6,9 @@ interface NavigationHandlersProps {
   setCurrentScreen: (screen: Screen) => void;
   setShippingInitialTab: (tab: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined) => void;
   currentUserRole?: 'store-staff' | 'partner' | 'buyer';
+  receivePreviousScreen?: Screen | null;
+  returnManagementPreviousScreen?: Screen | null;
+  returnManagementPreviousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined;
 }
 
 /**
@@ -16,15 +19,39 @@ export function useNavigationHandlers({
   currentScreen,
   setCurrentScreen,
   setShippingInitialTab,
-  currentUserRole
+  currentUserRole,
+  receivePreviousScreen,
+  returnManagementPreviousScreen,
+  returnManagementPreviousTab
 }: NavigationHandlersProps) {
   
   const handleBack = useCallback(() => {
+    console.log('[handleBack] currentScreen:', currentScreen, 'receivePreviousScreen:', receivePreviousScreen);
     // Navigate back based on current screen
     if (currentScreen === 'receive') {
-      setCurrentScreen('shipping');
+      // Use the tracked previous screen if available, otherwise default to shipping
+      console.log('[handleBack] Navigating from receive screen, previousScreen:', receivePreviousScreen);
+      if (receivePreviousScreen) {
+        console.log('[handleBack] Setting screen to:', receivePreviousScreen);
+        setCurrentScreen(receivePreviousScreen);
+      } else {
+        console.log('[handleBack] No previousScreen, defaulting to shipping');
+        setCurrentScreen('shipping');
+      }
     } else if (currentScreen === 'return-management') {
-      setCurrentScreen('partner-selection');
+      // Use the tracked previous screen if available, otherwise default to partner-selection
+      console.log('[handleBack] Navigating from return-management, previousScreen:', returnManagementPreviousScreen, 'previousTab:', returnManagementPreviousTab);
+      if (returnManagementPreviousScreen === 'shipping' && returnManagementPreviousTab) {
+        console.log('[handleBack] Restoring shipping tab to:', returnManagementPreviousTab);
+        setShippingInitialTab(returnManagementPreviousTab);
+        setCurrentScreen('shipping');
+      } else if (returnManagementPreviousScreen) {
+        console.log('[handleBack] Setting screen to:', returnManagementPreviousScreen);
+        setCurrentScreen(returnManagementPreviousScreen);
+      } else {
+        console.log('[handleBack] No previousScreen, defaulting to partner-selection');
+        setCurrentScreen('partner-selection');
+      }
     } else if (currentScreen === 'stock-check-report') {
       setCurrentScreen('home');
     } else if (currentScreen === 'stock-check-review') {
@@ -103,7 +130,7 @@ export function useNavigationHandlers({
     } else {
       setCurrentScreen('home');
     }
-  }, [currentScreen, setCurrentScreen, setShippingInitialTab, currentUserRole]);
+  }, [currentScreen, setCurrentScreen, setShippingInitialTab, currentUserRole, receivePreviousScreen, returnManagementPreviousScreen, returnManagementPreviousTab]);
 
   const handleBackToHome = useCallback(() => {
     setCurrentScreen('home');

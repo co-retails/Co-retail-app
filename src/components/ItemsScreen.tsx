@@ -66,7 +66,7 @@ export interface Item extends BaseItem {
   statusHistory?: StatusHistoryEntry[];
   rejectReason?: 'Broken on arrival' | 'Not accepted brand' | 'Not in season';
   lastInStoreAt?: string;
-  location?: 'Warehouse' | 'In transit' | 'Shopfloor' | 'Back of House' | 'Partner';
+  location?: 'Warehouse' | 'In transit' | 'Store';
   isExpired?: boolean;
   expiredFlaggedAt?: string;
   expiredPostponeWeeks?: number;
@@ -176,17 +176,11 @@ function QuickFilterChips({
   isPartnerPortal?: boolean;
 }) {
   const getAvailableLabel = () => {
-    if (activeFilter === 'available-shopfloor') return 'Available: Shopfloor';
-    if (activeFilter === 'available-back-of-house') return 'Available: Back of House';
     return 'Available';
   };
 
   const handleAvailableClick = () => {
     if (activeFilter === 'available') {
-      onFilterChange('available-shopfloor');
-    } else if (activeFilter === 'available-shopfloor') {
-      onFilterChange('available-back-of-house');
-    } else if (activeFilter === 'available-back-of-house') {
       onFilterChange('available');
     } else {
       onFilterChange('available');
@@ -558,7 +552,6 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole, activ
 }) {
   const [formData, setFormData] = useState({
     status: 'none',
-    location: 'none',
     category: '',
     priceReduction: 'none',
     comment: ''
@@ -579,7 +572,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole, activ
   const handleSave = () => {
     const updates: Partial<Item> = {};
     if (formData.status !== 'none') updates.status = formData.status as Item['status'];
-    if (formData.location !== 'none') updates.location = formData.location as 'Shopfloor' | 'Back of House';
+    // Location removed - system-managed only
     if (formData.category) updates.category = formData.category;
     if (formData.priceReduction !== 'none') {
       const reductionPercent = parseFloat(formData.priceReduction);
@@ -591,7 +584,7 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole, activ
     }
     
     onSave(updates);
-    setFormData({ status: 'none', location: 'none', category: '', priceReduction: 'none', comment: '' });
+    setFormData({ status: 'none', category: '', priceReduction: 'none', comment: '' });
     onClose();
   };
 
@@ -616,36 +609,12 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole, activ
           {/* Determine if we should show limited fields (only for expired or available filters) */}
           {(() => {
             const isLimitedMode = activeFilter === 'expired' || 
-                                  activeFilter === 'available' || 
-                                  activeFilter === 'available-shopfloor' || 
-                                  activeFilter === 'available-back-of-house';
+                                  activeFilter === 'available';
             
             if (isLimitedMode) {
-              // Limited mode: Only show Price reduction and Location
+              // Limited mode: Only show Price reduction
               return (
                 <>
-                  {/* Location Field */}
-                  <div className="space-y-2">
-                    <Label htmlFor="location" className="label-large text-on-surface">
-                      Location
-                    </Label>
-                    <Select
-                      value={formData.location}
-                      onValueChange={(value: string) =>
-                        setFormData(prev => ({ ...prev, location: value }))
-                      }
-                    >
-                      <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No change</SelectItem>
-                        <SelectItem value="Shopfloor">Shopfloor</SelectItem>
-                        <SelectItem value="Back of House">Back of House</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
                   {/* Price % Reduction Field */}
                   <div className="space-y-2">
                     <Label htmlFor="priceReduction" className="label-large text-on-surface">
@@ -705,28 +674,6 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole, activ
                   </div>
                 )}
 
-                {/* Location Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="location" className="label-large text-on-surface">
-                    Location
-                  </Label>
-                  <Select
-                    value={formData.location}
-                    onValueChange={(value: string) =>
-                      setFormData(prev => ({ ...prev, location: value }))
-                    }
-                  >
-                    <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No change</SelectItem>
-                      <SelectItem value="Shopfloor">Shopfloor</SelectItem>
-                      <SelectItem value="Back of House">Back of House</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
                 {/* Category Field */}
                 <div className="space-y-2">
                   <Label htmlFor="category" className="label-large text-on-surface">
@@ -2085,11 +2032,11 @@ function MultiSelectActions({
 
   return (
     <div className="border-t border-outline-variant">
-      <div className="flex items-center justify-between px-1 py-3">
+      <div className="flex items-center justify-between px-1 py-3 min-h-[48px]">
         {/* Left side - Select all and count */}
         <div className="flex items-center gap-3">
           <button 
-            className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+            className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
             onClick={onSelectAll}
             aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
           >
@@ -2112,7 +2059,7 @@ function MultiSelectActions({
             </div>
           </button>
           
-          <div className="title-small text-on-surface">
+          <div className="body-medium text-on-surface font-normal">
             {hasSelectedItems 
               ? `${selectedCount} selected`
               : `${totalCount} ${totalCount === 1 ? 'item' : 'items'}`
@@ -2395,7 +2342,6 @@ export default function ItemsScreen({
       const matchesCategory = itemFilters.category === 'all' || item.category === itemFilters.category;
       const matchesStatus = itemFilters.status === 'all' || item.status === itemFilters.status;
       const matchesColour = itemFilters.colour === 'all' || item.color === itemFilters.colour;
-      const matchesLocation = itemFilters.location === 'all' || item.location === itemFilters.location;
       const matchesPrice = item.price >= itemFilters.priceRange[0] && item.price <= itemFilters.priceRange[1];
       
       // ViewFilter filters (for partner portal - filter by brand/store/country)
@@ -2417,7 +2363,7 @@ export default function ItemsScreen({
       }
       
       return matchesPartner && matchesQuickSearch && matchesQuickFilter && 
-             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesLocation && matchesPrice && matchesViewFilter;
+             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesPrice && matchesViewFilter;
     }).map(item => {
       // Set location based on status if not already set
       let itemWithLocation = item;
@@ -3168,6 +3114,17 @@ export default function ItemsScreen({
           />
         )}
         
+        {/* Item count row for 'All' filter - matches MultiSelectActions height */}
+        {quickFilter === 'all' && filteredItems.length > 0 && (
+          <div className="border-t border-outline-variant">
+            <div className="flex items-center justify-between px-1 py-3 min-h-[48px]">
+              <div className="body-medium text-on-surface font-normal px-3 md:px-5">
+                {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Multi-select Actions - Only show when not on 'all' filter */}
         {quickFilter !== 'all' && (
           <MultiSelectActions 
@@ -3250,6 +3207,7 @@ export default function ItemsScreen({
         priceOptions={partnerPriceOptions}
         priceCurrency={partnerPriceOptions.length ? 'SEK' : undefined}
         expireTimeWeeks={expireTimeWeeks}
+        userRole={userRole}
       />
 
       {/* Status Update Dialog */}

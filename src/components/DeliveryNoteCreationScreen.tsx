@@ -273,7 +273,6 @@ export default function DeliveryNoteCreationScreen({
     setShowBoxLabelSheet(false);
     setCurrentBoxItems([]);
     setTempBoxId(null);
-    toast.success(`Box ${label} registered`);
   };
 
   const handleEditedBoxLabelSave = (label: string) => {
@@ -481,7 +480,6 @@ export default function DeliveryNoteCreationScreen({
     };
 
     onCreateDeliveryNote(deliveryNote);
-    toast.success('Delivery note registered successfully');
   };
 
   return (

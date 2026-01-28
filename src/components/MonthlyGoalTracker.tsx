@@ -9,17 +9,17 @@ import { useMediaQuery } from './ui/use-mobile';
 
 interface MonthlyGoalTrackerProps {
   currentSales: number;
-  monthlyGoal: number;
+  monthlyGoal: number | null;
 }
 
 export function GoalEditDialog({ 
   currentGoal, 
   onGoalUpdate 
 }: { 
-  currentGoal: number; 
+  currentGoal: number | null; 
   onGoalUpdate: (newGoal: number) => void; 
 }) {
-  const [newGoal, setNewGoal] = useState(currentGoal.toString());
+  const [newGoal, setNewGoal] = useState((currentGoal || '').toString());
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -27,7 +27,7 @@ export function GoalEditDialog({
   // Reset goal value when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setNewGoal(currentGoal.toString());
+      setNewGoal((currentGoal || '').toString());
       // Small delay to ensure sheet is fully rendered before focusing
       setTimeout(() => {
         inputRef.current?.focus();
@@ -50,7 +50,7 @@ export function GoalEditDialog({
   };
 
   const handleCancel = () => {
-    setNewGoal(currentGoal.toString());
+    setNewGoal((currentGoal || '').toString());
     setIsOpen(false);
   };
 
@@ -124,6 +124,48 @@ export default function MonthlyGoalTracker({
   currentSales, 
   monthlyGoal 
 }: MonthlyGoalTrackerProps) {
+  // Handle case when goal is not set (null or 0)
+  const isGoalNotSet = monthlyGoal === null || monthlyGoal === 0;
+
+  if (isGoalNotSet) {
+    return (
+      <Card className="bg-surface border-0 rounded-lg">
+        <CardContent className="p-4">
+          <div className="space-y-4">
+            {/* Empty state - unified component */}
+            <div className="rounded-lg border border-outline-variant overflow-hidden">
+              <div className="flex flex-row items-stretch">
+                {/* Current sales display */}
+                <div className="flex-1 p-6 text-center border-r border-outline-variant">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-1">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="title-large text-primary">{currentSales}</div>
+                    <div className="label-small text-on-surface-variant">Items sold this month</div>
+                  </div>
+                </div>
+
+                {/* Empty state message */}
+                <div className="flex-1 p-6 flex items-center justify-center">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <Target className="h-6 w-6 text-on-surface-variant opacity-60" />
+                    <p className="body-medium text-on-surface-variant">
+                      No monthly goal set
+                    </p>
+                    <p className="body-small text-on-surface-variant opacity-80">
+                      Set a goal to track your progress
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const progressPercentage = Math.min((currentSales / monthlyGoal) * 100, 100);
   const isGoalAchieved = currentSales >= monthlyGoal;
   const remaining = Math.max(monthlyGoal - currentSales, 0);
