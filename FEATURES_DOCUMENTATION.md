@@ -633,15 +633,57 @@ The Buyer Portal is a dedicated interface for retail buyers to browse partner sh
 
 ---
 
+## 4. Partner & Shipping Reports
+
+The Partner & Shipping Reports system provides real-time visibility into sales, stock levels, and shipment delivery performance. These tools are designed for both Admin and Partner users to track business performance and operational efficiency.
+
+### 4.1 Partner Reports
+
+**Purpose**: Comprehensive analytics dashboard for sales and inventory management.
+
+**Key Features**:
+*   **Sales Report**:
+    *   **Metrics**: Total Items Sold, Sold Value (SEK), Monthly Average, Average Sold Value.
+    *   **Visualizations**: Trend graphs comparing current vs. previous month.
+    *   **Filtering**: Filter by Partner, Brand, Country, Store, and Date Range.
+*   **Stock Report**:
+    *   **Metrics**: Total Stock Count, Total Inventory Value.
+    *   **Breakdown**: Stock distribution by Category, Brand, and Gender.
+*   **Item Status**:
+    *   **Detailed List**: Row-level data for individual items.
+    *   **Status Tracking**: Track items through lifecycle (In Transit, Available, Sold, etc.).
+
+**Access**: Available via the "Partner Reports" menu. Views are customized based on user role (Admin vs. Partner).
+
+### 4.2 Shipping Reports
+
+**Purpose**: Track inbound and outbound deliveries with a focus on identifying delays.
+
+**Key Features**:
+*   **Delivery Tracking**: Monitor status of all Delivery Notes (`In Transit`, `Delivered`, `Partly Delivered`).
+*   **OI-21 Monitoring (Overdue In-Transit)**:
+    *   Automatically flags deliveries that have been in transit for more than 21 days.
+    *   **"Overdue" Badge**: visual indicator for delayed shipments.
+*   **Detailed Metrics**:
+    *   Days in Transit calculation.
+    *   Box-level tracking (Total, Delivered, In Transit).
+*   **Data Quality Checks**: Flags records with missing critical dates (DQ Badge).
+
+**Access**: Available via the "Shipping Report" menu.
+
+---
+
 ## Summary
 
-This documentation covers three major features of the Digital Showroom MVP:
+This documentation covers four major features of the Digital Showroom MVP:
 
-1. **Portal Configuration** provides centralized management of attributes, pricing, and data mappings, enabling administrators to control how product data is structured and validated across the system.
+1.  **Portal Configuration** provides centralized management of attributes, pricing, and data mappings, enabling administrators to control how product data is structured and validated across the system.
 
-2. **Sellpy Order Flow** is a specialized API-driven workflow that requires mandatory retailer ID scanning and strict validation, ensuring data quality for API-integrated orders.
+2.  **Sellpy Order Flow** is a specialized API-driven workflow that requires mandatory retailer ID scanning and strict validation, ensuring data quality for API-integrated orders.
 
-3. **Buyer Portal** offers a complete buying experience with showroom browsing, quotation management, purchase orders, and shipment tracking, all designed for retail buyers to efficiently discover and order products from partners.
+3.  **Buyer Portal** offers a complete buying experience with showroom browsing, quotation management, purchase orders, and shipment tracking, all designed for retail buyers to efficiently discover and order products from partners.
+
+4.  **Partner & Shipping Reports** deliver actionable insights into sales performance, inventory valuation, and logistics efficiency, with specific safeguards for tracking overdue shipments.
 
 Each feature is designed to support different user roles and workflows within the larger digital showroom ecosystem.
 
