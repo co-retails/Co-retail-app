@@ -722,7 +722,7 @@ export default function OrderDetailsScreen({
                   </SelectTrigger>
                   <SelectContent>
                     {brands.map((brand) => (
-                      <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                      <SelectItem key={brand} value={brand} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">{brand}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -739,7 +739,7 @@ export default function OrderDetailsScreen({
                   </SelectTrigger>
                   <SelectContent>
                     {genders.map((gender) => (
-                      <SelectItem key={gender} value={gender}>{gender}</SelectItem>
+                      <SelectItem key={gender} value={gender} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">{gender}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -756,7 +756,7 @@ export default function OrderDetailsScreen({
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                      <SelectItem key={category} value={category} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">{category}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -774,7 +774,7 @@ export default function OrderDetailsScreen({
                   </SelectTrigger>
                   <SelectContent>
                     {editingItem.category && subcategories[editingItem.category as keyof typeof subcategories]?.map((sub) => (
-                      <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                      <SelectItem key={sub} value={sub} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">{sub}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Partner } from './PartnerSelectionScreen';
@@ -22,6 +23,7 @@ export interface ReturnItem {
   scanned?: boolean;
   daysInStore?: number;
   lastInStoreAt?: string;
+  isExpired?: boolean;
 }
 
 // Helper function to normalize return item statuses
@@ -128,7 +130,7 @@ function ReturnOrderSummaryCard({ partner }: { partner: Partner }) {
         <div className="flex items-center gap-2 mb-2">
           <Calendar className="w-4 h-4 text-on-surface-variant" />
           <span className="text-[10px] font-medium text-on-surface-variant tracking-[0.5px] leading-none">
-            {new Date().toISOString().split('T')[0]}, In transit
+            {new Date().toISOString().split('T')[0]}, Pending
           </span>
         </div>
         
@@ -342,16 +344,15 @@ function EmptyState({
   type: 'scanned' | 'unscanned';
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6">
-      <div className="text-center space-y-4">
+    <div className="flex flex-col items-center justify-center py-8 px-6">
+      <div className="text-center space-y-2">
         {type === 'scanned' ? (
           <>
-            <QrCode className="w-16 h-16 text-on-surface-variant mx-auto mb-4" />
             <h3 className="title-medium text-on-surface">
               No items scanned yet
             </h3>
             <p className="body-medium text-on-surface-variant max-w-sm">
-              Use the SCAN ITEMS button to include items in this return
+              Scan items to include them in this return
             </p>
           </>
         ) : (
@@ -472,6 +473,7 @@ export default function ReturnManagementScreen({
   const initialTab = unscannedItems.length > 0 ? 'unscanned' : 'scanned';
   const [activeTab, setActiveTab] = useState<'scanned' | 'unscanned'>(initialTab);
   const [isScanning, setIsScanning] = useState(false);
+  const [unscannedFilter, setUnscannedFilter] = useState<'all' | 'expired' | 'rejected' | 'broken' | 'available'>('all');
   
   // Update tab when items change (e.g., when opening a pending return)
   useEffect(() => {
@@ -479,7 +481,29 @@ export default function ReturnManagementScreen({
     setActiveTab(newInitialTab);
   }, [unscannedItems.length]);
   
-  const currentItems = activeTab === 'scanned' ? scannedItems : unscannedItems;
+  // Filter unscanned items based on selected filter
+  const filteredUnscannedItems = useMemo(() => {
+    if (activeTab !== 'unscanned' || unscannedFilter === 'all') {
+      return unscannedItems;
+    }
+    
+    return unscannedItems.filter(item => {
+      switch (unscannedFilter) {
+        case 'expired':
+          return item.isExpired === true;
+        case 'rejected':
+          return item.status === 'Rejected';
+        case 'broken':
+          return item.status === 'Broken';
+        case 'available':
+          return item.status === 'Available';
+        default:
+          return true;
+      }
+    });
+  }, [activeTab, unscannedFilter, unscannedItems]);
+  
+  const currentItems = activeTab === 'scanned' ? scannedItems : filteredUnscannedItems;
   const selectedItems = partnerItems.filter(item => item.selected);
   const hasSelectedItems = selectedItems.length > 0;
   const hasScannedItems = scannedItems.length > 0;
@@ -578,19 +602,51 @@ export default function ReturnManagementScreen({
         {/* Tab Bar */}
         <TabBar 
           activeTab={activeTab} 
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            // Reset filter when switching tabs
+            if (tab !== 'unscanned') {
+              setUnscannedFilter('all');
+            }
+          }}
           scannedCount={scannedItems.length}
           unscannedCount={unscannedItems.length}
         />
         
+        {/* Filter dropdown - positioned below tabs */}
+        {activeTab === 'unscanned' && (
+          <div className="px-4 md:px-6 pt-3 pb-3 bg-surface border-b border-outline-variant relative z-30">
+            <Select value={unscannedFilter} onValueChange={(value) => {
+              setUnscannedFilter(value as 'all' | 'expired' | 'rejected' | 'broken' | 'available');
+            }} modal={true}>
+              <SelectTrigger className="w-full md:w-auto md:min-w-[200px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent 
+                position="item-aligned"
+                className="bg-surface-container border border-outline-variant"
+                style={{ zIndex: 10000 }}
+              >
+                <SelectItem value="all" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All</SelectItem>
+                <SelectItem value="expired" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Expired flag</SelectItem>
+                <SelectItem value="rejected" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Rejected</SelectItem>
+                <SelectItem value="broken" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Broken</SelectItem>
+                <SelectItem value="available" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Available</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
         {/* Content Area */}
         <div className="pt-4 md:pt-6">
-          {/* Item count */}
-          <div className="px-4 md:px-6 mb-4">
-            <span className="body-medium text-on-surface-variant">
-              {currentItems.length} items
-            </span>
-          </div>
+          {/* Item count - only show when there are items */}
+          {currentItems.length > 0 && (
+            <div className="px-4 md:px-6 mb-4">
+              <span className="body-medium text-on-surface-variant">
+                {currentItems.length} items
+              </span>
+            </div>
+          )}
           
           {/* Items or Empty State */}
           {currentItems.length > 0 ? (

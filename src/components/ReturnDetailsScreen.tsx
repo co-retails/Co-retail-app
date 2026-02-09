@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import svgPaths from "../imports/svg-7un8q74kd7";
@@ -32,6 +33,8 @@ export interface ReturnItemDetail {
   price?: number;
   date?: string;
   selected?: boolean;
+  status?: 'Rejected' | 'Available' | 'Broken' | 'In transit';
+  isExpired?: boolean;
 }
 
 interface ReturnDetailsScreenProps {
@@ -233,7 +236,7 @@ function TabBar({ activeTab, onTabChange, scannedCount, unscannedCount }: {
 }) {
   const tabs = [
     { id: 'scanned', label: `Scanned (${scannedCount})` },
-    { id: 'unscanned', label: `To return - not scanned (${unscannedCount})` }
+    { id: 'unscanned', label: `Not scanned (${unscannedCount})` }
   ];
 
   return (
@@ -400,6 +403,8 @@ function BottomActions({
   );
 }
 
+type UnscannedFilter = 'all' | 'expired' | 'rejected' | 'broken' | 'available';
+
 export default function ReturnDetailsScreen({
   returnOrder,
   onBack,
@@ -410,6 +415,7 @@ export default function ReturnDetailsScreen({
   userRole = 'store-staff'
 }: ReturnDetailsScreenProps) {
   const [activeTab, setActiveTab] = useState('scanned');
+  const [unscannedFilter, setUnscannedFilter] = useState<UnscannedFilter>('all');
   const hasScannedItems = returnOrder.scannedItems.length > 0;
 
   const handleToggleSelect = (id: string) => {
@@ -426,7 +432,9 @@ export default function ReturnDetailsScreen({
     brand: ['H&M', 'Weekday', 'American Eagle Outfitters'][index % 3],
     category: ['Hoodie', 'Shorts', 'Dresses'][index % 3],
     price: [10, 8, 12][index % 3],
-    date: '2024-12-09'
+    date: '2024-12-09',
+    status: item.status || 'Available',
+    isExpired: item.isExpired || false
   }));
 
   const enhancedUnscannedItems = returnOrder.unscannedItems.map((item, index) => ({
@@ -434,10 +442,34 @@ export default function ReturnDetailsScreen({
     brand: ['H&M', 'Weekday', 'American Eagle Outfitters'][index % 3],
     category: ['Hoodie', 'Shorts', 'Dresses'][index % 3],
     price: [15, 20, 18][index % 3],
-    date: '2024-12-09'
+    date: '2024-12-09',
+    status: item.status || (['Available', 'Rejected', 'Broken', 'Available'][index % 4] as 'Rejected' | 'Available' | 'Broken' | 'In transit'),
+    isExpired: item.isExpired || (index % 5 === 0) // Some items are expired
   }));
 
-  const currentItems = activeTab === 'scanned' ? enhancedScannedItems : enhancedUnscannedItems;
+  // Filter unscanned items based on selected filter
+  const filteredUnscannedItems = useMemo(() => {
+    if (activeTab !== 'unscanned' || unscannedFilter === 'all') {
+      return activeTab === 'scanned' ? enhancedScannedItems : enhancedUnscannedItems;
+    }
+    
+    return enhancedUnscannedItems.filter(item => {
+      switch (unscannedFilter) {
+        case 'expired':
+          return item.isExpired === true;
+        case 'rejected':
+          return item.status === 'Rejected';
+        case 'broken':
+          return item.status === 'Broken';
+        case 'available':
+          return item.status === 'Available';
+        default:
+          return true;
+      }
+    });
+  }, [activeTab, unscannedFilter, enhancedScannedItems, enhancedUnscannedItems]);
+
+  const currentItems = activeTab === 'scanned' ? enhancedScannedItems : filteredUnscannedItems;
 
   return (
     <div className="bg-surface min-h-screen">
@@ -454,10 +486,45 @@ export default function ReturnDetailsScreen({
         {/* Tab Bar */}
         <TabBar 
           activeTab={activeTab} 
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            // Reset filter when switching tabs
+            if (tab !== 'unscanned') {
+              setUnscannedFilter('all');
+            }
+          }}
           scannedCount={returnOrder.scannedItems.length}
           unscannedCount={returnOrder.unscannedItems.length}
         />
+        
+        {/* Filter dropdown - positioned below tabs */}
+        {activeTab === 'unscanned' && (
+          <div className="px-4 md:px-6 pt-3 pb-3 bg-surface border-b border-outline-variant relative z-30">
+            <div className="flex flex-col md:flex-row md:items-center gap-3">
+              <label className="body-medium text-on-surface-variant whitespace-nowrap">
+                Filter items:
+              </label>
+              <Select value={unscannedFilter} onValueChange={(value) => {
+                setUnscannedFilter(value as UnscannedFilter);
+              }} modal={true}>
+                <SelectTrigger className="w-full md:w-auto md:min-w-[200px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent 
+                  position="item-aligned"
+                  className="bg-surface-container border border-outline-variant"
+                  style={{ zIndex: 10000 }}
+                >
+                  <SelectItem value="all" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All</SelectItem>
+                  <SelectItem value="expired" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Expired flag</SelectItem>
+                  <SelectItem value="rejected" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Rejected</SelectItem>
+                  <SelectItem value="broken" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Broken</SelectItem>
+                  <SelectItem value="available" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Available</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
         
         {/* Content Area */}
         <div className="pt-4 md:pt-6">

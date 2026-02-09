@@ -457,3 +457,26 @@ export function exportThriftedItemsToCSV(items: OrderItem[]): string {
   
   return `${headers}\n${rows.join('\n')}`;
 }
+
+/**
+ * Export return items to CSV
+ * Uses standard format with all item details
+ */
+export function exportReturnItemsToCSV(items: OrderItem[]): string {
+  const headers = TEMPLATE_COLUMNS.map(col => col.label).join(',');
+  const rows = items.map(item => {
+    return [
+      item.partnerItemId || item.itemId || '',
+      item.retailerItemId || '',
+      item.brand || '',
+      item.gender || '',
+      item.category || '',
+      item.subcategory || '',
+      item.size || '',
+      item.color || '',
+      item.price.toString()
+    ].join(',');
+  });
+  
+  return `${headers}\n${rows.join('\n')}`;
+}

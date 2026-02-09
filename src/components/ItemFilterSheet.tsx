@@ -164,7 +164,7 @@ export default function ItemFilterSheet({
                           updateFilter('brand', 'all');
                           setBrandPickerOpen(false);
                         }}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation"
                       >
                         <span>All brands</span>
                         {localFilters.brand === 'all' && <Check className="w-4 h-4 opacity-70" />}
@@ -177,7 +177,7 @@ export default function ItemFilterSheet({
                             updateFilter('brand', brand);
                             setBrandPickerOpen(false);
                           }}
-                          className="flex items-center justify-between"
+                          className="flex items-center justify-between min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation"
                         >
                           <span>{brand}</span>
                           {localFilters.brand === brand && <Check className="w-4 h-4 opacity-70" />}
@@ -206,13 +206,13 @@ export default function ItemFilterSheet({
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="all" className="body-large">All categories</SelectItem>
-                <SelectItem value="Tops" className="body-large">Tops</SelectItem>
-                <SelectItem value="Bottoms" className="body-large">Bottoms</SelectItem>
-                <SelectItem value="Dresses" className="body-large">Dresses</SelectItem>
-                <SelectItem value="Outerwear" className="body-large">Outerwear</SelectItem>
-                <SelectItem value="Shoes" className="body-large">Shoes</SelectItem>
-                <SelectItem value="Accessories" className="body-large">Accessories</SelectItem>
+                <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All categories</SelectItem>
+                <SelectItem value="Tops" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Tops</SelectItem>
+                <SelectItem value="Bottoms" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Bottoms</SelectItem>
+                <SelectItem value="Dresses" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Dresses</SelectItem>
+                <SelectItem value="Outerwear" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Outerwear</SelectItem>
+                <SelectItem value="Shoes" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Shoes</SelectItem>
+                <SelectItem value="Accessories" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Accessories</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -233,15 +233,15 @@ export default function ItemFilterSheet({
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="all" className="body-large">All statuses</SelectItem>
-                <SelectItem value="Available" className="body-large">Available</SelectItem>
-                <SelectItem value="Draft" className="body-large">Draft</SelectItem>
-                <SelectItem value="In transit" className="body-large">In transit</SelectItem>
-                <SelectItem value="Sold" className="body-large">Sold</SelectItem>
-                <SelectItem value="Returned" className="body-large">Returned</SelectItem>
-                <SelectItem value="Missing" className="body-large">Missing</SelectItem>
-                <SelectItem value="Broken" className="body-large">Broken</SelectItem>
-                <SelectItem value="Rejected" className="body-large">Rejected</SelectItem>
+                <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All statuses</SelectItem>
+                <SelectItem value="Available" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Available</SelectItem>
+                <SelectItem value="Draft" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Draft</SelectItem>
+                <SelectItem value="In transit" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">In transit</SelectItem>
+                <SelectItem value="Sold" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Sold</SelectItem>
+                <SelectItem value="Returned" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Returned</SelectItem>
+                <SelectItem value="Missing" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Missing</SelectItem>
+                <SelectItem value="Broken" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Broken</SelectItem>
+                <SelectItem value="Rejected" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -262,14 +262,14 @@ export default function ItemFilterSheet({
                 <SelectValue placeholder="Select colour" />
               </SelectTrigger>
               <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="all" className="body-large">All colours</SelectItem>
-                <SelectItem value="Black" className="body-large">Black</SelectItem>
-                <SelectItem value="White" className="body-large">White</SelectItem>
-                <SelectItem value="Blue" className="body-large">Blue</SelectItem>
-                <SelectItem value="Red" className="body-large">Red</SelectItem>
-                <SelectItem value="Green" className="body-large">Green</SelectItem>
-                <SelectItem value="Gray" className="body-large">Gray</SelectItem>
-                <SelectItem value="Beige" className="body-large">Beige</SelectItem>
+                <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All colours</SelectItem>
+                <SelectItem value="Black" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Black</SelectItem>
+                <SelectItem value="White" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">White</SelectItem>
+                <SelectItem value="Blue" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Blue</SelectItem>
+                <SelectItem value="Red" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Red</SelectItem>
+                <SelectItem value="Green" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Green</SelectItem>
+                <SelectItem value="Gray" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Gray</SelectItem>
+                <SelectItem value="Beige" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Beige</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -305,12 +305,12 @@ export default function ItemFilterSheet({
                 <SelectValue placeholder="Select sort order" />
               </SelectTrigger>
               <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="date-desc" className="body-large">Date (newest first)</SelectItem>
-                <SelectItem value="date-asc" className="body-large">Date (oldest first)</SelectItem>
-                <SelectItem value="name-asc" className="body-large">Name (A-Z)</SelectItem>
-                <SelectItem value="name-desc" className="body-large">Name (Z-A)</SelectItem>
-                <SelectItem value="price-asc" className="body-large">Price (low to high)</SelectItem>
-                <SelectItem value="price-desc" className="body-large">Price (high to low)</SelectItem>
+                <SelectItem value="date-desc" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Date (newest first)</SelectItem>
+                <SelectItem value="date-asc" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Date (oldest first)</SelectItem>
+                <SelectItem value="name-asc" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Name (A-Z)</SelectItem>
+                <SelectItem value="name-desc" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Name (Z-A)</SelectItem>
+                <SelectItem value="price-asc" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Price (low to high)</SelectItem>
+                <SelectItem value="price-desc" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Price (high to low)</SelectItem>
               </SelectContent>
             </Select>
           </div>

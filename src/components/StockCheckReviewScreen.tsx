@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Checkbox } from './ui/checkbox';
-import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ArrowLeft, X, MoreVertical, CheckCircle, RefreshCw } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { StockItem, StockCheckSession } from './StockCheckScreen';
@@ -33,6 +32,7 @@ interface StockCheckReviewScreenProps {
 }
 
 type ReviewTab = 'not-scanned' | 'not-found' | 'all-included' | 'scanned';
+type ScannedFilter = 'all' | 'expired' | 'other-status';
 
 function TopAppBar({ onBack, onClose }: { onBack: () => void; onClose?: () => void }) {
   return (
@@ -87,14 +87,14 @@ function FilterChips({
   activeTab, 
   onTabChange, 
   counts,
-  showExpiredOnly,
-  onToggleExpiredFilter
+  scannedFilter,
+  onScannedFilterChange
 }: { 
   activeTab: ReviewTab; 
   onTabChange: (tab: ReviewTab) => void;
   counts: Record<ReviewTab, number>;
-  showExpiredOnly: boolean;
-  onToggleExpiredFilter: () => void;
+  scannedFilter: ScannedFilter;
+  onScannedFilterChange: (filter: ScannedFilter) => void;
 }) {
   const filters: Array<{ id: ReviewTab; label: string }> = [
     { id: 'not-scanned', label: 'Not scanned' },
@@ -105,25 +105,23 @@ function FilterChips({
   const allIncludedFilter = { id: 'all-included' as ReviewTab, label: 'All included' };
 
   return (
-    <div className="px-4 md:px-6 py-3 bg-surface border-b border-outline-variant">
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide justify-between">
-        <div className="flex gap-2">
-          {filters.map((filter) => (
-            <button
-              key={filter.id}
-              className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${
-                activeTab === filter.id
-                  ? 'bg-secondary-container border-secondary text-on-secondary-container'
-                  : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
-              }`}
-              onClick={() => onTabChange(filter.id)}
-            >
-              <span className="label-medium">
-                {filter.label} ({counts[filter.id]})
-              </span>
-            </button>
-          ))}
-        </div>
+    <div className="px-4 md:px-6 py-3 bg-surface border-b border-outline-variant relative z-20">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+        {filters.map((filter) => (
+          <button
+            key={filter.id}
+            className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${
+              activeTab === filter.id
+                ? 'bg-secondary-container border-secondary text-on-secondary-container'
+                : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
+            }`}
+            onClick={() => onTabChange(filter.id)}
+          >
+            <span className="label-medium">
+              {filter.label} ({counts[filter.id]})
+            </span>
+          </button>
+        ))}
         <button
           key={allIncludedFilter.id}
           className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${
@@ -138,21 +136,6 @@ function FilterChips({
           </span>
         </button>
       </div>
-      {/* Expired filter toggle - only show in scanned tab */}
-      {activeTab === 'scanned' && (
-        <div className="mt-3 pt-3 border-t border-outline-variant">
-          <div className="flex items-center gap-3">
-            <Checkbox
-              id="expired-filter"
-              checked={showExpiredOnly}
-              onCheckedChange={() => onToggleExpiredFilter()}
-            />
-            <Label htmlFor="expired-filter" className="body-medium text-on-surface cursor-pointer">
-              Show only expired
-            </Label>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -207,7 +190,7 @@ function BulkActionsBar({
   const menuOptions = getMenuOptions();
 
   return (
-    <div className={`sticky top-0 z-10 border-b border-outline-variant ${
+    <div className={`sticky top-0 z-[5] border-b border-outline-variant ${
       hasSelectedItems ? 'bg-primary-container' : 'bg-surface-container'
     }`}>
       <div className="flex items-center justify-between px-1 py-3 min-h-[48px]">
@@ -310,7 +293,8 @@ function ReviewItemCard({
   onMoreActions,
   isSelected,
   onToggleSelect,
-  activeTab
+  activeTab,
+  onUnflagExpired
 }: { 
   item: StockItem; 
   onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Available' | 'Broken') => void;
@@ -318,6 +302,7 @@ function ReviewItemCard({
   isSelected: boolean;
   onToggleSelect: (itemId: string) => void;
   activeTab: ReviewTab;
+  onUnflagExpired?: (itemId: string) => void;
 }) {
   // Get menu options based on active tab
   const getMenuOptions = () => {
@@ -329,6 +314,13 @@ function ReviewItemCard({
       case 'not-found':
         return []; // No actions for not-found items
       case 'scanned':
+        // For expired items, show only Broken and Unflag expired
+        if (item.isExpired) {
+          return [
+            { label: 'Broken', status: 'Broken' as const, className: 'text-error', isAction: true },
+            { label: 'Unflag expired', action: 'unflag-expired' as const, className: 'text-on-surface', isAction: false }
+          ];
+        }
         return [
           { label: 'Available', status: 'Available' as const, className: 'text-on-surface' },
           { label: 'Broken', status: 'Broken' as const, className: 'text-error' }
@@ -415,15 +407,29 @@ function ReviewItemCard({
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Item actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {menuOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option.status}
-                    onClick={() => onUpdateStatus(item.id, option.status)}
-                    className={`cursor-pointer ${option.className}`}
-                  >
-                    <span>{option.label}</span>
-                  </DropdownMenuItem>
-                ))}
+                {menuOptions.map((option, index) => {
+                  if ('action' in option && option.action === 'unflag-expired') {
+                    return (
+                      <DropdownMenuItem
+                        key={`unflag-${index}`}
+                        onClick={() => onUnflagExpired?.(item.id)}
+                        className={`cursor-pointer ${option.className}`}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        <span>{option.label}</span>
+                      </DropdownMenuItem>
+                    );
+                  }
+                  return (
+                    <DropdownMenuItem
+                      key={option.status || index}
+                      onClick={() => onUpdateStatus(item.id, option.status!)}
+                      className={`cursor-pointer ${option.className}`}
+                    >
+                      <span>{option.label}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -440,7 +446,8 @@ function ItemsList({
   selectedItems,
   onToggleSelect,
   onToggleAll,
-  activeTab
+  activeTab,
+  onUnflagExpired
 }: {
   items: StockItem[];
   onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Available' | 'Broken') => void;
@@ -449,6 +456,7 @@ function ItemsList({
   onToggleSelect: (itemId: string) => void;
   onToggleAll: () => void;
   activeTab: ReviewTab;
+  onUnflagExpired?: (itemId: string) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -491,6 +499,7 @@ function ItemsList({
             isSelected={selectedItems.has(item.id)}
             onToggleSelect={onToggleSelect}
             activeTab={activeTab}
+            onUnflagExpired={onUnflagExpired}
           />
         ))}
       </div>
@@ -642,6 +651,190 @@ function BulkExpiredFlagSheet({
   );
 }
 
+function UnflagExpiredSheet({ isOpen, onClose, item, onSave }: {
+  isOpen: boolean;
+  onClose: () => void;
+  item: StockItem | null;
+  onSave: (updates: Partial<StockItem>) => void;
+}) {
+  const [option, setOption] = useState<'reset' | 'postpone-4' | 'postpone-8'>('reset');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setOption('reset'); // Reset to default when sheet opens
+    }
+  }, [isOpen]);
+
+  const handleSave = () => {
+    if (!item) return;
+
+    const updates: Partial<StockItem> = {};
+
+    if (option === 'reset') {
+      // Reset expired time - clear all expired flags
+      updates.isExpired = false;
+      updates.expiredFlaggedAt = undefined;
+      updates.expiredPostponeWeeks = undefined;
+    } else if (option === 'postpone-4') {
+      // Flag as expired again after 4 weeks
+      updates.expiredPostponeWeeks = 4;
+      // Keep isExpired as true but update the postpone weeks
+    } else if (option === 'postpone-8') {
+      // Flag as expired again after 8 weeks
+      updates.expiredPostponeWeeks = 8;
+      // Keep isExpired as true but update the postpone weeks
+    }
+
+    onSave(updates);
+    onClose();
+  };
+
+  if (!item) return null;
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent 
+        side={isMobile ? "bottom" : "right"} 
+        className="bg-surface border-outline-variant p-0 flex flex-col md:max-w-[400px] md:h-full max-h-[85vh] md:max-h-full"
+      >
+        {/* Header - Fixed */}
+        <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
+          <SheetTitle className="title-large text-on-surface">
+            Unflag Expired Item
+          </SheetTitle>
+          <SheetDescription className="body-medium text-on-surface-variant">
+            Choose how to handle the expired flag for this item.
+          </SheetDescription>
+        </SheetHeader>
+
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+          {/* Reset Option (Default) */}
+          <button
+            onClick={() => setOption('reset')}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
+              option === 'reset'
+                ? 'border-primary bg-primary-container text-on-primary-container'
+                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                option === 'reset'
+                  ? 'border-on-primary-container bg-on-primary-container'
+                  : 'border-on-surface-variant'
+              }`}>
+                {option === 'reset' && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="title-small text-on-surface mb-1">
+                  Reset expired time
+                </div>
+                <div className="body-small text-on-surface-variant">
+                  Remove the expired flag and reset the timer as if this is a new item
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {/* Postpone 4 Weeks Option */}
+          <button
+            onClick={() => setOption('postpone-4')}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
+              option === 'postpone-4'
+                ? 'border-primary bg-primary-container text-on-primary-container'
+                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                option === 'postpone-4'
+                  ? 'border-on-primary-container bg-on-primary-container'
+                  : 'border-on-surface-variant'
+              }`}>
+                {option === 'postpone-4' && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="title-small text-on-surface mb-1">
+                  Flag as expired again after 4 weeks
+                </div>
+                <div className="body-small text-on-surface-variant">
+                  Keep the expired flag but extend the timer by 4 weeks
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {/* Postpone 8 Weeks Option */}
+          <button
+            onClick={() => setOption('postpone-8')}
+            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
+              option === 'postpone-8'
+                ? 'border-primary bg-primary-container text-on-primary-container'
+                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                option === 'postpone-8'
+                  ? 'border-on-primary-container bg-on-primary-container'
+                  : 'border-on-surface-variant'
+              }`}>
+                {option === 'postpone-8' && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="title-small text-on-surface mb-1">
+                  Flag as expired again after 8 weeks
+                </div>
+                <div className="body-small text-on-surface-variant">
+                  Keep the expired flag but extend the timer by 8 weeks
+                </div>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {/* Footer - Fixed at bottom */}
+        <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
+          <Button 
+            variant="outline" 
+            size="lg"
+            onClick={onClose}
+            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large touch-manipulation"
+          >
+            Cancel
+          </Button>
+          <Button 
+            size="lg"
+            onClick={handleSave}
+            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
+          >
+            Confirm
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export default function StockCheckReviewScreen({ 
   session, 
   onBack, 
@@ -650,7 +843,9 @@ export default function StockCheckReviewScreen({
   const [activeTab, setActiveTab] = useState<ReviewTab>('not-scanned');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showExpiredFlagSheet, setShowExpiredFlagSheet] = useState(false);
-  const [showExpiredOnly, setShowExpiredOnly] = useState(false);
+  const [scannedFilter, setScannedFilter] = useState<ScannedFilter>('all');
+  const [showUnflagExpiredSheet, setShowUnflagExpiredSheet] = useState(false);
+  const [itemToUnflagExpired, setItemToUnflagExpired] = useState<StockItem | null>(null);
   const [pendingBulkAction, setPendingBulkAction] = useState<{
     status: 'Missing' | 'Available' | 'Broken';
     expiredItemsCount: number;
@@ -706,9 +901,11 @@ export default function StockCheckReviewScreen({
       case 'scanned':
         // Show all scanned items, regardless of status
         filtered = reviewItems.filter(item => item.isScanned && !item.id.startsWith('unexpected-item-'));
-        // Apply expired filter if active
-        if (showExpiredOnly) {
+        // Apply scanned filter
+        if (scannedFilter === 'expired') {
           filtered = filtered.filter(item => item.isExpired === true);
+        } else if (scannedFilter === 'other-status') {
+          filtered = filtered.filter(item => item.status !== 'Available');
         }
         break;
       default:
@@ -720,13 +917,17 @@ export default function StockCheckReviewScreen({
   // Get counts for each tab
   const getCounts = (): Record<ReviewTab, number> => {
     const scannedItems = reviewItems.filter(item => item.isScanned && !item.id.startsWith('unexpected-item-'));
+    let scannedCount = scannedItems.length;
+    if (scannedFilter === 'expired') {
+      scannedCount = scannedItems.filter(item => item.isExpired === true).length;
+    } else if (scannedFilter === 'other-status') {
+      scannedCount = scannedItems.filter(item => item.status !== 'Available').length;
+    }
     return {
       'not-scanned': reviewItems.filter(item => !item.isScanned).length,
       'not-found': reviewItems.filter(item => item.isScanned && item.id.startsWith('unexpected-item-')).length,
       'all-included': reviewItems.length,
-      'scanned': showExpiredOnly 
-        ? scannedItems.filter(item => item.isExpired === true).length
-        : scannedItems.length
+      'scanned': scannedCount
     };
   };
 
@@ -859,6 +1060,38 @@ export default function StockCheckReviewScreen({
     setSelectedItems(new Set());
   };
 
+  const handleUnflagExpiredItem = (itemId: string) => {
+    const item = reviewItems.find(i => i.id === itemId);
+    if (item) {
+      setItemToUnflagExpired(item);
+      setShowUnflagExpiredSheet(true);
+    }
+  };
+
+  const handleUnflagExpiredSave = (updates: Partial<StockItem>) => {
+    if (!itemToUnflagExpired) return;
+
+    setReviewItems(prev => prev.map(item => {
+      if (item.id === itemToUnflagExpired.id) {
+        return {
+          ...item,
+          ...updates
+        } as StockItem;
+      }
+      return item;
+    }));
+
+    const successMessage = updates.isExpired === false
+      ? `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} expired flag removed`
+      : updates.expiredPostponeWeeks === 4
+      ? `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} will be flagged as expired again after 4 weeks`
+      : `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} will be flagged as expired again after 8 weeks`;
+
+    toast.success(successMessage);
+    setShowUnflagExpiredSheet(false);
+    setItemToUnflagExpired(null);
+  };
+
   const handleUpdateStatus = (itemId: string, newStatus: 'Missing' | 'Found' | 'Available' | 'Broken') => {
     setReviewItems(prev => prev.map(item => {
       if (item.id === itemId) {
@@ -908,19 +1141,42 @@ export default function StockCheckReviewScreen({
             setActiveTab(tab);
             // Clear selection when changing tabs
             setSelectedItems(new Set());
-            // Reset expired filter when leaving scanned tab
+            // Reset scanned filter when leaving scanned tab
             if (tab !== 'scanned') {
-              setShowExpiredOnly(false);
+              setScannedFilter('all');
             }
           }}
           counts={counts}
-          showExpiredOnly={showExpiredOnly}
-          onToggleExpiredFilter={() => {
-            setShowExpiredOnly(prev => !prev);
-            // Clear selection when toggling filter
+          scannedFilter={scannedFilter}
+          onScannedFilterChange={(filter) => {
+            setScannedFilter(filter);
+            // Clear selection when changing filter
             setSelectedItems(new Set());
           }}
         />
+        
+        {/* Filter dropdown - positioned outside FilterChips to avoid z-index issues */}
+        {activeTab === 'scanned' && (
+          <div className="px-4 md:px-6 pt-3 pb-3 bg-surface border-b border-outline-variant relative z-30">
+            <Select value={scannedFilter} onValueChange={(value) => {
+              setScannedFilter(value as ScannedFilter);
+              setSelectedItems(new Set());
+            }} modal={true}>
+              <SelectTrigger className="w-full md:w-auto md:min-w-[200px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent 
+                position="item-aligned"
+                className="bg-surface-container border border-outline-variant"
+                style={{ zIndex: 10000 }}
+              >
+                <SelectItem value="all" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All</SelectItem>
+                <SelectItem value="expired" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Expired flag</SelectItem>
+                <SelectItem value="other-status" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Other status than Available</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         
         {/* Bulk Actions Bar - moved below tabs */}
         <BulkActionsBar
@@ -945,6 +1201,7 @@ export default function StockCheckReviewScreen({
             onToggleSelect={handleToggleSelect}
             onToggleAll={handleToggleAll}
             activeTab={activeTab}
+            onUnflagExpired={handleUnflagExpiredItem}
           />
         </div>
       </div>
@@ -959,6 +1216,17 @@ export default function StockCheckReviewScreen({
         expiredItemsCount={pendingBulkAction?.expiredItemsCount || 0}
         onUnflagExpired={handleUnflagExpired}
         onKeepExpiredFlag={handleKeepExpiredFlag}
+      />
+
+      {/* Unflag Expired Sheet */}
+      <UnflagExpiredSheet
+        isOpen={showUnflagExpiredSheet}
+        onClose={() => {
+          setShowUnflagExpiredSheet(false);
+          setItemToUnflagExpired(null);
+        }}
+        item={itemToUnflagExpired}
+        onSave={handleUnflagExpiredSave}
       />
     </div>
   );

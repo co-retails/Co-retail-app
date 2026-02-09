@@ -56,6 +56,7 @@ import {
   parseCSV, 
   convertToThriftedOrderItems,
   exportThriftedItemsToCSV,
+  exportReturnItemsToCSV,
   THRIFTED_VALID_VALUES,
   mapSubcategoryToCategory,
   getAllThriftedSubcategories
@@ -1120,6 +1121,26 @@ export default function OrderShipmentDetailsScreen({
     downloadCSV(csv, `thrifted-order-items-${Date.now()}.csv`);
   };
 
+  // Handler to export return items
+  const handleExportReturnItems = () => {
+    const returnDelivery = data as ReturnDelivery;
+    const csv = exportReturnItemsToCSV(items.map(item => ({
+      id: item.id,
+      itemId: item.partnerItemId || item.itemId || '',
+      brand: item.brand || '',
+      gender: item.gender || '',
+      category: item.category || '',
+      subcategory: item.subcategory || '',
+      size: item.size || '',
+      color: item.color || '',
+      price: item.price || 0,
+      partnerItemId: item.partnerItemId,
+      retailerItemId: item.retailerItemId
+    })));
+    const filename = `return-items-${returnDelivery.deliveryId || returnDelivery.id}-${Date.now()}.csv`;
+    downloadCSV(csv, filename);
+  };
+
   // Box management handlers
   const handleBoxClick = (box: Box) => {
     if (onOpenBoxDetails) {
@@ -1515,6 +1536,25 @@ export default function OrderShipmentDetailsScreen({
                 {type === 'return' ? (
                   // For returns: use ItemCard layout like ItemsScreen
                   <>
+                    {/* Export button for In transit returns (partner role only) */}
+                    {(() => {
+                      const returnDelivery = data as ReturnDelivery;
+                      const isInTransit = returnDelivery?.status === 'In transit';
+                      const isPartner = currentUserRole === 'partner';
+                      return isInTransit && isPartner && items.length > 0 ? (
+                        <div className="mb-4 flex justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleExportReturnItems}
+                            className="gap-2"
+                          >
+                            <DownloadIcon size={16} />
+                            <span className="label-large">Export Items</span>
+                          </Button>
+                        </div>
+                      ) : null;
+                    })()}
                     <style>{`
                       .return-item-card-wrapper > div > div.flex {
                         padding-left: 1rem !important;

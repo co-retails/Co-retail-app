@@ -202,22 +202,22 @@ export default function ItemDetailsDialog({
     setIsScanning(true);
     setTimeout(() => {
       const mockId = `${Math.floor(100000 + Math.random() * 900000)}`;
-      setScannedId(mockId);
+      // Automatically save and close
+      onSave(item.id, { itemId: mockId });
+      toast.success(`Item ID updated to ${mockId}`);
+      setShowIdScanner(false);
+      setScannedId('');
       setIsScanning(false);
     }, 1500);
   };
 
   const handleManualEntry = (newId: string) => {
-    setScannedId(newId);
-  };
-
-  const handleConfirmNewId = () => {
-    if (scannedId.trim()) {
-      onSave(item.id, { itemId: scannedId });
-      toast.success(`Item ID updated to ${scannedId}`);
+    if (newId.trim()) {
+      // Automatically save and close
+      onSave(item.id, { itemId: newId });
+      toast.success(`Item ID updated to ${newId}`);
       setShowIdScanner(false);
       setScannedId('');
-      onClose();
     }
   };
 
@@ -437,7 +437,7 @@ export default function ItemDetailsDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {selectOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
+                        <SelectItem key={option.value} value={option.value} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                           {option.label}
                         </SelectItem>
                       ))}
@@ -554,37 +554,11 @@ export default function ItemDetailsDialog({
 
           {/* Scanned ID Display */}
           <div className="flex-1 overflow-y-auto p-4">
-            {scannedId && (
-              <div className="p-4 bg-success-container rounded-lg">
-                <p className="body-medium text-on-success-container mb-2">New ID scanned:</p>
-                <p className="title-large text-on-success-container">{scannedId}</p>
+            {isScanning && (
+              <div className="p-4 bg-primary-container rounded-lg">
+                <p className="body-medium text-on-primary-container mb-2">Scanning...</p>
               </div>
             )}
-          </div>
-
-          {/* Footer */}
-          <div className="bg-surface-container border-t border-outline-variant p-4 flex-shrink-0">
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => {
-                  setShowIdScanner(false);
-                  setScannedId('');
-                }}
-                className="flex-1 touch-manipulation"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="lg"
-                onClick={handleConfirmNewId}
-                disabled={!scannedId.trim()}
-                className="flex-1 touch-manipulation"
-              >
-                Confirm
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -707,7 +681,7 @@ export default function ItemDetailsDialog({
                 className="flex items-center gap-2 flex-shrink-0 min-h-[48px] touch-manipulation"
               >
                 <QrCode size={18} />
-                Scan
+                Scan new ID
               </Button>
             </div>
 

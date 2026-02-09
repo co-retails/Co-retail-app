@@ -142,7 +142,7 @@ export function StatusUpdateDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {availableStatuses.map((status) => (
-                    <SelectItem key={status} value={status}>
+                    <SelectItem key={status} value={status} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                       {status}
                     </SelectItem>
                   ))}

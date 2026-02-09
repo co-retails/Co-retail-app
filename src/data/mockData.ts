@@ -61,6 +61,52 @@ export const mockDeliveries: Delivery[] = [
     partnerName: 'Sellpy',
     warehouseId: '1',
     warehouseName: 'Stockholm Central Warehouse'
+  },
+  // Weekday Drottninggatan store - Multiple deliveries from different partners
+  {
+    id: '4',
+    date: '2024-12-10',
+    status: 'In transit',
+    deliveryId: 'WD-DEL-2024-001',
+    orders: 1,
+    items: 120,
+    boxes: 5,
+    sender: 'Sellpy',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    receivingStoreId: '1' // Drottninggatan 63
+  },
+  {
+    id: '5',
+    date: '2024-12-10',
+    status: 'In transit',
+    deliveryId: 'WD-DEL-2024-002',
+    orders: 2,
+    items: 85,
+    boxes: 3,
+    sender: 'Thrifted',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    warehouseId: '2',
+    warehouseName: 'Thrifted Oslo Distribution',
+    receivingStoreId: '1' // Drottninggatan 63
+  },
+  {
+    id: '6',
+    date: '2024-12-09',
+    status: 'In transit',
+    deliveryId: 'WD-DEL-2024-003',
+    orders: 1,
+    items: 200,
+    boxes: 8,
+    sender: 'Sellpy',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    warehouseId: '1',
+    warehouseName: 'Stockholm Central Warehouse',
+    receivingStoreId: '1' // Drottninggatan 63
   }
 ];
 

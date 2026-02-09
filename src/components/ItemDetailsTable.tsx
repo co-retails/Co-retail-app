@@ -465,7 +465,7 @@ export function ItemDetailsTable({
                         </SelectTrigger>
                         <SelectContent>
                           {categoryOptions.map((category) => (
-                            <SelectItem key={category} value={category} className="body-medium">
+                            <SelectItem key={category} value={category} className="body-medium min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                               {category}
                             </SelectItem>
                           ))}
@@ -516,14 +516,14 @@ export function ItemDetailsTable({
                           if (subcategoriesByCategory && item.category) {
                             const validSubcategories = subcategoriesByCategory[item.category] || [];
                             return validSubcategories.map((subcategory) => (
-                              <SelectItem key={subcategory} value={subcategory} className="body-medium">
+                              <SelectItem key={subcategory} value={subcategory} className="body-medium min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                                 {subcategory}
                               </SelectItem>
                             ));
                           }
                           // Otherwise use all subcategoryOptions
                           return subcategoryOptions.map((subcategory) => (
-                            <SelectItem key={subcategory} value={subcategory} className="body-medium">
+                            <SelectItem key={subcategory} value={subcategory} className="body-medium min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                               {subcategory}
                             </SelectItem>
                           ));
@@ -565,7 +565,7 @@ export function ItemDetailsTable({
                       </SelectTrigger>
                       <SelectContent>
                         {SIZE_OPTIONS.map((size) => (
-                          <SelectItem key={size} value={size} className="body-medium">
+                          <SelectItem key={size} value={size} className="body-medium min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                             {size}
                           </SelectItem>
                         ))}
@@ -606,7 +606,7 @@ export function ItemDetailsTable({
                       </SelectTrigger>
                       <SelectContent>
                         {COLOR_OPTIONS.map((color) => (
-                          <SelectItem key={color} value={color} className="body-medium">
+                          <SelectItem key={color} value={color} className="body-medium min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                             {color}
                           </SelectItem>
                         ))}
@@ -660,12 +660,12 @@ export function ItemDetailsTable({
                         <SelectContent>
                           {priceOptions.length > 0 ? (
                             priceOptions.map((price) => (
-                              <SelectItem key={price} value={price.toString()} className="body-medium">
+                              <SelectItem key={price} value={price.toString()} className="body-medium min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                                 {price} {displayCurrency}
                               </SelectItem>
                             ))
                           ) : (
-                            <SelectItem value="no-prices" disabled className="body-medium">
+                            <SelectItem value="no-prices" disabled className="body-medium min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                               No prices configured
                             </SelectItem>
                           )}

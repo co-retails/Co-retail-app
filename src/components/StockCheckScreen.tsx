@@ -72,9 +72,9 @@ function TopAppBar({ onBack, title, onClose, onNavigateToReport }: {
             <button
               onClick={onNavigateToReport}
               className="px-4 py-2 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors label-medium text-primary"
-              aria-label="View stock check report"
+              aria-label="View stock check reports"
             >
-              View report
+              View reports
             </button>
           )}
           

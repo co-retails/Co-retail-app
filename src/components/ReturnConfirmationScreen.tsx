@@ -32,29 +32,29 @@ export default function ReturnConfirmationScreen({ returnOrder, onBackToHome, on
           {/* Return Details Card */}
           <div className="bg-secondary border border-border rounded-xl p-4 w-full mb-8">
             <div className="flex flex-col gap-3">
-              <div className="flex justify-between items-center text-[12px] leading-[16px]">
+              <div className="flex justify-between items-center body-medium">
                 <span className="text-muted-foreground">Return Order ID</span>
                 <span className="font-mono text-foreground">{returnOrder.id}</span>
               </div>
               
-              <div className="flex justify-between items-center text-[12px] leading-[16px]">
+              <div className="flex justify-between items-center body-medium">
                 <span className="text-muted-foreground">Partner</span>
                 <span className="text-foreground">{returnOrder.partnerName}</span>
               </div>
               
-              <div className="flex justify-between items-center text-[12px] leading-[16px]">
+              <div className="flex justify-between items-center body-medium">
                 <span className="text-muted-foreground">Items</span>
                 <span className="text-foreground">{returnOrder.items.length} items</span>
               </div>
               
-              <div className="flex justify-between items-center text-[12px] leading-[16px]">
+              <div className="flex justify-between items-center body-medium">
                 <span className="text-muted-foreground">Parcel ID</span>
                 <span className="font-mono text-foreground">{returnOrder.parcelId}</span>
               </div>
               
-              <div className="flex justify-between items-center text-[12px] leading-[16px]">
+              <div className="flex justify-between items-center body-medium">
                 <span className="text-muted-foreground">Status</span>
-                <div className="px-3 py-1 bg-accent/10 text-accent rounded-full text-[10px]">
+                <div className="px-3 py-1 bg-accent/10 text-accent rounded-full label-small">
                   {returnOrder.status}
                 </div>
               </div>
@@ -65,7 +65,7 @@ export default function ReturnConfirmationScreen({ returnOrder, onBackToHome, on
           <div className="bg-success-container/20 border border-[var(--success-container)] rounded-lg p-3 w-full">
             <p className="text-[12px] leading-[16px] text-success mb-2">Next steps:</p>
             <div className="text-[11px] leading-[16px] text-success space-y-1">
-              <p>1. Ensure carrier waybill is attached to the parcel</p>
+              <p>1. Ensure carrier shipping label is attached to the parcel</p>
               <p>2. Hand over the parcel to the carrier</p>
               <p>3. Partner will receive notification when return is in transit</p>
             </div>

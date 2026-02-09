@@ -74,6 +74,7 @@ const ShippingReportScreen = React.lazy(() => import('./components/ShippingRepor
 
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
+import { Check } from 'lucide-react';
 import { mockShowroomAnalytics } from './components/ShowroomMockData';
 import { ShowroomProduct, CartItem, ShowroomMessage } from './components/ShowroomTypes';
 import { QuotationRequest } from './components/BuyerQuotationsScreen';
@@ -2198,6 +2199,12 @@ export default function App() {
             );
             // Navigate back or to confirmation
             setCurrentScreenSafe('shipping');
+            // Show success snackbar message
+            toast.success(`Registered ${scannedBoxes.length} box${scannedBoxes.length === 1 ? '' : 'es'} successfully`, {
+              icon: <Check className="w-5 h-5" style={{ color: 'var(--tertiary)' }} />,
+              position: 'bottom-center',
+              style: { bottom: '80px' }
+            });
             window.dispatchEvent(
               new CustomEvent('delivery-registered', {
                 detail: {
