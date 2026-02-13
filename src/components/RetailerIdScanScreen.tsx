@@ -3,8 +3,8 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
-import { Progress } from './ui/progress';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from './ui/sheet';
 import { 
   ArrowLeftIcon, 
   QrCodeIcon,
@@ -24,10 +24,49 @@ import { ItemCard, BaseItem } from './ItemCard';
 import CameraScanner from './CameraScanner';
 
 type ScanStep = 'scan-partner-qr' | 'scan-retailer-id';
+type ItemsTab = 'scanned' | 'not-scanned';
 
 interface ScanSession {
   currentItem?: OrderItem;
   step: ScanStep;
+}
+
+function TabBar({
+  activeTab,
+  onTabChange,
+  scannedCount,
+  notScannedCount,
+}: {
+  activeTab: ItemsTab;
+  onTabChange: (tab: ItemsTab) => void;
+  scannedCount: number;
+  notScannedCount: number;
+}) {
+  const tabs: { id: ItemsTab; label: string; count: number }[] = [
+    { id: 'scanned', label: 'Scanned', count: scannedCount },
+    { id: 'not-scanned', label: 'Not scanned', count: notScannedCount },
+  ];
+
+  return (
+    <div className="bg-surface border-b border-outline-variant">
+      <div className="flex">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            className="flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+            onClick={() => onTabChange(tab.id)}
+          >
+            <span className={`title-small ${activeTab === tab.id ? 'text-on-surface' : 'text-on-surface-variant'}`}>
+              {tab.label} ({tab.count})
+            </span>
+            {activeTab === tab.id && (
+              <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 interface RetailerIdScanScreenProps {
@@ -61,11 +100,11 @@ export default function RetailerIdScanScreen({
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const [showDeliveryNoteDialog, setShowDeliveryNoteDialog] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [itemsTab, setItemsTab] = useState<ItemsTab>('scanned');
 
-  const itemsNeedingRetailerIds = (orderItems || []).filter(item => !item.retailerItemId);
+  const itemsNeedingRetailerIds = (orderItems || []).filter(item => !scannedConnections.find(scanned => scanned.id === item.id));
   const totalItems = (orderItems || []).length;
   const completedItems = scannedConnections.length;
-  const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
 
   const handleScan = (scannedCode: string) => {
     setIsScanning(true);
@@ -249,8 +288,8 @@ export default function RetailerIdScanScreen({
           <div className="p-4 border border-success bg-success-container/10 rounded-[12px] shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <CheckIcon size={16} className="text-success" />
-                <p className="title-small text-on-surface">Item Identified</p>
+                <CheckIcon size={20} className="text-success" />
+                <p className="body-large text-on-surface">Item Identified</p>
               </div>
               <Button
                 variant="ghost"
@@ -264,7 +303,7 @@ export default function RetailerIdScanScreen({
             </div>
             
             {/* Item Details with Image */}
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-start">
               {/* Item Image */}
               <div className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 bg-surface-container rounded-xl overflow-hidden border border-outline-variant">
                 {scanSession.currentItem.image || scanSession.currentItem.thumbnail ? (
@@ -280,59 +319,61 @@ export default function RetailerIdScanScreen({
                 )}
               </div>
               
-              {/* Item Info */}
+              {/* Item Info - regular weight, no bold */}
               <div className="flex-1 min-w-0">
                 {/* Mobile Layout: Compact */}
                 <div className="block md:hidden space-y-2">
                   <div>
-                    <p className="body-small text-on-surface-variant">External ID</p>
-                    <p className="title-small text-on-surface">{scanSession.currentItem.partnerItemId}</p>
+                    <p className="label-small text-on-surface-variant">External ID</p>
+                    <p className="body-medium text-on-surface">{scanSession.currentItem.partnerItemId}</p>
                   </div>
                   <div>
-                    <p className="body-small text-on-surface-variant">Brand • Category</p>
-                    <p className="title-small text-on-surface">{scanSession.currentItem.brand} • {scanSession.currentItem.category}</p>
+                    <p className="label-small text-on-surface-variant">Brand • Category</p>
+                    <p className="body-medium text-on-surface">{scanSession.currentItem.brand} • {scanSession.currentItem.category}</p>
                   </div>
                   <div className="flex gap-4">
                     <div>
-                      <p className="body-small text-on-surface-variant">Size</p>
-                      <p className="title-small text-on-surface">{scanSession.currentItem.size}</p>
+                      <p className="label-small text-on-surface-variant">Size</p>
+                      <p className="body-medium text-on-surface">{scanSession.currentItem.size}</p>
                     </div>
                     <div>
-                      <p className="body-small text-on-surface-variant">Color</p>
-                      <p className="title-small text-on-surface">{scanSession.currentItem.color}</p>
-                    </div>
-                    <div>
-                      <p className="body-small text-on-surface-variant">Price</p>
-                      <p className="title-small text-on-surface">${scanSession.currentItem.price.toFixed(2)}</p>
+                      <p className="label-small text-on-surface-variant">Color</p>
+                      <p className="body-medium text-on-surface">{scanSession.currentItem.color}</p>
                     </div>
                   </div>
                 </div>
                 
-                {/* Desktop Layout: Grid format */}
+                {/* Desktop Layout: 2 columns side by side - left: External ID + Brand; right: Size/Color + Price */}
                 <div className="hidden md:block">
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <div>
-                        <p className="body-small text-on-surface-variant">External ID</p>
-                        <p className="title-small text-on-surface">{scanSession.currentItem.partnerItemId}</p>
+                        <p className="label-small text-on-surface-variant">External ID</p>
+                        <p className="body-medium text-on-surface">{scanSession.currentItem.partnerItemId}</p>
                       </div>
                       <div>
-                        <p className="body-small text-on-surface-variant">Brand • Category</p>
-                        <p className="title-small text-on-surface">{scanSession.currentItem.brand} • {scanSession.currentItem.category}</p>
+                        <p className="label-small text-on-surface-variant">Brand • Category</p>
+                        <p className="body-medium text-on-surface">{scanSession.currentItem.brand} • {scanSession.currentItem.category}</p>
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="flex flex-row items-start justify-between gap-6">
                       <div>
-                        <p className="body-small text-on-surface-variant">Size • Color</p>
-                        <p className="title-small text-on-surface">{scanSession.currentItem.size} • {scanSession.currentItem.color}</p>
+                        <p className="label-small text-on-surface-variant">Size • Color</p>
+                        <p className="body-medium text-on-surface">{scanSession.currentItem.size} • {scanSession.currentItem.color}</p>
                       </div>
-                      <div>
-                        <p className="body-small text-on-surface-variant">Price</p>
-                        <p className="title-small text-on-surface">${scanSession.currentItem.price.toFixed(2)}</p>
+                      <div className="text-right flex-shrink-0" style={{ marginRight: 40 }}>
+                        <p className="label-small text-on-surface-variant">Price</p>
+                        <p className="headline-small text-on-surface">${scanSession.currentItem.price.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Price - mobile only (tablet/desktop: shown in grid above) */}
+              <div className="flex-shrink-0 text-right md:hidden">
+                <p className="label-small text-on-surface-variant md:mb-1">Price</p>
+                <p className="headline-small text-on-surface">${scanSession.currentItem.price.toFixed(2)}</p>
               </div>
             </div>
             
@@ -340,8 +381,8 @@ export default function RetailerIdScanScreen({
             {scanSession.step === 'scan-retailer-id' && (
               <div className="mt-3 p-3 bg-primary-container/20 rounded-lg border border-primary-container">
                 <div className="flex items-center gap-2">
-                  <QrCodeIcon size={16} className="text-primary" />
-                  <p className="body-small text-primary">
+                  <QrCodeIcon size={18} className="text-primary" />
+                  <p className="body-medium text-primary">
                     Ready for retailer tag
                   </p>
                 </div>
@@ -370,90 +411,73 @@ export default function RetailerIdScanScreen({
           </div>
         )}
         
-        {/* Progress */}
+        {/* Scanned / Not scanned tabs and list */}
         {totalItems > 0 && (
-        <>
-          <div className="px-4 md:px-6 py-4">
-            <Card className="bg-surface-container border border-outline-variant">
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="title-small text-on-surface">Progress</p>
-                    <p className="body-small text-on-surface-variant">
-                      {completedItems}/{totalItems}
-                    </p>
+          <>
+            <TabBar
+              activeTab={itemsTab}
+              onTabChange={setItemsTab}
+              scannedCount={completedItems}
+              notScannedCount={itemsNeedingRetailerIds.length}
+            />
+            <div className="px-4 md:px-6 py-4">
+              {itemsTab === 'scanned' ? (
+                scannedConnections.length > 0 ? (
+                  <Card className="bg-surface-container border border-outline-variant overflow-hidden">
+                    <CardContent className="p-0">
+                      {scannedConnections.map((item) => (
+                        <div key={item.id} className="border-b border-outline-variant last:border-b-0 mx-4 md:mx-0">
+                          <ItemCard
+                            item={{
+                              ...item as BaseItem,
+                              status: 'Pending'
+                            }}
+                            variant="items-list"
+                            showActions={false}
+                            showSelection={false}
+                            hideSellerName={true}
+                            showBothIds={true}
+                          />
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="py-8 text-center">
+                    <PackageIcon className="w-10 h-10 mx-auto text-on-surface-variant mb-2" />
+                    <p className="body-medium text-on-surface-variant">No items scanned yet</p>
                   </div>
-                  <Progress value={progressPercentage} className="h-1.5" />
-                  <p className="body-small text-on-surface-variant text-center">
-                    {progressPercentage.toFixed(0)}% completed
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Scanned Items */}
-          {scannedConnections.length > 0 && (
-          <div className="px-4 md:px-6 py-4">
-            <Card className="bg-surface-container border border-outline-variant overflow-hidden">
-              <CardHeader className="pb-3">
-                <CardTitle className="title-small">Scanned Items ({scannedConnections.length})</CardTitle>
-                <p className="body-small text-on-surface-variant">
-                  Connected with item IDs
-                </p>
-              </CardHeader>
-              <CardContent className="p-0">
-                {scannedConnections.map((item) => (
-                  <div key={item.id} className="border-b border-outline-variant last:border-b-0 mx-4 md:mx-0">
-                    <ItemCard
-                      item={{
-                        ...item as BaseItem,
-                        status: 'Pending'
-                      }}
-                      variant="items-list"
-                      showActions={false}
-                      showSelection={false}
-                      hideSellerName={true}
-                      showBothIds={true}
-                    />
+                )
+              ) : (
+                itemsNeedingRetailerIds.length > 0 ? (
+                  <Card className="bg-surface-container border border-outline-variant overflow-hidden">
+                    <CardContent className="p-0">
+                      {itemsNeedingRetailerIds.map((item) => (
+                        <div key={item.id} className="border-b border-outline-variant last:border-b-0 mx-4 md:mx-0">
+                          <ItemCard
+                            item={{
+                              ...item as BaseItem,
+                              status: 'Pending'
+                            }}
+                            variant="items-list"
+                            showActions={false}
+                            showSelection={false}
+                            hideSellerName={true}
+                            showExternalIdOnly={true}
+                          />
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="py-8 text-center">
+                    <CheckIcon className="w-10 h-10 mx-auto text-tertiary mb-2" />
+                    <p className="body-medium text-on-surface-variant">All items scanned</p>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Remaining Items */}
-        {itemsNeedingRetailerIds.length > 0 && (
-          <div className="px-4 md:px-6 py-4">
-            <Card className="bg-surface-container border border-outline-variant overflow-hidden">
-              <CardHeader className="pb-3">
-                <CardTitle className="title-small">Remaining Items ({itemsNeedingRetailerIds.length})</CardTitle>
-                <p className="body-small text-on-surface-variant">
-                  Waiting to be scanned
-                </p>
-              </CardHeader>
-              <CardContent className="p-0">
-                {itemsNeedingRetailerIds.map((item) => (
-                  <div key={item.id} className="border-b border-outline-variant last:border-b-0 mx-4 md:mx-0">
-                    <ItemCard
-                      item={{
-                        ...item as BaseItem,
-                        status: 'Pending'
-                      }}
-                      variant="items-list"
-                      showActions={false}
-                      showSelection={false}
-                      hideSellerName={true}
-                      showExternalIdOnly={true}
-                    />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-          )}
-        </>
+                )
+              )}
+            </div>
+          </>
         )}
       </div>
 
@@ -494,31 +518,32 @@ export default function RetailerIdScanScreen({
         </div>
       )}
 
-      {/* Register Order Confirmation Dialog */}
-      <AlertDialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="title-medium text-on-surface">Incomplete Order</AlertDialogTitle>
-            <AlertDialogDescription className="body-medium text-on-surface-variant">
+      {/* Register Order Confirmation - Bottom sheet (guidelines: no full-width buttons on tablet/desktop) */}
+      <Sheet open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] flex flex-col">
+          <SheetHeader className="flex-shrink-0 text-left">
+            <SheetTitle className="title-medium text-on-surface">Incomplete Order</SheetTitle>
+            <SheetDescription className="body-medium text-on-surface-variant">
               {itemsNeedingRetailerIds.length} item{itemsNeedingRetailerIds.length !== 1 ? 's' : ''} still need item IDs. What would you like to do?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-4">
-            <AlertDialogCancel 
+            </SheetDescription>
+          </SheetHeader>
+          <SheetFooter className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end flex-shrink-0 border-t border-outline-variant mt-4 pt-4">
+            <Button
+              variant="outline"
               onClick={handleSaveAndContinue}
-              className="min-h-[48px] w-full sm:w-auto order-2 sm:order-1 rounded-lg"
+              className="min-h-[48px] w-full sm:w-auto sm:max-w-[280px] rounded-lg"
             >
               <span className="label-large">Save and continue later</span>
-            </AlertDialogCancel>
-            <AlertDialogAction 
+            </Button>
+            <Button
               onClick={handleConfirmRegistration}
-              className="min-h-[48px] w-full sm:w-auto bg-error text-on-error hover:bg-error/90 order-1 sm:order-2 rounded-lg"
+              className="min-h-[48px] w-full sm:w-auto sm:max-w-[280px] bg-error text-on-error hover:bg-error/90 rounded-lg"
             >
-              <span className="label-large">Register and delete incomplete items</span>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <span className="label-large text-center">Register and delete incomplete items</span>
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Create Delivery Note Confirmation Dialog */}
       <AlertDialog open={showDeliveryNoteDialog} onOpenChange={setShowDeliveryNoteDialog}>

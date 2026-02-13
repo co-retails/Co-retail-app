@@ -69,11 +69,11 @@ const SheetContent = React.forwardRef<
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
   
-  // Determine effective side: on desktop, always use "right" unless explicitly "left" or "top"
+  // Determine effective side: on desktop, use "right" only when side is "right"; keep "left", "top", "bottom" as-is
   const effectiveSide = React.useMemo(() => {
     if (!isDesktop) return side;
-    if (side === "left" || side === "top") return side;
-    return "right"; // Convert "bottom" to "right" on desktop
+    if (side === "left" || side === "top" || side === "bottom") return side;
+    return "right";
   }, [side, isDesktop]);
   const hasDescription = React.Children.toArray(children).some(
     (child: any) => {

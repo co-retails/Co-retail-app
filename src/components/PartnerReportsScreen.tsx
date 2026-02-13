@@ -12,6 +12,7 @@ import PartnerItemStatusReport from './PartnerItemStatusReport';
 import type { Store, Brand, Country } from './StoreSelector';
 import { Partner as WarehousePartner } from './PartnerWarehouseSelector';
 import type { Item } from './ItemsScreen';
+import type { CurrencyCode } from './PortalConfigTypes';
 
 export interface PartnerReportsScreenProps {
   onBack: () => void;
@@ -58,7 +59,7 @@ export default function PartnerReportsScreen({
   const [selectedWeek, setSelectedWeek] = useState<string>('');
   const [dateRangeStart, setDateRangeStart] = useState<string>('');
   const [dateRangeEnd, setDateRangeEnd] = useState<string>('');
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('SEK');
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('SEK');
 
   // Set partner filter to current partner if user is a partner
   useEffect(() => {
@@ -521,7 +522,7 @@ export default function PartnerReportsScreen({
               <label className="label-small text-on-surface-variant whitespace-nowrap">Currency</label>
               <Select
                 value={selectedCurrency}
-                onValueChange={setSelectedCurrency}
+                onValueChange={(value: CurrencyCode) => setSelectedCurrency(value)}
               >
                 <SelectTrigger 
                   className="bg-surface-container border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[100px] min-h-[48px] md:min-h-0 [&[data-size=default]]:!h-12 md:[&[data-size=default]]:!h-10"
@@ -552,9 +553,9 @@ export default function PartnerReportsScreen({
             countries={filteredCountries}
             selectedMonth={selectedMonth}
             selectedTimePeriod={selectedTimePeriod}
-            selectedBrandId={selectedBrandIds.length === 0 ? 'all' : selectedBrandIds.length === 1 ? selectedBrandIds[0] : 'all'}
-            selectedCountryId={selectedCountryIds.length === 0 ? 'all' : selectedCountryIds.length === 1 ? selectedCountryIds[0] : 'all'}
-            selectedStoreId={selectedStoreIds.length === 0 ? 'all' : selectedStoreIds.length === 1 ? selectedStoreIds[0] : 'all'}
+            selectedBrandId={selectedBrandIds.length === 0 ? 'all' : selectedBrandIds.length === 1 ? selectedBrandIds[0]! : 'all'}
+            selectedCountryId={selectedCountryIds.length === 0 ? 'all' : selectedCountryIds.length === 1 ? selectedCountryIds[0]! : 'all'}
+            selectedStoreId={selectedStoreIds.length === 0 ? 'all' : selectedStoreIds.length === 1 ? selectedStoreIds[0]! : 'all'}
             selectedWeek={selectedWeek}
             dateRangeStart={dateRangeStart}
             dateRangeEnd={dateRangeEnd}
@@ -578,9 +579,9 @@ export default function PartnerReportsScreen({
             selectedWeek={selectedWeek}
             dateRangeStart={dateRangeStart}
             dateRangeEnd={dateRangeEnd}
-            selectedBrandId={selectedBrandIds.length === 0 ? 'all' : selectedBrandIds.length === 1 ? selectedBrandIds[0] : 'all'}
-            selectedCountryId={selectedCountryIds.length === 0 ? 'all' : selectedCountryIds.length === 1 ? selectedCountryIds[0] : 'all'}
-            selectedStoreId={selectedStoreIds.length === 0 ? 'all' : selectedStoreIds.length === 1 ? selectedStoreIds[0] : 'all'}
+            selectedBrandId={selectedBrandIds.length === 0 ? 'all' : selectedBrandIds.length === 1 ? selectedBrandIds[0]! : 'all'}
+            selectedCountryId={selectedCountryIds.length === 0 ? 'all' : selectedCountryIds.length === 1 ? selectedCountryIds[0]! : 'all'}
+            selectedStoreId={selectedStoreIds.length === 0 ? 'all' : selectedStoreIds.length === 1 ? selectedStoreIds[0]! : 'all'}
             partnerId={selectedPartnerIds.length === 0 ? undefined : selectedPartnerIds.length === 1 ? selectedPartnerIds[0] : undefined}
             currency={selectedCurrency}
           />

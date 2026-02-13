@@ -360,7 +360,7 @@ export const ItemCard = memo(function ItemCard({
       <div className="w-full bg-surface-container hover:bg-surface-container-high border border-outline-variant rounded-lg transition-colors">
         {/* M3 Three-line List Item - Mobile Layout */}
         <button 
-          className="w-full flex items-center gap-4 p-4 text-left md:hidden"
+          className="w-full flex items-center gap-4 p-4 text-left lg:hidden"
         onClick={() => handlePrimaryAction?.(item)}
         aria-label="View item details"
         >
@@ -486,8 +486,8 @@ export const ItemCard = memo(function ItemCard({
           </div>
         </button>
 
-        {/* Desktop/Tablet: Table Row Layout */}
-        <div className="hidden md:flex items-center gap-4 px-4 py-3 hover:bg-surface-container-high transition-colors">
+        {/* Tablet landscape & desktop: Table Row Layout (card with image used below lg) */}
+        <div className="hidden lg:flex items-center gap-4 px-4 py-3 hover:bg-surface-container-high transition-colors">
 
           
           {/* Item Info */}
@@ -504,20 +504,20 @@ export const ItemCard = memo(function ItemCard({
               <p className="title-small text-on-surface">{item.size || 'N/A'}</p>
               <p className="body-small text-on-surface-variant">{item.color}</p>
             </div>
-            <div className="min-w-0">
-              <p className="title-small text-on-surface">${item.price.toFixed(2)}</p>
+            <div className="min-w-0 text-right">
+              <p className="title-small text-on-surface whitespace-nowrap">${item.price.toFixed(2)}</p>
               <p className="body-small text-on-surface-variant">Price</p>
             </div>
             <div className="min-w-0">
               {item.retailerItemId ? (
                 <div>
                   <p className="title-small text-on-surface break-words">{item.retailerItemId}</p>
-                  <p className="body-small text-success">Assigned</p>
+                  <p className={`body-small ${getStatusColor(item.status)} whitespace-nowrap`}>{item.status || 'Assigned'}</p>
                 </div>
               ) : (
                 <div>
                   <p className="title-small text-on-surface-variant">Not assigned</p>
-                  <p className="body-small text-on-surface-variant">Retailer ID</p>
+                  <p className={`body-small ${getStatusColor(item.status)} whitespace-nowrap`}>{item.status || 'Retailer ID'}</p>
                 </div>
               )}
             </div>
@@ -559,7 +559,7 @@ export const ItemCard = memo(function ItemCard({
   return (
     <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
       {/* M3 List Item - Based on Figma Design */}
-      <div className="flex items-center px-1 py-3">
+      <div className="flex items-center px-1 py-3 gap-3">
         
         {/* Leading Element - Checkbox for selection */}
         {showSelection && (
@@ -596,7 +596,7 @@ export const ItemCard = memo(function ItemCard({
         
         {/* Main Content */}
         <button 
-          className="flex-1 min-w-0 text-left cursor-pointer hover:opacity-80 transition-opacity pl-3"
+          className="flex-1 min-w-0 text-left cursor-pointer hover:opacity-80 transition-opacity pl-3 pr-2 overflow-hidden"
           onClick={() => handlePrimaryAction?.(item)}
         >
           {/* Line 1: Date • Status */}
@@ -605,7 +605,7 @@ export const ItemCard = memo(function ItemCard({
               {item.date || '2022-06-09'}
             </div>
             <div className="w-1 h-1 rounded-full bg-outline-variant flex-shrink-0"></div>
-            <div className={`label-small whitespace-nowrap truncate ${getStatusColor(item.status)}`}>
+            <div className={`label-small whitespace-nowrap ${getStatusColor(item.status)}`}>
               {item.status || 'Pending'}
             </div>
           </div>
@@ -622,7 +622,7 @@ export const ItemCard = memo(function ItemCard({
           
           {/* Line 4: ID and Delivery */}
           <div className="label-small text-on-surface opacity-90 mb-0.5">
-            <div className="line-clamp-2">
+            <div className="line-clamp-2 break-words">
               {showBothIds && item.retailerItemId && item.partnerItemId ? (
                 <>
                   Item ID: {item.retailerItemId}
@@ -647,7 +647,7 @@ export const ItemCard = memo(function ItemCard({
           
           {/* Line 4.5: Box Label */}
           {item.boxLabel && (
-            <div className="label-small text-on-surface-variant mb-0.5">
+            <div className="label-small text-on-surface-variant mb-0.5 truncate">
               Box label: {item.boxLabel}
             </div>
           )}
@@ -666,9 +666,9 @@ export const ItemCard = memo(function ItemCard({
         </button>
         
         {/* Trailing Elements */}
-        <div className="flex-shrink-0 flex items-center gap-0 h-full">
+        <div className="flex-shrink-0 flex items-center gap-0 h-full ml-auto">
           {/* Price and Days */}
-          <div className={`flex flex-col items-end justify-center h-full px-0 ${!(showActions && onMoreActions && availableActions.length > 0) ? 'pr-12' : ''}`}>
+          <div className={`flex flex-col items-end justify-end h-full px-0 text-right min-w-[80px] ${!(showActions && onMoreActions && availableActions.length > 0) ? 'pr-12' : ''}`}>
             <div className="title-small text-on-surface whitespace-nowrap">
               €{item.price.toFixed(2)}
             </div>

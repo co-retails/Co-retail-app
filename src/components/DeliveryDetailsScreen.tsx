@@ -170,6 +170,18 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
               <span>Boxes: {delivery.boxes} • Items: {delivery.items}</span>
             </div>
 
+            {/* Shipping Label - Show for In transit deliveries */}
+            {delivery.status === 'In transit' && delivery.shippingLabel && (
+              <div className="mb-3">
+                <div className="label-small text-on-surface-variant mb-1">
+                  Shipping Label
+                </div>
+                <div className="body-medium text-on-surface">
+                  {delivery.shippingLabel}
+                </div>
+              </div>
+            )}
+
             {/* Sender Information */}
             <div className="border-t border-outline-variant pt-3">
               <div className="label-small text-on-surface-variant mb-1">

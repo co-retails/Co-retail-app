@@ -50,6 +50,7 @@ import { DeliveryNote, Box } from './BoxManagementScreen';
 import { ReturnDelivery } from './ShippingScreen';
 import ActiveScanner from './ActiveScanner';
 import BoxLabelSideSheet from './BoxLabelSideSheet';
+import ShippingLabelScreen from './ShippingLabelScreen';
 import { 
   generateThriftedTemplateCSV, 
   downloadCSV, 
@@ -90,7 +91,7 @@ interface OrderShipmentDetailsScreenProps {
     externalOrderId?: string;
   }>;
   onSaveAndClose?: () => void;
-  onRegisterDelivery?: () => void;
+  onRegisterDelivery?: (shippingLabel?: string) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
   onCancelReturn?: (deliveryId: string, reason: string) => void;
   currentUserRole?: 'partner' | 'store-staff' | 'admin';
@@ -680,6 +681,10 @@ export default function OrderShipmentDetailsScreen({
         ? ` (${receiverBrand})`
         : '';
 
+      // Calculate accurate item counts (excluding removed items)
+      const availableOrderItems = orderItems.filter(item => item.status !== 'removed');
+      const totalItems = availableOrderItems.length;
+      
       return (
         <CardContent className="pt-0">
           <div className="space-y-3">
@@ -688,8 +693,18 @@ export default function OrderShipmentDetailsScreen({
               <span className="text-on-surface-variant">•</span>
               <span>Boxes: {shipment.boxes.length}</span>
               <span className="text-on-surface-variant">•</span>
-              <span>Items: {items.length}</span>
+              <span>Items: {totalItems}</span>
             </div>
+            {shipment.status === 'registered' && shipment.shippingLabel && (
+              <div className="pt-2">
+                <div className="label-small text-on-surface-variant mb-1">
+                  Shipping Label
+                </div>
+                <div className="body-medium text-on-surface">
+                  {shipment.shippingLabel}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-on-surface-variant">
@@ -1981,7 +1996,9 @@ export default function OrderShipmentDetailsScreen({
           <div className="flex flex-row gap-3 items-center">
             {(() => {
               const shipment = data as DeliveryNote;
-              const totalItems = orderItems.length;
+              // Calculate accurate item counts (excluding removed items)
+              const availableOrderItems = orderItems.filter(item => item.status !== 'removed');
+              const totalItems = availableOrderItems.length;
               const assignedItems = shipment.boxes.flatMap(box => box.items).length;
               const unassignedItems = totalItems - assignedItems;
               
@@ -1992,7 +2009,7 @@ export default function OrderShipmentDetailsScreen({
                     <span>{assignedItems} of {totalItems} items in {shipment.boxes.length} box{shipment.boxes.length !== 1 ? 'es' : ''}</span>
                   </div>
                   
-                  <div className="flex flex-row gap-3 flex-1 max-w-md md:max-w-none md:ml-auto">
+                  <div className="flex flex-row gap-3 w-full md:w-auto md:ml-auto">
                     {onSaveAndClose && (
                       <Button
                         variant="outline"
@@ -2006,7 +2023,14 @@ export default function OrderShipmentDetailsScreen({
                     
                     {onRegisterDelivery && (
                       <Button
-                        onClick={onRegisterDelivery}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('[OrderShipmentDetailsScreen] Register Delivery button clicked');
+                          // Trigger shipping label screen via callback
+                          onRegisterDelivery?.();
+                        }}
                         disabled={shipment.boxes.length === 0 || unassignedItems > 0 || shipment.boxes.some(box => box.items.length === 0)}
                         className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg min-h-[56px]"
                         size="lg"
@@ -2075,6 +2099,7 @@ export default function OrderShipmentDetailsScreen({
         primaryActionLabel="Save label"
         showBackButton={false}
       />
+      
     </div>
   );
 }

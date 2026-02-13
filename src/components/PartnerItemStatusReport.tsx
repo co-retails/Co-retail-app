@@ -1,16 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Input } from './ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { Checkbox } from './ui/checkbox';
-import { Download, Filter, ChevronDown } from 'lucide-react';
+import { Download, Filter, X } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import type { Store, Brand, Country } from './StoreSelector';
 import type { Item } from './ItemsScreen';
 import { getSekPriceOptions } from '../data/partnerPricing';
+import ItemStatusFilterBottomSheet from './ItemStatusFilterBottomSheet';
+import svgPaths from '../imports/svg-7un8q74kd7';
+import { mockDeliveryNotes, mockDeliveries } from '../data/mockData';
 
 export interface PartnerItemStatusReportProps {
   items: Item[];
@@ -71,7 +69,7 @@ export default function PartnerItemStatusReport({
   const [selectedItemBrands, setSelectedItemBrands] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedPrices, setSelectedPrices] = useState<number[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Get unique values for filters
   const availableStatuses = useMemo(() => {
@@ -213,6 +211,30 @@ export default function PartnerItemStatusReport({
       filtered = filtered.filter(item => selectedPrices.includes(item.price));
     }
 
+    // Filter by search query (searches across all item fields)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(item => {
+        const searchableText = [
+          item.itemId,
+          item.title,
+          item.brand,
+          item.category,
+          item.size,
+          item.color,
+          item.price?.toString(),
+          mapStatusForPartner(item),
+          item.date,
+          item.orderNumber,
+          item.boxLabel,
+          item.partnerItemId,
+          item.sellerName,
+          item.source
+        ].filter(Boolean).join(' ').toLowerCase();
+        return searchableText.includes(query);
+      });
+    }
+
     return filtered;
   }, [
     items,
@@ -230,7 +252,8 @@ export default function PartnerItemStatusReport({
     selectedCategories,
     selectedItemBrands,
     selectedColors,
-    selectedPrices
+    selectedPrices,
+    searchQuery
   ]);
 
   // Helper function to get week string
@@ -242,68 +265,6 @@ export default function PartnerItemStatusReport({
     return `${year}-W${String(week).padStart(2, '0')}`;
   };
 
-  // Toggle functions for multiselect filters
-  const handleStatusToggle = (status: string) => {
-    setSelectedStatuses(prev =>
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
-    );
-  };
-
-  const handleCategoryToggle = (category: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
-    );
-  };
-
-  const handleBrandToggle = (brand: string) => {
-    setSelectedItemBrands(prev =>
-      prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]
-    );
-  };
-
-  const handleColorToggle = (color: string) => {
-    setSelectedColors(prev =>
-      prev.includes(color) ? prev.filter(c => c !== color) : [...prev, color]
-    );
-  };
-
-  const handlePriceToggle = (price: number) => {
-    setSelectedPrices(prev =>
-      prev.includes(price) ? prev.filter(p => p !== price) : [...prev, price]
-    );
-  };
-
-  // Get display text for multiselect filters
-  const getStatusDisplayText = () => {
-    if (selectedStatuses.length === 0) return 'All Statuses';
-    if (selectedStatuses.length === 1) return selectedStatuses[0];
-    return `${selectedStatuses.length} selected`;
-  };
-
-  const getCategoryDisplayText = () => {
-    if (selectedCategories.length === 0) return 'All Categories';
-    if (selectedCategories.length === 1) return selectedCategories[0];
-    return `${selectedCategories.length} selected`;
-  };
-
-  const getBrandDisplayText = () => {
-    if (selectedItemBrands.length === 0) return 'All Brands';
-    if (selectedItemBrands.length === 1) return selectedItemBrands[0];
-    return `${selectedItemBrands.length} selected`;
-  };
-
-  const getColorDisplayText = () => {
-    if (selectedColors.length === 0) return 'All Colors';
-    if (selectedColors.length === 1) return selectedColors[0];
-    return `${selectedColors.length} selected`;
-  };
-
-  const getPriceDisplayText = () => {
-    if (selectedPrices.length === 0) return 'All Prices';
-    if (selectedPrices.length === 1) return `${selectedPrices[0]} SEK`;
-    return `${selectedPrices.length} selected`;
-  };
-
   // Clear all additional filters
   const clearFilters = () => {
     setSelectedStatuses([]);
@@ -311,13 +272,15 @@ export default function PartnerItemStatusReport({
     setSelectedItemBrands([]);
     setSelectedColors([]);
     setSelectedPrices([]);
+    setSearchQuery('');
   };
 
   const hasActiveFilters = selectedStatuses.length > 0 ||
     selectedCategories.length > 0 ||
     selectedItemBrands.length > 0 ||
     selectedColors.length > 0 ||
-    selectedPrices.length > 0;
+    selectedPrices.length > 0 ||
+    searchQuery.trim().length > 0;
 
   // Export to CSV
   const handleExport = () => {
@@ -331,6 +294,7 @@ export default function PartnerItemStatusReport({
 
     const headers = [
       'Item ID',
+      'External Item ID',
       'Title',
       'Brand',
       'Category',
@@ -340,13 +304,43 @@ export default function PartnerItemStatusReport({
       'Status',
       'Date',
       'Order Number',
-      'Box Label'
+      'Box Label',
+      'Store'
     ];
 
     const rows = filteredItems.map(item => {
       const mappedStatus = mapStatusForPartner(item);
+      // Get store from delivery
+      let storeDisplay = '';
+      if (item.deliveryId) {
+        // Try to find in DeliveryNotes first (by id)
+        let delivery = mockDeliveryNotes.find(d => d.id === item.deliveryId);
+        
+        // If not found, try mockDeliveries (by deliveryId field)
+        if (!delivery) {
+          const deliveryRecord = mockDeliveries.find(d => d.deliveryId === item.deliveryId);
+          if (deliveryRecord && deliveryRecord.receivingStoreId) {
+            const store = stores.find(s => s.id === deliveryRecord.receivingStoreId);
+            if (store) {
+              storeDisplay = `${store.code} ${store.name}`;
+            }
+          }
+        } else {
+          // Found in DeliveryNotes
+          const store = stores.find(s => 
+            s.id === delivery.storeId || 
+            s.code === delivery.storeCode
+          );
+          if (store) {
+            storeDisplay = `${store.code} ${store.name}`;
+          } else if (delivery.storeCode) {
+            storeDisplay = delivery.storeCode;
+          }
+        }
+      }
       return [
         item.itemId || '',
+        item.partnerItemId || '',
         item.title || '',
         item.brand || '',
         item.category || '',
@@ -356,7 +350,8 @@ export default function PartnerItemStatusReport({
         mappedStatus,
         item.date || '',
         item.orderNumber || '',
-        item.boxLabel || ''
+        item.boxLabel || '',
+        storeDisplay
       ];
     });
 
@@ -395,19 +390,37 @@ export default function PartnerItemStatusReport({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="bg-surface-container border border-outline-variant rounded-lg h-12 md:h-10 px-4 body-medium min-h-[48px] md:min-h-0"
+          <ItemStatusFilterBottomSheet
+            selectedStatuses={selectedStatuses}
+            selectedCategories={selectedCategories}
+            selectedItemBrands={selectedItemBrands}
+            selectedColors={selectedColors}
+            selectedPrices={selectedPrices}
+            availableStatuses={availableStatuses}
+            availableCategories={availableCategories}
+            availableItemBrands={availableItemBrands}
+            availableColors={availableColors}
+            availablePricePoints={availablePricePoints}
+            onStatusChange={setSelectedStatuses}
+            onCategoryChange={setSelectedCategories}
+            onBrandChange={setSelectedItemBrands}
+            onColorChange={setSelectedColors}
+            onPriceChange={setSelectedPrices}
+            onClearAll={clearFilters}
           >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-            {hasActiveFilters && (
-              <span className="ml-2 bg-primary text-on-primary rounded-full px-2 py-0.5 text-xs">
-                {selectedStatuses.length + selectedCategories.length + selectedItemBrands.length + selectedColors.length + selectedPrices.length}
-              </span>
-            )}
-          </Button>
+            <Button
+              variant="outline"
+              className="bg-surface-container border border-outline-variant rounded-lg h-12 md:h-10 px-4 body-medium min-h-[48px] md:min-h-0"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+              {hasActiveFilters && (
+                <span className="ml-2 bg-primary text-on-primary rounded-full px-2 py-0.5 text-xs">
+                  {selectedStatuses.length + selectedCategories.length + selectedItemBrands.length + selectedColors.length + selectedPrices.length}
+                </span>
+              )}
+            </Button>
+          </ItemStatusFilterBottomSheet>
           <Button
             onClick={handleExport}
             className="bg-primary text-on-primary rounded-lg h-12 md:h-10 px-4 body-medium min-h-[48px] md:min-h-0"
@@ -418,248 +431,36 @@ export default function PartnerItemStatusReport({
         </div>
       </div>
 
-      {/* Additional Filters Panel */}
-      {showFilters && (
-        <Card className="bg-surface-container border border-outline-variant rounded-lg">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="title-medium text-on-surface">Additional Filters</h3>
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  onClick={clearFilters}
-                  className="text-primary hover:text-primary/80"
-                >
-                  Clear all
-                </Button>
-              )}
-            </div>
-            <div className="flex flex-wrap items-end gap-4">
-              {/* Status Filter - First in the list */}
-              <div className="space-y-2 min-w-[150px]">
-                <label className="label-small text-on-surface-variant">Item Status</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-surface border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[150px] min-h-[48px] md:min-h-0 justify-between w-full"
-                    >
-                      <span className="truncate">{getStatusDisplayText()}</span>
-                      <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-[250px] p-0" 
-                    align="start" 
-                    side="bottom" 
-                    sideOffset={4}
-                    style={{ zIndex: 10051 }}
-                  >
-                    <Command>
-                      <CommandInput placeholder="Search statuses..." />
-                      <CommandList>
-                        <CommandEmpty>No statuses found.</CommandEmpty>
-                        <CommandGroup>
-                          {availableStatuses.map((status) => (
-                            <CommandItem
-                              key={status}
-                              value={status}
-                              onSelect={() => handleStatusToggle(status)}
-                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
-                            >
-                              <Checkbox
-                                checked={selectedStatuses.includes(status)}
-                                className="pointer-events-none"
-                              />
-                              <span className="body-medium">{status}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Category Filter */}
-              <div className="space-y-2 min-w-[150px]">
-                <label className="label-small text-on-surface-variant">Category</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-surface border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[150px] min-h-[48px] md:min-h-0 justify-between w-full"
-                    >
-                      <span className="truncate">{getCategoryDisplayText()}</span>
-                      <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-[250px] p-0" 
-                    align="start"
-                    style={{ zIndex: 10051 }}
-                  >
-                    <Command>
-                      <CommandInput placeholder="Search categories..." />
-                      <CommandList>
-                        <CommandEmpty>No categories found.</CommandEmpty>
-                        <CommandGroup>
-                          {availableCategories.map((category) => (
-                            <CommandItem
-                              key={category}
-                              value={category}
-                              onSelect={() => handleCategoryToggle(category)}
-                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
-                            >
-                              <Checkbox
-                                checked={selectedCategories.includes(category)}
-                                className="pointer-events-none"
-                              />
-                              <span className="body-medium">{category}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Brand Filter */}
-              <div className="space-y-2 min-w-[150px]">
-                <label className="label-small text-on-surface-variant">Item Brand</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-surface border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[150px] min-h-[48px] md:min-h-0 justify-between w-full"
-                    >
-                      <span className="truncate">{getBrandDisplayText()}</span>
-                      <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-[250px] p-0" 
-                    align="start"
-                    style={{ zIndex: 10051 }}
-                  >
-                    <Command>
-                      <CommandInput placeholder="Search brands..." />
-                      <CommandList>
-                        <CommandEmpty>No brands found.</CommandEmpty>
-                        <CommandGroup>
-                          {availableItemBrands.map((brand) => (
-                            <CommandItem
-                              key={brand}
-                              value={brand}
-                              onSelect={() => handleBrandToggle(brand)}
-                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
-                            >
-                              <Checkbox
-                                checked={selectedItemBrands.includes(brand)}
-                                className="pointer-events-none"
-                              />
-                              <span className="body-medium">{brand}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Color Filter */}
-              <div className="space-y-2 min-w-[150px]">
-                <label className="label-small text-on-surface-variant">Color</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-surface border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[150px] min-h-[48px] md:min-h-0 justify-between w-full"
-                    >
-                      <span className="truncate">{getColorDisplayText()}</span>
-                      <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-[250px] p-0" 
-                    align="start"
-                    style={{ zIndex: 10051 }}
-                  >
-                    <Command>
-                      <CommandInput placeholder="Search colors..." />
-                      <CommandList>
-                        <CommandEmpty>No colors found.</CommandEmpty>
-                        <CommandGroup>
-                          {availableColors.map((color) => (
-                            <CommandItem
-                              key={color}
-                              value={color}
-                              onSelect={() => handleColorToggle(color)}
-                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
-                            >
-                              <Checkbox
-                                checked={selectedColors.includes(color)}
-                                className="pointer-events-none"
-                              />
-                              <span className="body-medium">{color}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Price Points Filter */}
-              <div className="space-y-2 min-w-[150px]">
-                <label className="label-small text-on-surface-variant">Price (SEK)</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-surface border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[150px] min-h-[48px] md:min-h-0 justify-between w-full"
-                    >
-                      <span className="truncate">{getPriceDisplayText()}</span>
-                      <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-[250px] p-0" 
-                    align="start"
-                    style={{ zIndex: 10051 }}
-                  >
-                    <Command>
-                      <CommandInput placeholder="Search prices..." />
-                      <CommandList>
-                        <CommandEmpty>No prices found.</CommandEmpty>
-                        <CommandGroup>
-                          {availablePricePoints.map((price) => (
-                            <CommandItem
-                              key={price}
-                              value={price.toString()}
-                              onSelect={() => handlePriceToggle(price)}
-                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
-                            >
-                              <Checkbox
-                                checked={selectedPrices.includes(price)}
-                                className="pointer-events-none"
-                              />
-                              <span className="body-medium">{price} SEK</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Search Bar */}
+      <div className="relative w-full mb-4 md:max-w-2xl">
+        <div className="relative">
+          {/* Search icon on the left */}
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none z-10">
+            <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+              <path clipRule="evenodd" d={svgPaths.p3938ac00} fill="var(--on-surface-variant)" fillRule="evenodd" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            id="item-status-search"
+            name="item-status-search"
+            placeholder="Search across all item fields..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`w-full h-12 pl-10 ${searchQuery.length > 0 ? 'pr-12' : 'pr-4'} bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large`}
+          />
+          {/* Clear button - only shown when there's text */}
+          {searchQuery.length > 0 && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity touch-manipulation z-20"
+              aria-label="Clear search"
+            >
+              <X className="w-5 h-5 text-on-surface-variant" />
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Results Summary */}
       <div className="flex items-center justify-between">
@@ -681,6 +482,9 @@ export default function PartnerItemStatusReport({
                     </th>
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       Item ID
+                    </th>
+                    <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
+                      External Item ID
                     </th>
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       Title
@@ -712,6 +516,9 @@ export default function PartnerItemStatusReport({
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       Box Label
                     </th>
+                    <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
+                      Store
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -733,6 +540,9 @@ export default function PartnerItemStatusReport({
                         </td>
                         <td className="py-3 px-4 body-medium text-on-surface font-medium">
                           {item.itemId}
+                        </td>
+                        <td className="py-3 px-4 body-medium text-on-surface">
+                          {item.partnerItemId || '-'}
                         </td>
                         <td className="py-3 px-4 body-medium text-on-surface">
                           {item.title || '-'}
@@ -771,6 +581,41 @@ export default function PartnerItemStatusReport({
                         </td>
                         <td className="py-3 px-4 body-medium text-on-surface">
                           {item.boxLabel || '-'}
+                        </td>
+                        <td className="py-3 px-4 body-medium text-on-surface">
+                          {(() => {
+                            // Get store from delivery using deliveryId
+                            // Try to find in DeliveryNotes first (by id)
+                            if (item.deliveryId) {
+                              let delivery = mockDeliveryNotes.find(d => d.id === item.deliveryId);
+                              
+                              // If not found, try mockDeliveries (by deliveryId field)
+                              if (!delivery) {
+                                const deliveryRecord = mockDeliveries.find(d => d.deliveryId === item.deliveryId);
+                                if (deliveryRecord && deliveryRecord.receivingStoreId) {
+                                  const store = stores.find(s => s.id === deliveryRecord.receivingStoreId);
+                                  if (store) {
+                                    return `${store.code} ${store.name}`;
+                                  }
+                                }
+                              } else {
+                                // Found in DeliveryNotes
+                                const store = stores.find(s => 
+                                  s.id === delivery.storeId || 
+                                  s.code === delivery.storeCode
+                                );
+                                if (store) {
+                                  return `${store.code} ${store.name}`;
+                                }
+                                // If store not found but we have storeCode, show that
+                                if (delivery.storeCode) {
+                                  return delivery.storeCode;
+                                }
+                              }
+                            }
+                            // If no delivery found, show "-"
+                            return '-';
+                          })()}
                         </td>
                       </tr>
                     );

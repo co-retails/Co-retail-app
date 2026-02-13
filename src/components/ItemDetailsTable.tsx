@@ -144,8 +144,8 @@ export function ItemDetailsTable({
   const displayCurrency = currency || 'SEK'; // Default to SEK if not provided
   return (
     <>
-      {/* Mobile View - Cards */}
-      <div className="md:hidden space-y-2">
+      {/* Mobile & tablet only - Cards. Desktop (lg+) must show the table below, not cards. */}
+      <div className="lg:hidden space-y-2" data-tablet-mobile-only>
         {items.map((item) => {
           const hasError = item.status === 'error';
           const errorFields = Object.entries(item.fieldErrors || {});
@@ -206,8 +206,8 @@ export function ItemDetailsTable({
         })}
       </div>
 
-      {/* Desktop View - Table */}
-      <div className="hidden md:block border border-outline-variant rounded-lg overflow-hidden bg-surface">
+      {/* Desktop only (lg+) - Proper table with columns and dropdowns. Must show on desktop, never cards. */}
+      <div className="hidden lg:block border border-outline-variant rounded-lg overflow-hidden bg-surface" data-desktop-table>
       <table className="w-full">
         <thead className="bg-surface-container">
           <tr className="border-b border-outline-variant">

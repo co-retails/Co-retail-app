@@ -12,7 +12,8 @@ import {
   ScanIcon,
   CheckIcon,
   MoreVertical,
-  ArrowLeft
+  ArrowLeft,
+  XIcon
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
@@ -31,6 +32,7 @@ interface BoxDetailsSideSheetProps {
   scannedItems: OrderItem[];
   onItemScanned: (item: OrderItem) => void;
   onMarkAsScanned: (item: OrderItem) => void;
+  onRemoveItem?: (item: OrderItem) => void;
   onSaveAndClose: () => void;
   onContinue: () => void;
 }
@@ -42,6 +44,7 @@ export default function BoxDetailsSideSheet({
   scannedItems,
   onItemScanned,
   onMarkAsScanned,
+  onRemoveItem,
   onSaveAndClose,
   onContinue
 }: BoxDetailsSideSheetProps) {
@@ -153,26 +156,48 @@ export default function BoxDetailsSideSheet({
                     {scannedItems.map((item) => (
                       <Card key={item.id} className="border-outline-variant bg-surface-container">
                         <CardContent className="p-3">
-                          <ItemCard
-                            item={{
-                              id: item.id,
-                              itemId: item.itemId || item.partnerItemId || '',
-                              brand: item.brand,
-                              category: item.category,
-                              size: item.size,
-                              color: item.color,
-                              price: item.price,
-                              status: item.status !== 'error' ? undefined : 'Invalid',
-                              retailerItemId: item.retailerItemId,
-                              partnerItemId: item.partnerItemId,
-                              gender: item.gender,
-                              subcategory: item.subcategory,
-                              source: item.source
-                            } as BaseItem}
-                            variant="items-list"
-                            showActions={false}
-                            showSelection={false}
-                          />
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1">
+                              <ItemCard
+                                item={{
+                                  id: item.id,
+                                  itemId: item.itemId || item.partnerItemId || '',
+                                  brand: item.brand,
+                                  category: item.category,
+                                  size: item.size,
+                                  color: item.color,
+                                  price: item.price,
+                                  status: item.status !== 'error' ? undefined : 'Invalid',
+                                  retailerItemId: item.retailerItemId,
+                                  partnerItemId: item.partnerItemId,
+                                  gender: item.gender,
+                                  subcategory: item.subcategory,
+                                  source: item.source
+                                } as BaseItem}
+                                variant="items-list"
+                                showActions={false}
+                                showSelection={false}
+                              />
+                            </div>
+                            {onRemoveItem && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem 
+                                    onClick={() => onRemoveItem(item)}
+                                    className="text-error focus:text-error"
+                                  >
+                                    <XIcon className="mr-2 h-4 w-4" />
+                                    Remove from box
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
@@ -225,6 +250,15 @@ export default function BoxDetailsSideSheet({
                                   <CheckIcon className="mr-2 h-4 w-4" />
                                   Mark as scanned
                                 </DropdownMenuItem>
+                                {onRemoveItem && (
+                                  <DropdownMenuItem 
+                                    onClick={() => onRemoveItem(item)}
+                                    className="text-error focus:text-error"
+                                  >
+                                    <XIcon className="mr-2 h-4 w-4" />
+                                    Remove
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

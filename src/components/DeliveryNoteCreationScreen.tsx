@@ -36,7 +36,6 @@ import {
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
-import BoxDetailsSideSheet from './BoxDetailsSideSheet';
 import BoxLabelSideSheet from './BoxLabelSideSheet';
 import { ImageWithFallback, DEFAULT_IMAGE_PLACEHOLDER } from './figma/ImageWithFallback';
 
@@ -119,11 +118,8 @@ export default function DeliveryNoteCreationScreen({
   const [expandedUnassignedItems, setExpandedUnassignedItems] = useState(false);
 
   // Side sheet states
-  const [showBoxDetailsSheet, setShowBoxDetailsSheet] = useState(false);
   const [showBoxLabelSheet, setShowBoxLabelSheet] = useState(false);
   const [boxBeingEdited, setBoxBeingEdited] = useState<Box | null>(null);
-  const [currentBoxItems, setCurrentBoxItems] = useState<OrderItem[]>([]);
-  const [tempBoxId, setTempBoxId] = useState<string | null>(null);
 
   // Calculate statistics
   const totalItems = orderItems.length;
@@ -197,82 +193,27 @@ export default function DeliveryNoteCreationScreen({
     toast.success(`Box ${newBox.qrLabel} added`);
   };
 
-  // Handle add box - opens box details side sheet
+  // Handle add box - creates a temporary box and opens box details screen
   const handleAddBox = () => {
     const newBoxId = `box-${Date.now()}`;
-    setTempBoxId(newBoxId);
-    setCurrentBoxItems([]);
-    setShowBoxDetailsSheet(true);
-  };
-
-  // Handle item scanned in box details
-  const handleItemScanned = (item: OrderItem) => {
-    setCurrentBoxItems(prev => {
-      if (prev.some(i => i.id === item.id)) {
-        toast.error('Item already in box');
-        return prev;
-      }
-      return [...prev, item];
-    });
-  };
-
-  // Handle mark as scanned
-  const handleMarkAsScanned = (item: OrderItem) => {
-    handleItemScanned(item);
-  };
-
-  // Handle save and close from box details
-  const handleSaveAndClose = () => {
-    if (tempBoxId && currentBoxItems.length > 0) {
-      // Create temporary box without label
-      const tempBox: Box = {
-        id: tempBoxId,
-        qrLabel: `TEMP-${tempBoxId.slice(-6)}`,
-        items: currentBoxItems,
-        status: 'pending',
-        createdDate: new Date().toISOString()
-      };
-      setBoxes(prev => [...prev, tempBox]);
-    }
-    setShowBoxDetailsSheet(false);
-    setCurrentBoxItems([]);
-    setTempBoxId(null);
-  };
-
-  // Handle continue from box details - opens box label sheet
-  const handleContinueToLabel = () => {
-    if (currentBoxItems.length === 0) {
-      toast.error('Please add at least one item to the box');
-      return;
-    }
-    setShowBoxDetailsSheet(false);
-    setShowBoxLabelSheet(true);
-  };
-
-  // Handle register box with label
-  const handleRegisterBox = (label: string) => {
-    if (!tempBoxId) return;
-
-    // Check if box label already exists
-    const existingBox = boxes.find(box => box.qrLabel === label);
-    if (existingBox) {
-      toast.error('Box label already exists');
-      return;
-    }
-
-    // Create final box with label and registered status
-    const newBox: Box = {
-      id: tempBoxId,
-      qrLabel: label,
-      items: currentBoxItems,
-      status: 'registered',
+    const tempBox: Box = {
+      id: newBoxId,
+      qrLabel: `TEMP-${newBoxId.slice(-6)}`,
+      items: [],
+      status: 'pending',
       createdDate: new Date().toISOString()
     };
+    // Add temporary box to boxes list
+    setBoxes(prev => [...prev, tempBox]);
+    // Open box details via onOpenBoxDetails
+    if (onOpenBoxDetails) {
+      onOpenBoxDetails(tempBox);
+    }
+  };
 
-    setBoxes(prev => [...prev, newBox]);
-    setShowBoxLabelSheet(false);
-    setCurrentBoxItems([]);
-    setTempBoxId(null);
+  // Handle register box with label - this is now handled by DeliveryNoteBoxDetailsScreen
+  const handleRegisterBox = (label: string) => {
+    // This function is no longer used - box registration is handled in DeliveryNoteBoxDetailsScreen
   };
 
   const handleEditedBoxLabelSave = (label: string) => {
@@ -954,17 +895,6 @@ export default function DeliveryNoteCreationScreen({
         />
       )}
 
-      {/* Box Details Side Sheet */}
-      <BoxDetailsSideSheet
-        isOpen={showBoxDetailsSheet}
-        onOpenChange={setShowBoxDetailsSheet}
-        orderItems={availableItems}
-        scannedItems={currentBoxItems}
-        onItemScanned={handleItemScanned}
-        onMarkAsScanned={handleMarkAsScanned}
-        onSaveAndClose={handleSaveAndClose}
-        onContinue={handleContinueToLabel}
-      />
 
       {/* Box Label Side Sheet */}
       <BoxLabelSideSheet
