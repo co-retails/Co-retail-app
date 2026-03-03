@@ -10,7 +10,8 @@ import {
   PackageIcon, 
   CheckIcon,
   MoreVertical,
-  XIcon
+  XIcon,
+  Trash2Icon
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import { Box } from './BoxManagementScreen';
@@ -22,20 +23,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import BoxLabelSideSheet from './BoxLabelSideSheet';
 
 interface DeliveryNoteBoxDetailsScreenProps {
   box: Box;
   orderItems: OrderItem[];
   onBack: () => void;
   onRegisterBox: (boxId: string) => void;
-  onSaveAndClose: (boxId: string, items: OrderItem[]) => void;
+  onSaveAndClose: (boxId: string, items: OrderItem[], skipNavigation?: boolean) => void;
   receiverBrand?: string;
   receiverStoreCode?: string;
   senderWarehouse?: string;
   isAdmin?: boolean;
   onUnregisterBox?: (boxId: string) => void;
   onUpdateBoxLabel?: (boxId: string, newLabel: string) => void;
+  onContinueToLabel?: (boxId: string) => void;
+  allBoxes?: Box[]; // All boxes in the delivery to calculate unassigned items
 }
 
 export default function DeliveryNoteBoxDetailsScreen({
@@ -49,14 +51,16 @@ export default function DeliveryNoteBoxDetailsScreen({
   senderWarehouse,
   isAdmin = false,
   onUnregisterBox,
-  onUpdateBoxLabel
+  onUpdateBoxLabel,
+  onContinueToLabel,
+  allBoxes = []
 }: DeliveryNoteBoxDetailsScreenProps) {
   const [boxItems, setBoxItems] = useState<OrderItem[]>(box.items || []);
   const [scannedItemIds, setScannedItemIds] = useState<Set<string>>(
     new Set(box.items.map(item => item.id))
   );
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
-  const [isLabelSheetOpen, setIsLabelSheetOpen] = useState(false);
+  const [removedItemIds, setRemovedItemIds] = useState<Set<string>>(new Set());
 
   // Determine if box is editable (pending/Packing status only - other boxes cannot be edited)
   const isEditable = box.status === 'pending';
@@ -65,15 +69,32 @@ export default function DeliveryNoteBoxDetailsScreen({
   // Determine if box is registered/in-transit/delivered/rejected/cancelled (read-only)
   const isReadOnly = box.status === 'registered' || box.status === 'in-transit' || box.status === 'delivered' || box.status === 'rejected' || box.status === 'cancelled';
 
-  // Get all available items (not yet in any box or in this box)
-  const availableItems = orderItems.filter(item => 
-    !scannedItemIds.has(item.id) || boxItems.some(boxItem => boxItem.id === item.id)
+  // Get all items that are in any box (excluding this box)
+  const itemsInOtherBoxes = new Set(
+    allBoxes
+      .filter(b => b.id !== box.id)
+      .flatMap(b => b.items.map(item => item.id))
   );
 
-  // Separate scanned and not scanned items
-  const scannedItems = boxItems.filter(item => scannedItemIds.has(item.id));
-  const notScannedItems = availableItems.filter(item => 
-    !scannedItemIds.has(item.id) && !boxItems.some(boxItem => boxItem.id === item.id)
+  // Get all available items (not yet in any box, and not removed)
+  // Items that are in this box are also available for scanning
+  // Filter by status !== 'removed' to match DeliveryNoteDetailsScreen logic
+  const availableOrderItems = orderItems.filter(item => item.status !== 'removed');
+  
+  // For calculating notScannedItems, we want items that are not in any box
+  // Note: removedItemIds tracks items removed from THIS box, but they should still be available
+  // for scanning (they're just not in the box anymore, so they're unassigned)
+  const availableItemsForNotScanned = availableOrderItems.filter(item => 
+    !itemsInOtherBoxes.has(item.id) && !boxItems.some(boxItem => boxItem.id === item.id)
+  );
+  
+  // For scannedItems, filter by removedItemIds (items removed from this box should not appear)
+  const scannedItems = boxItems.filter(item => scannedItemIds.has(item.id) && !removedItemIds.has(item.id));
+  
+  // Not scanned items = items not in any box (including this box) and not scanned
+  // This should match the unassigned items count in DeliveryNoteDetailsScreen
+  const notScannedItems = availableItemsForNotScanned.filter(item => 
+    !scannedItemIds.has(item.id)
   );
 
   const handleScanItem = () => {
@@ -93,7 +114,7 @@ export default function DeliveryNoteBoxDetailsScreen({
   };
 
   const handleManualEntry = (itemId: string) => {
-    const item = availableItems.find(i => 
+    const item = availableItemsForNotScanned.find(i => 
       i.itemId === itemId || 
       i.partnerItemId === itemId || 
       i.retailerItemId === itemId
@@ -113,11 +134,17 @@ export default function DeliveryNoteBoxDetailsScreen({
   };
 
   const handleMarkAsScanned = (item: OrderItem) => {
-    if (!boxItems.some(boxItem => boxItem.id === item.id)) {
-      setBoxItems(prev => [...prev, item]);
+    // Check if item is in availableItemsForNotScanned (not in any box)
+    if (availableItemsForNotScanned.some(i => i.id === item.id)) {
+      // Item is not in any box, add it to this box
+      if (!boxItems.some(boxItem => boxItem.id === item.id)) {
+        setBoxItems(prev => [...prev, item]);
+      }
+      setScannedItemIds(prev => new Set([...prev, item.id]));
+    } else {
+      // Item might already be in a box, just mark as scanned
+      setScannedItemIds(prev => new Set([...prev, item.id]));
     }
-    setScannedItemIds(prev => new Set([...prev, item.id]));
-    toast.success(`Item marked as scanned`);
   };
 
   const handleMarkAsNotScanned = (item: OrderItem) => {
@@ -126,17 +153,20 @@ export default function DeliveryNoteBoxDetailsScreen({
       newSet.delete(item.id);
       return newSet;
     });
-    toast.success(`Item marked as not scanned`);
   };
 
   const handleRemoveItem = (itemId: string) => {
+    // Mark item as removed
+    setRemovedItemIds(prev => new Set([...prev, itemId]));
+    // Remove from box items
     setBoxItems(prev => prev.filter(item => item.id !== itemId));
+    // Remove from scanned items
     setScannedItemIds(prev => {
       const newSet = new Set(prev);
       newSet.delete(itemId);
       return newSet;
     });
-    toast.success('Item removed from box');
+    toast.success('Item removed');
   };
 
   const handleRegisterBox = () => {
@@ -153,7 +183,14 @@ export default function DeliveryNoteBoxDetailsScreen({
       toast.error('Please add at least one item to the box');
       return;
     }
-    setIsLabelSheetOpen(true);
+    // Save the box items first (update parent state)
+    onSaveAndClose(box.id, boxItems, true);
+    // Signal parent to open label sheet after closing this screen
+    if (onContinueToLabel) {
+      onContinueToLabel(box.id);
+    }
+    // Close this screen - parent will handle opening the label sheet
+    onBack();
   };
 
   const handleSaveAndClose = () => {
@@ -201,7 +238,7 @@ export default function DeliveryNoteBoxDetailsScreen({
   };
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
+    <div className="min-h-screen bg-surface flex flex-col w-full max-w-full md:max-w-[600px] lg:max-w-[600px] mx-auto">
       <SharedHeader
         title="Box details"
         subtitle={isPacking ? undefined : box.qrLabel}
@@ -274,7 +311,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                         <Card key={item.id} className="border-outline-variant bg-surface-container">
                           <CardContent className="p-3">
                             <div className="flex items-start gap-3">
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0 pr-2">
                                 <ItemCard
                                   item={{
                                     id: item.id,
@@ -296,26 +333,28 @@ export default function DeliveryNoteBoxDetailsScreen({
                                   showSelection={false}
                                 />
                               </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleMarkAsNotScanned(item)}>
-                                    <XIcon className="mr-2 h-4 w-4" />
-                                    Mark as not scanned
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => handleRemoveItem(item.id)}
-                                    className="text-error focus:text-error"
-                                  >
-                                    <XIcon className="mr-2 h-4 w-4" />
-                                    Remove from box
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="relative flex-shrink-0">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="relative">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" sideOffset={4}>
+                                    <DropdownMenuItem onClick={() => handleMarkAsNotScanned(item)}>
+                                      <XIcon className="mr-2 h-4 w-4" />
+                                      Mark as Not Scanned
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleRemoveItem(item.id)}
+                                      className="text-error focus:text-error"
+                                    >
+                                      <Trash2Icon className="mr-2 h-4 w-4" />
+                                      Delete faulty item
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -336,7 +375,7 @@ export default function DeliveryNoteBoxDetailsScreen({
                         <Card key={item.id} className="border-outline-variant bg-surface-container">
                           <CardContent className="p-3">
                             <div className="flex items-start gap-3">
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0 pr-2">
                                 <ItemCard
                                   item={{
                                     id: item.id,
@@ -358,19 +397,28 @@ export default function DeliveryNoteBoxDetailsScreen({
                                   showSelection={false}
                                 />
                               </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleMarkAsScanned(item)}>
-                                    <CheckIcon className="mr-2 h-4 w-4" />
-                                    Mark as scanned
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="relative flex-shrink-0">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="relative">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" sideOffset={4}>
+                                    <DropdownMenuItem onClick={() => handleMarkAsScanned(item)}>
+                                      <CheckIcon className="mr-2 h-4 w-4" />
+                                      Mark as Scanned
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleRemoveItem(item.id)}
+                                      className="text-error focus:text-error"
+                                    >
+                                      <Trash2Icon className="mr-2 h-4 w-4" />
+                                      Delete faulty item
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -426,26 +474,28 @@ export default function DeliveryNoteBoxDetailsScreen({
                                 showSelection={false}
                               />
                             </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {scannedItemIds.has(item.id) ? (
-                                  <DropdownMenuItem onClick={() => handleMarkAsNotScanned(item)}>
-                                    <XIcon className="mr-2 h-4 w-4" />
-                                    Mark as not scanned
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem onClick={() => handleMarkAsScanned(item)}>
-                                    <CheckIcon className="mr-2 h-4 w-4" />
-                                    Mark as scanned
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="relative">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="relative">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" sideOffset={4}>
+                                  {scannedItemIds.has(item.id) ? (
+                                    <DropdownMenuItem onClick={() => handleMarkAsNotScanned(item)}>
+                                      <XIcon className="mr-2 h-4 w-4" />
+                                      Mark as not scanned
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => handleMarkAsScanned(item)}>
+                                      <CheckIcon className="mr-2 h-4 w-4" />
+                                      Mark as scanned
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -510,24 +560,6 @@ export default function DeliveryNoteBoxDetailsScreen({
         </div>
       )}
 
-      {isPacking && (
-        <BoxLabelSideSheet
-          isOpen={isLabelSheetOpen}
-          onOpenChange={setIsLabelSheetOpen}
-          onSubmit={(label) => {
-            onUpdateBoxLabel?.(box.id, label);
-            onRegisterBox(box.id);
-            setIsLabelSheetOpen(false);
-            onBack();
-          }}
-          onCancel={() => setIsLabelSheetOpen(false)}
-          initialLabel={box.qrLabel?.startsWith('TEMP-') ? '' : box.qrLabel}
-          title="Add Box Label"
-          description="Assign a label before registering this box"
-          primaryActionLabel="Save label"
-          showBackButton
-        />
-      )}
     </div>
   );
 }

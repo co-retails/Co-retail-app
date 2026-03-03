@@ -46,6 +46,7 @@ export interface DeliveryNote {
   warehouseName?: string;
   storeId?: string;
   storeCode?: string;
+  shippingLabel?: string;
 }
 
 interface BoxManagementScreenProps {

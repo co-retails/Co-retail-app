@@ -37,7 +37,6 @@ import {
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
-import BoxDetailsSideSheet from './BoxDetailsSideSheet';
 import BoxLabelSideSheet from './BoxLabelSideSheet';
 import { ImageWithFallback, DEFAULT_IMAGE_PLACEHOLDER } from './figma/ImageWithFallback';
 
@@ -69,6 +68,7 @@ interface DeliveryNoteDetailsScreenProps {
   orderId: string;
   orderItems: OrderItem[];
   onCreateDeliveryNote: (deliveryNote: DeliveryNote) => void;
+  onRegisterDelivery?: (shippingLabel?: string) => void;
   receivingStore?: {
     name: string;
     code: string;
@@ -102,7 +102,8 @@ export default function DeliveryNoteDetailsScreen({
   onDeleteUnassignedItem,
   initialBoxes,
   deliveryNoteId,
-  existingCreatedDate
+  existingCreatedDate,
+  onRegisterDelivery
 }: DeliveryNoteCreationScreenProps) {
   const [boxes, setBoxes] = useState<Box[]>(initialBoxes || []);
 
@@ -110,6 +111,9 @@ export default function DeliveryNoteDetailsScreen({
   React.useEffect(() => {
     if (initialBoxes) {
       setBoxes(initialBoxes);
+    } else if (initialBoxes === undefined && boxes.length === 0) {
+      // If initialBoxes is undefined and we have no boxes, keep empty state
+      // This handles the case when creating a new delivery note
     }
   }, [initialBoxes]);
   const [currentBoxId, setCurrentBoxId] = useState<string | null>(null);
@@ -120,22 +124,26 @@ export default function DeliveryNoteDetailsScreen({
   const [expandedUnassignedItems, setExpandedUnassignedItems] = useState(false);
 
   // Side sheet states
-  const [showBoxDetailsSheet, setShowBoxDetailsSheet] = useState(false);
   const [showBoxLabelSheet, setShowBoxLabelSheet] = useState(false);
   const [boxBeingEdited, setBoxBeingEdited] = useState<Box | null>(null);
-  const [currentBoxItems, setCurrentBoxItems] = useState<OrderItem[]>([]);
-  const [tempBoxId, setTempBoxId] = useState<string | null>(null);
+  const [removedItemIds, setRemovedItemIds] = useState<Set<string>>(new Set());
 
-  // Calculate statistics
-  const totalItems = orderItems.length;
+  // Calculate statistics (excluding removed items)
+  const availableOrderItems = orderItems.filter(item => item.status !== 'removed');
+  const totalItems = availableOrderItems.length;
   const assignedItems = boxes.flatMap(box => box.items).length;
-  const unassignedItems = totalItems - assignedItems;
   const completeBoxes = boxes.filter(box => box.items.length > 0).length;
 
-  // Get unassigned items (not in any box yet)
-  const availableItems = orderItems.filter(item =>
+  // Get unassigned items (not in any box yet and not removed)
+  // Note: removedItemIds tracks items removed from unassigned list (via "Delete faulty item")
+  const availableItems = availableOrderItems.filter(item =>
+    !removedItemIds.has(item.id) &&
     !boxes.some(box => box.items.some(boxItem => boxItem.id === item.id))
   );
+  
+  // Unassigned items count should match availableItems length
+  // This ensures consistency between the count and the actual list
+  const unassignedItems = availableItems.length;
 
   // Handle box label scan
   const handleBoxLabelScanned = (code: string) => {
@@ -198,82 +206,27 @@ export default function DeliveryNoteDetailsScreen({
     // Toast message removed - visual feedback already shown in scan area
   };
 
-  // Handle add box - opens box details side sheet
+  // Handle add box - creates a temporary box and opens box details screen
   const handleAddBox = () => {
     const newBoxId = `box-${Date.now()}`;
-    setTempBoxId(newBoxId);
-    setCurrentBoxItems([]);
-    setShowBoxDetailsSheet(true);
-  };
-
-  // Handle item scanned in box details
-  const handleItemScanned = (item: OrderItem) => {
-    setCurrentBoxItems(prev => {
-      if (prev.some(i => i.id === item.id)) {
-        toast.error('Item already in box');
-        return prev;
-      }
-      return [...prev, item];
-    });
-  };
-
-  // Handle mark as scanned
-  const handleMarkAsScanned = (item: OrderItem) => {
-    handleItemScanned(item);
-  };
-
-  // Handle save and close from box details
-  const handleSaveAndClose = () => {
-    if (tempBoxId && currentBoxItems.length > 0) {
-      // Create temporary box without label
-      const tempBox: Box = {
-        id: tempBoxId,
-        qrLabel: `TEMP-${tempBoxId.slice(-6)}`,
-        items: currentBoxItems,
-        status: 'pending',
-        createdDate: new Date().toISOString()
-      };
-      setBoxes(prev => [...prev, tempBox]);
-    }
-    setShowBoxDetailsSheet(false);
-    setCurrentBoxItems([]);
-    setTempBoxId(null);
-  };
-
-  // Handle continue from box details - opens box label sheet
-  const handleContinueToLabel = () => {
-    if (currentBoxItems.length === 0) {
-      toast.error('Please add at least one item to the box');
-      return;
-    }
-    setShowBoxDetailsSheet(false);
-    setShowBoxLabelSheet(true);
-  };
-
-  // Handle register box with label
-  const handleRegisterBox = (label: string) => {
-    if (!tempBoxId) return;
-
-    // Check if box label already exists
-    const existingBox = boxes.find(box => box.qrLabel === label);
-    if (existingBox) {
-      toast.error('Box label already exists');
-      return;
-    }
-
-    // Create final box with label and registered status
-    const newBox: Box = {
-      id: tempBoxId,
-      qrLabel: label,
-      items: currentBoxItems,
-      status: 'registered',
+    const tempBox: Box = {
+      id: newBoxId,
+      qrLabel: `TEMP-${newBoxId.slice(-6)}`,
+      items: [],
+      status: 'pending',
       createdDate: new Date().toISOString()
     };
+    // Add temporary box to boxes list
+    setBoxes(prev => [...prev, tempBox]);
+    // Open box details via onOpenBoxDetails
+    if (onOpenBoxDetails) {
+      onOpenBoxDetails(tempBox);
+    }
+  };
 
-    setBoxes(prev => [...prev, newBox]);
-    setShowBoxLabelSheet(false);
-    setCurrentBoxItems([]);
-    setTempBoxId(null);
+  // Handle register box with label - this is now handled by DeliveryNoteBoxDetailsScreen
+  const handleRegisterBox = (label: string) => {
+    // This function is no longer used - box registration is handled in DeliveryNoteBoxDetailsScreen
   };
 
   const handleEditedBoxLabelSave = (label: string) => {
@@ -390,18 +343,25 @@ export default function DeliveryNoteDetailsScreen({
   };
 
   // Delete box - only pending boxes can be deleted
+  // Items in the deleted box will automatically appear in unassigned items
+  // because availableItems filters items that are not in any box
   const handleDeleteBox = (boxId: string) => {
     const box = boxes.find(b => b.id === boxId);
     if (box && box.status !== 'pending') {
       toast.error('Only pending boxes can be deleted');
       return;
     }
+    // Remove the box - items will automatically appear in unassigned items
+    // because they're no longer in any box
     setBoxes(boxes.filter(box => box.id !== boxId));
     toast.success('Box deleted');
   };
 
   // Handle delete unassigned item
   const handleDeleteUnassignedItem = (itemId: string) => {
+    // Mark item as removed
+    setRemovedItemIds(prev => new Set([...prev, itemId]));
+    
     if (onDeleteUnassignedItem) {
       onDeleteUnassignedItem(itemId);
     } else {
@@ -432,7 +392,7 @@ export default function DeliveryNoteDetailsScreen({
   };
 
   // Register delivery note
-  const handleRegisterDelivery = () => {
+  const handleRegisterDelivery = (shippingLabel?: string) => {
     // Validation
     if (boxes.length === 0) {
       toast.error('Please add at least one box');
@@ -464,7 +424,13 @@ export default function DeliveryNoteDetailsScreen({
       return;
     }
 
-    // Create or update delivery note
+    // If onRegisterDelivery is provided, use it (it will handle showing shipping label screen)
+    if (onRegisterDelivery) {
+      onRegisterDelivery(shippingLabel);
+      return;
+    }
+
+    // Otherwise, create or update delivery note directly (fallback)
     const deliveryNote: DeliveryNote = {
       id: deliveryNoteId || `DN-${Date.now().toString().slice(-8)}`,
       orderId,
@@ -474,7 +440,8 @@ export default function DeliveryNoteDetailsScreen({
       })),
       status: 'registered',
       createdDate: deliveryNoteId && existingCreatedDate ? existingCreatedDate : new Date().toISOString(),
-      registeredDate: new Date().toISOString()
+      registeredDate: new Date().toISOString(),
+      shippingLabel: shippingLabel
     };
 
     onCreateDeliveryNote(deliveryNote);
@@ -703,7 +670,7 @@ export default function DeliveryNoteDetailsScreen({
                                   className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
                                 >
                                   <Trash2Icon className="w-4 h-4 mr-2" />
-                                  <span className="body-medium">Delete</span>
+                                  <span className="body-medium">Remove box</span>
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
@@ -775,29 +742,27 @@ export default function DeliveryNoteDetailsScreen({
                         </p>
                       )}
                     </div>
-                    {/* Admin Delete Option */}
-                    {isAdmin && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical size={16} className="text-on-surface-variant" />
-                          </Button>
-                        </DropdownMenuTrigger>
+                    {/* More menu for Remove option */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical size={16} className="text-on-surface-variant" />
+                        </Button>
+                      </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => handleDeleteUnassignedItem(item.id)}
                             className="text-error focus:text-error"
                           >
                             <Trash2Icon className="mr-2 h-4 w-4" />
-                            Delete
+                            Delete faulty item
                           </DropdownMenuItem>
                         </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                    </DropdownMenu>
                   </div>
                 ))}
               </div>
@@ -824,7 +789,13 @@ export default function DeliveryNoteDetailsScreen({
             </Button>
 
             <Button
-              onClick={handleRegisterDelivery}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[DeliveryNoteDetailsScreen] Register Delivery button clicked');
+                handleRegisterDelivery();
+              }}
               disabled={boxes.length === 0 || unassignedItems > 0 || boxes.some(box => box.items.length === 0)}
               className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg h-[56px]"
             >
@@ -983,17 +954,6 @@ export default function DeliveryNoteDetailsScreen({
         />
       )}
 
-      {/* Box Details Side Sheet */}
-      <BoxDetailsSideSheet
-        isOpen={showBoxDetailsSheet}
-        onOpenChange={setShowBoxDetailsSheet}
-        orderItems={availableItems}
-        scannedItems={currentBoxItems}
-        onItemScanned={handleItemScanned}
-        onMarkAsScanned={handleMarkAsScanned}
-        onSaveAndClose={handleSaveAndClose}
-        onContinue={handleContinueToLabel}
-      />
 
       {/* Box Label Side Sheet */}
       <BoxLabelSideSheet

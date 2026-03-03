@@ -177,8 +177,10 @@ const FullScreenDialogContent = React.forwardRef<
           isDesktop && "inset-y-0 top-0 bottom-0 right-0 h-full",
           isDesktop && "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
           isDesktop && "shadow-[-4px_0_16px_rgba(0,0,0,0.1)]",
-          // Full width on desktop: left-0 instead of left-auto
+          // Full width on desktop/tablet: left-0 instead of left-auto
           isDesktop && fullWidth && "left-0 w-full",
+          // Tablet: also full width
+          !isDesktop && fullWidth && "w-full",
           className,
         )}
         {...contentProps}

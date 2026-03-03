@@ -495,3 +495,18 @@ html {
     touch-action: manipulation;
   }
 }
+
+/* Desktop (1024px+): show table views, hide card views. Ensures tables display even if Tailwind responsive classes don't apply. */
+@media (min-width: 1024px) {
+  [data-tablet-mobile-only] {
+    display: none !important;
+  }
+  [data-desktop-table] {
+    display: block !important;
+  }
+}
+@media (max-width: 1023px) {
+  [data-desktop-table] {
+    display: none !important;
+  }
+}

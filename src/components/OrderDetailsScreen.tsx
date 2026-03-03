@@ -330,8 +330,8 @@ export default function OrderDetailsScreen({
               </div>
             ) : (
               <>
-                {/* Mobile View - Cards */}
-                <div className="md:hidden space-y-4">
+                {/* Mobile & tablet: Cards. Desktop shows table below. */}
+                <div className="lg:hidden space-y-4" data-tablet-mobile-only>
                   {/* Items with Validation Errors */}
                   {itemsWithErrors.length > 0 && (
                     <div>
@@ -434,8 +434,8 @@ export default function OrderDetailsScreen({
                   )}
                 </div>
 
-                {/* Desktop View - Table */}
-                <div className="hidden md:block">
+                {/* Desktop: Table with rows and columns */}
+                <div className="hidden lg:block" data-desktop-table>
                   {/* Items with Validation Errors */}
                   {itemsWithErrors.length > 0 && (
                     <div className="mb-6">

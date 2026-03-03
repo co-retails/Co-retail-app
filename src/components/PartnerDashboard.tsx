@@ -294,6 +294,48 @@ export default function PartnerDashboard({
     });
   };
 
+  // Build active filter text grouped by brand (countries and stores shown under their brand)
+  const getActiveFilterText = (): string => {
+    const brandIds = viewFilter.brandIds ?? [];
+    const countryIds = viewFilter.countryIds ?? [];
+    const storeIds = viewFilter.storeIds ?? [];
+    if (brandIds.length === 0 && countryIds.length === 0 && storeIds.length === 0) return '';
+    const selectedStores = stores.filter(s => storeIds.includes(s.id));
+    const selectedCountries = countries.filter(c => countryIds.includes(c.id));
+    const selectedBrandsFromFilter = brands.filter(b => brandIds.includes(b.id));
+    const brandIdsFromStores = [...new Set(selectedStores.map(s => s.brandId))];
+    const allBrandIds = [...new Set([...brandIds, ...brandIdsFromStores])];
+    if (allBrandIds.length === 0) {
+      if (selectedBrandsFromFilter.length > 0) return selectedBrandsFromFilter.map(b => b.name).join(', ');
+      if (selectedCountries.length > 0) return selectedCountries.map(c => c.name).join(', ');
+      return '';
+    }
+    const parts: string[] = [];
+    const sortedBrands = allBrandIds
+      .map(id => brands.find(b => b.id === id))
+      .filter((b): b is Brand => Boolean(b))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const brand of sortedBrands) {
+      const storesInBrand = selectedStores.filter(s => s.brandId === brand.id);
+      const countryIdsInBrand = new Set(
+        storesInBrand.length > 0
+          ? storesInBrand.map(s => s.countryId)
+          : stores.filter(s => s.brandId === brand.id).map(s => s.countryId)
+      );
+      const countriesInBrand = selectedCountries.filter(c => countryIdsInBrand.has(c.id));
+      const countryNames = countriesInBrand.map(c => c.name).join(', ');
+      const storeLabels = storesInBrand.map(s => `${s.name} (${s.code})`).join(', ');
+      const sub: string[] = [];
+      if (countryNames) sub.push(countryNames);
+      if (storeLabels) sub.push(storeLabels);
+      if (sub.length) parts.push(`${brand.name}: ${sub.join('; ')}`);
+      else parts.push(brand.name);
+    }
+    return parts.join('. ');
+  };
+
+  const activeFilterText = getActiveFilterText();
+
   const filteredStats = getFilteredStats();
   const filteredOrders = getFilteredOrders();
   const filteredDeliveryNotes = getFilteredDeliveryNotes();
@@ -500,14 +542,7 @@ export default function PartnerDashboard({
                   `}
                 >
                   <FilterIcon className="h-4 w-4 flex-shrink-0" />
-                  <span className="label-medium">
-                    {((viewFilter.brandIds?.length || 0) > 0 || 
-                      (viewFilter.countryIds?.length || 0) > 0 || 
-                      (viewFilter.storeIds?.length || 0) > 0)
-                      ? 'Filtered'
-                      : 'Filter'
-                    }
-                  </span>
+                  <span className="label-medium">Store Filter</span>
                   {((viewFilter.brandIds?.length || 0) > 0 || 
                     (viewFilter.countryIds?.length || 0) > 0 || 
                     (viewFilter.storeIds?.length || 0) > 0) && (
@@ -517,88 +552,21 @@ export default function PartnerDashboard({
               </StoreFilterBottomSheet>
             </div>
             
-            {/* Filter Chips Display - M3 Pattern with Filter Chips - Desktop & Mobile */}
-            {((viewFilter.brandIds?.length || 0) > 0 || 
-              (viewFilter.countryIds?.length || 0) > 0 || 
-              (viewFilter.storeIds?.length || 0) > 0) && (
+            {/* Active filters as regular text, grouped by brand */}
+            {activeFilterText && (
               <div className="mb-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="label-small text-on-surface-variant">Active filters:</span>
-                  
-                  {/* Brand Filter Chips */}
-                  {viewFilter.brandIds && viewFilter.brandIds.length > 0 && 
-                    brands.filter(b => viewFilter.brandIds!.includes(b.id)).map(brand => (
-                      <div 
-                        key={`brand-${brand.id}`} 
-                        className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
-                      >
-                        <span className="label-small">{brand.name}</span>
-                        <button
-                          onClick={() => {
-                            const newBrandIds = viewFilter.brandIds!.filter(id => id !== brand.id);
-                            handleBrandFilterChange(newBrandIds);
-                          }}
-                          className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
-                          aria-label={`Remove ${brand.name} filter`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))
-                  }
-                  
-                  {/* Country Filter Chips */}
-                  {viewFilter.countryIds && viewFilter.countryIds.length > 0 && 
-                    countries.filter(c => viewFilter.countryIds!.includes(c.id)).map(country => (
-                      <div 
-                        key={`country-${country.id}`} 
-                        className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
-                      >
-                        <span className="label-small">{country.name}</span>
-                        <button
-                          onClick={() => {
-                            const newCountryIds = viewFilter.countryIds!.filter(id => id !== country.id);
-                            handleCountryFilterChange(newCountryIds);
-                          }}
-                          className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
-                          aria-label={`Remove ${country.name} filter`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))
-                  }
-                  
-                  {/* Store Filter Chips */}
-                  {viewFilter.storeIds && viewFilter.storeIds.length > 0 && 
-                    stores.filter(s => viewFilter.storeIds!.includes(s.id)).map(store => (
-                      <div 
-                        key={`store-${store.id}`} 
-                        className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
-                      >
-                        <span className="label-small">{store.name} ({store.code})</span>
-                        <button
-                          onClick={() => {
-                            const newStoreIds = viewFilter.storeIds!.filter(id => id !== store.id);
-                            handleStoreFilterChange(newStoreIds);
-                          }}
-                          className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
-                          aria-label={`Remove ${store.name} filter`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))
-                  }
-                  
-                  {/* Clear All Filters Button */}
+                <p className="body-medium text-on-surface">
+                  <span className="label-medium text-on-surface">Active filters: </span>
+                  {activeFilterText}
+                  {' · '}
                   <button
+                    type="button"
                     onClick={handleViewAllStores}
-                    className="inline-flex items-center h-10 md:h-8 px-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
+                    className="underline hover:no-underline text-on-surface hover:opacity-80 focus:outline-none focus:underline"
                   >
-                    <span className="label-small">Clear all</span>
+                    Clear all
                   </button>
-                </div>
+                </p>
               </div>
             )}
             

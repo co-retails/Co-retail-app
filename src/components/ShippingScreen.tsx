@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, X, QrCode, ClipboardListIcon, ArrowUp, ArrowDown, Plus } from 'lucide-react';
+import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, QrCode, ArrowUp, ArrowDown, Plus } from 'lucide-react';
 import { UserRole } from './RoleSwitcher';
 import type { ExtendedPartnerOrder } from './PartnerDashboard';
 import { DeliveryNote } from './BoxManagementScreen';
@@ -60,6 +60,7 @@ export interface Delivery {
   warehouseId?: string;
   warehouseName?: string;
   receivingStoreId?: string;
+  shippingLabel?: string;
 }
 
 export interface ReturnDelivery {
@@ -164,6 +165,18 @@ const getDeliveryNoteStatusBadgeColor = (status: DeliveryNoteStatus) => {
     default:
       return 'bg-surface-container-high text-on-surface-variant';
   }
+};
+
+/** True when delivery is In transit (status registered) and has been so for more than 10 days. */
+const isDeliveryNoteInTransitOver10Days = (note: DeliveryNote): boolean => {
+  if (note.status !== 'registered') return false;
+  const fromDate = note.shipmentDate || note.createdDate;
+  if (!fromDate) return false;
+  const from = new Date(fromDate);
+  const now = new Date();
+  const daysMs = now.getTime() - from.getTime();
+  const days = Math.floor(daysMs / (1000 * 60 * 60 * 24));
+  return days > 10;
 };
 
 const resolveDeliveryNoteParties = (
@@ -340,7 +353,8 @@ function PartnerDeliveryNoteItem({
   showSenderReceiver = false,
   stores,
   brands,
-  warehouses
+  warehouses,
+  inTransitOver10Days = false
 }: { 
   deliveryNote: DeliveryNote; 
   orders: ShippingPartnerOrder[];
@@ -351,6 +365,7 @@ function PartnerDeliveryNoteItem({
   stores?: StoreRecord[];
   brands?: BrandRecord[];
   warehouses?: Warehouse[];
+  inTransitOver10Days?: boolean;
 }) {
   const relatedOrders = orders.filter(order => order.deliveryNote === deliveryNote.id);
   const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
@@ -387,6 +402,9 @@ function PartnerDeliveryNoteItem({
             <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${getDeliveryNoteStatusBadgeColor(deliveryStatus)}`}>
               {getDeliveryNoteStatusDisplay(deliveryStatus)}
             </span>
+            {inTransitOver10Days && (
+              <span className="text-[11px] font-medium text-error">more than 10 days</span>
+            )}
           </div>
           
           {/* Primary Line - Delivery Note ID (prominent) */}
@@ -614,8 +632,8 @@ function ReturnDeliveryComponent({
         
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
-          {/* Status Badge - Always visible on desktop, positioned far right */}
-          <div className={`hidden md:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(returnDelivery.status)}`}>
+          {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
+          <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(returnDelivery.status)}`}>
             {getStatusDisplay(returnDelivery.status)}
           </div>
 
@@ -826,8 +844,8 @@ function PartnerOrderItem({
         
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
-          {/* Status Badge - Always visible on desktop, positioned far right */}
-          <div className={`hidden md:flex px-3 py-1.5 rounded-full label-medium min-w-[140px] justify-center ${getStatusBadgeColor(order.status)}`}>
+          {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
+          <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[140px] justify-center ${getStatusBadgeColor(order.status)}`}>
             {getStatusDisplay(order.status)}
           </div>
           
@@ -962,8 +980,8 @@ function ShowroomOrderItem({
         
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
-          {/* Status Badge - Always visible on desktop, positioned far right */}
-          <div className={`hidden md:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(order.status)}`}>
+          {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
+          <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(order.status)}`}>
             {getStatusDisplay(order.status)}
           </div>
           
@@ -1071,8 +1089,8 @@ function SellpyOrderItem({
         
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
-          {/* Status Badge - Always visible on desktop, positioned far right */}
-          <div className={`hidden md:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(order.status)}`}>
+          {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
+          <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(order.status)}`}>
             {getStatusDisplay(order.status)}
           </div>
           
@@ -1339,6 +1357,51 @@ useEffect(() => {
       storeIds
     }));
   };
+
+  // Build active filter text grouped by brand (countries and stores shown under their brand)
+  const getActiveFilterText = (): string => {
+    const brandIds = viewFilter.brandIds ?? [];
+    const countryIds = viewFilter.countryIds ?? [];
+    const storeIds = viewFilter.storeIds ?? [];
+    const brandsList = brands ?? [];
+    const countriesList = countries ?? [];
+    const storesList = stores ?? [];
+    if (brandIds.length === 0 && countryIds.length === 0 && storeIds.length === 0) return '';
+    const selectedStores = storesList.filter(s => storeIds.includes(s.id));
+    const selectedCountries = countriesList.filter(c => countryIds.includes(c.id));
+    const selectedBrandsFromFilter = brandsList.filter(b => brandIds.includes(b.id));
+    const brandIdsFromStores = [...new Set(selectedStores.map(s => s.brandId))];
+    const allBrandIds = [...new Set([...brandIds, ...brandIdsFromStores])];
+    if (allBrandIds.length === 0) {
+      if (selectedBrandsFromFilter.length > 0) return selectedBrandsFromFilter.map(b => b.name).join(', ');
+      if (selectedCountries.length > 0) return selectedCountries.map(c => c.name).join(', ');
+      return '';
+    }
+    const parts: string[] = [];
+    const sortedBrands = allBrandIds
+      .map(id => brandsList.find(b => b.id === id))
+      .filter((b): b is BrandRecord => Boolean(b))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const brand of sortedBrands) {
+      const storesInBrand = selectedStores.filter(s => s.brandId === brand.id);
+      const countryIdsInBrand = new Set(
+        storesInBrand.length > 0
+          ? storesInBrand.map(s => s.countryId)
+          : storesList.filter(s => s.brandId === brand.id).map(s => s.countryId)
+      );
+      const countriesInBrand = selectedCountries.filter(c => countryIdsInBrand.has(c.id));
+      const countryNames = countriesInBrand.map(c => c.name).join(', ');
+      const storeLabels = storesInBrand.map(s => `${s.name} (${s.code})`).join(', ');
+      const sub: string[] = [];
+      if (countryNames) sub.push(countryNames);
+      if (storeLabels) sub.push(storeLabels);
+      if (sub.length) parts.push(`${brand.name}: ${sub.join('; ')}`);
+      else parts.push(brand.name);
+    }
+    return parts.join('. ');
+  };
+
+  const activeFilterText = getActiveFilterText();
 
   // Helper function to get receiver display with brand and store code
   const getReceiverDisplay = (receivingStoreId?: string, receivingStoreName?: string) => {
@@ -2025,14 +2088,7 @@ useEffect(() => {
                   `}
                 >
                   <FilterIcon size={20} />
-                  <span className="label-medium">
-                    {((viewFilter.brandIds?.length || 0) > 0 || 
-                      (viewFilter.countryIds?.length || 0) > 0 || 
-                      (viewFilter.storeIds?.length || 0) > 0)
-                      ? 'Filtered'
-                      : 'Filter'
-                    }
-                  </span>
+                  <span className="label-medium">Store Filter</span>
                   {((viewFilter.brandIds?.length || 0) > 0 || 
                     (viewFilter.countryIds?.length || 0) > 0 || 
                     (viewFilter.storeIds?.length || 0) > 0) && (
@@ -2043,88 +2099,21 @@ useEffect(() => {
             )}
           </div>
           
-          {/* Filter Chips Display - Partner Portal Only - align with Dashboard */}
-          {role === 'partner' && ((viewFilter.brandIds?.length || 0) > 0 || 
-            (viewFilter.countryIds?.length || 0) > 0 || 
-            (viewFilter.storeIds?.length || 0) > 0) && (
+          {/* Active filters as regular text, grouped by brand - Partner Portal Only */}
+          {role === 'partner' && activeFilterText && (
             <div className="mt-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="label-small text-on-surface-variant">Active filters:</span>
-                
-                {/* Brand Filter Chips */}
-                {viewFilter.brandIds && viewFilter.brandIds.length > 0 && 
-                  brands.filter(b => viewFilter.brandIds!.includes(b.id)).map(brand => (
-                    <div 
-                      key={`brand-${brand.id}`} 
-                      className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
-                    >
-                      <span className="label-small">{brand.name}</span>
-                      <button
-                        onClick={() => {
-                          const newBrandIds = viewFilter.brandIds!.filter(id => id !== brand.id);
-                          handleBrandFilterChange(newBrandIds);
-                        }}
-                        className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
-                        aria-label={`Remove ${brand.name} filter`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))
-                }
-                
-                {/* Country Filter Chips */}
-                {viewFilter.countryIds && viewFilter.countryIds.length > 0 && 
-                  countries.filter(c => viewFilter.countryIds!.includes(c.id)).map(country => (
-                    <div 
-                      key={`country-${country.id}`} 
-                      className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
-                    >
-                      <span className="label-small">{country.name}</span>
-                      <button
-                        onClick={() => {
-                          const newCountryIds = viewFilter.countryIds!.filter(id => id !== country.id);
-                          handleCountryFilterChange(newCountryIds);
-                        }}
-                        className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
-                        aria-label={`Remove ${country.name} filter`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))
-                }
-                
-                {/* Store Filter Chips */}
-                {viewFilter.storeIds && viewFilter.storeIds.length > 0 && 
-                  stores.filter(s => viewFilter.storeIds!.includes(s.id)).map(store => (
-                    <div 
-                      key={`store-${store.id}`} 
-                      className="inline-flex items-center gap-2 h-10 md:h-8 px-3 bg-secondary-container text-on-secondary-container border border-outline-variant rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
-                    >
-                      <span className="label-small">{store.name}</span>
-                      <button
-                        onClick={() => {
-                          const newStoreIds = viewFilter.storeIds!.filter(id => id !== store.id);
-                          handleStoreFilterChange(newStoreIds);
-                        }}
-                        className="p-0.5 rounded-full hover:bg-on-secondary-container/10 transition-colors"
-                        aria-label={`Remove ${store.name} filter`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))
-                }
-
-                {/* Clear All Filters Button */}
+              <p className="body-medium text-on-surface">
+                <span className="label-medium text-on-surface">Active filters: </span>
+                {activeFilterText}
+                {' · '}
                 <button
+                  type="button"
                   onClick={handleViewAllStores}
-                  className="inline-flex items-center h-10 md:h-8 px-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors rounded-[8px] min-h-[40px] md:min-h-0 touch-manipulation"
+                  className="underline hover:no-underline text-on-surface hover:opacity-80 focus:outline-none focus:underline"
                 >
-                  <span className="label-small">Clear all</span>
+                  Clear all
                 </button>
-              </div>
+              </p>
             </div>
           )}
 
@@ -2418,7 +2407,7 @@ useEffect(() => {
               filteredReturnDeliveries.length > 0 ? (
                 <>
                   {/* Mobile: Card View */}
-                  <div className="flex md:hidden flex-col gap-2">
+                  <div className="flex lg:!hidden flex-col gap-2" data-tablet-mobile-only>
                     {sortedReturnDeliveries.map((returnDelivery) => (
                       <div key={returnDelivery.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                         <ReturnDeliveryComponent 
@@ -2437,7 +2426,7 @@ useEffect(() => {
                   
                   {/* Desktop: Table View */}
                   <div 
-                    className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden"
+                    className="hidden lg:!block bg-surface border border-outline-variant rounded-lg overflow-hidden" data-desktop-table
                     onScroll={handleScroll}
                     style={{ maxHeight: isAllTab ? '70vh' : 'auto', overflowY: isAllTab ? 'auto' : 'visible' }}
                   >
@@ -2549,7 +2538,7 @@ useEffect(() => {
               filteredReturnDeliveries.length > 0 ? (
                 <>
                   {/* Mobile: Card View */}
-                  <div className="flex md:hidden flex-col gap-2">
+                  <div className="flex lg:!hidden flex-col gap-2" data-tablet-mobile-only>
                     {sortedReturnDeliveries.map((returnDelivery) => (
                       <div key={returnDelivery.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                         <ReturnDeliveryComponent 
@@ -2568,7 +2557,7 @@ useEffect(() => {
                   
                   {/* Desktop: Table View */}
                   <div 
-                    className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden"
+                    className="hidden lg:!block bg-surface border border-outline-variant rounded-lg overflow-hidden" data-desktop-table
                     onScroll={handleScroll}
                     style={{ maxHeight: isAllTab ? '70vh' : 'auto', overflowY: isAllTab ? 'auto' : 'visible' }}
                   >
@@ -2670,7 +2659,7 @@ useEffect(() => {
             filteredSellpyOrders.length > 0 ? (
               <>
                 {/* Mobile: Card View */}
-                <div className="flex md:hidden flex-col gap-2">
+                <div className="flex lg:!hidden flex-col gap-2" data-tablet-mobile-only>
                   {filteredSellpyOrders.map((order) => (
                     <div key={order.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <SellpyOrderItem 
@@ -2682,7 +2671,7 @@ useEffect(() => {
                 </div>
                 
                 {/* Desktop: Table View */}
-                <div className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                <div className="hidden lg:!block bg-surface border border-outline-variant rounded-lg overflow-hidden" data-desktop-table>
                   <table className="w-full">
                     <thead className="bg-surface-container-high border-b border-outline-variant">
                       <tr>
@@ -2761,7 +2750,7 @@ useEffect(() => {
               // Show Showroom Purchase Orders (Chinese Partner)
               <>
                 {/* Mobile: Card View */}
-                <div className="flex md:hidden flex-col gap-2">
+                <div className="flex lg:!hidden flex-col gap-2" data-tablet-mobile-only>
                   {filteredShowroomOrders.map((order) => (
                     <div key={order.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <ShowroomOrderItem 
@@ -2773,7 +2762,7 @@ useEffect(() => {
                 </div>
                 
                 {/* Desktop: Table View */}
-                <div className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                <div className="hidden lg:!block bg-surface border border-outline-variant rounded-lg overflow-hidden" data-desktop-table>
                   <table className="w-full">
                     <thead className="bg-surface-container-high border-b border-outline-variant">
                       <tr>
@@ -2846,27 +2835,34 @@ useEffect(() => {
               // Show Delivery Notes (Shipments)
               <>
                 {/* Mobile: Card View */}
-                <div className="flex md:hidden flex-col gap-2">
-                  {sortedDeliveryNotes.map((deliveryNote) => (
-                    <div key={deliveryNote.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
-                      <PartnerDeliveryNoteItem 
-                        deliveryNote={deliveryNote}
-                        orders={partnerOrdersList}
-                        onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
-                        isAdmin={isAdmin}
-                        onDelete={onDeleteDeliveryNote}
-                        showSenderReceiver={true}
-                        stores={stores}
-                        brands={brands}
-                        warehouses={warehouses}
-                      />
-                    </div>
-                  ))}
+                <div className="flex lg:!hidden flex-col gap-2" data-tablet-mobile-only>
+                  {sortedDeliveryNotes.map((deliveryNote) => {
+                    const inTransitOver10 = isDeliveryNoteInTransitOver10Days(deliveryNote);
+                    return (
+                      <div
+                        key={deliveryNote.id}
+                        className={`bg-surface rounded-lg overflow-hidden border ${inTransitOver10 ? 'border-2 border-error' : 'border border-outline-variant'}`}
+                      >
+                        <PartnerDeliveryNoteItem 
+                          deliveryNote={deliveryNote}
+                          orders={partnerOrdersList}
+                          onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
+                          isAdmin={isAdmin}
+                          onDelete={onDeleteDeliveryNote}
+                          showSenderReceiver={true}
+                          stores={stores}
+                          brands={brands}
+                          warehouses={warehouses}
+                          inTransitOver10Days={inTransitOver10}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
                 
                 {/* Desktop: Table View */}
                 <div 
-                  className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden"
+                  className="hidden lg:!block bg-surface border border-outline-variant rounded-lg overflow-hidden" data-desktop-table
                   onScroll={handleScroll}
                   style={{ maxHeight: isAllTab ? '70vh' : 'auto', overflowY: isAllTab ? 'auto' : 'visible' }}
                 >
@@ -2909,11 +2905,12 @@ useEffect(() => {
                           brands,
                           warehouses
                         );
+                        const inTransitOver10 = isDeliveryNoteInTransitOver10Days(deliveryNote);
                         
                         return (
                           <tr 
                             key={deliveryNote.id}
-                            className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors"
+                            className={`border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors ${inTransitOver10 ? 'border-l-4 border-l-error' : ''}`}
                           >
                             <td className="px-4 py-3 body-small text-on-surface-variant">{deliveryNote.createdDate}</td>
                             <td 
@@ -2952,8 +2949,13 @@ useEffect(() => {
                               className="px-4 py-3 text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >
-                              <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getDeliveryNoteStatusBadgeColor(noteStatus)}`}>
-                                {getDeliveryNoteStatusDisplay(noteStatus)}
+                              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getDeliveryNoteStatusBadgeColor(noteStatus)}`}>
+                                  {getDeliveryNoteStatusDisplay(noteStatus)}
+                                </div>
+                                {inTransitOver10 && (
+                                  <span className="label-medium text-error whitespace-nowrap">more than 10 days</span>
+                                )}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -3001,7 +3003,7 @@ useEffect(() => {
               // Show Regular Orders
               <>
                 {/* Mobile: Card View */}
-                <div className="flex md:hidden flex-col gap-2">
+                <div className="flex lg:!hidden flex-col gap-2" data-tablet-mobile-only>
                   {sortedPartnerOrders.map((order) => (
                     <div key={order.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <PartnerOrderItem 
@@ -3029,7 +3031,7 @@ useEffect(() => {
                 
                 {/* Desktop: Table View */}
                 <div 
-                  className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden"
+                  className="hidden lg:!block bg-surface border border-outline-variant rounded-lg overflow-hidden" data-desktop-table
                   onScroll={handleScroll}
                   style={{ maxHeight: isAllTab ? '70vh' : 'auto', overflowY: isAllTab ? 'auto' : 'visible' }}
                 >
@@ -3297,7 +3299,7 @@ useEffect(() => {
             (filteredDeliveries.length > 0 || (activeTab === 'all' && filteredReturnDeliveries.length > 0)) ? (
               <>
                 {/* Mobile: Card View */}
-                <div className="flex md:hidden flex-col gap-2">
+                <div className="flex lg:!hidden flex-col gap-2" data-tablet-mobile-only>
                   {filteredDeliveries.map((delivery) => (
                     <div key={delivery.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
                       <DeliveryItem 
@@ -3323,7 +3325,7 @@ useEffect(() => {
                 </div>
                 
                 {/* Desktop: Table View */}
-                <div className="hidden md:block bg-surface border border-outline-variant rounded-lg overflow-hidden">
+                <div className="hidden lg:!block bg-surface border border-outline-variant rounded-lg overflow-hidden" data-desktop-table>
                   <table className="w-full">
                     <thead className="bg-surface-container-high border-b border-outline-variant">
                       <tr>
