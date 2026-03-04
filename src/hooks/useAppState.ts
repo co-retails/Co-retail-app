@@ -32,6 +32,7 @@ import {
   mockReturnDeliveries,
   mockPartnerOrders,
   mockWarehousePartners,
+  visibleWarehousePartners,
   mockWarehouses
 } from '../data/mockData';
 
@@ -118,14 +119,14 @@ export function useAppState() {
   
   // Partner/Warehouse selection state
   const [currentPartnerWarehouseSelection, setCurrentPartnerWarehouseSelection] = useState<PartnerWarehouseSelection>({
-    partnerId: '6', // Shenzhen Fashion Manufacturing
-    warehouseId: '13' // Shenzhen Production Facility
+    partnerId: '1', // Sellpy Operations
+    warehouseId: '1' // Stockholm Central Warehouse
   });
   
   // Partner Portal View Filter state (persists across partner portal screens)
   const [partnerPortalViewFilter, setPartnerPortalViewFilter] = useState<ViewFilter>({
     mode: 'by-partner',
-    partnerId: '6' // Default to current partner
+    partnerId: '1' // Default to current partner
   });
   
   // Retailer/Country selection state (for Buyer mode)
@@ -139,7 +140,7 @@ export function useAppState() {
   const [partnerOrders, setPartnerOrders] = useState<ExtendedPartnerOrder[]>(mockPartnerOrders);
   const [currentOrder, setCurrentOrder] = useState<{ id: string; items: OrderItem[] } | null>(null);
   const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNote[]>(mockDeliveryNotes);
-  const [partners, setPartners] = useState<WarehousePartner[]>(mockWarehousePartners);
+  const [partners, setPartners] = useState<WarehousePartner[]>(visibleWarehousePartners);
   const [warehouses, setWarehouses] = useState<Warehouse[]>(mockWarehouses);
   
   // Sellpy flow state

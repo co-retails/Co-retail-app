@@ -32,11 +32,10 @@ interface PartnerPricingScreenProps {
   onBack: () => void;
 }
 
-// Mock data for partners and currencies
+// Mock data for partners and currencies (Shenzhen hidden from selection)
 const mockPartners = [
   { id: '1', name: 'Sellpy Operations', code: 'SELLPY' },
   { id: '2', name: 'Thrifted', code: 'THRIFT' },
-  { id: '6', name: 'Shenzhen Fashion Manufacturing', code: 'SFM' },
 ];
 
 const mockCurrencies = ['SEK', 'EUR', 'USD', 'GBP', 'NOK'];

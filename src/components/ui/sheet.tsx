@@ -54,8 +54,10 @@ const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & {
     side?: "top" | "right" | "bottom" | "left";
+    /** Use when Sheet is inside another dialog (e.g. FullScreenDialog z-index 9999). Pass 10000+ to render above. */
+    containerZIndex?: number;
   }
->(({ className, children, side = "right", style, ...props }, ref) => {
+>(({ className, children, side = "right", style, containerZIndex, ...props }, ref) => {
   // On desktop (md and up), force all sheets to slide from right
   const [isDesktop, setIsDesktop] = React.useState(false);
   const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
@@ -127,11 +129,13 @@ const SheetContent = React.forwardRef<
   } : undefined;
   
   // Create content props without aria-describedby if it's undefined
+  const overlayZIndex = containerZIndex ?? 1000;
+  const baseZIndex = containerZIndex != null ? containerZIndex + 1 : 1001;
   const mergedStyle = desktopStyle ? { ...style, ...desktopStyle } : style;
   const contentProps = {
     ...props,
     ...(ariaDescribedBy && { "aria-describedby": ariaDescribedBy }),
-    style: { zIndex: 1001, ...mergedStyle }
+    style: { zIndex: baseZIndex, ...mergedStyle }
   };
 
   const assignRef = React.useCallback((node: React.ElementRef<typeof SheetPrimitive.Content> | null) => {
@@ -145,7 +149,7 @@ const SheetContent = React.forwardRef<
 
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay style={containerZIndex != null ? { zIndex: overlayZIndex } : undefined} />
       <SheetPrimitive.Content
         ref={assignRef}
         data-slot="sheet-content"

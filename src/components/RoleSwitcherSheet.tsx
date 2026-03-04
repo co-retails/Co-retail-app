@@ -2,10 +2,10 @@ import React from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { UserIcon, TruckIcon, ShoppingBagIcon } from 'lucide-react';
+import { UserIcon, TruckIcon } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
 
-export type UserRole = 'store-staff' | 'partner' | 'buyer';
+export type UserRole = 'store-staff' | 'partner';
 
 interface RoleSwitcherSheetProps {
   isOpen: boolean;
@@ -94,25 +94,6 @@ export default function RoleSwitcherSheet({
               </div>
               <p className="body-small text-left opacity-80 break-words whitespace-normal overflow-wrap-anywhere">
                 Create orders, manage boxes, and handle deliveries
-              </p>
-            </Button>
-
-            <Button
-              variant={currentRole === 'buyer' ? 'default' : 'outline'}
-              onClick={() => handleRoleChange('buyer')}
-              className="flex w-full flex-col items-start gap-2 text-left whitespace-normal break-words justify-start h-auto md:h-auto p-4 md:py-4"
-            >
-              <div className="flex items-center gap-2 w-full">
-                <ShoppingBagIcon size={20} className="flex-shrink-0" />
-                <span className="label-large break-words">Buyer portal</span>
-                {currentRole === 'buyer' && (
-                  <Badge variant="secondary" className="ml-auto flex-shrink-0 body-small">
-                    Active
-                  </Badge>
-                )}
-              </div>
-              <p className="body-small text-left opacity-80 break-words whitespace-normal overflow-wrap-anywhere">
-                Browse products, request quotations, and track shipments
               </p>
             </Button>
           </div>
