@@ -101,7 +101,8 @@ import {
   mockBrands, 
   mockCountries, 
   mockStores, 
-  mockWarehousePartners, 
+  mockWarehousePartners,
+  visibleWarehousePartners, 
   mockWarehouses,
   mockUserAccount,
   mockPartnerStats,
@@ -923,21 +924,55 @@ export default function App() {
       )
     );
 
+    // Also update delivery notes for this order
+    setDeliveryNotes(prev =>
+      prev.map(note =>
+        note.orderId === orderId
+          ? {
+              ...note,
+              storeId: matchedStore.id,
+              storeCode: matchedStore.code,
+              storeName: matchedStore.name,
+            }
+          : note
+      )
+    );
+
     setDetailsScreenData(prev => {
-      if (!prev || prev.type !== 'order') return prev;
-      const prevOrder = prev.data as PartnerOrder;
-      if (prevOrder.id !== orderId) return prev;
-      return {
-        ...prev,
+      if (!prev) return prev;
+      const storeUpdate = {
         storeName: matchedStore.name,
         storeCode: matchedStore.code,
         receiverLabel: matchedStore.name,
-        data: {
-          ...prevOrder,
-          receivingStoreId: matchedStore.id,
-          receivingStoreName: matchedStore.name,
-        },
       };
+      if (prev.type === 'order') {
+        const prevOrder = prev.data as PartnerOrder;
+        if (prevOrder.id !== orderId) return prev;
+        return {
+          ...prev,
+          ...storeUpdate,
+          data: {
+            ...prevOrder,
+            receivingStoreId: matchedStore.id,
+            receivingStoreName: matchedStore.name,
+          },
+        };
+      }
+      if (prev.type === 'shipment') {
+        const shipment = prev.data as DeliveryNote;
+        if (shipment.orderId !== orderId) return prev;
+        return {
+          ...prev,
+          ...storeUpdate,
+          data: {
+            ...shipment,
+            storeId: matchedStore.id,
+            storeCode: matchedStore.code,
+            storeName: matchedStore.name,
+          },
+        };
+      }
+      return prev;
     });
 
     toast.success('Receiver updated');
@@ -1515,6 +1550,18 @@ export default function App() {
     
     // Navigate to appropriate dashboard based on role
     if (role === 'partner') {
+      // When opening partner portal with access to multiple partners, default to Sellpy
+      const sellpyPartner = visibleWarehousePartners.find((p) => p.name === 'Sellpy Operations');
+      if (sellpyPartner && visibleWarehousePartners.length > 1) {
+        const sellpyWarehouse = mockWarehouses.find((w) => w.partnerId === sellpyPartner.id);
+        if (sellpyWarehouse) {
+          setCurrentPartnerWarehouseSelection({
+            partnerId: sellpyPartner.id,
+            warehouseId: sellpyWarehouse.id
+          });
+          setPartnerPortalViewFilter({ mode: 'by-partner', partnerId: sellpyPartner.id });
+        }
+      }
       setCurrentScreenSafe('partner-dashboard');
     } else if (role === 'buyer') {
       setCurrentScreenSafe('buyer-dashboard');
@@ -1822,7 +1869,7 @@ export default function App() {
       stores={mockStores}
       currentPartnerWarehouseSelection={currentPartnerWarehouseSelection}
       onPartnerWarehouseChange={setCurrentPartnerWarehouseSelection}
-      partners={mockWarehousePartners}
+      partners={visibleWarehousePartners}
       warehouses={mockWarehouses}
     >
       {/* Store Staff Screens */}
@@ -2522,7 +2569,7 @@ export default function App() {
           onBack={handleBack} 
           userRole={currentUserRole === 'store-staff' ? 'Store Manager' : 'Store User'}
           currentPartnerWarehouseSelection={currentPartnerWarehouseSelection}
-          partners={mockWarehousePartners}
+          partners={visibleWarehousePartners}
           viewFilter={currentUserRole === 'partner' ? partnerPortalViewFilter : undefined}
           onViewFilterChange={currentUserRole === 'partner' ? setPartnerPortalViewFilter : undefined}
           brands={mockBrands}
@@ -2616,7 +2663,7 @@ export default function App() {
           stores={mockStores}
           currentStoreSelection={currentStoreSelection}
           onStoreSelectionChange={setCurrentStoreSelection}
-          partners={mockWarehousePartners}
+          partners={visibleWarehousePartners}
           warehouses={mockWarehouses}
           currentPartnerWarehouseSelection={currentPartnerWarehouseSelection}
           onPartnerWarehouseSelectionChange={setCurrentPartnerWarehouseSelection}
@@ -2652,7 +2699,7 @@ export default function App() {
             stores={mockStores}
             brands={mockBrands}
             countries={mockCountries}
-            partners={mockWarehousePartners}
+            partners={visibleWarehousePartners}
             partnerId={currentPartnerWarehouseSelection.partnerId}
             currentUserRole={currentUserRole}
           />
@@ -2674,7 +2721,7 @@ export default function App() {
             stores={mockStores}
             brands={mockBrands}
             countries={mockCountries}
-            partners={mockWarehousePartners}
+            partners={visibleWarehousePartners}
             currentUserRole={currentUserRole}
             userBrandIds={mockUserAccount.role.name === 'Brand Admin' ? ['1', '2', '3', '4'] : undefined}
           />
@@ -3386,13 +3433,14 @@ export default function App() {
         // Get receiver brand and warehouse info
         const receivingStoreId = isShipment && deliveryNoteData 
           ? deliveryNoteData.storeId 
-          : (orderData ? (orderData.receivingStoreId || detailsScreenData.storeId) : undefined);
+          : (orderData ? ((orderData as { receivingStoreId?: string }).receivingStoreId || detailsScreenData.storeId) : undefined);
         const receivingStoreCode = isShipment && deliveryNoteData
           ? deliveryNoteData.storeCode || ''
-          : (orderData ? (orderData.receivingStoreId || detailsScreenData.storeCode || '') : '');
+          : (orderData ? (detailsScreenData.storeCode || '') : '');
         const store = receivingStoreId 
           ? mockStores.find(s => s.id === receivingStoreId) 
           : (receivingStoreCode ? mockStores.find(s => s.code === receivingStoreCode) : undefined);
+        const effectiveStoreCode = store?.code ?? receivingStoreCode;
         const receiverBrand = store ? mockBrands.find(b => b.id === store.brandId)?.name : (detailsScreenData.receiverBrand || undefined);
         const warehouseName = isShipment && deliveryNoteData
           ? resolveWarehouseName(deliveryNoteData.warehouseId, deliveryNoteData.warehouseName)
@@ -3581,27 +3629,34 @@ export default function App() {
                 }
                 toast.success('Delivery note saved');
               } else if (orderData) {
-                // Create delivery note with pending status
-                const deliveryNote: DeliveryNoteCreationDeliveryNote = {
+                // Create delivery note with pending status, including boxes and metadata from order
+                const extOrder = orderData as { receivingStoreId?: string; partnerId?: string; partnerName?: string; warehouseId?: string; warehouseName?: string };
+                const orderStore = extOrder.receivingStoreId
+                  ? mockStores.find(s => s.id === extOrder.receivingStoreId)
+                  : (detailsScreenData.storeCode ? mockStores.find(s => s.code === detailsScreenData.storeCode) : undefined);
+                const deliveryNote: DeliveryNote = {
                   id: `DN-${Date.now().toString().slice(-8)}`,
                   orderId: orderData.id,
-                  boxes: [],
+                  boxes: (savedBoxes || []).map(box => ({
+                    ...box,
+                    status: box.status === 'registered' ? 'registered' : 'pending'
+                  })),
                   status: 'pending',
-                  createdDate: new Date().toISOString()
+                  createdDate: new Date().toISOString(),
+                  storeId: orderStore?.id ?? extOrder.receivingStoreId,
+                  storeCode: orderStore?.code ?? detailsScreenData.storeCode,
+                  partnerId: extOrder.partnerId,
+                  partnerName: extOrder.partnerName ?? detailsScreenData.partnerName,
+                  warehouseId: extOrder.warehouseId,
+                  warehouseName: extOrder.warehouseName ?? detailsScreenData.warehouseName
                 };
                 setDeliveryNotes(prev => [...prev, deliveryNote]);
                 toast.success('Delivery note saved');
               }
               
-              // Navigate back - restore tab if from shipping screen
-              if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
-                setShippingInitialTab(detailsScreenData.previousTab);
-                setCurrentScreenSafe('shipping');
-              } else if (currentUserRole === 'partner') {
-                setCurrentScreenSafe('partner-dashboard');
-              } else {
-                setCurrentScreenSafe('shipping');
-              }
+              // Navigate to shipping with Pending & Packing tab so the new delivery is visible
+              setShippingInitialTab('pending-packing');
+              setCurrentScreenSafe('shipping');
             }}
             onOpenBoxDetails={(box) => {
               // Set selected box and navigate to box details
@@ -3619,20 +3674,20 @@ export default function App() {
                     name: store.name,
                     code: store.code
                   }
-                : (isShipment && deliveryNoteData && deliveryNoteData.storeName
+                : (isShipment && deliveryNoteData && (deliveryNoteData as { storeName?: string }).storeName
                     ? {
-                        name: deliveryNoteData.storeName,
-                        code: receivingStoreCode || deliveryNoteData.storeCode || ''
+                        name: (deliveryNoteData as { storeName?: string }).storeName!,
+                        code: deliveryNoteData.storeCode || ''
                       }
-                    : (orderData?.receivingStoreName
+                    : (orderData && (orderData as { receivingStoreName?: string }).receivingStoreName
                         ? {
-                            name: orderData.receivingStoreName,
-                            code: receivingStoreCode
+                            name: (orderData as { receivingStoreName?: string }).receivingStoreName!,
+                            code: effectiveStoreCode
                           }
                         : detailsScreenData.storeName
                           ? {
                               name: detailsScreenData.storeName,
-                              code: receivingStoreCode || detailsScreenData.storeCode || ''
+                              code: effectiveStoreCode || detailsScreenData.storeCode || ''
                             }
                           : undefined))
             }
@@ -3658,6 +3713,11 @@ export default function App() {
             }
             deliveryNoteId={isShipment && deliveryNoteData ? deliveryNoteData.id : undefined}
             existingCreatedDate={isShipment && deliveryNoteData ? deliveryNoteData.createdDate : undefined}
+            onUpdateReceiver={handleUpdateOrderReceiver}
+            countries={mockCountries}
+            stores={mockStores}
+            brands={mockBrands}
+            storeId={receivingStoreId}
             onDeleteUnassignedItem={(itemId) => {
               // Remove item from order items
               toast.success('Item removed');
@@ -4047,7 +4107,7 @@ export default function App() {
               setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
             }}
             brands={mockBrands}
-            partners={mockWarehousePartners}
+            partners={visibleWarehousePartners}
             countries={mockCountries}
             currentUserRole={
               (isAdminExperienceMode && mockUserAccount?.role?.name === 'Admin')
@@ -4084,7 +4144,7 @@ export default function App() {
               setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
             }}
             brands={mockBrands}
-            partners={mockWarehousePartners}
+            partners={visibleWarehousePartners}
             currentUserRole={
               currentUserRole === 'admin' 
                 ? 'Admin' 

@@ -192,6 +192,7 @@ export default function StoreSelector({
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent 
         side={isLargeScreen ? "right" : "bottom"}
+        containerZIndex={10000}
         className={`
           bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
           ${isLargeScreen 

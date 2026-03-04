@@ -2178,7 +2178,8 @@ useEffect(() => {
         />
 
         {role === 'partner' && showOrders && !isChinesePartner && (
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-4 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-surface border-b border-outline-variant">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
             {orderStatusFilterOptions.map(({ id, label }) => {
               const isActive = orderStatusFilter === id;
               // Calculate count for this filter
@@ -2250,7 +2251,7 @@ useEffect(() => {
                 <button
                   key={id}
                   onClick={() => setOrderStatusFilter(id)}
-                  className={`px-3 py-1.5 rounded-[8px] border label-medium transition-colors ${
+                  className={`flex-shrink-0 h-11 flex items-center justify-center px-4 py-2 rounded-lg border label-medium transition-colors whitespace-nowrap ${
                     isActive
                       ? 'bg-primary text-on-primary border-primary'
                       : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
@@ -2260,11 +2261,13 @@ useEffect(() => {
                 </button>
               );
             })}
+            </div>
           </div>
         )}
 
         {role === 'partner' && activeTab === 'in-transit' && (
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-4 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-surface border-b border-outline-variant">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
             {shipmentStatusFilterOptions.map(({ id, label }) => {
               const isActive = shipmentStatusFilter === id;
               // Calculate count for this filter
@@ -2301,7 +2304,7 @@ useEffect(() => {
                 <button
                   key={id}
                   onClick={() => setShipmentStatusFilter(id)}
-                  className={`px-3 py-1.5 rounded-[8px] border label-medium transition-colors ${
+                  className={`flex-shrink-0 h-11 flex items-center justify-center px-4 py-2 rounded-lg border label-medium transition-colors whitespace-nowrap ${
                     isActive
                       ? 'bg-primary text-on-primary border-primary'
                       : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
@@ -2311,11 +2314,13 @@ useEffect(() => {
                 </button>
               );
             })}
+            </div>
           </div>
         )}
 
         {role === 'partner' && activeTab === 'returns' && (
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-4 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-surface border-b border-outline-variant">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
             {returnStatusFilterOptions.map(({ id, label }) => {
               const isActive = returnStatusFilter === id;
               // Calculate count for this filter
@@ -2362,7 +2367,7 @@ useEffect(() => {
                 <button
                   key={id}
                   onClick={() => setReturnStatusFilter(id)}
-                  className={`px-3 py-1.5 rounded-[8px] border label-medium transition-colors ${
+                  className={`flex-shrink-0 h-11 flex items-center justify-center px-4 py-2 rounded-lg border label-medium transition-colors whitespace-nowrap ${
                     isActive
                       ? 'bg-primary text-on-primary border-primary'
                       : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
@@ -2372,6 +2377,7 @@ useEffect(() => {
                 </button>
               );
             })}
+            </div>
           </div>
         )}
 

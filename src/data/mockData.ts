@@ -444,6 +444,9 @@ export const mockWarehousePartners: WarehousePartner[] = [
   { id: '6', name: 'Shenzhen Fashion Manufacturing', code: 'SFM', productType: 'white-label' }
 ];
 
+/** Visible partners in UI - Shenzhen hidden from selection */
+export const visibleWarehousePartners = mockWarehousePartners.filter((p) => p.id !== '6');
+
 export const mockWarehouses: Warehouse[] = [
   { id: '1', name: 'Stockholm Central Warehouse', code: 'SE-WH-001', location: 'Stockholm, Sweden', partnerId: '1' },
   { id: '2', name: 'Thrifted Oslo Distribution', code: 'NO-WH-001', location: 'Oslo, Norway', partnerId: '2' },

@@ -205,7 +205,7 @@ function QuickFilterChips({
         {filters.map((filter) => (
           <button
             key={filter.id}
-            className={`flex-shrink-0 px-4 py-2 rounded-lg border transition-colors ${
+            className={`flex-shrink-0 min-h-[44px] flex items-center px-4 py-2 rounded-lg border transition-colors ${
               activeFilter === filter.id || activeFilter.startsWith(`${filter.id}-`)
                 ? 'bg-secondary-container border-secondary text-on-secondary-container'
                 : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'

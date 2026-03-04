@@ -405,7 +405,11 @@ export default function OrderShipmentDetailsScreen({
   const storeCode = storeCodeProp || receivingStore?.code || returnDelivery?.storeCode || deliveryNoteData?.storeCode;
   const partnerName = partnerNameProp || partnerOrderData?.partnerName || deliveryNoteData?.partnerName || returnDelivery?.partnerName;
   const warehouseName = warehouseNameProp || partnerOrderData?.warehouseName || deliveryNoteData?.warehouseName || returnDelivery?.warehouseName;
-  const currentOrderId = type === 'order' ? (data as PartnerOrder).id : undefined;
+  const currentOrderId = type === 'order'
+    ? (data as PartnerOrder).id
+    : type === 'shipment'
+    ? (data as DeliveryNote).orderId
+    : undefined;
   const currentReceiverSelection = useMemo<StoreSelection | undefined>(() => {
     if (receivingStore) {
       return {
@@ -470,8 +474,20 @@ export default function OrderShipmentDetailsScreen({
   // Check if this is a Thrifted order
   const isThriftedOrder = partnerName === 'Thrifted';
   
-  // Check if Thrifted order is editable (pending status)
+  // Check if Thrifted order is editable (pending status) - for item editing, CSV, etc.
   const isThriftedEditable = isThriftedOrder && isPendingOrder;
+  // Check if receiver can be edited: Thrifted orders (pending or Ready for Packaging) and Thrifted deliveries (Pending, Packing, In transit)
+  const isOrderReceiverEditable =
+    isThriftedOrder &&
+    type === 'order' &&
+    ((data as PartnerOrder).status === 'pending' || (data as PartnerOrder).status === 'registered');
+  const isDeliveryReceiverEditable =
+    isThriftedOrder &&
+    type === 'shipment' &&
+    ((data as DeliveryNote).status === 'pending' ||
+      (data as DeliveryNote).status === 'packing' ||
+      (data as DeliveryNote).status === 'registered');
+  const isReceiverEditable = isOrderReceiverEditable || isDeliveryReceiverEditable;
   
   const [isReceiverSelectorOpen, setIsReceiverSelectorOpen] = useState(false);
 
@@ -727,7 +743,7 @@ export default function OrderShipmentDetailsScreen({
                     </span>
                     <span className="body-small">Receiver</span>
                   </div>
-                  {isThriftedOrder && isThriftedEditable && onUpdateReceiver && (
+                  {isReceiverEditable && onUpdateReceiver && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -735,10 +751,9 @@ export default function OrderShipmentDetailsScreen({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('Edit button clicked, opening StoreSelector');
                         setIsReceiverSelectorOpen(true);
                       }}
-                      disabled={!stores || !brands || !countries || !currentOrderId}
+                      disabled={!stores?.length || !brands?.length || !countries?.length || !currentOrderId}
                     >
                       <PencilIcon size={16} />
                       <span className="label-medium">Edit</span>
@@ -841,7 +856,7 @@ export default function OrderShipmentDetailsScreen({
                   </span>
                   <span className="body-small">Receiver</span>
                 </div>
-                {isThriftedOrder && isThriftedEditable && onUpdateReceiver && (
+                {isReceiverEditable && onUpdateReceiver && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -849,10 +864,9 @@ export default function OrderShipmentDetailsScreen({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Edit button clicked, opening StoreSelector');
                       setIsReceiverSelectorOpen(true);
                     }}
-                    disabled={!stores || !brands || !countries || !currentOrderId}
+                    disabled={!stores?.length || !brands?.length || !countries?.length || !currentOrderId}
                   >
                     <PencilIcon size={16} className="w-4 h-4" />
                     <span className="label-medium">Edit</span>
@@ -2063,7 +2077,7 @@ export default function OrderShipmentDetailsScreen({
         </div>
       )}
 
-      {type === 'order' && isThriftedOrder && isThriftedEditable && onUpdateReceiver && (
+      {(type === 'order' || type === 'shipment') && isReceiverEditable && onUpdateReceiver && (
         <StoreSelector
           isOpen={isReceiverSelectorOpen}
           onClose={() => setIsReceiverSelectorOpen(false)}

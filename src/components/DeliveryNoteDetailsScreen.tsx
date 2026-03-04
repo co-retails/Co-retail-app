@@ -33,8 +33,10 @@ import {
   TruckIcon,
   Store,
   MapPinIcon,
-  Package
+  Package,
+  PencilIcon
 } from 'lucide-react';
+import StoreSelector, { type StoreSelection } from './StoreSelector';
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
 import BoxLabelSideSheet from './BoxLabelSideSheet';
@@ -83,6 +85,11 @@ interface DeliveryNoteDetailsScreenProps {
   initialBoxes?: Box[]; // For editing existing delivery notes
   deliveryNoteId?: string; // For updating existing delivery notes
   existingCreatedDate?: string; // For preserving createdDate when updating
+  onUpdateReceiver?: (orderId: string, selection: StoreSelection) => void;
+  countries?: Array<{ id: string; name: string; brandId: string }>;
+  stores?: Array<{ id: string; name: string; code: string; countryId: string; brandId: string }>;
+  brands?: Array<{ id: string; name: string }>;
+  storeId?: string; // Current receiver store ID for StoreSelector
 }
 
 type DialogMode = 'box-label' | 'add-items' | 'scan-item' | null;
@@ -103,9 +110,15 @@ export default function DeliveryNoteDetailsScreen({
   initialBoxes,
   deliveryNoteId,
   existingCreatedDate,
-  onRegisterDelivery
-}: DeliveryNoteCreationScreenProps) {
+  onRegisterDelivery,
+  onUpdateReceiver,
+  countries = [],
+  stores = [],
+  brands = [],
+  storeId
+}: DeliveryNoteDetailsScreenProps) {
   const [boxes, setBoxes] = useState<Box[]>(initialBoxes || []);
+  const [isReceiverSelectorOpen, setIsReceiverSelectorOpen] = useState(false);
 
   // Update boxes when initialBoxes changes (e.g., when navigating back from box details)
   React.useEffect(() => {
@@ -512,11 +525,28 @@ export default function DeliveryNoteDetailsScreen({
                       {/* Receiver */}
                       {(receivingStore || receiverBrand) && (
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-on-surface-variant">
-                            <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
-                              <MapPinIcon size={16} />
-                            </span>
-                            <span className="body-small">Receiver</span>
+                          <div className="flex items-center justify-between text-on-surface-variant">
+                            <div className="flex items-center gap-2">
+                              <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+                                <MapPinIcon size={16} />
+                              </span>
+                              <span className="body-small">Receiver</span>
+                            </div>
+                            {onUpdateReceiver && stores?.length && brands?.length && countries?.length && orderId && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 border-primary text-primary hover:bg-primary/10 active:bg-primary/20 font-medium shadow-sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setIsReceiverSelectorOpen(true);
+                                }}
+                              >
+                                <PencilIcon size={16} />
+                                <span className="label-medium">Edit</span>
+                              </Button>
+                            )}
                           </div>
                           <div className="body-medium text-on-surface">
                             {receivingStore?.name || receiverBrand || '—'}
@@ -978,6 +1008,31 @@ export default function DeliveryNoteDetailsScreen({
         primaryActionLabel="Save label"
         showBackButton={false}
       />
+
+      {onUpdateReceiver && (
+        <StoreSelector
+          isOpen={isReceiverSelectorOpen}
+          onClose={() => setIsReceiverSelectorOpen(false)}
+          onConfirm={(selection) => {
+            onUpdateReceiver(orderId, selection);
+            setIsReceiverSelectorOpen(false);
+          }}
+          brands={brands}
+          countries={countries}
+          stores={stores}
+          currentSelection={storeId && stores?.length
+            ? (() => {
+                const store = stores.find(s => s.id === storeId);
+                return store ? { brandId: store.brandId, countryId: store.countryId, storeId: store.id, storeCode: store.code } : undefined;
+              })()
+            : (receivingStore?.code && stores?.length
+                ? (() => {
+                    const store = stores.find(s => s.code === receivingStore.code);
+                    return store ? { brandId: store.brandId, countryId: store.countryId, storeId: store.id, storeCode: store.code } : undefined;
+                  })()
+                : undefined)}
+        />
+      )}
     </div>
   );
 }
