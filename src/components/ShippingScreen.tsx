@@ -24,9 +24,9 @@ type ShippingPartnerOrder = ExtendedPartnerOrder & {
   salesMargin?: number;
 };
 
-type DeliveryNoteStatus = DeliveryNote['status'] | 'pending';
+type DeliveryNoteStatus = DeliveryNote['status'];
 type ShippingTab = 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'pending-registered';
-type OrderStatusFilter = 'approval' | 'pending' | 'registered' | 'in-transit' | 'all';
+type OrderStatusFilter = 'approval' | 'pending' | 'draft' | 'registered' | 'in-transit' | 'all';
 type ShipmentStatusFilter = 'packing' | 'in-transit' | 'delivered' | 'all';
 type ReturnStatusFilter = 'in-transit' | 'returned' | 'all';
 type ShippingUserRole = UserRole | 'admin' | 'store-manager' | 'buyer';
@@ -48,7 +48,7 @@ export interface SellpyOrder {
 export interface Delivery {
   id: string;
   date: string;
-  status: 'Pending' | 'Packing' | 'In transit' | 'Delivered' | 'Partially Delivered' | 'Cancelled' | 'Rejected';
+  status: 'Draft' | 'Packing' | 'In transit' | 'Delivered' | 'Partially Delivered' | 'Cancelled' | 'Rejected';
   deliveryId: string;
   orders: number;
   items: number;
@@ -95,7 +95,7 @@ interface ShippingScreenProps {
   onNavigateToScan?: () => void;
   onNavigateToSellers?: () => void;
   onScanBox?: () => void;
-  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered' | 'pending-packing' | 'approval' | 'returns-returned' | 'returns-in-transit' | 'pending-pending' | 'in-transit-filter';
+  initialTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered' | 'pending-packing' | 'approval' | 'returns-returned' | 'returns-in-transit' | 'pending-pending' | 'pending-draft' | 'in-transit-filter';
   currentUserRole?: ShippingUserRole;
   partnerOrders?: ShippingPartnerOrder[];
   deliveryNotes?: DeliveryNote[];
@@ -129,8 +129,8 @@ interface ShippingScreenProps {
 
 const getDeliveryNoteStatusDisplay = (status: DeliveryNoteStatus) => {
   switch (status) {
-    case 'pending':
-      return 'Pending';
+    case 'draft':
+      return 'Draft';
     case 'packing':
       return 'Packing';
     case 'registered':
@@ -150,8 +150,8 @@ const getDeliveryNoteStatusDisplay = (status: DeliveryNoteStatus) => {
 
 const getDeliveryNoteStatusBadgeColor = (status: DeliveryNoteStatus) => {
   switch (status) {
-    case 'pending':
-      return 'bg-warning-container text-on-warning-container';
+    case 'draft':
+      return 'bg-surface-container-high text-on-surface-variant';
     case 'packing':
     case 'registered':
       return 'bg-primary-container text-on-primary-container';
@@ -378,7 +378,7 @@ function PartnerDeliveryNoteItem({
     warehouses
   );
 
-  const hasActions = isAdmin && deliveryStatus === 'pending' && onDelete;
+  const hasActions = isAdmin && (deliveryStatus === 'draft' || deliveryStatus === 'packing') && onDelete;
   
   return (
     <div 
@@ -874,7 +874,7 @@ function PartnerOrderItem({
                     <span className="label-large">Create delivery note</span>
                   </DropdownMenuItem>
                 )}
-                {isAdmin && order.status === 'pending' && onDelete && (
+                {isAdmin && (order.status === 'pending' || order.status === 'draft') && onDelete && (
                   <DropdownMenuItem
                     onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                       e.stopPropagation();
@@ -1161,7 +1161,8 @@ export default function ShippingScreen({
         case 'pending':
         case 'pending-registered': // Special case: Orders tab with registered filter
         case 'approval': // Special case: Orders tab with approval filter
-        case 'pending-pending': // Special case: Orders tab with pending filter
+        case 'pending-pending': // Special case: Orders tab with pending filter (Sellpy)
+        case 'pending-draft': // Special case: Orders tab with draft filter (Thrifted)
           return 'pending';
         case 'returns':
         case 'returns-returned':
@@ -1205,12 +1206,12 @@ type ReturnSortField = 'date' | 'id' | 'senderReceiver' | 'items' | 'status';
   const [loadedItemsCount, setLoadedItemsCount] = useState(50);
   const ITEMS_PER_PAGE = 50;
   
-  // Filter out Approval option for Thrifted partner
+  // Thrifted: Draft only (no Pending). Sellpy: Pending only (no Draft).
   const isThriftedPartnerForFilter = currentPartnerId === '2'; // Thrifted
   const orderStatusFilterOptions: Array<{ id: OrderStatusFilter; label: string }> = isThriftedPartnerForFilter
     ? [
         { id: 'all' as OrderStatusFilter, label: 'All' },
-        { id: 'pending' as OrderStatusFilter, label: 'Pending' },
+        { id: 'draft' as OrderStatusFilter, label: 'Draft' },
         { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
         { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
       ]
@@ -1223,7 +1224,7 @@ type ReturnSortField = 'date' | 'id' | 'senderReceiver' | 'items' | 'status';
       ];
   const shipmentStatusFilterOptions: Array<{ id: ShipmentStatusFilter; label: string }> = [
     { id: 'all', label: 'All' },
-    { id: 'packing', label: 'Pending & Packing' },
+    { id: 'packing', label: 'Draft & Packing' },
     { id: 'in-transit', label: 'In transit' },
     { id: 'delivered', label: 'Delivered' }
   ];
@@ -1283,8 +1284,11 @@ useEffect(() => {
       // 'pending' without specific filter encoding means 'all' filter
       // Don't override - keep as 'all' (already set above)
       break;
-    case 'pending-pending': // Special case: Orders tab with pending filter
+    case 'pending-pending': // Special case: Orders tab with pending filter (Sellpy)
       setOrderStatusFilter('pending');
+      break;
+    case 'pending-draft': // Special case: Orders tab with draft filter (Thrifted)
+      setOrderStatusFilter('draft');
       break;
     case 'pending-registered': // Special case: Orders tab with registered filter
       setOrderStatusFilter('registered');
@@ -1587,7 +1591,7 @@ useEffect(() => {
   const filteredDeliveries = deliveries.filter(delivery => {
     // For store staff: exclude pending deliveries - only show in-transit and delivered/cancelled
     if ((role === 'store-staff' || role === 'admin' || role === 'store-manager') && 
-        (delivery.status === 'Pending' || delivery.status === 'Packing')) {
+        (delivery.status === 'Draft' || delivery.status === 'Packing')) {
       return false;
     }
     
@@ -1687,13 +1691,15 @@ useEffect(() => {
           return order.status === 'approval';
         case 'pending':
           return order.status === 'pending';
+        case 'draft':
+          return order.status === 'draft';
         case 'registered':
           return order.status === 'registered';
         case 'in-transit':
           return order.status === 'in-transit';
         case 'all':
         default:
-          return ['approval', 'pending', 'registered', 'in-transit', 'in-review', 'delivered'].includes(order.status);
+          return ['approval', 'pending', 'draft', 'registered', 'in-transit', 'in-review', 'delivered'].includes(order.status);
       }
     })();
     
@@ -1955,29 +1961,29 @@ useEffect(() => {
         return false;
       }
 
-      const matchesStatusFilter = (() => {
-        switch (shipmentStatusFilter) {
-          case 'packing':
-            return noteStatus === 'pending' || noteStatus === 'packing';
+                  const matchesStatusFilter = (() => {
+                    switch (shipmentStatusFilter) {
+                      case 'packing':
+                        return noteStatus === 'draft' || noteStatus === 'packing';
           case 'in-transit':
             return noteStatus === 'registered';
           case 'delivered':
             return noteStatus === 'delivered' || noteStatus === 'rejected' || noteStatus === 'partially-delivered' || noteStatus === 'cancelled';
           case 'all':
           default:
-            return ['pending', 'packing', 'registered', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
+            return ['draft', 'packing', 'registered', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
         }
       })();
 
       return matchesSearch && matchesStatusFilter;
     }
     
-    // For store staff: exclude pending delivery notes - only show in-transit (registered) and delivered/rejected
-    if ((role === 'store-staff' || role === 'admin' || role === 'store-manager') && (noteStatus === 'pending' || noteStatus === 'packing')) {
+    // For store staff: exclude draft/pending delivery notes - only show in-transit (registered) and delivered/rejected
+    if ((role === 'store-staff' || role === 'admin' || role === 'store-manager') && (noteStatus === 'draft' || noteStatus === 'packing')) {
       return false;
     }
     
-    const matchesTab = (activeTab === 'pending' && noteStatus === 'pending') ||
+    const matchesTab = (activeTab === 'pending' && (noteStatus === 'draft' || noteStatus === 'packing')) ||
       (activeTab === 'in-transit' && noteStatus === 'registered') ||
       (activeTab === 'all' && (noteStatus === 'delivered' || noteStatus === 'rejected'));
     
@@ -2236,13 +2242,15 @@ useEffect(() => {
                       return order.status === 'approval';
                     case 'pending':
                       return order.status === 'pending';
+                    case 'draft':
+                      return order.status === 'draft';
                     case 'registered':
                       return order.status === 'registered';
                     case 'in-transit':
                       return order.status === 'in-transit';
                     case 'all':
                     default:
-                      return ['approval', 'pending', 'registered', 'in-transit', 'in-review', 'delivered'].includes(order.status);
+                      return ['approval', 'pending', 'draft', 'registered', 'in-transit', 'in-review', 'delivered'].includes(order.status);
                   }
                 }).length;
               })();
@@ -2285,17 +2293,17 @@ useEffect(() => {
                     return false;
                   }
                   
-                  const noteStatus = note.status || 'pending';
+                  const noteStatus = note.status || 'draft';
                   switch (id) {
                     case 'packing':
-                      return noteStatus === 'pending' || noteStatus === 'packing';
+                      return noteStatus === 'draft' || noteStatus === 'packing';
                     case 'in-transit':
                       return noteStatus === 'registered';
                     case 'delivered':
                       return noteStatus === 'delivered' || noteStatus === 'rejected' || noteStatus === 'partially-delivered' || noteStatus === 'cancelled';
                     case 'all':
                     default:
-                      return ['pending', 'packing', 'registered', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
+                      return ['draft', 'packing', 'registered', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
                   }
                 }).length;
               })();
@@ -2965,7 +2973,7 @@ useEffect(() => {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {isAdmin && noteStatus === 'pending' && onDeleteDeliveryNote ? (
+                              {isAdmin && (noteStatus === 'draft' || noteStatus === 'packing') && onDeleteDeliveryNote ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button 
@@ -3218,7 +3226,7 @@ useEffect(() => {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {(isAdmin && order.status === 'pending' && onDeletePartnerOrder) || (order.status === 'registered' && onCreateDeliveryNoteForOrder) ? (
+                              {(isAdmin && (order.status === 'pending' || order.status === 'draft') && onDeletePartnerOrder) || (order.status === 'registered' && onCreateDeliveryNoteForOrder) ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button 
@@ -3241,7 +3249,7 @@ useEffect(() => {
                                         <span className="label-large">Create delivery note</span>
                                       </DropdownMenuItem>
                                     )}
-                                    {isAdmin && order.status === 'pending' && onDeletePartnerOrder && (
+                                    {isAdmin && (order.status === 'pending' || order.status === 'draft') && onDeletePartnerOrder && (
                                       <DropdownMenuItem
                                         onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                                           e.stopPropagation();

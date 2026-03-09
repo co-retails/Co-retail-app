@@ -22,7 +22,7 @@ export const mockDeliveries: Delivery[] = [
   {
     id: '1',
     date: '2024-12-09',
-    status: 'Pending',
+    status: 'Draft',
     deliveryId: '122345678-3r890fhor8r4wrjf',
     orders: 1,
     items: 150,
@@ -458,6 +458,7 @@ export const mockWarehouses: Warehouse[] = [
 
 export const mockPartnerStats: PartnerStats = {
   pendingOrders: 8,
+  draftOrders: 2,
   registeredOrders: 12,
   inTransitDeliveries: 5,
   totalItemsThisMonth: 1247,
@@ -2363,7 +2364,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
     orderId: 'SEL-ORD-2024-101',
     externalOrderId: 'SLPY-EXT-ORD-2024-101',
     boxes: [],
-    status: 'pending',
+    status: 'draft',
     createdDate: '2024-12-11',
     partnerId: '1',
     partnerName: 'Sellpy',
@@ -2414,7 +2415,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
         createdDate: '2024-12-11'
       }
     ],
-    status: 'pending',
+    status: 'packing',
     createdDate: '2024-12-11',
     partnerId: '1',
     partnerName: 'Sellpy',
@@ -2566,10 +2567,10 @@ export const mockDeliveryNotes: DeliveryNote[] = [
 
 // Partner Orders mock data (for Sellpy and Thrifted partners)
 export const mockPartnerOrders: ExtendedPartnerOrder[] = [
-  // Thrifted orders
+  // Thrifted orders (Draft replaces Pending; Sellpy only has Pending)
   {
     id: 'THR-ORD-2024-001',
-    status: 'pending',
+    status: 'draft',
     createdDate: '2024-12-11',
     itemCount: 32,
     boxCount: 0,
@@ -2596,7 +2597,7 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
   },
   {
     id: 'THR-ORD-2024-003',
-    status: 'pending',
+    status: 'draft',
     createdDate: '2024-12-09',
     itemCount: 24,
     boxCount: 0,

@@ -23,7 +23,7 @@ export interface ShippingReportScreenProps {
   userBrandIds?: string[]; // For Brand Admin filtering
 }
 
-type DeliveryStatus = 'Pending' | 'Packing' | 'In Transit' | 'Partly Delivered' | 'Delivered' | 'Cancelled' | 'Rejected';
+type DeliveryStatus = 'Draft' | 'Packing' | 'In Transit' | 'Partly Delivered' | 'Delivered' | 'Cancelled' | 'Rejected';
 
 interface DeliveryMetrics {
   totalDeliveries: number;
@@ -146,14 +146,14 @@ export default function ShippingReportScreen({
   // Helper: Map delivery note status to report status
   const mapDeliveryStatus = (status: DeliveryNote['status']): DeliveryStatus => {
     switch (status) {
-      case 'pending': return 'Pending';
+      case 'draft': return 'Draft';
       case 'packing': return 'Packing';
       case 'registered': return 'In Transit';
       case 'delivered': return 'Delivered';
       case 'partially-delivered': return 'Partly Delivered';
       case 'cancelled': return 'Cancelled';
       case 'rejected': return 'Rejected';
-      default: return 'Pending';
+      default: return 'Draft';
     }
   };
 
@@ -182,9 +182,9 @@ export default function ShippingReportScreen({
 
   // Filter delivery notes based on all filters
   const filteredDeliveryNotes = useMemo(() => {
-    // Exclude pending and packing deliveries
+    // Exclude draft and packing deliveries
     let filtered = deliveryNotes.filter(note => 
-      note.status !== 'pending' && note.status !== 'packing'
+      note.status !== 'draft' && note.status !== 'packing'
     );
 
     // Brand filter (via store)
@@ -557,6 +557,8 @@ export default function ShippingReportScreen({
 
   const getStatusColor = (status: DeliveryStatus) => {
     switch (status) {
+      case 'Draft': return 'bg-surface-container-high text-on-surface-variant';
+      case 'Packing': return 'bg-primary-container text-on-primary-container';
       case 'Delivered': return 'bg-tertiary-container text-on-tertiary-container';
       case 'In Transit': return 'bg-primary-container text-on-primary-container';
       case 'Partly Delivered': return 'bg-secondary-container text-on-secondary-container';

@@ -99,7 +99,7 @@ export function useAppState() {
   // Navigation state
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
-  const [shippingInitialTab, setShippingInitialTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'pending-packing' | 'returns-returned' | 'returns-in-transit' | 'approval' | 'pending-registered' | 'pending-pending' | 'in-transit-filter' | undefined>(undefined);
+  const [shippingInitialTab, setShippingInitialTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'pending-packing' | 'returns-returned' | 'returns-in-transit' | 'approval' | 'pending-registered' | 'pending-pending' | 'pending-draft' | 'in-transit-filter' | undefined>(undefined);
   const [receivePreviousScreen, setReceivePreviousScreen] = useState<Screen | null>(null);
   const [returnManagementPreviousScreen, setReturnManagementPreviousScreen] = useState<Screen | null>(null);
   const [returnManagementPreviousTab, setReturnManagementPreviousTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined>(undefined);
