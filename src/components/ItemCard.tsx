@@ -35,7 +35,7 @@ export interface BaseItem {
   daysRemaining?: number;
   selected?: boolean;
   statusHistory?: StatusHistoryEntry[];
-  rejectReason?: 'Broken on arrival' | 'Not accepted brand' | 'Not in season';
+  rejectReason?: 'Rejected - Broken on arrival' | 'Rejected - Dirty' | 'Rejected - Not accepted brand' | 'Rejected - Not accepted material' | 'Rejected - Not in season' | 'Rejected - Wrong store';
   lastInStoreAt?: string;
   location?: 'Warehouse' | 'In transit' | 'Shopfloor' | 'Back of House' | 'Partner';
   // Order-specific fields
