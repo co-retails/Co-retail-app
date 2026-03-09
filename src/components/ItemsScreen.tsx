@@ -1090,6 +1090,36 @@ export const initialItems: Item[] = [
       { status: 'Available', timestamp: '2024-12-01 10:00', user: 'Anna S.' }
     ]
   },
+  // Weekday Drottninggatan - item that can be rejected (Available, within 24h of lastInStoreAt)
+  {
+    id: 'itm-1013b',
+    itemId: '684729b',
+    title: 'Striped Cotton Blouse',
+    brand: 'Weekday',
+    category: 'Tops',
+    size: 'S',
+    color: 'Navy',
+    price: 18,
+    status: 'Available',
+    date: new Date().toISOString().slice(0, 10),
+    deliveryId: 'DEL-0931',
+    boxLabel: 'BOX-234568',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1564257631407-2f7691c9d78d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+    selected: false,
+    location: 'Shopfloor',
+    lastInStoreAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    daysRemaining: 42,
+    statusHistory: (() => {
+      const availTs = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const transitTs = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      return [
+        { status: 'In transit', timestamp: transitTs.toISOString().slice(0, 16).replace('T', ' '), user: 'System' },
+        { status: 'Available', timestamp: availTs.toISOString().slice(0, 16).replace('T', ' '), user: 'Anna S.' }
+      ];
+    })()
+  },
   {
     id: 'itm-1014',
     itemId: '684729',

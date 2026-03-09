@@ -64,17 +64,52 @@ interface ItemDetailsDialogProps {
 
 type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'location' | null;
 
-const AVAILABLE_STATUSES = [
-  'Draft',
-  'In transit',
-  'Available',
-  'Storage',
-  'Sold',
-  'Returned',
-  'Missing',
-  'Broken',
-  'Rejected'
-];
+// Helper to check if item can be rejected
+const canRejectItem = (item: ItemDetails, history: StatusHistoryEntry[]): boolean => {
+  const status = item.status?.toLowerCase();
+  if (!status || (status !== 'available' && status !== 'in store')) return false;
+  
+  // Find last in-store timestamp
+  let timestamp: number | undefined;
+  if (item.lastInStoreAt) {
+    const parsed = Date.parse(item.lastInStoreAt);
+    if (!Number.isNaN(parsed)) timestamp = parsed;
+  }
+  
+  if (timestamp === undefined && history && history.length) {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const entry = history[i];
+      if (entry && (entry.status?.toLowerCase() === 'in store' || entry.status?.toLowerCase() === 'available')) {
+        const normalizeTimestamp = (value: string) => {
+          if (value.includes('T')) return value;
+          const sanitized = value.replace(' ', 'T');
+          return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(sanitized) ? `${sanitized}:00` : sanitized;
+        };
+        const parsed = entry.timestamp ? Date.parse(normalizeTimestamp(entry.timestamp)) : NaN;
+        if (!Number.isNaN(parsed)) {
+          timestamp = parsed;
+          break;
+        }
+      }
+    }
+  }
+  
+  if (timestamp === undefined) return false;
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+  return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
+};
+
+// Statuses shown in item details dropdown. Rejected only when item is Available and within 24h.
+// Draft, In transit, Returned, Storage are hidden from store item details.
+const getAvailableStatuses = (item: ItemDetails, history: StatusHistoryEntry[]): string[] => {
+  const base = ['Available', 'Sold', 'Missing', 'Broken'];
+  const withRejected = canRejectItem(item, history) ? [...base, 'Rejected'] : base;
+  const current = item.status;
+  if (current && !withRejected.includes(current)) {
+    return [current, ...withRejected];
+  }
+  return withRejected;
+};
 
 const AVAILABLE_BRANDS = [
   'H&M',
@@ -696,7 +731,7 @@ export default function ItemDetailsDialog({
                 value={item.status}
                 icon={RefreshCw}
                 type="select"
-                options={AVAILABLE_STATUSES}
+                options={getAvailableStatuses(item, statusHistory)}
               />
 
               {/* Price */}
