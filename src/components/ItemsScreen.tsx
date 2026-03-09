@@ -36,6 +36,7 @@ import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet'
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { ItemCard, BaseItem, ItemQuickAction } from './ItemCard';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
+import RejectedReasonBottomSheet, { RejectedReason } from './RejectedReasonBottomSheet';
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
 import { UserRole } from './ItemCard';
 import { toast } from 'sonner';
@@ -64,7 +65,7 @@ export interface Item extends BaseItem {
   orderType?: 'order' | 'return';
   selected: boolean;
   statusHistory?: StatusHistoryEntry[];
-  rejectReason?: 'Broken on arrival' | 'Not accepted brand' | 'Not in season';
+  rejectReason?: 'Rejected - Broken on arrival' | 'Rejected - Dirty' | 'Rejected - Not accepted brand' | 'Rejected - Not accepted material' | 'Rejected - Not in season' | 'Rejected - Wrong store';
   lastInStoreAt?: string;
   location?: 'Warehouse' | 'In transit' | 'Store';
   isExpired?: boolean;
@@ -962,10 +963,10 @@ export const initialItems: Item[] = [
     selected: false,
     location: 'Shopfloor',
     daysRemaining: 0,
-    rejectReason: 'Broken on arrival',
+    rejectReason: 'Rejected - Broken on arrival',
     statusHistory: [
       { status: 'Available', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), user: 'John D.' },
-      { status: 'Rejected', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), user: 'John D.', note: 'Broken on arrival' }
+      { status: 'Rejected', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), user: 'John D.', note: 'Rejected - Broken on arrival' }
     ]
   },
   {
@@ -2182,13 +2183,10 @@ export default function ItemsScreen({
   const [batchStatusNote, setBatchStatusNote] = useState('');
   const [showStatusUpdateDialog, setShowStatusUpdateDialog] = useState(false);
   const [itemToUpdateStatus, setItemToUpdateStatus] = useState<Item | null>(null);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showRejectSheet, setShowRejectSheet] = useState(false);
   const [itemToReject, setItemToReject] = useState<Item | null>(null);
   const [showUnflagExpiredSheet, setShowUnflagExpiredSheet] = useState(false);
   const [itemToUnflagExpired, setItemToUnflagExpired] = useState<Item | null>(null);
-  const rejectReasons = ['Broken on arrival', 'Not accepted brand', 'Not in season'] as const;
-  type RejectReason = typeof rejectReasons[number];
-  const [rejectReason, setRejectReason] = useState<RejectReason>(rejectReasons[0]);
   const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
   const formatTimestamp = (date: Date | string = new Date()) => {
@@ -2679,8 +2677,7 @@ export default function ItemsScreen({
           return;
         }
         setItemToReject(fullItem);
-        setRejectReason(rejectReasons[0]);
-        setShowRejectDialog(true);
+        setShowRejectSheet(true);
         return;
       case 'mark-return-transit':
         newStatus = 'In transit';
@@ -2726,42 +2723,20 @@ export default function ItemsScreen({
     }
   };
 
-  const handleRejectDialogClose = () => {
-    setShowRejectDialog(false);
+  const handleRejectSheetClose = () => {
+    setShowRejectSheet(false);
     setItemToReject(null);
-    setRejectReason(rejectReasons[0]);
   };
 
-  const handleConfirmReject = () => {
+  const handleConfirmReject = (reason: RejectedReason) => {
     if (!itemToReject) return;
-    const now = new Date();
-    const isoTimestamp = now.toISOString();
-    const formatted = formatTimestamp(now);
-    setItems(prev =>
-      prev.map(item =>
-        item.id === itemToReject.id
-          ? {
-              ...item,
-              status: 'Rejected',
-              rejectReason,
-              location: 'Back of House',
-              selected: false,
-              date: item.date || isoTimestamp.slice(0, 10),
-              statusHistory: [
-                ...(item.statusHistory || []),
-                {
-                  status: 'Rejected',
-                  timestamp: formatted,
-                  user: 'Current User',
-                  note: rejectReason
-                }
-              ]
-            }
-          : item
-      )
-    );
-    toast.info(`Item ${itemToReject.itemId} marked as rejected (${rejectReason})`);
-    handleRejectDialogClose();
+    handleSaveItemDetails(itemToReject.id, {
+      status: 'Rejected',
+      rejectReason: reason,
+      location: 'Back of House'
+    });
+    toast.info(`Item ${itemToReject.itemId} marked as rejected (${reason})`);
+    handleRejectSheetClose();
   };
 
 
@@ -2856,7 +2831,8 @@ export default function ItemsScreen({
           const newHistoryEntry: StatusHistoryEntry = {
             status: updates.status,
             timestamp: formatTimestamp(),
-            user: 'Current User'
+            user: 'Current User',
+            ...(updates.status === 'Rejected' && updates.rejectReason && { note: updates.rejectReason })
           };
           
           updatedItem.statusHistory = [
@@ -3238,6 +3214,10 @@ export default function ItemsScreen({
         priceCurrency={partnerPriceOptions.length ? 'SEK' : undefined}
         expireTimeWeeks={expireTimeWeeks}
         userRole={userRole}
+        onRequestRejectReason={(item) => {
+          setItemToReject(items.find(i => i.id === item.id) ?? (item as Item));
+          setShowRejectSheet(true);
+        }}
       />
 
       {/* Status Update Dialog */}
@@ -3254,52 +3234,13 @@ export default function ItemsScreen({
         userRole={userRole}
       />
 
-      <Dialog open={showRejectDialog} onOpenChange={(open: boolean) => {
-        if (!open) {
-          handleRejectDialogClose();
-        }
-      }}>
-        <DialogContent className="bg-surface border border-outline-variant rounded-xl max-w-[calc(100%-2rem)] sm:max-w-md mx-auto">
-          <DialogHeader>
-            <DialogTitle className="title-large text-on-surface">
-              Reject item
-            </DialogTitle>
-            <DialogDescription className="body-medium text-on-surface-variant">
-              Select a reason to reject {itemToReject?.itemId || 'the item'}. Rejections are only allowed within 24 hours of receiving it in store.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 mt-4">
-            {rejectReasons.map((reason) => (
-              <label key={reason} className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="reject-reason"
-                  value={reason}
-                  checked={rejectReason === reason}
-                  onChange={() => setRejectReason(reason)}
-                  className="accent-primary h-4 w-4"
-                />
-                <span className="body-medium text-on-surface">{reason}</span>
-              </label>
-            ))}
-          </div>
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={handleRejectDialogClose}
-              className="w-full sm:w-auto sm:min-w-[120px]"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmReject}
-              className="w-full sm:w-auto sm:min-w-[140px] bg-error text-on-error hover:bg-error/90 focus:bg-error/90 active:bg-error/80"
-            >
-              Confirm rejection
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Rejected Reason Bottom Sheet */}
+      <RejectedReasonBottomSheet
+        isOpen={showRejectSheet}
+        onClose={handleRejectSheetClose}
+        onConfirm={handleConfirmReject}
+        itemId={itemToReject?.itemId}
+      />
 
       {/* Unflag Expired Sheet */}
       <UnflagExpiredSheet

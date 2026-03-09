@@ -103,7 +103,7 @@ export default function RejectedReasonBottomSheet({
           <Button
             size="lg"
             onClick={handleConfirm}
-            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 rounded-lg min-h-[48px] label-large touch-manipulation"
+            className="flex-1 bg-error text-on-error hover:bg-error/90 rounded-lg min-h-[48px] label-large touch-manipulation"
           >
             Confirm rejection
           </Button>
