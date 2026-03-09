@@ -37,7 +37,7 @@ export interface DeliveryNote {
   orderId: string;
   externalOrderId?: string;
   boxes: Box[];
-  status: 'pending' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
+  status: 'draft' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
   createdDate: string;
   shipmentDate?: string;
   partnerId?: string;

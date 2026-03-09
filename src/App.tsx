@@ -35,6 +35,8 @@ import OrderShipmentDetailsScreen, { DetailType } from './components/OrderShipme
 import type { StoreSelection } from './components/StoreSelector';
 import DeliveryNoteBoxDetailsScreen from './components/DeliveryNoteBoxDetailsScreen';
 import { FullScreenDialog, FullScreenDialogContent } from './components/ui/full-screen-dialog';
+import { Sheet, SheetContent } from './components/ui/sheet';
+import { useIsMobile } from './components/ui/use-mobile';
 import BoxLabelSideSheet from './components/BoxLabelSideSheet';
 import ShippingLabelScreen from './components/ShippingLabelScreen';
 
@@ -259,6 +261,8 @@ export default function App() {
     selectedQuotation,
     setSelectedQuotation
   } = state;
+
+  const isMobile = useIsMobile();
 
   // Sync partner portal filter with partner selection
   useEffect(() => {
@@ -1055,8 +1059,8 @@ export default function App() {
         createdDate: new Date().toISOString()
       };
       
-      // Status flow: Pending -> Packing (when a box has been added)
-      const newStatus = deliveryNote.status === 'pending' ? 'packing' : deliveryNote.status;
+      // Status flow: Draft -> Pending (when first box added), Pending -> Packing (when box has been added)
+      const newStatus = deliveryNote.status === 'draft' ? 'packing' : deliveryNote.status;
       
       setDeliveryNotes(prev => prev.map(note =>
         note.id === deliveryNoteId
@@ -1088,14 +1092,14 @@ export default function App() {
       if (!deliveryNote && detailsScreenData?.type === 'order' && currentScreen === 'delivery-note-creation') {
         const orderData = detailsScreenData.data as PartnerOrder;
         // Find or create delivery note
-        deliveryNote = deliveryNotes.find(note => note.orderId === orderData.id && note.status === 'pending');
+        deliveryNote = deliveryNotes.find(note => note.orderId === orderData.id && (note.status === 'draft' || note.status === 'packing'));
         if (!deliveryNote) {
           // Create new delivery note
           const newDeliveryNote: DeliveryNote = {
             id: `DN-${Date.now().toString().slice(-8)}`,
             orderId: orderData.id,
             boxes: [],
-            status: 'pending',
+            status: 'draft',
             createdDate: new Date().toISOString()
           };
           setDeliveryNotes(prev => [...prev, newDeliveryNote]);
@@ -1191,7 +1195,7 @@ export default function App() {
         id: `temp-dn-${Date.now()}`,
         orderId: orderData.id,
         boxes: [box],
-        status: 'pending',
+        status: 'packing',
         createdDate: new Date().toISOString()
       };
       // Don't add to deliveryNotes yet - it will be added when saved
@@ -1315,14 +1319,14 @@ export default function App() {
       if (!deliveryNote && detailsScreenData?.type === 'order' && currentScreen === 'delivery-note-creation') {
         const orderData = detailsScreenData.data as PartnerOrder;
         // Find or create delivery note
-        deliveryNote = deliveryNotes.find(note => note.orderId === orderData.id && note.status === 'pending');
+        deliveryNote = deliveryNotes.find(note => note.orderId === orderData.id && (note.status === 'draft' || note.status === 'packing'));
         if (!deliveryNote) {
           // Create new delivery note
           const newDeliveryNote: DeliveryNote = {
             id: `DN-${Date.now().toString().slice(-8)}`,
             orderId: orderData.id,
             boxes: [],
-            status: 'pending',
+            status: 'draft',
             createdDate: new Date().toISOString()
           };
           setDeliveryNotes(prev => [...prev, newDeliveryNote]);
@@ -1374,7 +1378,7 @@ export default function App() {
           } else if (detailsScreenData?.type === 'order' && currentScreen === 'delivery-note-creation') {
             // When creating a delivery note from an order, update detailsScreenData to include the new/updated delivery note
             const orderData = detailsScreenData.data as PartnerOrder;
-            const relatedDeliveryNote = updatedNotes.find(note => note.orderId === orderData.id && note.status === 'pending');
+            const relatedDeliveryNote = updatedNotes.find(note => note.orderId === orderData.id && (note.status === 'draft' || note.status === 'packing'));
             if (relatedDeliveryNote) {
               // Update detailsScreenData to include the delivery note with updated boxes
               // Update detailsScreenData to trigger re-render with new boxes
@@ -1412,8 +1416,11 @@ export default function App() {
       if (filter === 'approval') {
         return 'approval';
       } else if (filter === 'pending') {
-        // Need to encode 'pending' filter explicitly - use 'pending-pending' to distinguish from 'all' filter
+        // Sellpy: pending filter
         return 'pending-pending';
+      } else if (filter === 'draft') {
+        // Thrifted: draft filter (no Pending)
+        return 'pending-draft';
       } else if (filter === 'registered') {
         return 'pending-registered';
       } else if (filter === 'in-transit') {
@@ -2066,7 +2073,7 @@ export default function App() {
           }}
           onOpenShipmentDetails={(deliveryNote, activeTab, activeFilter) => {
             // For pending/packing delivery notes, show the delivery note creation screen
-            if (deliveryNote.status === 'pending' || deliveryNote.status === 'packing') {
+            if (deliveryNote.status === 'draft' || deliveryNote.status === 'packing') {
               // Find the related order to get order items
               const relatedOrder = partnerOrders.find(order => order.id === deliveryNote.orderId);
               if (relatedOrder) {
@@ -2227,11 +2234,10 @@ export default function App() {
         />
       )}
 
-      {currentScreen === 'delivery-details' && selectedDelivery && (
+      {/* Delivery details: show when on delivery-details, or as background when box-details is open on desktop */}
+      {(currentScreen === 'delivery-details' || (currentScreen === 'box-details' && !isMobile)) && selectedDelivery && (
         <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
-          if (!open) {
-            // If we have a tracked tab from shipping, restore it
-            // For now, just go back to shipping - tab restoration can be added if needed
+          if (!open && currentScreen === 'delivery-details') {
             setCurrentScreenSafe('shipping');
           }
         }}>
@@ -2290,64 +2296,65 @@ export default function App() {
       )}
 
       {currentScreen === 'box-details' && selectedBox && (
-        <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
-          if (!open) {
-            setCurrentScreenSafe('delivery-details');
-          }
-        }}>
-          <FullScreenDialogContent className="flex flex-col p-0 bg-surface">
-            <BoxDetailsScreen
-              box={selectedBox}
-              items={[
-                {
-                  id: '1',
-                  itemId: '34780001',
-                  title: 'Sample Item 1',
-                  brand: 'H&M',
-                  category: 'Clothing',
-                  size: 'M',
-                  color: 'Black',
-                  price: 29.99,
-                  status: 'In transit',
-                  date: selectedBox.date,
-                  orderNumber: selectedBox.orderNumber
-                },
-                {
-                  id: '2',
-                  itemId: '34780002',
-                  title: 'Sample Item 2',
-                  brand: 'Weekday',
-                  category: 'Clothing',
-                  size: 'L',
-                  color: 'White',
-                  price: 39.99,
-                  status: 'In transit',
-                  date: selectedBox.date,
-                  orderNumber: selectedBox.orderNumber
-                }
-              ]}
-              onBack={() => setCurrentScreenSafe('delivery-details')}
-              onMarkDelivered={() => {
-                setDeliveryBoxes(prev => prev.map(b => 
-                  b.id === selectedBox.id ? { ...b, status: 'Delivered' } : b
-                ));
-                setSelectedBox(null);
-                setCurrentScreenSafe('delivery-details');
-                toast.success('Box marked as delivered');
-              }}
-              onMarkRejected={() => {
-                setDeliveryBoxes(prev => prev.map(b => 
-                  b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b
-                ));
-                setSelectedBox(null);
-                setCurrentScreenSafe('delivery-details');
-                toast.success('Box marked as rejected');
-              }}
-              userRole={currentUserRole}
-              deliveryStatus={selectedDelivery?.status}
-            />
-          </FullScreenDialogContent>
-        </FullScreenDialog>
+        isMobile ? (
+          <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
+            if (!open) {
+              setCurrentScreenSafe('delivery-details');
+            }
+          }}>
+            <FullScreenDialogContent className="flex flex-col p-0 bg-surface">
+              <BoxDetailsScreen
+                box={selectedBox}
+                items={[
+                  { id: '1', itemId: '34780001', title: 'Sample Item 1', brand: 'H&M', category: 'Clothing', size: 'M', color: 'Black', price: 29.99, status: 'In transit', date: selectedBox.date, orderNumber: selectedBox.orderNumber },
+                  { id: '2', itemId: '34780002', title: 'Sample Item 2', brand: 'Weekday', category: 'Clothing', size: 'L', color: 'White', price: 39.99, status: 'In transit', date: selectedBox.date, orderNumber: selectedBox.orderNumber }
+                ]}
+                onBack={() => setCurrentScreenSafe('delivery-details')}
+                onMarkDelivered={() => {
+                  setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Delivered' } : b));
+                  setSelectedBox(null);
+                  setCurrentScreenSafe('delivery-details');
+                  toast.success('Box marked as delivered');
+                }}
+                onMarkRejected={() => {
+                  setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b));
+                  setSelectedBox(null);
+                  setCurrentScreenSafe('delivery-details');
+                  toast.success('Box marked as rejected');
+                }}
+                userRole={currentUserRole}
+                deliveryStatus={selectedDelivery?.status}
+              />
+            </FullScreenDialogContent>
+          </FullScreenDialog>
+        ) : (
+          <Sheet open={true} onOpenChange={(open) => !open && setCurrentScreenSafe('delivery-details')}>
+            <SheetContent side="right" containerZIndex={10000} className="p-0 flex flex-col w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl bg-surface min-h-full max-h-full overflow-hidden">
+              <BoxDetailsScreen
+                box={selectedBox}
+                items={[
+                  { id: '1', itemId: '34780001', title: 'Sample Item 1', brand: 'H&M', category: 'Clothing', size: 'M', color: 'Black', price: 29.99, status: 'In transit', date: selectedBox.date, orderNumber: selectedBox.orderNumber },
+                  { id: '2', itemId: '34780002', title: 'Sample Item 2', brand: 'Weekday', category: 'Clothing', size: 'L', color: 'White', price: 39.99, status: 'In transit', date: selectedBox.date, orderNumber: selectedBox.orderNumber }
+                ]}
+                onBack={() => setCurrentScreenSafe('delivery-details')}
+                onMarkDelivered={() => {
+                  setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Delivered' } : b));
+                  setSelectedBox(null);
+                  setCurrentScreenSafe('delivery-details');
+                  toast.success('Box marked as delivered');
+                }}
+                onMarkRejected={() => {
+                  setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b));
+                  setSelectedBox(null);
+                  setCurrentScreenSafe('delivery-details');
+                  toast.success('Box marked as rejected');
+                }}
+                userRole={currentUserRole}
+                deliveryStatus={selectedDelivery?.status}
+              />
+            </SheetContent>
+          </Sheet>
+        )
       )}
 
       {currentScreen === 'receive' && selectedDelivery && (
@@ -2631,8 +2638,9 @@ export default function App() {
           onBack={handleBack}
           onCreateOrder={handleCreateOrder}
           onViewOrders={() => {
-            // Navigate to shipping screen with Orders tab and Pending filter
-            setShippingInitialTab('pending-pending');
+            // Thrifted: Draft filter. Sellpy: Pending filter.
+            const isThrifted = currentPartnerWarehouseSelection?.partnerId === '2';
+            setShippingInitialTab(isThrifted ? 'pending-draft' : 'pending-pending');
             setCurrentScreenSafe('shipping');
           }}
           onViewRegisteredOrders={() => {
@@ -2740,7 +2748,7 @@ export default function App() {
                 // Create a new order with the items (always as pending, user can register later)
                 const newOrder: PartnerOrder = {
                   id: `THR-ORD-${Date.now().toString().slice(-8)}`,
-                  status: shouldRegister ? 'registered' : 'pending',
+                  status: shouldRegister ? 'registered' : 'draft',
                   createdDate: new Date().toISOString(),
                   itemCount: items.length,
                   boxCount: 0,
@@ -3162,7 +3170,7 @@ export default function App() {
           onSaveAndClose={(() => {
             if (detailsScreenData?.type === 'shipment') {
               const shipment = detailsScreenData.data as DeliveryNote;
-              if (shipment.status === 'pending' || shipment.status === 'packing') {
+              if (shipment.status === 'draft' || shipment.status === 'packing') {
                 return () => {
                   // Update delivery note in state
                   setDeliveryNotes(prev => prev.map(note =>
@@ -3186,7 +3194,7 @@ export default function App() {
             if (detailsScreenData?.type === 'shipment') {
               const shipment = detailsScreenData.data as DeliveryNote;
               console.log('[App] onRegisterDelivery - Shipment status:', shipment.status, 'ID:', shipment.id);
-              if (shipment.status === 'pending' || shipment.status === 'packing') {
+              if (shipment.status === 'draft' || shipment.status === 'packing') {
                 return (shippingLabel?: string) => {
                   console.log('[App] onRegisterDelivery called with shippingLabel:', shippingLabel);
                   // If shippingLabel is provided, it means the screen was already shown and user registered
@@ -3392,7 +3400,7 @@ export default function App() {
       })()}
 
       {/* Delivery Note Creation Screen */}
-      {currentScreen === 'delivery-note-creation' && detailsScreenData && (detailsScreenData.type === 'order' || (detailsScreenData.type === 'shipment' && ((detailsScreenData.data as DeliveryNote).status === 'pending' || (detailsScreenData.data as DeliveryNote).status === 'packing'))) && (() => {
+      {currentScreen === 'delivery-note-creation' && detailsScreenData && (detailsScreenData.type === 'order' || (detailsScreenData.type === 'shipment' && ((detailsScreenData.data as DeliveryNote).status === 'draft' || (detailsScreenData.data as DeliveryNote).status === 'packing'))) && (() => {
         const isShipment = detailsScreenData.type === 'shipment';
         const orderData = isShipment ? null : detailsScreenData.data as PartnerOrder;
         const deliveryNoteData = isShipment ? detailsScreenData.data as DeliveryNote : null;
@@ -3528,7 +3536,7 @@ export default function App() {
             onRegisterDelivery={(() => {
               if (isShipment && deliveryNoteData) {
                 const shipment = deliveryNoteData;
-                if (shipment.status === 'pending' || shipment.status === 'packing') {
+                if (shipment.status === 'draft' || shipment.status === 'packing') {
                   return (shippingLabel?: string) => {
                     console.log('[App] DeliveryNoteDetailsScreen onRegisterDelivery called with shippingLabel:', shippingLabel);
                     // If shippingLabel is provided, it means the screen was already shown and user registered
@@ -3634,6 +3642,7 @@ export default function App() {
                 const orderStore = extOrder.receivingStoreId
                   ? mockStores.find(s => s.id === extOrder.receivingStoreId)
                   : (detailsScreenData.storeCode ? mockStores.find(s => s.code === detailsScreenData.storeCode) : undefined);
+                const hasBoxes = savedBoxes && savedBoxes.length > 0;
                 const deliveryNote: DeliveryNote = {
                   id: `DN-${Date.now().toString().slice(-8)}`,
                   orderId: orderData.id,
@@ -3641,7 +3650,7 @@ export default function App() {
                     ...box,
                     status: box.status === 'registered' ? 'registered' : 'pending'
                   })),
-                  status: 'pending',
+                  status: hasBoxes ? 'packing' : 'draft',
                   createdDate: new Date().toISOString(),
                   storeId: orderStore?.id ?? extOrder.receivingStoreId,
                   storeCode: orderStore?.code ?? detailsScreenData.storeCode,
@@ -3704,7 +3713,7 @@ export default function App() {
                     // For order case, find the pending delivery note and use its boxes
                     if (orderData) {
                       const pendingDeliveryNote = deliveryNotes.find(note => 
-                        note.orderId === orderData.id && note.status === 'pending'
+                        note.orderId === orderData.id && (note.status === 'draft' || note.status === 'packing')
                       );
                       return pendingDeliveryNote?.boxes;
                     }

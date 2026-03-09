@@ -644,8 +644,8 @@ export default function OrderDetailsScreen({
         {/* Action Buttons - Fixed at Bottom */}
         {orderItems.length > 0 && (
           <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant px-4 md:px-6 py-4 z-20 md:pl-24 flex flex-row flex-wrap gap-3 justify-end">
-            {/* Pending status: Add item IDs */}
-            {order.status === 'pending' && canAddRetailerIds && (
+            {/* Pending (Sellpy) or Draft (Thrifted): Add item IDs */}
+            {(order.status === 'pending' || order.status === 'draft') && canAddRetailerIds && (
               <Button 
                 onClick={handleStartScanning} 
                 className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[56px] h-[56px] flex-1 md:flex-none" 

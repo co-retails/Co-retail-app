@@ -235,7 +235,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
               // Create a new order with the items (always as pending, user can register later)
               const newOrder: import('./PartnerDashboard').ExtendedPartnerOrder = {
                 id: `THR-ORD-${Date.now().toString().slice(-8)}`,
-                status: 'pending', // Always create as pending, user can register after fixing errors
+                status: 'draft', // Thrifted: Draft when saved without registering
                 createdDate: new Date().toISOString(),
                 itemCount: items.length,
                 boxCount: 0,

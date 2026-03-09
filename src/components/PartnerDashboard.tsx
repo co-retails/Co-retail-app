@@ -13,7 +13,7 @@ import type { DeliveryNote } from './BoxManagementScreen';
 
 export interface PartnerOrder {
   id: string;
-  status: 'approval' | 'pending' | 'registered' | 'in-transit' | 'delivered' | 'in-review';
+  status: 'approval' | 'pending' | 'draft' | 'registered' | 'in-transit' | 'delivered' | 'in-review';
   createdDate: string;
   itemCount: number;
   boxCount: number;
@@ -24,6 +24,7 @@ export interface PartnerOrder {
 
 export interface PartnerStats {
   pendingOrders: number;
+  draftOrders?: number;
   registeredOrders: number;
   inTransitDeliveries: number;
   totalItemsThisMonth: number;
@@ -248,6 +249,7 @@ export default function PartnerDashboard({
     
     return {
       pendingOrders: filteredOrders.filter(order => order.status === 'pending').length,
+      draftOrders: filteredOrders.filter(order => order.status === 'draft').length,
       registeredOrders: filteredOrders.filter(order => order.status === 'registered').length,
       inTransitDeliveries: filteredOrders.filter(order => order.status === 'in-transit').length,
       totalItemsThisMonth: filteredOrders.reduce((sum, order) => sum + order.itemCount, 0),
@@ -347,6 +349,7 @@ export default function PartnerDashboard({
   const isThriftedPartner = currentPartnerName.includes('Thrifted');
   const isThriftedCopenhagenHub = isThriftedPartner && currentWarehouse?.name === 'Thrifted Copenhagen Hub';
   const pendingOrdersCount = filteredStats.pendingOrders;
+  const draftOrdersCount = filteredStats.draftOrders ?? 0;
   const activeShipmentsCount = filteredStats.inTransitDeliveries;
   const registeredOrdersCount = filteredStats.registeredOrders;
   const approvalOrdersCount = filteredStats.approvalOrders || 0;
@@ -356,13 +359,16 @@ export default function PartnerDashboard({
     return matchesPartner && matchesWarehouse;
   });
   const inTransitReturnCount = relevantReturnDeliveries.filter(delivery => delivery.status === 'In transit').length;
-  const pendingOrdersLabel = `${pendingOrdersCount} pending ${pendingOrdersCount === 1 ? 'order' : 'orders'}`;
+  const ordersNeedingAttentionCount = isThriftedPartner ? draftOrdersCount : pendingOrdersCount;
+  const pendingOrdersLabel = isThriftedPartner
+    ? `${draftOrdersCount} draft ${draftOrdersCount === 1 ? 'order' : 'orders'}`
+    : `${pendingOrdersCount} pending ${pendingOrdersCount === 1 ? 'order' : 'orders'}`;
   const approvalOrdersLabel = `${approvalOrdersCount} ${approvalOrdersCount === 1 ? 'order' : 'orders'} awaiting approval`;
   const inTransitReturnsLabel = `${inTransitReturnCount} in transit ${inTransitReturnCount === 1 ? 'return' : 'returns'}`;
-  const deliveriesToCompleteCount = filteredDeliveryNotes.filter(note => note.status === 'pending' || note.status === 'packing').length;
-  const deliveriesToCompleteLabel = `${deliveriesToCompleteCount} ${deliveriesToCompleteCount === 1 ? 'delivery' : 'deliveries'} pending/packing`;
+  const deliveriesToCompleteCount = filteredDeliveryNotes.filter(note => note.status === 'draft' || note.status === 'packing').length;
+  const deliveriesToCompleteLabel = `${deliveriesToCompleteCount} ${deliveriesToCompleteCount === 1 ? 'delivery' : 'deliveries'} to complete`;
   const activeShipmentsLabel = `${activeShipmentsCount} active ${activeShipmentsCount === 1 ? 'shipment' : 'shipments'}`;
-  const showPendingOrdersAction = pendingOrdersCount > 0;
+  const showPendingOrdersAction = ordersNeedingAttentionCount > 0;
   const showApprovalOrdersAction = approvalOrdersCount > 0;
   const showRegisteredOrdersAction = registeredOrdersCount > 0;
   const showReturnsAction = inTransitReturnCount > 0;
@@ -386,6 +392,8 @@ export default function PartnerDashboard({
         return 'bg-secondary-container text-on-secondary-container border-transparent';
       case 'pending':
         return 'bg-warning-container text-on-warning-container border-transparent';
+      case 'draft':
+        return 'bg-surface-container-high text-on-surface-variant border-transparent';
       case 'in-transit':
         return 'bg-primary-container text-on-primary-container border-transparent';
       case 'delivered':
@@ -403,6 +411,8 @@ export default function PartnerDashboard({
         return 'Approval';
       case 'pending':
         return 'Pending';
+      case 'draft':
+        return 'Draft';
       case 'registered':
         return 'Ready for Packaging';
       case 'in-transit':

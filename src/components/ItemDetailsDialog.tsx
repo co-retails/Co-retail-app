@@ -64,17 +64,17 @@ interface ItemDetailsDialogProps {
 
 type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'location' | null;
 
-const AVAILABLE_STATUSES = [
-  'Draft',
-  'In transit',
-  'Available',
-  'Storage',
-  'Sold',
-  'Returned',
-  'Missing',
-  'Broken',
-  'Rejected'
-];
+// Statuses shown in item details dropdown. Rejected only when item is Available and within 24h.
+// Draft, In transit, Returned, Storage are hidden from store item details.
+const getAvailableStatuses = (item: ItemDetails, history: StatusHistoryEntry[]): string[] => {
+  const base = ['Available', 'Sold', 'Missing', 'Broken'];
+  const withRejected = canRejectItem(item, history) ? [...base, 'Rejected'] : base;
+  const current = item.status;
+  if (current && !withRejected.includes(current)) {
+    return [current, ...withRejected];
+  }
+  return withRejected;
+};
 
 const AVAILABLE_BRANDS = [
   'H&M',
@@ -696,7 +696,7 @@ export default function ItemDetailsDialog({
                 value={item.status}
                 icon={RefreshCw}
                 type="select"
-                options={AVAILABLE_STATUSES}
+                options={getAvailableStatuses(item, statusHistory)}
               />
 
               {/* Price */}

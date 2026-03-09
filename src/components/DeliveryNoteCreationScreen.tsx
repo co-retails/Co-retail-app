@@ -51,7 +51,7 @@ export interface DeliveryNote {
   id: string;
   orderId: string;
   boxes: Box[];
-  status: 'pending' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
+  status: 'draft' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
   createdDate: string;
   registeredDate?: string;
   partnerId?: string;
@@ -359,6 +359,7 @@ export default function DeliveryNoteCreationScreen({
       onSaveAndClose(boxes);
     } else {
       // Create delivery note with current state
+      const hasBoxes = boxes.length > 0;
       const deliveryNote: DeliveryNote = {
         id: `DN-${Date.now().toString().slice(-8)}`,
         orderId,
@@ -366,7 +367,7 @@ export default function DeliveryNoteCreationScreen({
           ...box,
           status: box.status === 'registered' ? 'registered' : 'pending'
         })),
-        status: 'pending',
+        status: hasBoxes ? 'packing' : 'draft',
         createdDate: new Date().toISOString()
       };
       onCreateDeliveryNote(deliveryNote);
@@ -448,7 +449,7 @@ export default function DeliveryNoteCreationScreen({
                   <div className="label-small text-on-surface-variant mb-2">
                     <span>{existingCreatedDate ? new Date(existingCreatedDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}, </span>
                     <span className="label-small px-2 py-0.5 rounded-full text-on-surface-variant">
-                      {deliveryNoteId ? (initialBoxes?.some(b => b.status === 'registered') ? 'Packing' : 'Pending') : 'Pending'}
+                      {deliveryNoteId ? (initialBoxes?.length ? 'Packing' : 'Draft') : 'Draft'}
                     </span>
                   </div>
 

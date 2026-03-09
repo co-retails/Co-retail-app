@@ -54,7 +54,7 @@ export interface DeliveryNote {
   id: string;
   orderId: string;
   boxes: Box[];
-  status: 'pending' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
+  status: 'draft' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
   createdDate: string;
   registeredDate?: string;
   partnerId?: string;
@@ -389,6 +389,7 @@ export default function DeliveryNoteDetailsScreen({
       onSaveAndClose(boxes);
     } else {
       // Create delivery note with current state
+      const hasBoxes = boxes.length > 0;
       const deliveryNote: DeliveryNote = {
         id: `DN-${Date.now().toString().slice(-8)}`,
         orderId,
@@ -396,7 +397,7 @@ export default function DeliveryNoteDetailsScreen({
           ...box,
           status: box.status === 'registered' ? 'registered' : 'pending'
         })),
-        status: 'pending',
+        status: hasBoxes ? 'pending' : 'draft',
         createdDate: new Date().toISOString()
       };
       onCreateDeliveryNote(deliveryNote);

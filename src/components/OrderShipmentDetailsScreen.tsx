@@ -267,6 +267,7 @@ export default function OrderShipmentDetailsScreen({
       switch (order.status) {
         case 'approval': return 'text-warning';
         case 'pending': return 'text-on-surface-variant';
+        case 'draft': return 'text-on-surface-variant';
         case 'registered': return 'text-tertiary';
         case 'in-transit': return 'text-primary';
         case 'delivered': return 'text-success';
@@ -276,6 +277,7 @@ export default function OrderShipmentDetailsScreen({
     } else if (type === 'shipment') {
       const shipment = data as DeliveryNote;
       switch (shipment.status) {
+        case 'draft': return 'text-on-surface-variant';
         case 'pending': return 'text-on-surface-variant';
         case 'registered': return 'text-primary';
         case 'delivered': return 'text-success';
@@ -300,6 +302,7 @@ export default function OrderShipmentDetailsScreen({
       switch (order.status) {
         case 'approval': return 'Approval';
         case 'pending': return 'Pending';
+        case 'draft': return 'Draft';
         case 'registered': return 'Ready for Packaging';
         case 'in-transit': return 'In Transit';
         case 'delivered': return 'Delivered';
@@ -309,6 +312,7 @@ export default function OrderShipmentDetailsScreen({
     } else if (type === 'shipment') {
       const shipment = data as DeliveryNote;
       switch (shipment.status) {
+        case 'draft': return 'Draft';
         case 'pending': return 'Pending';
         case 'packing': return 'Packing';
         case 'registered': return 'In Transit';
@@ -463,7 +467,8 @@ export default function OrderShipmentDetailsScreen({
   };
 
   // Check if order is pending (editable)
-  const isPendingOrder = type === 'order' && (data as PartnerOrder).status === 'pending';
+  const orderStatus = type === 'order' ? (data as PartnerOrder).status : undefined;
+  const isPendingOrder = type === 'order' && (orderStatus === 'pending' || orderStatus === 'draft');
   
   // Check if order is in approval status (only Admins can see)
   const isApprovalOrder = type === 'order' && (data as PartnerOrder).status === 'approval' && isAdmin;
@@ -480,11 +485,11 @@ export default function OrderShipmentDetailsScreen({
   const isOrderReceiverEditable =
     isThriftedOrder &&
     type === 'order' &&
-    ((data as PartnerOrder).status === 'pending' || (data as PartnerOrder).status === 'registered');
+    ((data as PartnerOrder).status === 'pending' || (data as PartnerOrder).status === 'draft' || (data as PartnerOrder).status === 'registered');
   const isDeliveryReceiverEditable =
     isThriftedOrder &&
     type === 'shipment' &&
-    ((data as DeliveryNote).status === 'pending' ||
+    ((data as DeliveryNote).status === 'draft' ||
       (data as DeliveryNote).status === 'packing' ||
       (data as DeliveryNote).status === 'registered');
   const isReceiverEditable = isOrderReceiverEditable || isDeliveryReceiverEditable;
@@ -604,7 +609,6 @@ export default function OrderShipmentDetailsScreen({
 
   // Generate mock items based on the expected count
   // Use useMemo to stabilize baseItems and prevent recalculation on every render
-  const orderStatus = type === 'order' ? (data as PartnerOrder).status : undefined;
   const itemCount = getItemCount();
   const baseItems = useMemo(() => {
     return generateMockItems(itemCount, type, partnerName, orderStatus);
@@ -1283,7 +1287,7 @@ export default function OrderShipmentDetailsScreen({
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="title-medium text-on-surface">Boxes ({(data as DeliveryNote).boxes.length})</h3>
-                  {onAddBox && ((data as DeliveryNote).status === 'pending' || (data as DeliveryNote).status === 'packing') && (
+                  {onAddBox && ((data as DeliveryNote).status === 'draft' || (data as DeliveryNote).status === 'packing') && (
                     <Button
                       onClick={() => setShowAddBoxDialog(true)}
                       className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors h-[48px] px-4 rounded-lg"
@@ -1474,7 +1478,7 @@ export default function OrderShipmentDetailsScreen({
         {type !== 'shipment' && (
           <Section title="Items">
             {/* Validation Filter and Add Row Button - Show for pending and approval orders */}
-            {type === 'order' && ((data as PartnerOrder).status === 'pending' || isApprovalOrder) && (
+            {type === 'order' && ((data as PartnerOrder).status === 'pending' || (data as PartnerOrder).status === 'draft' || isApprovalOrder) && (
               <div className="mb-4 flex flex-wrap gap-2 items-center justify-between">
                 {allItems.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -1690,7 +1694,7 @@ export default function OrderShipmentDetailsScreen({
           <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant z-20">
             <div className="px-4 md:px-6 py-4 pb-safe flex flex-row flex-wrap gap-3 justify-end">
               {/* Pending status: Add retailer IDs - right aligned on desktop */}
-              {(data as PartnerOrder).status === 'pending' && onNavigateToRetailerIdScan && (
+              {((data as PartnerOrder).status === 'pending' || (data as PartnerOrder).status === 'draft') && onNavigateToRetailerIdScan && (
                 <div className="flex justify-start md:justify-end flex-1 md:flex-initial min-w-[220px]">
                   <Button 
                     onClick={onNavigateToRetailerIdScan}
@@ -2005,7 +2009,7 @@ export default function OrderShipmentDetailsScreen({
       )}
 
       {/* Action Buttons for Pending/Packing Shipments - Fixed bottom bar */}
-      {type === 'shipment' && ((data as DeliveryNote).status === 'pending' || (data as DeliveryNote).status === 'packing') && (
+      {type === 'shipment' && ((data as DeliveryNote).status === 'draft' || (data as DeliveryNote).status === 'packing') && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-outline-variant p-4 z-20 pb-safe">
           <div className="flex flex-row gap-3 items-center">
             {(() => {

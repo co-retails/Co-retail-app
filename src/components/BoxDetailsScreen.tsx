@@ -32,7 +32,7 @@ interface BoxDetailsScreenProps {
   onMarkDelivered?: () => void;
   onMarkRejected?: () => void;
   userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
-  deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Pending' | 'Packing';
+  deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Draft' | 'Packing';
 }
 
 function TopAppBar({ 
