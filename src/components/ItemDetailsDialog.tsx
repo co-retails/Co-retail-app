@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Textarea } from './ui/textarea';
 import { VisuallyHidden } from './ui/visually-hidden';
-import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Camera, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Camera, ChevronDown, Ban } from 'lucide-react';
 import svgPaths from '../imports/svg-7un8q74kd7';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Badge } from './ui/badge';
@@ -41,6 +41,7 @@ export interface ItemDetails {
   orderNumber?: string;
   lastInStoreAt?: string;
   location?: 'Warehouse' | 'In transit' | 'Store';
+  rejectReason?: 'Rejected - Broken on arrival' | 'Rejected - Dirty' | 'Rejected - Not accepted brand' | 'Rejected - Not accepted material' | 'Rejected - Not in season' | 'Rejected - Wrong store';
 }
 
 export interface StatusHistoryEntry {
@@ -49,6 +50,8 @@ export interface StatusHistoryEntry {
   user?: string;
   note?: string;
 }
+
+export type RejectedReasonType = 'Rejected - Broken on arrival' | 'Rejected - Dirty' | 'Rejected - Not accepted brand' | 'Rejected - Not accepted material' | 'Rejected - Not in season' | 'Rejected - Wrong store';
 
 interface ItemDetailsDialogProps {
   item: ItemDetails | null;
@@ -60,6 +63,8 @@ interface ItemDetailsDialogProps {
   priceCurrency?: string;
   expireTimeWeeks?: number; // Expire time setting for the store (in weeks)
   userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer'; // User role to determine if location can be edited
+  /** Called when user changes status from Available to Rejected (within 24h). Parent should show reject reason sheet and then call onSave with reason. */
+  onRequestRejectReason?: (item: ItemDetails) => void;
 }
 
 type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'location' | null;
@@ -180,6 +185,38 @@ const AVAILABLE_LOCATIONS = [
   'Store'
 ];
 
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+function canRejectItem(item: ItemDetails, history: StatusHistoryEntry[]): boolean {
+  const status = item.status?.toLowerCase();
+  if (!status || (status !== 'available' && status !== 'in store')) return false;
+  const normalizeTimestamp = (value: string) => {
+    if (value.includes('T')) return value;
+    const sanitized = value.replace(' ', 'T');
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(sanitized) ? `${sanitized}:00` : sanitized;
+  };
+  let timestamp: number | undefined;
+  if (item.lastInStoreAt) {
+    const parsed = Date.parse(item.lastInStoreAt);
+    if (!Number.isNaN(parsed)) timestamp = parsed;
+  }
+  if (timestamp === undefined && history?.length) {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const entry = history[i];
+      if (!entry) continue;
+      if (entry.status?.toLowerCase() === 'in store' || entry.status?.toLowerCase() === 'available') {
+        const parsed = entry.timestamp ? Date.parse(normalizeTimestamp(entry.timestamp)) : NaN;
+        if (!Number.isNaN(parsed)) {
+          timestamp = parsed;
+          break;
+        }
+      }
+    }
+  }
+  if (timestamp === undefined) return false;
+  return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
+}
+
 export default function ItemDetailsDialog({ 
   item, 
   isOpen, 
@@ -189,7 +226,8 @@ export default function ItemDetailsDialog({
   priceOptions,
   priceCurrency,
   expireTimeWeeks,
-  userRole
+  userRole,
+  onRequestRejectReason
 }: ItemDetailsDialogProps) {
   const [editingField, setEditingField] = useState<EditField>(null);
   const [editValues, setEditValues] = useState<Partial<ItemDetails>>({});
@@ -218,6 +256,20 @@ export default function ItemDetailsDialog({
 
   const handleSaveEdit = (field: EditField) => {
     if (field && editValues[field] !== undefined) {
+      // When changing from Available to Rejected, show reject reason sheet first (within 24h rule)
+      if (field === 'status' && editValues[field] === 'Rejected' && item.status === 'Available') {
+        if (canRejectItem(item, statusHistory) && onRequestRejectReason) {
+          onRequestRejectReason(item);
+          setEditingField(null);
+          setEditValues({});
+          return;
+        }
+        if (!canRejectItem(item, statusHistory)) {
+          toast.error('Item can only be rejected within 24 hours of arriving in store.');
+          return;
+        }
+      }
+
       const updates = { [field]: editValues[field] };
       
       // Add status change to history if status is being updated
@@ -733,6 +785,17 @@ export default function ItemDetailsDialog({
                 type="select"
                 options={getAvailableStatuses(item, statusHistory)}
               />
+
+              {/* Rejected reason - read-only when saved */}
+              {item.rejectReason && (
+                <div className="flex items-start gap-3">
+                  <Ban className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="label-small text-on-surface-variant mb-1">Rejected reason</p>
+                    <p className="body-large text-on-surface break-words">{item.rejectReason}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Price */}
               <EditableField
