@@ -185,38 +185,6 @@ const AVAILABLE_LOCATIONS = [
   'Store'
 ];
 
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
-
-function canRejectItem(item: ItemDetails, history: StatusHistoryEntry[]): boolean {
-  const status = item.status?.toLowerCase();
-  if (!status || (status !== 'available' && status !== 'in store')) return false;
-  const normalizeTimestamp = (value: string) => {
-    if (value.includes('T')) return value;
-    const sanitized = value.replace(' ', 'T');
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(sanitized) ? `${sanitized}:00` : sanitized;
-  };
-  let timestamp: number | undefined;
-  if (item.lastInStoreAt) {
-    const parsed = Date.parse(item.lastInStoreAt);
-    if (!Number.isNaN(parsed)) timestamp = parsed;
-  }
-  if (timestamp === undefined && history?.length) {
-    for (let i = history.length - 1; i >= 0; i--) {
-      const entry = history[i];
-      if (!entry) continue;
-      if (entry.status?.toLowerCase() === 'in store' || entry.status?.toLowerCase() === 'available') {
-        const parsed = entry.timestamp ? Date.parse(normalizeTimestamp(entry.timestamp)) : NaN;
-        if (!Number.isNaN(parsed)) {
-          timestamp = parsed;
-          break;
-        }
-      }
-    }
-  }
-  if (timestamp === undefined) return false;
-  return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
-}
-
 export default function ItemDetailsDialog({ 
   item, 
   isOpen, 
