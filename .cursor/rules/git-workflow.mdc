@@ -1,0 +1,35 @@
+---
+description: Git workflow - stay on local main and push to remote PR branches
+alwaysApply: true
+---
+
+# Git Workflow for New Conversations
+
+At the start of every new conversation, before making any code changes:
+
+1. **Stay on local `main`**
+   - Run `git checkout main` (or `git switch main`)
+   - Do not create local feature/fix branches
+
+2. **Pull latest from main**
+   - Run `git fetch origin` then `git pull origin main` (or `git pull` if main is your default branch)
+   - Ensures local `main` matches latest GitHub `main`
+
+3. **Then proceed** with the user's request on local `main`
+
+4. **Before pushing: COMMIT YOUR CHANGES**
+   - Never push a branch without committing first. Uncommitted changes are not included in a push.
+   - Before `git push`, run `git status` – if there are modified files, run `git add` and `git commit` first.
+   - Commit after completing the work, or at logical checkpoints.
+
+5. **Push to a remote branch from local `main`**
+   - Do not create a local branch.
+   - Push current `HEAD` to a remote branch name:
+     - `git push origin HEAD:refs/heads/<branch-name>`
+   - Example:
+     - `git push origin HEAD:refs/heads/feature/2026-03-09-short-description`
+   - Open PR from `<branch-name>` into `main`.
+
+**Optional: Local branch cleanup** – If user asks to clean up, remove non-`main` local branches only with explicit user confirmation.
+
+Do not skip these steps. If the user asks to start coding immediately, still run this workflow first.

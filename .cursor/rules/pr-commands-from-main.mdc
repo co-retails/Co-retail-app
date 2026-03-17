@@ -1,0 +1,23 @@
+---
+description: PR command template when working only on local main
+alwaysApply: true
+---
+
+# PR Commands From Local Main
+
+Use this flow when local development always happens on `main`.
+
+1. Ensure local `main` is up to date:
+   - `git checkout main`
+   - `git pull origin main`
+
+2. Commit local changes:
+   - `git add -A`
+   - `git commit -m "<message>"`
+
+3. Push local `main` HEAD to a remote branch (without creating a local branch):
+   - `BRANCH="feature/$(date +%Y-%m-%d)-short-description"`
+   - `git push origin HEAD:refs/heads/$BRANCH`
+
+4. Open a PR to `main`:
+   - `gh pr create --base main --head "$BRANCH" --title "<title>" --body "<body>"`

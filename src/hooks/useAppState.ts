@@ -106,9 +106,9 @@ export function useAppState() {
   
   // Role management state
   const [currentUserRole, setCurrentUserRole] = useState<AppUserRole>('store-staff');
-  const [isRoleSwitcherSheetOpen, setIsRoleSwitcherSheetOpen] = useState(false);
   const [isAdminSettingsSheetOpen, setIsAdminSettingsSheetOpen] = useState(false);
-  const [isAdminExperienceMode, setIsAdminExperienceMode] = useState(false);
+  const [isSwitchViewSheetOpen, setIsSwitchViewSheetOpen] = useState(false);
+  const [adminView, setAdminView] = useState<'store' | 'partner'>('store');
   
   // Store selection state
   const [currentStoreSelection, setCurrentStoreSelection] = useState<StoreSelection>({
@@ -222,12 +222,12 @@ export function useAppState() {
     // Role management
     currentUserRole,
     setCurrentUserRole,
-    isRoleSwitcherSheetOpen,
-    setIsRoleSwitcherSheetOpen,
     isAdminSettingsSheetOpen,
     setIsAdminSettingsSheetOpen,
-    isAdminExperienceMode,
-    setIsAdminExperienceMode,
+    isSwitchViewSheetOpen,
+    setIsSwitchViewSheetOpen,
+    adminView,
+    setAdminView,
     
     // Store/Partner selection
     currentStoreSelection,

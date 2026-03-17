@@ -2,10 +2,10 @@ import React from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { UserIcon, TruckIcon } from 'lucide-react';
+import { UserIcon, TruckIcon, Shield } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
 
-export type UserRole = 'store-staff' | 'partner';
+export type UserRole = 'store-staff' | 'partner' | 'admin' | 'buyer';
 
 interface RoleSwitcherSheetProps {
   isOpen: boolean;
@@ -66,7 +66,7 @@ export default function RoleSwitcherSheet({
             >
               <div className="flex items-center gap-2 w-full">
                 <UserIcon size={20} className="flex-shrink-0" />
-                <span className="label-large break-words">Store app</span>
+                <span className="label-large break-words">Store user</span>
                 {currentRole === 'store-staff' && (
                   <Badge variant="secondary" className="ml-auto flex-shrink-0 body-small">
                     Active
@@ -74,7 +74,7 @@ export default function RoleSwitcherSheet({
                 )}
               </div>
               <p className="body-small text-left opacity-80 break-words whitespace-normal overflow-wrap-anywhere">
-                Receive deliveries, manage items, and handle stock
+                Store app only with basic operational workflows
               </p>
             </Button>
             
@@ -85,7 +85,7 @@ export default function RoleSwitcherSheet({
             >
               <div className="flex items-center gap-2 w-full">
                 <TruckIcon size={20} className="flex-shrink-0" />
-                <span className="label-large break-words">Partner portal</span>
+                <span className="label-large break-words">Partner user</span>
                 {currentRole === 'partner' && (
                   <Badge variant="secondary" className="ml-auto flex-shrink-0 body-small">
                     Active
@@ -93,7 +93,26 @@ export default function RoleSwitcherSheet({
                 )}
               </div>
               <p className="body-small text-left opacity-80 break-words whitespace-normal overflow-wrap-anywhere">
-                Create orders, manage boxes, and handle deliveries
+                Partner portal only with partner workflows
+              </p>
+            </Button>
+
+            <Button
+              variant={currentRole === 'admin' ? 'default' : 'outline'}
+              onClick={() => handleRoleChange('admin')}
+              className="flex w-full flex-col items-start gap-2 text-left whitespace-normal break-words justify-start h-auto md:h-auto p-4 md:py-4"
+            >
+              <div className="flex items-center gap-2 w-full">
+                <Shield size={20} className="flex-shrink-0" />
+                <span className="label-large break-words">Admin</span>
+                {currentRole === 'admin' && (
+                  <Badge variant="secondary" className="ml-auto flex-shrink-0 body-small">
+                    Active
+                  </Badge>
+                )}
+              </div>
+              <p className="body-small text-left opacity-80 break-words whitespace-normal overflow-wrap-anywhere">
+                Full settings and configurable access to store app and partner portal
               </p>
             </Button>
           </div>

@@ -1208,6 +1208,7 @@ type ReturnSortField = 'date' | 'id' | 'senderReceiver' | 'items' | 'status';
   
   // Thrifted: Draft only (no Pending). Sellpy: Pending only (no Draft).
   const isThriftedPartnerForFilter = currentPartnerId === '2'; // Thrifted
+  const canShowApprovalOrderFilter = role !== 'partner';
   const orderStatusFilterOptions: Array<{ id: OrderStatusFilter; label: string }> = isThriftedPartnerForFilter
     ? [
         { id: 'all' as OrderStatusFilter, label: 'All' },
@@ -1215,13 +1216,20 @@ type ReturnSortField = 'date' | 'id' | 'senderReceiver' | 'items' | 'status';
         { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
         { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
       ]
-    : [
-        { id: 'all' as OrderStatusFilter, label: 'All' },
-        { id: 'approval' as OrderStatusFilter, label: 'Approval' },
-        { id: 'pending' as OrderStatusFilter, label: 'Pending' },
-        { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
-        { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
-      ];
+    : canShowApprovalOrderFilter
+      ? [
+          { id: 'all' as OrderStatusFilter, label: 'All' },
+          { id: 'approval' as OrderStatusFilter, label: 'Approval' },
+          { id: 'pending' as OrderStatusFilter, label: 'Pending' },
+          { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
+          { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
+        ]
+      : [
+          { id: 'all' as OrderStatusFilter, label: 'All' },
+          { id: 'pending' as OrderStatusFilter, label: 'Pending' },
+          { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
+          { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
+        ];
   const shipmentStatusFilterOptions: Array<{ id: ShipmentStatusFilter; label: string }> = [
     { id: 'all', label: 'All' },
     { id: 'packing', label: 'Draft & Packing' },
@@ -1278,7 +1286,7 @@ useEffect(() => {
 
   switch (initialTab) {
     case 'approval': // Special case: Orders tab with approval filter
-      setOrderStatusFilter('approval');
+      setOrderStatusFilter(isAdmin ? 'approval' : 'all');
       break;
     case 'pending':
       // 'pending' without specific filter encoding means 'all' filter
@@ -2047,6 +2055,7 @@ useEffect(() => {
   // Determine what to show based on the tab and partner type
   const isChinesePartner = currentPartnerId === '6'; // Shenzhen Fashion Manufacturing
   const isThriftedPartner = currentPartnerId === '2'; // Thrifted
+  const canShowSalesMarginColumn = !isThriftedPartner && role !== 'partner';
   const showCreateOrderButton = role === 'partner' && isThriftedPartner && !!onCreateOrder;
   const showShowroomOrders = role === 'partner' && isChinesePartner && (activeTab === 'pending' || activeTab === 'in-transit');
   const showDeliveryNotes = role === 'partner' && !isChinesePartner && activeTab === 'in-transit';
@@ -3062,7 +3071,7 @@ useEffect(() => {
                             <SortableHeader field="senderReceiver" label="Sender / Receiver" currentSort={orderSort} onSort={handleOrderSort} />
                             <SortableHeader field="items" label="Items" currentSort={orderSort} onSort={handleOrderSort} align="right" />
                             <SortableHeader field="orderValue" label="Order Value" currentSort={orderSort} onSort={handleOrderSort} align="right" />
-                            {!isThriftedPartner && (
+                            {canShowSalesMarginColumn && (
                               <SortableHeader field="salesMargin" label="Sales Margin %" currentSort={orderSort} onSort={handleOrderSort} align="right" />
                             )}
                             <SortableHeader field="status" label="Status" currentSort={orderSort} onSort={handleOrderSort} align="right" />
@@ -3077,7 +3086,7 @@ useEffect(() => {
                             <th className="px-4 py-3 text-left title-small text-on-surface">Sender / Receiver</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Order Value</th>
-                            {!isThriftedPartner && (
+                            {canShowSalesMarginColumn && (
                               <th className="px-4 py-3 text-right title-small text-on-surface">Sales Margin %</th>
                             )}
                             <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
@@ -3197,7 +3206,7 @@ useEffect(() => {
                             >
                               {order.orderValue ? `$${order.orderValue.toFixed(2)}` : '-'}
                             </td>
-                            {!isThriftedPartner && (
+                            {canShowSalesMarginColumn && (
                               <td 
                                 className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                                 onClick={() => {

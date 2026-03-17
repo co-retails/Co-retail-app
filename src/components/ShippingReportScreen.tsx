@@ -20,6 +20,7 @@ export interface ShippingReportScreenProps {
   countries: Country[];
   partners: WarehousePartner[];
   currentUserRole?: 'admin' | 'store-staff' | 'partner' | 'buyer';
+  partnerId?: string;
   userBrandIds?: string[]; // For Brand Admin filtering
 }
 
@@ -72,6 +73,7 @@ export default function ShippingReportScreen({
   countries,
   partners,
   currentUserRole = 'admin',
+  partnerId,
   userBrandIds
 }: ShippingReportScreenProps) {
   // Filter state
@@ -87,6 +89,7 @@ export default function ShippingReportScreen({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
   const [expandedDeliveries, setExpandedDeliveries] = useState<Set<string>>(new Set());
+  const canChangePartner = currentUserRole !== 'partner';
 
   // URL parameter persistence
   useEffect(() => {
@@ -100,6 +103,13 @@ export default function ShippingReportScreen({
     if (params.get('oi21') === 'true') setFilterOI21(true);
     if (params.get('statuses')) setSelectedStatuses(params.get('statuses')!.split(',') as DeliveryStatus[]);
   }, []);
+
+  // Partner users are always scoped to their assigned partner.
+  useEffect(() => {
+    if (!canChangePartner && partnerId) {
+      setSelectedPartnerIds([partnerId]);
+    }
+  }, [canChangePartner, partnerId]);
 
   // Update URL when filters change
   useEffect(() => {
@@ -754,45 +764,53 @@ export default function ShippingReportScreen({
             {/* Partner Filter */}
             <div className="flex items-center gap-2">
               <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Partner:</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="bg-surface-container border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[150px] min-h-[48px] md:min-h-0 justify-between"
+              {canChangePartner ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="bg-surface-container border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[150px] min-h-[48px] md:min-h-0 justify-between"
+                    >
+                      <span className="truncate">{getPartnerDisplayText()}</span>
+                      <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-[200px] p-0"
+                    align="start"
+                    style={{ zIndex: 10060 }}
                   >
-                    <span className="truncate">{getPartnerDisplayText()}</span>
-                    <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent 
-                  className="w-[200px] p-0" 
-                  align="start"
-                  style={{ zIndex: 10060 }}
-                >
-                  <Command>
-                    <CommandInput placeholder="Search partners..." />
-                    <CommandList>
-                      <CommandEmpty>No partners found.</CommandEmpty>
-                      <CommandGroup>
-                        {partners.map((partner) => (
-                          <CommandItem
-                            key={partner.id}
-                            value={partner.name}
-                            onSelect={() => handlePartnerToggle(partner.id)}
-                            className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
-                          >
-                            <Checkbox
-                              checked={selectedPartnerIds.includes(partner.id)}
-                              className="pointer-events-none"
-                            />
-                            <span className="body-medium">{partner.name}</span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                    <Command>
+                      <CommandInput placeholder="Search partners..." />
+                      <CommandList>
+                        <CommandEmpty>No partners found.</CommandEmpty>
+                        <CommandGroup>
+                          {partners.map((partner) => (
+                            <CommandItem
+                              key={partner.id}
+                              value={partner.name}
+                              onSelect={() => handlePartnerToggle(partner.id)}
+                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
+                            >
+                              <Checkbox
+                                checked={selectedPartnerIds.includes(partner.id)}
+                                className="pointer-events-none"
+                              />
+                              <span className="body-medium">{partner.name}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <div className="bg-surface-container border border-outline-variant rounded-lg h-12 md:h-10 px-4 flex items-center body-medium min-w-[150px] min-h-[48px] md:min-h-0">
+                  <span className="text-on-surface">
+                    {partners.find((p) => p.id === selectedPartnerIds[0])?.name || 'Unknown Partner'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Date Range */}

@@ -20,9 +20,7 @@ import ResponsiveNavigation from './components/ResponsiveNavigation';
 import ResponsiveLayout from './components/ResponsiveLayout';
 
 // Partner Portal Components
-import RoleSwitcher from './components/RoleSwitcher';
-import RoleSwitcherSheet from './components/RoleSwitcherSheet';
-import AdminSettingsSheet from './components/AdminSettingsSheet';
+import AdminSettingsSheet, { UserAccount as SettingsUserAccount } from './components/AdminSettingsSheet';
 import PartnerDashboard, { PartnerOrder } from './components/PartnerDashboard';
 import OrderCreationScreen, { OrderItem } from './components/OrderCreationScreen';
 import ThriftedOrderCreationScreen from './components/ThriftedOrderCreationScreen';
@@ -39,6 +37,7 @@ import { Sheet, SheetContent } from './components/ui/sheet';
 import { useIsMobile } from './components/ui/use-mobile';
 import BoxLabelSideSheet from './components/BoxLabelSideSheet';
 import ShippingLabelScreen from './components/ShippingLabelScreen';
+import SwitchViewSheet from './components/SwitchViewSheet';
 
 // Digital Showroom Components - Lazy loaded for code splitting
 const PartnerShowroomDashboard = React.lazy(() => import('./components/PartnerShowroomDashboard'));
@@ -174,12 +173,12 @@ export default function App() {
     setShippingInitialTab,
     currentUserRole,
     setCurrentUserRole,
-    isRoleSwitcherSheetOpen,
-    setIsRoleSwitcherSheetOpen,
     isAdminSettingsSheetOpen,
     setIsAdminSettingsSheetOpen,
-    isAdminExperienceMode,
-    setIsAdminExperienceMode,
+    isSwitchViewSheetOpen,
+    setIsSwitchViewSheetOpen,
+    adminView,
+    setAdminView,
     currentStoreSelection,
     setCurrentStoreSelection,
     currentPartnerWarehouseSelection,
@@ -263,6 +262,20 @@ export default function App() {
   } = state;
 
   const isMobile = useIsMobile();
+  const appViewRole = currentUserRole === 'admin' ? (adminView === 'partner' ? 'partner' : 'store-staff') : currentUserRole;
+  const currentViewLabel =
+    appViewRole === 'partner' ? 'Partner portal' : appViewRole === 'buyer' ? 'Buyer portal' : 'Store app';
+
+  const effectiveUserAccount: SettingsUserAccount = {
+    ...mockUserAccount,
+    role: {
+      ...mockUserAccount.role,
+      name: (currentUserRole === 'admin' ? 'Admin' : currentUserRole === 'partner' ? 'Partner User' : 'Store User') as
+        | 'Admin'
+        | 'Partner User'
+        | 'Store User'
+    }
+  };
 
   // Sync partner portal filter with partner selection
   useEffect(() => {
@@ -279,7 +292,7 @@ export default function App() {
     currentScreen,
     setCurrentScreen: setCurrentScreenSafe,
     setShippingInitialTab,
-    currentUserRole: currentUserRole as 'store-staff' | 'partner' | 'buyer',
+    currentUserRole: appViewRole as 'store-staff' | 'partner' | 'buyer' | 'admin',
     receivePreviousScreen: state.receivePreviousScreen,
     returnManagementPreviousScreen: state.returnManagementPreviousScreen,
     returnManagementPreviousTab: state.returnManagementPreviousTab
@@ -1544,13 +1557,11 @@ export default function App() {
   };
 
   // === Role Management Handlers ===
-  const handleOpenRoleSwitcher = () => {
-    setIsRoleSwitcherSheetOpen(true);
-  };
-
   const handleRoleChange = (role: typeof currentUserRole) => {
     setCurrentUserRole(role);
-    setIsRoleSwitcherSheetOpen(false);
+    if (role !== 'admin') {
+      setIsSwitchViewSheetOpen(false);
+    }
     
     // Reset shipping tab when changing roles
     setShippingInitialTab(undefined);
@@ -1572,6 +1583,8 @@ export default function App() {
       setCurrentScreenSafe('partner-dashboard');
     } else if (role === 'buyer') {
       setCurrentScreenSafe('buyer-dashboard');
+    } else if (role === 'admin') {
+      setCurrentScreenSafe(adminView === 'partner' ? 'partner-dashboard' : 'home');
     } else {
       setCurrentScreenSafe('home');
     }
@@ -1581,8 +1594,18 @@ export default function App() {
     setIsAdminSettingsSheetOpen(true);
   };
 
-  const handleToggleAdminExperience = () => {
-    setIsAdminExperienceMode(prev => !prev);
+  const handleOpenSwitchView = () => {
+    if (currentUserRole !== 'admin') return;
+    setIsSwitchViewSheetOpen(true);
+  };
+
+  const handleSwitchAdminView = (nextView: 'store' | 'partner') => {
+    if (currentUserRole !== 'admin') return;
+    setAdminView(nextView);
+    setIsSwitchViewSheetOpen(false);
+    setIsAdminSettingsSheetOpen(false);
+    setShippingInitialTab(undefined);
+    setCurrentScreenSafe(nextView === 'partner' ? 'partner-dashboard' : 'home');
   };
 
   const handleLogout = () => {
@@ -1810,7 +1833,7 @@ export default function App() {
 
   // === Navigation Configuration ===
   const navigationDestinations = getNavigationDestinations({
-    currentUserRole,
+    currentUserRole: appViewRole,
     currentScreen,
     currentPartnerWarehouseSelection,
     handlers: {
@@ -1830,7 +1853,7 @@ export default function App() {
     }
   });
 
-  const activeDestination = getActiveDestination(currentScreen, currentUserRole);
+  const activeDestination = getActiveDestination(currentScreen, appViewRole);
 
   // Determine if we should show navigation
   const showMainNavigation = 
@@ -1867,7 +1890,7 @@ export default function App() {
       }
       onBackClick={handleBack}
       onHomeClick={handleBackToHome}
-      currentRole={currentUserRole}
+      currentRole={appViewRole}
       onAdminClick={handleOpenAdminSettings}
       currentStoreSelection={currentStoreSelection}
       onStoreChange={setCurrentStoreSelection}
@@ -2224,7 +2247,7 @@ export default function App() {
           stores={mockStores}
           warehouses={mockWarehouses}
           currentStoreSelection={currentStoreSelection}
-          isAdmin={mockUserAccount.role.name === 'Admin'}
+          isAdmin={currentUserRole === 'admin'}
           onDeletePartnerOrder={handleDeletePartnerOrder}
           onDeleteDeliveryNote={handleDeleteDeliveryNote}
           onCreateDeliveryNoteForOrder={handleCreateDeliveryNoteForOrder}
@@ -2675,7 +2698,7 @@ export default function App() {
           warehouses={mockWarehouses}
           currentPartnerWarehouseSelection={currentPartnerWarehouseSelection}
           onPartnerWarehouseSelectionChange={setCurrentPartnerWarehouseSelection}
-          currentUserRole={currentUserRole as 'store-staff' | 'partner'}
+          currentUserRole={currentUserRole === 'partner' ? 'partner' : 'store-staff'}
           showroomOrders={showroomOrders}
           onNavigateToOrdersTab={handleNavigateToPartnerQuotations}
           onNavigateToShipmentsTab={handleNavigateToShipmentsTab}
@@ -2731,7 +2754,8 @@ export default function App() {
             countries={mockCountries}
             partners={visibleWarehousePartners}
             currentUserRole={currentUserRole}
-            userBrandIds={mockUserAccount.role.name === 'Brand Admin' ? ['1', '2', '3', '4'] : undefined}
+            partnerId={currentUserRole === 'partner' ? currentPartnerWarehouseSelection.partnerId : undefined}
+            userBrandIds={effectiveUserAccount.role.name === 'Store User' ? ['1', '2', '3', '4'] : undefined}
           />
         </React.Suspense>
       )}
@@ -2818,6 +2842,7 @@ export default function App() {
           onRegisterOrder={() => handleRegisterSellpyOrder(selectedSellpyOrder.id)}
           onNavigateToScan={(itemId) => handleNavigateToRetailerIdScan(selectedSellpyOrder.id)}
           onNavigateToRetailerIdScan={() => handleNavigateToRetailerIdScan(selectedSellpyOrder.id, 'order-details')}
+          currentUserRole={currentUserRole === 'partner' ? 'partner' : currentUserRole === 'admin' ? 'admin' : 'store-staff'}
         />
       )}
 
@@ -2971,7 +2996,7 @@ export default function App() {
           countries={mockCountries}
           stores={mockStores}
           brands={mockBrands}
-          isAdmin={mockUserAccount.role.name === 'Admin'}
+          isAdmin={currentUserRole === 'admin'}
           currentUserRole={currentUserRole === 'partner' ? 'partner' : currentUserRole === 'admin' ? 'admin' : 'store-staff'}
           onUpdateReturnDeliveryStatus={detailsScreenData.type === 'return' ? handleUpdateReturnDeliveryStatus : undefined}
           onCancelReturn={detailsScreenData.type === 'return' ? handleCancelReturn : undefined}
@@ -4086,14 +4111,11 @@ export default function App() {
         <Suspense fallback={<LoadingFallback />}>
         <PortalConfigurationManager 
           userRole={
-            (isAdminExperienceMode && mockUserAccount?.role?.name === 'Admin') 
-              ? 'admin' 
-              : (currentUserRole === 'store-staff' ? 'store_staff' : currentUserRole === 'partner' ? 'partner' : 'admin')
+            currentUserRole === 'admin' ? 'admin' : (appViewRole === 'store-staff' ? 'store_staff' : appViewRole === 'partner' ? 'partner' : 'admin')
           }
-          isAdminExperienceMode={isAdminExperienceMode}
           onBack={() => {
             setIsAdminSettingsSheetOpen(false);
-            setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+            setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : (appViewRole === 'buyer' ? 'buyer-dashboard' : 'home'));
           }}
           partners={partners}
           warehouses={warehouses}
@@ -4113,15 +4135,13 @@ export default function App() {
           <PartnerSettingsScreen
             onBack={() => {
               setIsAdminSettingsSheetOpen(false);
-              setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : (appViewRole === 'buyer' ? 'buyer-dashboard' : 'home'));
             }}
             brands={mockBrands}
             partners={visibleWarehousePartners}
             countries={mockCountries}
             currentUserRole={
-              (isAdminExperienceMode && mockUserAccount?.role?.name === 'Admin')
-                ? 'Admin'
-                : (currentUserRole === 'admin' ? 'Admin' : currentUserRole === 'partner' ? 'Partner Admin' : 'Store Manager')
+              currentUserRole === 'admin' ? 'Admin' : appViewRole === 'partner' ? 'Partner Admin' : 'Store Staff'
             }
           />
         </Suspense>
@@ -4133,13 +4153,14 @@ export default function App() {
           <StoreUserAccessScreen
             onBack={() => {
               setIsAdminSettingsSheetOpen(false);
-              setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : (appViewRole === 'buyer' ? 'buyer-dashboard' : 'home'));
             }}
             brands={mockBrands}
             countries={mockCountries}
             stores={mockStores}
-            currentUserRole={currentUserRole === 'admin' ? 'Admin' : 'Brand Admin'}
-            currentUserBrandId={currentUserRole === 'admin' ? undefined : currentStoreSelection.brandId}
+            partners={visibleWarehousePartners}
+            warehouses={mockWarehouses}
+            currentUserRole="Admin"
           />
         </Suspense>
       )}
@@ -4150,18 +4171,14 @@ export default function App() {
           <PartnerUserAccessScreen
             onBack={() => {
               setIsAdminSettingsSheetOpen(false);
-              setCurrentScreenSafe(currentUserRole === 'partner' ? 'partner-dashboard' : (currentUserRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : (appViewRole === 'buyer' ? 'buyer-dashboard' : 'home'));
             }}
             brands={mockBrands}
+            countries={mockCountries}
+            stores={mockStores}
             partners={visibleWarehousePartners}
-            currentUserRole={
-              currentUserRole === 'admin' 
-                ? 'Admin' 
-                : currentUserRole === 'partner' 
-                  ? 'Partner Admin' 
-                  : 'Brand Admin'
-            }
-            currentUserBrandId={currentUserRole === 'admin' ? undefined : currentStoreSelection.brandId}
+            warehouses={mockWarehouses}
+            currentUserRole={currentUserRole === 'admin' ? 'Admin' : 'Partner User'}
             currentUserPartnerId={currentUserRole === 'partner' ? currentPartnerWarehouseSelection.partnerId : undefined}
           />
         </Suspense>
@@ -4176,24 +4193,16 @@ export default function App() {
         orderId={registeredOrderId || ''}
       />
 
-      {/* Role Switcher Sheet */}
-      <RoleSwitcherSheet 
-        isOpen={isRoleSwitcherSheetOpen}
-        onClose={() => setIsRoleSwitcherSheetOpen(false)}
-        currentRole={currentUserRole}
-        onRoleChange={handleRoleChange}
-      />
-
       {/* Admin Settings Sheet */}
       <AdminSettingsSheet 
         isOpen={isAdminSettingsSheetOpen}
         onClose={() => setIsAdminSettingsSheetOpen(false)}
-        userAccount={mockUserAccount}
+        userAccount={effectiveUserAccount}
         currentAppRole={currentUserRole}
-        isAdminExperienceMode={isAdminExperienceMode}
-        onToggleAdminExperience={handleToggleAdminExperience}
+        currentViewLabel={currentViewLabel}
         onLogout={handleLogout}
-        onRoleSwitcherClick={handleOpenRoleSwitcher}
+        onRoleChange={(role) => handleRoleChange(role)}
+        onSwitchView={handleOpenSwitchView}
         onNavigateToStockCheckReport={handleNavigateToStockCheckReports}
         onNavigateToShippingReport={() => {
           setIsAdminSettingsSheetOpen(false);
@@ -4221,12 +4230,19 @@ export default function App() {
         }}
       />
 
+      <SwitchViewSheet
+        isOpen={isSwitchViewSheetOpen}
+        onClose={() => setIsSwitchViewSheetOpen(false)}
+        currentView={adminView}
+        onViewChange={handleSwitchAdminView}
+      />
+
       {/* Show main navigation only for main app screens */}
       {showMainNavigation && (
         <ResponsiveNavigation 
           activeDestination={activeDestination}
           destinations={navigationDestinations}
-          userInitials={mockUserAccount?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'JD'}
+          userInitials={effectiveUserAccount?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'JD'}
           onSettingsClick={handleOpenAdminSettings}
         />
       )}
