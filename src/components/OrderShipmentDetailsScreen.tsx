@@ -1452,7 +1452,7 @@ export default function OrderShipmentDetailsScreen({
             )}
 
             {/* Order Summary - Pricing Info (for Sellpy orders) */}
-            {isSellpyOrder && type === 'order' && (
+            {isSellpyOrder && type === 'order' && currentUserRole !== 'partner' && (
               <div className="mt-4">
                 <div className="flex justify-end gap-3 md:gap-6 flex-wrap">
                   <div>

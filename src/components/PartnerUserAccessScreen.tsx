@@ -1,245 +1,541 @@
-import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Filter, Users, ChevronRight, User, Package, Shield } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ChevronRight, Filter, Package, Pencil, Plus, User, UserX, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
+import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Separator } from './ui/separator';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
+import {
+  FullScreenDialog,
+  FullScreenDialogContent,
+  FullScreenDialogDescription,
+  FullScreenDialogHeader,
+  FullScreenDialogTitle
+} from './ui/full-screen-dialog';
 import { useMediaQuery } from './ui/use-mobile';
-import { PartnerUserAccess, mockPartnerUserAccess } from '../data/userAccessMockData';
-import { Brand } from './StoreSelector';
-import { Partner as WarehousePartner } from './PartnerWarehouseSelector';
-import svgPaths from '../imports/svg-7un8q74kd7';
+import { PartnerAccessUser, defaultAccessScope, mockPartnerAccessUsers } from '../data/userAccessMockData';
+import { Brand, Country, Store } from './StoreSelector';
+import { Partner, Warehouse } from './PartnerWarehouseSelector';
 
 interface PartnerUserAccessScreenProps {
   onBack: () => void;
   brands: Brand[];
-  partners: WarehousePartner[];
-  currentUserRole: 'Admin' | 'Brand Admin' | 'Partner Admin';
-  currentUserBrandId?: string; // For Brand Admin filtering
-  currentUserPartnerId?: string; // For Partner Admin filtering
+  countries: Country[];
+  stores: Store[];
+  partners: Partner[];
+  warehouses: Warehouse[];
+  currentUserRole: 'Admin' | 'Partner User';
+  currentUserPartnerId?: string;
 }
+
+type FormState = Omit<PartnerAccessUser, 'id' | 'lastActive' | 'status'> & { status: 'active' | 'inactive' };
+
+const createFormState = (): FormState => ({
+  name: '',
+  email: '',
+  status: 'active',
+  partnerId: '',
+  partnerName: '',
+  scope: {
+    ...defaultAccessScope(),
+    allPartners: false,
+    partnerIds: []
+  }
+});
+
+const formatLastActive = (dateString?: string) => {
+  if (!dateString) return 'Never';
+  const date = new Date(dateString);
+  const days = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return date.toLocaleDateString();
+};
+
+const scopeChip = (all: boolean, count: number, label: string) => (all ? `All ${label}` : `${count} ${label}`);
 
 export default function PartnerUserAccessScreen({
   onBack,
   brands,
+  countries,
+  stores,
   partners,
+  warehouses,
   currentUserRole,
-  currentUserBrandId,
   currentUserPartnerId
 }: PartnerUserAccessScreenProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterPartnerId, setFilterPartnerId] = useState<string>('all');
-  const [filterBrandId, setFilterBrandId] = useState<string>('all');
-  const [filterRole, setFilterRole] = useState<string>('all');
-  const [selectedUser, setSelectedUser] = useState<PartnerUserAccess | null>(null);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const canManage = currentUserRole === 'Admin';
+  const [users, setUsers] = useState<PartnerAccessUser[]>(mockPartnerAccessUsers);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterBrandId, setFilterBrandId] = useState('all');
+  const [filterPartnerId, setFilterPartnerId] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
-  // Filter users based on current user role
-  const accessibleUsers = useMemo(() => {
-    let users = mockPartnerUserAccess;
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [formState, setFormState] = useState<FormState>(createFormState());
 
-    // Partner Admins can only see users from their own partner
-    if (currentUserRole === 'Partner Admin' && currentUserPartnerId) {
-      users = users.filter(user => user.partnerId === currentUserPartnerId);
-    }
+  const [brandSearch, setBrandSearch] = useState('');
+  const [countrySearch, setCountrySearch] = useState('');
+  const [storeSearch, setStoreSearch] = useState('');
+  const [warehouseSearch, setWarehouseSearch] = useState('');
 
-    // Brand Admins can see:
-    // 1. Partner users from partners that work with their brand
-    // 2. Other accounts (admins, etc.) from their brand
-    if (currentUserRole === 'Brand Admin' && currentUserBrandId) {
-      users = users.filter(user => 
-        user.brandIds.includes(currentUserBrandId)
-      );
-    }
+  const countryGroups = useMemo(() => {
+    const groups = new Map<string, { key: string; label: string; ids: string[] }>();
+    countries.forEach((country) => {
+      const key = country.name.trim().toLowerCase();
+      const existing = groups.get(key);
+      if (existing) {
+        existing.ids.push(country.id);
+      } else {
+        groups.set(key, { key, label: country.name, ids: [country.id] });
+      }
+    });
+    return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [countries]);
 
-    return users;
-  }, [currentUserRole, currentUserBrandId, currentUserPartnerId]);
+  const scopedUsers = useMemo(() => {
+    if (canManage) return users;
+    if (!currentUserPartnerId) return users;
+    return users.filter((user) => user.partnerId === currentUserPartnerId);
+  }, [users, canManage, currentUserPartnerId]);
 
-  // Apply filters
   const filteredUsers = useMemo(() => {
-    return accessibleUsers.filter(user => {
-      // Search filter
-      const matchesSearch = !searchQuery || 
+    return scopedUsers.filter((user) => {
+      const matchesSearch =
+        !searchQuery ||
         user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.partnerName.toLowerCase().includes(searchQuery.toLowerCase());
-
-      // Partner filter
-      const matchesPartner = filterPartnerId === 'all' || user.partnerId === filterPartnerId;
-
-      // Brand filter (for admins viewing cross-brand partners)
-      const matchesBrand = filterBrandId === 'all' || user.brandIds.includes(filterBrandId);
-
-      // Role filter
-      const matchesRole = filterRole === 'all' || user.role === filterRole;
-
-      return matchesSearch && matchesPartner && matchesBrand && matchesRole;
+      const matchesBrand = filterBrandId === 'all' || user.scope.allBrands || user.scope.brandIds.includes(filterBrandId);
+      const matchesPartner =
+        filterPartnerId === 'all' || user.partnerId === filterPartnerId || user.scope.allPartners || user.scope.partnerIds.includes(filterPartnerId);
+      const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
+      return matchesSearch && matchesBrand && matchesPartner && matchesStatus;
     });
-  }, [accessibleUsers, searchQuery, filterPartnerId, filterBrandId, filterRole]);
+  }, [scopedUsers, searchQuery, filterBrandId, filterPartnerId, filterStatus]);
 
-  // Group users by partner and category
-  const groupedUsers = useMemo(() => {
-    const groups: Record<string, PartnerUserAccess[]> = {};
-    
-    // Separate internal users (admins, brand admins) from partner users
-    const internalUsers: PartnerUserAccess[] = [];
-    const partnerUsers: PartnerUserAccess[] = [];
-    
-    filteredUsers.forEach(user => {
-      if (user.role === 'admin' || user.role === 'brand-admin') {
-        internalUsers.push(user);
-      } else {
-        partnerUsers.push(user);
-      }
+  const filteredCountryGroups = useMemo(() => {
+    if (formState.scope.allBrands) return countryGroups;
+    const selectedBrandSet = new Set(formState.scope.brandIds);
+    return countryGroups.filter((group) =>
+      group.ids.some((countryId) => {
+        const country = countries.find((item) => item.id === countryId);
+        return country ? selectedBrandSet.has(country.brandId) : false;
+      })
+    );
+  }, [formState.scope.allBrands, formState.scope.brandIds, countryGroups, countries]);
+
+  const selectedBrandIdsForFiltering = useMemo(
+    () => (formState.scope.allBrands ? brands.map((brand) => brand.id) : formState.scope.brandIds),
+    [formState.scope.allBrands, formState.scope.brandIds, brands]
+  );
+
+  const selectedCountryIdsForFiltering = useMemo(() => {
+    if (!formState.scope.allCountries) return formState.scope.countryIds;
+    if (formState.scope.allBrands) return countries.map((country) => country.id);
+    const selectedBrandSet = new Set(formState.scope.brandIds);
+    return countries.filter((country) => selectedBrandSet.has(country.brandId)).map((country) => country.id);
+  }, [formState.scope.allCountries, formState.scope.countryIds, formState.scope.allBrands, formState.scope.brandIds, countries]);
+
+  const filteredStoreOptions = useMemo(() => {
+    const selectedBrandSet = new Set(selectedBrandIdsForFiltering);
+    const selectedCountrySet = new Set(selectedCountryIdsForFiltering);
+    return stores
+      .filter((store) => (formState.scope.allBrands ? true : selectedBrandSet.has(store.brandId)))
+      .filter((store) => (formState.scope.allCountries ? true : selectedCountrySet.has(store.countryId)))
+      .map((store) => ({ id: store.id, label: `${store.name} (${store.code})` }));
+  }, [stores, formState.scope.allBrands, formState.scope.allCountries, selectedBrandIdsForFiltering, selectedCountryIdsForFiltering]);
+
+  const filteredWarehouseOptions = useMemo(() => {
+    const selectedPartnerId = formState.partnerId;
+    return warehouses
+      .filter((warehouse) => (!selectedPartnerId ? true : warehouse.partnerId === selectedPartnerId))
+      .map((warehouse) => ({ id: warehouse.id, label: warehouse.name }));
+  }, [warehouses, formState.partnerId]);
+
+  useEffect(() => {
+    setFormState((prev) => {
+      const selectedBrandSet = new Set(prev.scope.allBrands ? brands.map((brand) => brand.id) : prev.scope.brandIds);
+      const allowedCountryIds = countries.filter((country) => selectedBrandSet.has(country.brandId)).map((country) => country.id);
+      const allowedCountrySet = new Set(allowedCountryIds);
+      const nextCountryIds = prev.scope.allCountries ? prev.scope.countryIds : prev.scope.countryIds.filter((id) => allowedCountrySet.has(id));
+
+      const selectedCountrySet = new Set(prev.scope.allCountries ? allowedCountryIds : nextCountryIds);
+      const allowedStoreIds = stores
+        .filter((store) => selectedBrandSet.has(store.brandId))
+        .filter((store) => selectedCountrySet.has(store.countryId))
+        .map((store) => store.id);
+      const allowedStoreSet = new Set(allowedStoreIds);
+      const nextStoreIds = prev.scope.allStores ? prev.scope.storeIds : prev.scope.storeIds.filter((id) => allowedStoreSet.has(id));
+
+      const allowedWarehouseIds = warehouses
+        .filter((warehouse) => (!prev.partnerId ? true : warehouse.partnerId === prev.partnerId))
+        .map((warehouse) => warehouse.id);
+      const allowedWarehouseSet = new Set(allowedWarehouseIds);
+      const nextWarehouseIds = prev.scope.allWarehouses ? prev.scope.warehouseIds : prev.scope.warehouseIds.filter((id) => allowedWarehouseSet.has(id));
+
+      const countryChanged = nextCountryIds.length !== prev.scope.countryIds.length;
+      const storeChanged = nextStoreIds.length !== prev.scope.storeIds.length;
+      const warehouseChanged = nextWarehouseIds.length !== prev.scope.warehouseIds.length;
+      if (!countryChanged && !storeChanged && !warehouseChanged) return prev;
+
+      return {
+        ...prev,
+        scope: {
+          ...prev.scope,
+          countryIds: nextCountryIds,
+          storeIds: nextStoreIds,
+          warehouseIds: nextWarehouseIds
+        }
+      };
     });
-    
-    // Group internal users under a special category for admins
-    if (currentUserRole === 'Admin' && internalUsers.length > 0) {
-      groups['Internal Users (Admins & Brand Admins)'] = internalUsers;
-    }
-    
-    // Group partner users by partner
-    partnerUsers.forEach(user => {
-      if (!groups[user.partnerName]) {
-        groups[user.partnerName] = [];
-      }
-      groups[user.partnerName].push(user);
-    });
+  }, [
+    brands,
+    countries,
+    stores,
+    warehouses,
+    formState.partnerId,
+    formState.scope.allBrands,
+    formState.scope.brandIds,
+    formState.scope.allCountries,
+    formState.scope.countryIds,
+    formState.scope.allStores,
+    formState.scope.storeIds,
+    formState.scope.allWarehouses,
+    formState.scope.warehouseIds
+  ]);
 
-    return groups;
-  }, [filteredUsers, currentUserRole]);
-
-  const formatLastActive = (dateString?: string) => {
-    if (!dateString) return 'Never';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return date.toLocaleDateString();
+  const updateScopeToggle = (key: keyof FormState['scope'], checked: boolean) => {
+    setFormState((prev) => ({ ...prev, scope: { ...prev.scope, [key]: checked } }));
   };
 
-  // Get available partners and brands for filters
-  const availablePartners = useMemo(() => {
-    if (currentUserRole === 'Partner Admin' && currentUserPartnerId) {
-      return partners.filter(p => p.id === currentUserPartnerId);
-    }
-    // Get unique partner IDs from accessible users
-    const partnerIds = new Set(accessibleUsers.map(u => u.partnerId));
-    return partners.filter(p => partnerIds.has(p.id));
-  }, [partners, currentUserRole, currentUserPartnerId, accessibleUsers]);
-
-  const availableBrands = useMemo(() => {
-    if (currentUserRole === 'Brand Admin' && currentUserBrandId) {
-      return brands.filter(b => b.id === currentUserBrandId);
-    }
-    return brands;
-  }, [brands, currentUserRole, currentUserBrandId]);
-
-  const totalAdmins = filteredUsers.filter(u => u.role === 'admin' || u.role === 'brand-admin').length;
-  const totalPartnerUsers = filteredUsers.filter(u => u.role === 'partner-user').length;
-  const totalActive = filteredUsers.filter(u => u.status === 'active').length;
-  // Count actual partners (excluding internal users group)
-  const totalPartners = Object.keys(groupedUsers).filter(key => key !== 'Internal Users (Admins & Brand Admins)').length;
-
-  const getScreenTitle = () => {
-    switch (currentUserRole) {
-      case 'Partner Admin':
-        return 'Partner User Access';
-      case 'Brand Admin':
-        return 'Partner User Access';
-      case 'Admin':
-        return 'Partner User Access';
-      default:
-        return 'User Access';
-    }
+  const updateScopeSelection = (
+    key: 'brandIds' | 'countryIds' | 'storeIds' | 'partnerIds' | 'warehouseIds',
+    value: string,
+    checked: boolean
+  ) => {
+    setFormState((prev) => {
+      const next = new Set(prev.scope[key]);
+      if (checked) next.add(value);
+      else next.delete(value);
+      return { ...prev, scope: { ...prev.scope, [key]: Array.from(next) } };
+    });
   };
 
-  const getScreenDescription = () => {
-    switch (currentUserRole) {
-      case 'Partner Admin':
-        return 'View accounts that have access to your partner portal';
-      case 'Brand Admin':
-        return 'View partner accounts with access to your brand';
-      case 'Admin':
-        return 'View all partner user accounts across all partners and brands';
-      default:
-        return 'View user accounts';
+  const openCreate = () => {
+    const initial = createFormState();
+    if (currentUserPartnerId) {
+      const partner = partners.find((item) => item.id === currentUserPartnerId);
+      initial.partnerId = currentUserPartnerId;
+      initial.partnerName = partner?.name || '';
+      initial.scope.partnerIds = [currentUserPartnerId];
     }
+    setEditingUserId(null);
+    setFormState(initial);
+    setIsEditorOpen(true);
   };
+
+  const openEdit = (user: PartnerAccessUser) => {
+    setEditingUserId(user.id);
+    setFormState({
+      name: user.name,
+      email: user.email,
+      status: user.status,
+      partnerId: user.partnerId,
+      partnerName: user.partnerName,
+      scope: user.scope
+    });
+    setIsEditorOpen(true);
+  };
+
+  const toggleEnabled = (id: string) => {
+    if (!canManage) return;
+    setUsers((prev) => prev.map((user) => (user.id === id ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' } : user)));
+  };
+
+  const saveUser = () => {
+    if (!formState.name.trim() || !formState.email.trim() || !formState.partnerId) return;
+
+    if (editingUserId) {
+      setUsers((prev) => prev.map((user) => (user.id === editingUserId ? { ...user, ...formState } : user)));
+    } else {
+      setUsers((prev) => [{ id: `pau-${Date.now()}`, lastActive: undefined, ...formState }, ...prev]);
+    }
+    setIsEditorOpen(false);
+  };
+
+  const renderScopeSection = (
+    title: string,
+    allKey: keyof FormState['scope'],
+    selectedKey: 'brandIds' | 'countryIds' | 'storeIds' | 'warehouseIds',
+    searchValue: string,
+    onSearchChange: (value: string) => void,
+    options: Array<{ id: string; label: string }>
+  ) => {
+    const allSelected = Boolean(formState.scope[allKey]);
+    const selectedValues = formState.scope[selectedKey];
+    const visible = options.filter((option) => option.label.toLowerCase().includes(searchValue.toLowerCase()));
+    const selectedCountLabel = allSelected ? `All ${options.length}` : `${selectedValues.length} selected`;
+
+    return (
+      <Card className="border-outline">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="label-large text-on-surface">{title}</span>
+              <Badge variant="secondary" className="text-xs bg-surface-container-highest">
+                {selectedCountLabel}
+              </Badge>
+            </div>
+            <label className="inline-flex items-center gap-2">
+              <Checkbox checked={allSelected} onCheckedChange={(checked) => updateScopeToggle(allKey, Boolean(checked))} />
+              <span className="body-small text-on-surface-variant">All</span>
+            </label>
+          </div>
+          {!allSelected && (
+            <>
+              <input
+                type="text"
+                value={searchValue}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={`Search ${title.toLowerCase()}...`}
+                className="h-10 w-full rounded-lg border border-outline-variant bg-surface px-3 body-medium text-on-surface"
+              />
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-outline-variant p-2 space-y-2">
+                {visible.length === 0 && <p className="body-small text-on-surface-variant">No matches</p>}
+                {visible.map((item) => (
+                  <label key={item.id} className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedValues.includes(item.id)}
+                      onCheckedChange={(checked) => updateScopeSelection(selectedKey, item.id, Boolean(checked))}
+                    />
+                    <span className="body-small text-on-surface">{item.label}</span>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderCountryScopeSection = () => {
+    const allSelected = formState.scope.allCountries;
+    const visible = filteredCountryGroups.filter((country) => country.label.toLowerCase().includes(countrySearch.toLowerCase()));
+    const selectedCount = filteredCountryGroups.filter((country) =>
+      country.ids.every((id) => formState.scope.countryIds.includes(id))
+    ).length;
+    const selectedCountLabel = allSelected ? `All ${filteredCountryGroups.length}` : `${selectedCount} selected`;
+
+    const onToggleCountryGroup = (countryIds: string[], checked: boolean) => {
+      setFormState((prev) => {
+        const next = new Set(prev.scope.countryIds);
+        countryIds.forEach((id) => {
+          if (checked) next.add(id);
+          else next.delete(id);
+        });
+        return { ...prev, scope: { ...prev.scope, countryIds: Array.from(next) } };
+      });
+    };
+
+    return (
+      <Card className="border-outline">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="label-large text-on-surface">Countries</span>
+              <Badge variant="secondary" className="text-xs bg-surface-container-highest">
+                {selectedCountLabel}
+              </Badge>
+            </div>
+            <label className="inline-flex items-center gap-2">
+              <Checkbox checked={allSelected} onCheckedChange={(checked) => updateScopeToggle('allCountries', Boolean(checked))} />
+              <span className="body-small text-on-surface-variant">All</span>
+            </label>
+          </div>
+          {!allSelected && (
+            <>
+              <input
+                type="text"
+                value={countrySearch}
+                onChange={(event) => setCountrySearch(event.target.value)}
+                placeholder="Search countries..."
+                className="h-10 w-full rounded-lg border border-outline-variant bg-surface px-3 body-medium text-on-surface"
+              />
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-outline-variant p-2 space-y-2">
+                {visible.length === 0 && <p className="body-small text-on-surface-variant">No matches</p>}
+                {visible.map((country) => {
+                  const isChecked = country.ids.every((id) => formState.scope.countryIds.includes(id));
+                  return (
+                    <label key={country.key} className="flex items-center gap-2">
+                      <Checkbox checked={isChecked} onCheckedChange={(checked) => onToggleCountryGroup(country.ids, Boolean(checked))} />
+                      <span className="body-small text-on-surface">{country.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const editorBody = (
+    <div className="min-h-0 overflow-y-auto overscroll-contain px-4 md:px-6 py-4 space-y-4">
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className="label-medium text-on-surface">Name</label>
+            <input
+              value={formState.name}
+              onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
+              className="h-12 w-full rounded-lg border border-outline-variant bg-surface px-3"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="label-medium text-on-surface">Email</label>
+            <input
+              value={formState.email}
+              onChange={(event) => setFormState((prev) => ({ ...prev, email: event.target.value }))}
+              className="h-12 w-full rounded-lg border border-outline-variant bg-surface px-3"
+            />
+          </div>
+        </div>
+
+        <Card className="border-outline">
+          <CardContent className="p-4 space-y-2">
+            <label className="label-large text-on-surface">Partner</label>
+            <Select
+              value={formState.partnerId}
+              onValueChange={(value) => {
+                const selected = partners.find((item) => item.id === value);
+                setFormState((prev) => ({
+                  ...prev,
+                  partnerId: value,
+                  partnerName: selected?.name || '',
+                  scope: { ...prev.scope, allPartners: false, partnerIds: [value] }
+                }));
+              }}
+            >
+              <SelectTrigger className="bg-surface-container border border-outline-variant rounded-lg">
+                <SelectValue placeholder="Select partner" />
+              </SelectTrigger>
+              <SelectContent>
+                {partners.map((partner) => (
+                  <SelectItem key={partner.id} value={partner.id}>{partner.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="body-small text-on-surface-variant">Partner users are always partner portal only.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-outline bg-surface-container-low">
+          <CardContent className="p-4 space-y-2">
+            <h3 className="title-small text-on-surface">Access summary</h3>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className="bg-surface-container-highest text-xs">
+                {formState.partnerName || 'No partner selected'}
+              </Badge>
+              <Badge variant="secondary" className="bg-surface-container-highest text-xs">
+                {scopeChip(formState.scope.allBrands, formState.scope.brandIds.length, 'brands')}
+              </Badge>
+              <Badge variant="secondary" className="bg-surface-container-highest text-xs">
+                {scopeChip(formState.scope.allCountries, formState.scope.countryIds.length, 'countries')}
+              </Badge>
+              <Badge variant="secondary" className="bg-surface-container-highest text-xs">
+                {scopeChip(formState.scope.allStores, formState.scope.storeIds.length, 'stores')}
+              </Badge>
+              <Badge variant="secondary" className="bg-surface-container-highest text-xs">
+                {scopeChip(formState.scope.allWarehouses, formState.scope.warehouseIds.length, 'warehouses')}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() =>
+              setFormState((prev) => ({
+                ...prev,
+                scope: {
+                  ...defaultAccessScope(),
+                  allPartners: false,
+                  partnerIds: prev.partnerId ? [prev.partnerId] : []
+                }
+              }))
+            }
+          >
+            All brands/countries/stores/warehouses
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {renderScopeSection('Brands', 'allBrands', 'brandIds', brandSearch, setBrandSearch, brands.map((item) => ({ id: item.id, label: item.name })))}
+          {renderCountryScopeSection()}
+          {renderScopeSection('Stores', 'allStores', 'storeIds', storeSearch, setStoreSearch, filteredStoreOptions)}
+          {renderScopeSection('Warehouses', 'allWarehouses', 'warehouseIds', warehouseSearch, setWarehouseSearch, filteredWarehouseOptions)}
+        </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-surface">
-      {/* Header */}
       <div className="bg-surface-container border-b border-outline-variant sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
           <div className="flex items-center gap-3 mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="rounded-full"
-            >
+            <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="headline-small text-on-surface">{getScreenTitle()}</h1>
-              <p className="body-medium text-on-surface-variant">
-                {getScreenDescription()}
-              </p>
+              <h1 className="headline-small text-on-surface">Partner user access</h1>
+              <p className="body-medium text-on-surface-variant">Manage partner users only. Admin users are handled in Admin user access.</p>
             </div>
+            {canManage && (
+              <Button onClick={openCreate}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add partner user access
+              </Button>
+            )}
           </div>
 
-          {/* Search and Stats */}
           <div className="space-y-3">
-            <div className="relative w-full md:max-w-2xl">
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5">
-                  <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                    <path clipRule="evenodd" d={svgPaths.p3938ac00} fill="var(--on-surface-variant)" fillRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by name, email, or partner..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
-                />
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-3">
-              {currentUserRole === 'Admin' && (
-                <Card className="bg-tertiary-container border-0">
-                  <CardContent className="p-3">
-                    <div className="text-2xl font-semibold text-on-tertiary-container">{totalAdmins}</div>
-                    <div className="body-small text-on-tertiary-container/80">Admins</div>
-                  </CardContent>
-                </Card>
-              )}
+            <input
+              type="text"
+              placeholder="Search by name, email, or partner..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="w-full md:max-w-2xl h-14 rounded-lg border border-outline-variant bg-surface px-4 body-large text-on-surface"
+            />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Card className="bg-primary-container border-0">
                 <CardContent className="p-3">
-                  <div className="text-2xl font-semibold text-on-primary-container">{totalPartners}</div>
+                  <div className="text-2xl font-semibold text-on-primary-container">{new Set(filteredUsers.map((user) => user.partnerId)).size}</div>
                   <div className="body-small text-on-primary-container/80">Partners</div>
                 </CardContent>
               </Card>
               <Card className="bg-secondary-container border-0">
                 <CardContent className="p-3">
-                  <div className="text-2xl font-semibold text-on-secondary-container">{totalPartnerUsers}</div>
+                  <div className="text-2xl font-semibold text-on-secondary-container">{filteredUsers.length}</div>
                   <div className="body-small text-on-secondary-container/80">Users</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-tertiary-container border-0">
+                <CardContent className="p-3">
+                  <div className="text-2xl font-semibold text-on-tertiary-container">{filteredUsers.filter((user) => user.status === 'active').length}</div>
+                  <div className="body-small text-on-tertiary-container/80">Active</div>
                 </CardContent>
               </Card>
               <Card className="bg-surface-container-high border-outline border">
                 <CardContent className="p-3">
-                  <div className="text-2xl font-semibold text-on-surface">{totalActive}</div>
-                  <div className="body-small text-on-surface-variant">Active</div>
+                  <div className="text-2xl font-semibold text-on-surface">{filteredUsers.filter((user) => user.scope.allBrands).length}</div>
+                  <div className="body-small text-on-surface-variant">All brands</div>
                 </CardContent>
               </Card>
             </div>
@@ -247,7 +543,6 @@ export default function PartnerUserAccessScreen({
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-surface-container-low border-b border-outline-variant">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3">
           <div className="flex items-center gap-3 flex-wrap">
@@ -255,262 +550,214 @@ export default function PartnerUserAccessScreen({
               <Filter className="w-4 h-4 text-on-surface-variant" />
               <span className="label-large text-on-surface">Filters:</span>
             </div>
-
-            {/* Brand Filter */}
             <Select value={filterBrandId} onValueChange={setFilterBrandId}>
-              <SelectTrigger className="bg-surface-container border border-outline-variant rounded-lg w-[180px]">
+              <SelectTrigger className="h-12 bg-surface-container border border-outline-variant rounded-lg w-[180px]">
                 <SelectValue placeholder="All brands" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All brands</SelectItem>
-                {availableBrands.map(brand => (
+                {brands.map((brand) => (
                   <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
-            {/* Partner Filter */}
-            {currentUserRole !== 'Partner Admin' && (
-              <Select value={filterPartnerId} onValueChange={setFilterPartnerId}>
-                <SelectTrigger className="bg-surface-container border border-outline-variant rounded-lg w-[220px]">
-                  <SelectValue placeholder="All partners" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All partners</SelectItem>
-                  {availablePartners.map(partner => (
-                    <SelectItem key={partner.id} value={partner.id}>{partner.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Role Filter */}
-            <Select value={filterRole} onValueChange={setFilterRole}>
-              <SelectTrigger className="bg-surface-container border border-outline-variant rounded-lg w-[180px]">
-                <SelectValue placeholder="All roles" />
+            <Select value={filterPartnerId} onValueChange={setFilterPartnerId}>
+              <SelectTrigger className="h-12 bg-surface-container border border-outline-variant rounded-lg w-[220px]">
+                <SelectValue placeholder="All partners" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All roles</SelectItem>
-                {currentUserRole === 'Admin' && (
-                  <>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="brand-admin">Brand Admin</SelectItem>
-                  </>
-                )}
-                <SelectItem value="partner-user">Partner User</SelectItem>
+                <SelectItem value="all">All partners</SelectItem>
+                {partners.map((partner) => (
+                  <SelectItem key={partner.id} value={partner.id}>{partner.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'all' | 'active' | 'inactive')}>
+              <SelectTrigger className="h-12 bg-surface-container border border-outline-variant rounded-lg w-[160px]">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
       </div>
 
-      {/* User List */}
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+        {!canManage && (
+          <Card className="mb-4 bg-secondary-container/50 border-0">
+            <CardContent className="p-4">
+              <p className="body-medium text-on-surface">Partner users can view this screen for their partner, but cannot add, edit, or disable access.</p>
+            </CardContent>
+          </Card>
+        )}
         {filteredUsers.length === 0 ? (
           <div className="text-center py-12">
             <Users className="w-12 h-12 text-on-surface-variant mx-auto mb-3" />
             <p className="body-large text-on-surface-variant">No users found</p>
-            <p className="body-medium text-on-surface-variant/70">Try adjusting your filters</p>
+          </div>
+        ) : isDesktop ? (
+          <div className="overflow-x-auto rounded-lg border border-outline-variant bg-surface-container">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-outline">
+                  <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">User</th>
+                  <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Partner</th>
+                  <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Access scope</th>
+                  <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Last active</th>
+                  <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Status</th>
+                  <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="border-b border-outline-variant hover:bg-surface-container-high transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-tertiary-container flex items-center justify-center">
+                          <User className="w-5 h-5 text-on-tertiary-container" />
+                        </div>
+                        <div>
+                          <div className="body-medium font-medium text-on-surface">{user.name}</div>
+                          <div className="body-small text-on-surface-variant">{user.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge variant="secondary" className="text-xs bg-surface-container-highest">{user.partnerName}</Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{scopeChip(user.scope.allBrands, user.scope.brandIds.length, 'brands')}</Badge>
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{scopeChip(user.scope.allCountries, user.scope.countryIds.length, 'countries')}</Badge>
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{scopeChip(user.scope.allStores, user.scope.storeIds.length, 'stores')}</Badge>
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{scopeChip(user.scope.allWarehouses, user.scope.warehouseIds.length, 'warehouses')}</Badge>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="body-small text-on-surface-variant">{formatLastActive(user.lastActive)}</span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge variant="outline" className={user.status === 'active' ? 'text-xs text-on-surface border-outline' : 'text-xs text-error border-error'}>
+                        {user.status === 'active' ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        {canManage && (
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
+                              <Pencil className="w-4 h-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => toggleEnabled(user.id)}>
+                              <UserX className="w-4 h-4 mr-1" />
+                              {user.status === 'active' ? 'Disable' : 'Enable'}
+                            </Button>
+                          </>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-on-surface-variant" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="space-y-6">
-            {Object.entries(groupedUsers).map(([partnerName, users]) => {
-              const isInternalGroup = partnerName === 'Internal Users (Admins & Brand Admins)';
-              return (
-              <div key={partnerName}>
-                <h2 className="title-large text-on-surface mb-4 flex items-center gap-2">
-                  {isInternalGroup ? (
-                    <Shield className="w-6 h-6 text-tertiary" />
-                  ) : (
-                    <Package className="w-6 h-6 text-primary" />
-                  )}
-                  {partnerName}
-                </h2>
-                
-                {/* Desktop Table View */}
-                {isDesktop ? (
-                  <div className="ml-8 overflow-x-auto mb-6">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b-2 border-outline">
-                          <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">User</th>
-                          <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Email</th>
-                          <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Role</th>
-                          {currentUserRole === 'Admin' && (
-                            <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Brand Access</th>
-                          )}
-                          <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Last Active</th>
-                          <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {users.map(user => (
-                          <tr 
-                            key={user.id}
-                            className="border-b border-outline-variant hover:bg-surface-container-high transition-colors cursor-pointer"
-                            onClick={() => setSelectedUser(user)}
-                          >
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-tertiary-container flex items-center justify-center flex-shrink-0">
-                                  <User className="w-5 h-5 text-on-tertiary-container" />
-                                </div>
-                                <span className="body-medium font-medium text-on-surface">{user.name}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="body-medium text-on-surface-variant">{user.email}</span>
-                            </td>
-                            <td className="py-3 px-4">
-                              {user.role === 'admin' ? (
-                                <Badge className="bg-error-container text-on-error-container text-xs">
-                                  Admin
-                                </Badge>
-                              ) : user.role === 'brand-admin' ? (
-                                <Badge className="bg-tertiary-container text-on-tertiary-container text-xs">
-                                  Brand Admin
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-secondary-container text-on-secondary-container text-xs">
-                                  Partner User
-                                </Badge>
-                              )}
-                            </td>
-                            {currentUserRole === 'Admin' && (
-                              <td className="py-3 px-4">
-                                <div className="flex flex-wrap gap-1">
-                                  {user.brandNames.map((brandName, idx) => (
-                                    <Badge 
-                                      key={idx} 
-                                      variant="secondary" 
-                                      className="text-xs bg-surface-container-highest"
-                                    >
-                                      {brandName}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </td>
-                            )}
-                            <td className="py-3 px-4">
-                              <span className="body-small text-on-surface-variant">
-                                {formatLastActive(user.lastActive)}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              {user.status === 'inactive' ? (
-                                <Badge variant="outline" className="text-xs text-error border-error">
-                                  Inactive
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs text-on-surface border-outline">
-                                  Active
-                                </Badge>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+          <div className="space-y-3">
+            {filteredUsers.map((user) => (
+              <Card key={user.id} className="bg-surface-container border border-outline-variant">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-tertiary-container flex items-center justify-center flex-shrink-0">
+                      <User className="w-6 h-6 text-on-tertiary-container" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="body-large font-medium text-on-surface">{user.name}</span>
+                        <Badge className="bg-secondary-container text-on-secondary-container text-xs">Partner User</Badge>
+                        <Badge variant="outline" className={user.status === 'active' ? 'text-xs text-on-surface border-outline' : 'text-xs text-error border-error'}>
+                          {user.status === 'active' ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                      <p className="body-medium text-on-surface-variant mb-2">{user.email}</p>
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{user.partnerName}</Badge>
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{scopeChip(user.scope.allBrands, user.scope.brandIds.length, 'brands')}</Badge>
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{scopeChip(user.scope.allCountries, user.scope.countryIds.length, 'countries')}</Badge>
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{scopeChip(user.scope.allStores, user.scope.storeIds.length, 'stores')}</Badge>
+                        <Badge variant="secondary" className="text-xs bg-surface-container-highest">{scopeChip(user.scope.allWarehouses, user.scope.warehouseIds.length, 'warehouses')}</Badge>
+                      </div>
+                      <p className="body-small text-on-surface-variant/70">Last active: {formatLastActive(user.lastActive)}</p>
+                    </div>
                   </div>
-                ) : (
-                  /* Mobile Card View */
-                  <div className="space-y-2 mb-6">
-                    {users.map(user => (
-                      <Card 
-                        key={user.id} 
-                        className="bg-surface-container border border-outline-variant hover:bg-surface-container-high transition-colors cursor-pointer"
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-4">
-                            {/* User Avatar */}
-                            <div className="w-12 h-12 rounded-full bg-tertiary-container flex items-center justify-center flex-shrink-0">
-                              <User className="w-6 h-6 text-on-tertiary-container" />
-                            </div>
-
-                            {/* User Info */}
-                            <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="body-large font-medium text-on-surface">{user.name}</span>
-                              {user.role === 'admin' ? (
-                                <Badge className="bg-error-container text-on-error-container text-xs">
-                                  Admin
-                                </Badge>
-                              ) : user.role === 'brand-admin' ? (
-                                <Badge className="bg-tertiary-container text-on-tertiary-container text-xs">
-                                  Brand Admin
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-secondary-container text-on-secondary-container text-xs">
-                                  Partner User
-                                </Badge>
-                              )}
-                              {user.status === 'inactive' && (
-                                <Badge variant="outline" className="text-xs text-error border-error">
-                                  Inactive
-                                </Badge>
-                              )}
-                            </div>
-                              <p className="body-medium text-on-surface-variant mb-2">{user.email}</p>
-                              
-                              {/* Brand Access */}
-                              {currentUserRole === 'Admin' && user.brandNames.length > 0 && (
-                                <div className="space-y-1 mb-2">
-                                  <p className="body-small text-on-surface-variant font-medium">Brand Access:</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {user.brandNames.map((brandName, idx) => (
-                                      <Badge 
-                                        key={idx} 
-                                        variant="secondary" 
-                                        className="text-xs bg-surface-container-highest"
-                                      >
-                                        {brandName}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Last Active */}
-                              <p className="body-small text-on-surface-variant/70 mt-2">
-                                Last active: {formatLastActive(user.lastActive)}
-                              </p>
-                            </div>
-
-                            {/* Arrow */}
-                            <ChevronRight className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-2" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                    {canManage && (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
+                          <Pencil className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => toggleEnabled(user.id)}>
+                          <UserX className="w-4 h-4 mr-1" />
+                          {user.status === 'active' ? 'Disable' : 'Enable'}
+                        </Button>
+                      </>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-on-surface-variant" />
                   </div>
-                )}
-                
-                <Separator className="my-6 bg-outline-variant" />
-              </div>
-            );
-            })}
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
-
-        {/* Summary */}
-        <Card className="mt-6 bg-surface-container-low border-outline">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="body-medium text-on-surface-variant">
-                Showing {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} 
-                {' '}from {totalPartners} partner{totalPartners !== 1 ? 's' : ''}
-              </span>
-              {currentUserRole === 'Admin' && (
-                <span className="body-small text-on-surface-variant">
-                  Total: {accessibleUsers.length} across all partners
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {canManage && (
+        <>
+          {isDesktop ? (
+            <Sheet open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+              <SheetContent side="right" className="bg-surface border-outline-variant p-0 max-w-[760px] w-full h-full overflow-hidden !gap-0 grid grid-rows-[auto_minmax(0,1fr)_auto]">
+                <SheetHeader className="shrink-0 border-b border-outline-variant px-6 py-4">
+                  <SheetTitle className="title-large text-on-surface">{editingUserId ? 'Edit partner user access' : 'Add partner user access'}</SheetTitle>
+                  <SheetDescription className="body-medium text-on-surface-variant">Set partner user access scope.</SheetDescription>
+                </SheetHeader>
+                {editorBody}
+                <div className="shrink-0 z-10 bg-surface border-t border-outline-variant p-4 md:px-6 flex gap-2">
+                  <Button className="flex-1" variant="outline" onClick={() => setIsEditorOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button className="flex-1" onClick={saveUser} disabled={!formState.name || !formState.email || !formState.partnerId}>
+                    Save access
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          ) : (
+            <FullScreenDialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+              <FullScreenDialogContent className="bg-surface p-0 h-screen overflow-hidden !gap-0 grid grid-rows-[auto_minmax(0,1fr)_auto]">
+                <FullScreenDialogHeader className="shrink-0 border-b border-outline-variant px-4 py-4">
+                  <FullScreenDialogTitle className="title-large text-on-surface">{editingUserId ? 'Edit partner user access' : 'Add partner user access'}</FullScreenDialogTitle>
+                  <FullScreenDialogDescription className="body-medium text-on-surface-variant">Set partner user access scope.</FullScreenDialogDescription>
+                </FullScreenDialogHeader>
+                {editorBody}
+                <div className="shrink-0 z-10 bg-surface border-t border-outline-variant p-4 md:px-6 flex gap-2 pb-[max(env(safe-area-inset-bottom),1rem)]">
+                  <Button className="flex-1" variant="outline" onClick={() => setIsEditorOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button className="flex-1" onClick={saveUser} disabled={!formState.name || !formState.email || !formState.partnerId}>
+                    Save access
+                  </Button>
+                </div>
+              </FullScreenDialogContent>
+            </FullScreenDialog>
+          )}
+        </>
+      )}
     </div>
   );
 }
-

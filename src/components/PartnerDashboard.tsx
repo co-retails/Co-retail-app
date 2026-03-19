@@ -370,13 +370,14 @@ export default function PartnerDashboard({
   const activeShipmentsLabel = `${activeShipmentsCount} active ${activeShipmentsCount === 1 ? 'shipment' : 'shipments'}`;
   const showPendingOrdersAction = ordersNeedingAttentionCount > 0;
   const showApprovalOrdersAction = approvalOrdersCount > 0;
+  const canShowApprovalOrdersAction = currentUserRole !== 'partner' && showApprovalOrdersAction;
   const showRegisteredOrdersAction = registeredOrdersCount > 0;
   const showReturnsAction = inTransitReturnCount > 0;
   const showDeliveriesAction = deliveriesToCompleteCount > 0;
   const showActiveShipmentsAction = activeShipmentsCount > 0;
   const hasShowroomQuickAction = Boolean(onNavigateToShowroom && currentPartner?.productType === 'white-label');
-  const thriftedHasActionableQuickActions = showApprovalOrdersAction || showPendingOrdersAction || showRegisteredOrdersAction || showDeliveriesAction || showReturnsAction;
-  const otherPartnersHaveActionableQuickActions = showApprovalOrdersAction || showPendingOrdersAction || showActiveShipmentsAction || showReturnsAction || showDeliveriesAction;
+  const thriftedHasActionableQuickActions = canShowApprovalOrdersAction || showPendingOrdersAction || showRegisteredOrdersAction || showDeliveriesAction || showReturnsAction;
+  const otherPartnersHaveActionableQuickActions = canShowApprovalOrdersAction || showPendingOrdersAction || showActiveShipmentsAction || showReturnsAction || showDeliveriesAction;
   const quickActionEmptyStateTitle = currentPartnerName ? `${currentPartnerName} is all set` : "You're all set";
   const quickActionEmptyStateDescription = isThriftedPartner
     ? 'No actions needed right now. Create a new Thrifted order whenever you are ready.'
@@ -590,7 +591,7 @@ export default function PartnerDashboard({
           <div>
             <h2 className="title-medium text-on-surface mb-4">Quick actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {showApprovalOrdersAction && (
+              {canShowApprovalOrdersAction && (
                 <button
                   onClick={onViewApprovalOrders}
                   className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
@@ -772,7 +773,7 @@ export default function PartnerDashboard({
               ) : (
                 <>
                   {/* Regular Partner Quick Actions */}
-                  {showApprovalOrdersAction && (
+                  {canShowApprovalOrdersAction && (
                     <button
                       onClick={onViewApprovalOrders}
                       className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"

@@ -47,6 +47,7 @@ interface OrderDetailsScreenProps {
   onRegisterOrder?: () => void;
   onNavigateToRetailerIdScan?: () => void;
   onCreateDeliveryNote?: (orderId: string) => void;
+  currentUserRole?: 'partner' | 'store-staff' | 'admin';
 }
 
 export default function OrderDetailsScreen({
@@ -57,7 +58,8 @@ export default function OrderDetailsScreen({
   onCompleteOrder,
   onRegisterOrder,
   onNavigateToRetailerIdScan,
-  onCreateDeliveryNote
+  onCreateDeliveryNote,
+  currentUserRole = 'store-staff'
 }: OrderDetailsScreenProps) {
   const [editingItem, setEditingItem] = useState<OrderItem | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -267,10 +269,12 @@ export default function OrderDetailsScreen({
                 <p className="label-small text-on-surface-variant mb-1">Total Retail Price</p>
                 <p className="title-medium text-on-surface">${totalRetailPrice.toFixed(2)}</p>
               </div>
-              <div>
-                <p className="label-small text-on-surface-variant mb-1">Total Sales Margin</p>
-                <p className="title-medium text-primary">{totalSalesMargin.toFixed(1)}%</p>
-              </div>
+              {currentUserRole !== 'partner' && (
+                <div>
+                  <p className="label-small text-on-surface-variant mb-1">Total Sales Margin</p>
+                  <p className="title-medium text-primary">{totalSalesMargin.toFixed(1)}%</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

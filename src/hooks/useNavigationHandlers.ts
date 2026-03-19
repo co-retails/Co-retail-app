@@ -5,7 +5,7 @@ interface NavigationHandlersProps {
   currentScreen: Screen;
   setCurrentScreen: (screen: Screen) => void;
   setShippingInitialTab: (tab: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined) => void;
-  currentUserRole?: 'store-staff' | 'partner' | 'buyer';
+  currentUserRole?: 'store-staff' | 'partner' | 'buyer' | 'admin';
   receivePreviousScreen?: Screen | null;
   returnManagementPreviousScreen?: Screen | null;
   returnManagementPreviousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined;

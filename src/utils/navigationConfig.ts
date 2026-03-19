@@ -2,7 +2,7 @@ import { NavigationDestination } from '../components/ResponsiveNavigation';
 import { PartnerWarehouseSelection } from '../components/PartnerWarehouseSelector';
 
 interface GetNavigationConfigParams {
-  currentUserRole: 'store-staff' | 'partner' | 'buyer';
+  currentUserRole: 'store-staff' | 'partner' | 'buyer' | 'admin';
   currentScreen: string;
   currentPartnerWarehouseSelection?: PartnerWarehouseSelection;
   handlers: {
@@ -104,7 +104,7 @@ export function getNavigationDestinations({
     }
   }
   
-  // Store staff (default) navigation
+  // Store staff and admin (default) navigation
   return [
     {
       id: 'home',

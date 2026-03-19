@@ -457,3 +457,173 @@ export const mockPartnerUserAccess: PartnerUserAccess[] = [
   }
 ];
 
+export interface AccessScope {
+  allBrands: boolean;
+  brandIds: string[];
+  allCountries: boolean;
+  countryIds: string[];
+  allStores: boolean;
+  storeIds: string[];
+  allPartners: boolean;
+  partnerIds: string[];
+  allWarehouses: boolean;
+  warehouseIds: string[];
+}
+
+export interface PortalAccess {
+  storeApp: boolean;
+  partnerPortal: boolean;
+}
+
+export interface AdminAccessUser {
+  id: string;
+  name: string;
+  email: string;
+  status: 'active' | 'inactive';
+  lastActive?: string;
+  portalAccess: PortalAccess;
+  scope: AccessScope;
+}
+
+export interface PartnerAccessUser {
+  id: string;
+  name: string;
+  email: string;
+  status: 'active' | 'inactive';
+  lastActive?: string;
+  partnerId: string;
+  partnerName: string;
+  scope: AccessScope;
+}
+
+export const defaultAccessScope = (): AccessScope => ({
+  allBrands: true,
+  brandIds: [],
+  allCountries: true,
+  countryIds: [],
+  allStores: true,
+  storeIds: [],
+  allPartners: true,
+  partnerIds: [],
+  allWarehouses: true,
+  warehouseIds: []
+});
+
+export const mockAdminAccessUsers: AdminAccessUser[] = [
+  {
+    id: 'au-001',
+    name: 'Jane Doe',
+    email: 'jane.doe@hm.com',
+    status: 'active',
+    lastActive: '2024-01-16T08:30:00Z',
+    portalAccess: { storeApp: true, partnerPortal: true },
+    scope: defaultAccessScope()
+  },
+  {
+    id: 'au-002',
+    name: 'H&M Brand Admin',
+    email: 'hm.brand.admin@hm.com',
+    status: 'active',
+    lastActive: '2024-01-15T16:00:00Z',
+    portalAccess: { storeApp: true, partnerPortal: true },
+    scope: {
+      allBrands: false,
+      brandIds: ['4'], // H&M
+      allCountries: true,
+      countryIds: [],
+      allStores: true,
+      storeIds: [],
+      allPartners: true,
+      partnerIds: [],
+      allWarehouses: true,
+      warehouseIds: []
+    }
+  },
+  {
+    id: 'au-003',
+    name: 'Partner Portal Admin',
+    email: 'partner.portal.admin@hm.com',
+    status: 'inactive',
+    lastActive: '2023-12-20T10:00:00Z',
+    portalAccess: { storeApp: false, partnerPortal: true },
+    scope: {
+      allBrands: false,
+      brandIds: ['1', '2'],
+      allCountries: true,
+      countryIds: [],
+      allStores: true,
+      storeIds: [],
+      allPartners: false,
+      partnerIds: ['1'],
+      allWarehouses: true,
+      warehouseIds: []
+    }
+  }
+];
+
+export const mockPartnerAccessUsers: PartnerAccessUser[] = [
+  {
+    id: 'pau-001',
+    name: 'Johan Persson',
+    email: 'johan.persson@sellpy.com',
+    status: 'active',
+    lastActive: '2024-01-16T07:30:00Z',
+    partnerId: '1',
+    partnerName: 'Sellpy Operations',
+    scope: {
+      allBrands: true,
+      brandIds: [],
+      allCountries: true,
+      countryIds: [],
+      allStores: true,
+      storeIds: [],
+      allPartners: false,
+      partnerIds: ['1'],
+      allWarehouses: true,
+      warehouseIds: []
+    }
+  },
+  {
+    id: 'pau-002',
+    name: 'Linda Eriksson',
+    email: 'linda.eriksson@sellpy.com',
+    status: 'active',
+    lastActive: '2024-01-15T11:00:00Z',
+    partnerId: '1',
+    partnerName: 'Sellpy Operations',
+    scope: {
+      allBrands: true,
+      brandIds: [],
+      allCountries: true,
+      countryIds: [],
+      allStores: true,
+      storeIds: [],
+      allPartners: false,
+      partnerIds: ['1'],
+      allWarehouses: true,
+      warehouseIds: []
+    }
+  },
+  {
+    id: 'pau-003',
+    name: 'Erik Hansen',
+    email: 'erik.hansen@thrifted.no',
+    status: 'inactive',
+    lastActive: '2023-11-20T12:00:00Z',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    scope: {
+      allBrands: false,
+      brandIds: ['1', '3'],
+      allCountries: true,
+      countryIds: [],
+      allStores: true,
+      storeIds: [],
+      allPartners: false,
+      partnerIds: ['2'],
+      allWarehouses: true,
+      warehouseIds: []
+    }
+  }
+];
+
