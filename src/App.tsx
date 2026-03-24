@@ -892,7 +892,7 @@ export default function App() {
   const handleNavigateToShipmentsTab = () => {
     setCurrentScreenSafe('shipping');
     // Use 'in-transit' for partners, 'shipments' for store staff/admin
-    setShippingInitialTab(currentUserRole === 'partner' ? 'in-transit' : 'shipments');
+    setShippingInitialTab(appViewRole === 'partner' ? 'in-transit' : 'shipments');
   };
 
   const handleNavigateToReturnsTab = () => {
@@ -998,7 +998,7 @@ export default function App() {
   const handleViewOrderListFromDialog = () => {
     setShowPostRegistrationDialog(false);
     // Navigate to partner dashboard for partners, shipping screen for others
-    if (currentUserRole === 'partner') {
+    if (appViewRole === 'partner') {
       setCurrentScreenSafe('partner-dashboard');
     } else {
       setCurrentScreenSafe('shipping');
@@ -2079,7 +2079,7 @@ export default function App() {
           onNavigateToScan={handleNavigateToScan}
           onNavigateToSellers={handleNavigateToSellers}
           initialTab={shippingInitialTab}
-          currentUserRole={currentUserRole}
+          currentUserRole={appViewRole}
           partnerOrders={partnerOrders}
           deliveryNotes={deliveryNotes}
           showroomOrders={showroomOrders}
@@ -2251,9 +2251,9 @@ export default function App() {
           onDeletePartnerOrder={handleDeletePartnerOrder}
           onDeleteDeliveryNote={handleDeleteDeliveryNote}
           onCreateDeliveryNoteForOrder={handleCreateDeliveryNoteForOrder}
-          onCreateOrder={currentUserRole === 'partner' ? handleCreateOrder : undefined}
-          viewFilter={currentUserRole === 'partner' ? partnerPortalViewFilter : undefined}
-          onViewFilterChange={currentUserRole === 'partner' ? setPartnerPortalViewFilter : undefined}
+          onCreateOrder={appViewRole === 'partner' ? handleCreateOrder : undefined}
+          viewFilter={appViewRole === 'partner' ? partnerPortalViewFilter : undefined}
+          onViewFilterChange={appViewRole === 'partner' ? setPartnerPortalViewFilter : undefined}
         />
       )}
 
@@ -2600,8 +2600,8 @@ export default function App() {
           userRole={currentUserRole === 'store-staff' ? 'Store Manager' : 'Store User'}
           currentPartnerWarehouseSelection={currentPartnerWarehouseSelection}
           partners={visibleWarehousePartners}
-          viewFilter={currentUserRole === 'partner' ? partnerPortalViewFilter : undefined}
-          onViewFilterChange={currentUserRole === 'partner' ? setPartnerPortalViewFilter : undefined}
+          viewFilter={appViewRole === 'partner' ? partnerPortalViewFilter : undefined}
+          onViewFilterChange={appViewRole === 'partner' ? setPartnerPortalViewFilter : undefined}
           brands={mockBrands}
           countries={mockCountries}
           stores={mockStores}
