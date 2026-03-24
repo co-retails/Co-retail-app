@@ -136,3 +136,5 @@ export function PortalConfigurationManager({
       );
   }
 }
+
+export default PortalConfigurationManager;

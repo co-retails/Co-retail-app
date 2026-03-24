@@ -64,7 +64,7 @@ const BuyerPurchaseOrdersScreen = React.lazy(() => import('./components/BuyerPur
 const BuyerOrderDetailsScreen = React.lazy(() => import('./components/BuyerOrderDetailsScreen'));
 
 // Portal Configuration Components - Lazy loaded
-const PortalConfigurationManager = React.lazy(() => import('./components/PortalConfigurationManager').then(module => ({ default: module.PortalConfigurationManager })));
+const PortalConfigurationManager = React.lazy(() => import('./components/PortalConfigurationManager'));
 const PartnerSettingsScreen = React.lazy(() => import('./components/PartnerSettingsScreen').then(module => ({ default: module.default })));
 
 // User Access Management Components - Lazy loaded
