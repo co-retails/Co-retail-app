@@ -5,6 +5,13 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import { SharedHeader } from './ui/shared-header';
 import { Section } from './ui/section';
 import { EmptyState } from './ui/empty-state';
@@ -100,6 +107,12 @@ interface OrderShipmentDetailsScreenProps {
   brands?: Array<{ id: string; name: string }>;
   onUpdateBoxLabel?: (boxId: string, newLabel: string) => void;
   onUpdateReceiver?: (orderId: string, selection: StoreSelection) => void;
+  warehouses?: Array<{ id: string; name: string; partnerId: string }>;
+  onUpdateOrderSenderWarehouse?: (
+    orderId: string,
+    warehouseId: string,
+    warehouseName: string
+  ) => void;
 }
 
 // Valid price points for SEK (Swedish Krona) - Sellpy partner market
@@ -220,7 +233,6 @@ export default function OrderShipmentDetailsScreen({
   onAddBox,
   onOpenBoxDetails,
   orderItems = [],
-  onUpdateReceiver,
   onUnregisterBox,
   onDeleteBox,
   relatedOrders = [],
@@ -232,7 +244,10 @@ export default function OrderShipmentDetailsScreen({
   countries = [],
   stores = [],
   brands = [],
-  onUpdateBoxLabel
+  onUpdateBoxLabel,
+  onUpdateReceiver,
+  warehouses = [],
+  onUpdateOrderSenderWarehouse,
 }: OrderShipmentDetailsScreenProps) {
   // State for editable items
   const [editableItems, setEditableItems] = useState<DetailItem[]>([]);
@@ -493,8 +508,17 @@ export default function OrderShipmentDetailsScreen({
       (data as DeliveryNote).status === 'packing' ||
       (data as DeliveryNote).status === 'registered');
   const isReceiverEditable = isOrderReceiverEditable || isDeliveryReceiverEditable;
-  
+
+  const isOrderSenderWarehouseEditable =
+    isThriftedOrder &&
+    type === 'order' &&
+    ((data as PartnerOrder).status === 'pending' ||
+      (data as PartnerOrder).status === 'draft' ||
+      (data as PartnerOrder).status === 'registered');
+
   const [isReceiverSelectorOpen, setIsReceiverSelectorOpen] = useState(false);
+  const [isSenderWarehouseDialogOpen, setIsSenderWarehouseDialogOpen] = useState(false);
+  const [pendingSenderWarehouseId, setPendingSenderWarehouseId] = useState<string>('');
 
   // Get brand name from store
   const receiverBrand = receivingStore 
@@ -522,6 +546,11 @@ export default function OrderShipmentDetailsScreen({
         ? '6'
         : undefined
     );
+
+  const senderWarehouseOptions = useMemo(() => {
+    if (!partnerId) return [];
+    return warehouses.filter((w) => w.partnerId === partnerId);
+  }, [warehouses, partnerId]);
 
   // Validation function for Thrifted items
   // For Thrifted, partners fill in subcategory, category is auto-mapped
@@ -838,11 +867,38 @@ export default function OrderShipmentDetailsScreen({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(warehouseName || partnerName) && (
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-on-surface-variant">
-                <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <StoreIcon size={16} />
-                </span>
-                <span className="body-small">Sender</span>
+              <div className="flex items-center justify-between text-on-surface-variant">
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                    <StoreIcon size={16} />
+                  </span>
+                  <span className="body-small">Sender (warehouse)</span>
+                </div>
+                {type === 'order' &&
+                  isOrderSenderWarehouseEditable &&
+                  onUpdateOrderSenderWarehouse &&
+                  senderWarehouseOptions.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 border-primary text-primary hover:bg-primary/10 active:bg-primary/20 font-medium shadow-sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const o = data as PartnerOrder;
+                        setPendingSenderWarehouseId(
+                          o.warehouseId ||
+                            senderWarehouseOptions[0]?.id ||
+                            ''
+                        );
+                        setIsSenderWarehouseDialogOpen(true);
+                      }}
+                      disabled={!currentOrderId}
+                    >
+                      <PencilIcon size={16} className="w-4 h-4" />
+                      <span className="label-medium">Edit</span>
+                    </Button>
+                  )}
               </div>
               <p className="body-medium text-on-surface">{warehouseName || partnerName}</p>
               {warehouseName && partnerName && (
@@ -2080,6 +2136,63 @@ export default function OrderShipmentDetailsScreen({
           </div>
         </div>
       )}
+
+      <Dialog
+        open={isSenderWarehouseDialogOpen}
+        onOpenChange={setIsSenderWarehouseDialogOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="title-large">Sending warehouse</DialogTitle>
+            <DialogDescription className="body-medium">
+              Select which partner warehouse this order ships from.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="label-large text-on-surface">Warehouse</Label>
+            <Select
+              value={pendingSenderWarehouseId}
+              onValueChange={setPendingSenderWarehouseId}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select warehouse" />
+              </SelectTrigger>
+              <SelectContent>
+                {senderWarehouseOptions.map((w) => (
+                  <SelectItem key={w.id} value={w.id}>
+                    <span className="body-large">{w.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsSenderWarehouseDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-primary text-on-primary"
+              onClick={() => {
+                const wh = senderWarehouseOptions.find(
+                  (w) => w.id === pendingSenderWarehouseId
+                );
+                if (wh && currentOrderId && onUpdateOrderSenderWarehouse) {
+                  onUpdateOrderSenderWarehouse(currentOrderId, wh.id, wh.name);
+                }
+                setIsSenderWarehouseDialogOpen(false);
+              }}
+              disabled={!pendingSenderWarehouseId}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {(type === 'order' || type === 'shipment') && isReceiverEditable && onUpdateReceiver && (
         <StoreSelector

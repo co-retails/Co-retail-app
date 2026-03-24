@@ -27,6 +27,9 @@ export interface StoreSelection {
   countryId: string;
   storeId: string;
   storeCode?: string;
+  /** Sending warehouse for partner orders (e.g. Thrifted) */
+  warehouseId?: string;
+  warehouseName?: string;
 }
 
 interface StoreSelectorProps {

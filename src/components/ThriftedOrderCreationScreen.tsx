@@ -24,7 +24,7 @@ import {
   StoreIcon
 } from 'lucide-react';
 import { Store, Brand, Country, StoreSelection } from './StoreSelector';
-import { Partner } from './PartnerWarehouseSelector';
+import { Partner, type Warehouse } from './PartnerWarehouseSelector';
 import { getCurrencyFromCountry } from '../data/partnerPricing';
 import { OrderItem } from './OrderCreationScreen';
 import { 
@@ -49,11 +49,13 @@ interface ThriftedOrderCreationScreenProps {
   brands?: Brand[];
   countries?: Country[];
   stores?: Store[];
+  warehouses?: Warehouse[];
   // For editing existing order
   existingOrderId?: string;
   existingItems?: OrderItem[];
   existingStoreSelection?: StoreSelection;
-  orderStatus?: 'pending' | 'registered';
+  existingWarehouseId?: string;
+  orderStatus?: 'pending' | 'draft' | 'registered';
 }
 
 export default function ThriftedOrderCreationScreen({
@@ -63,9 +65,11 @@ export default function ThriftedOrderCreationScreen({
   brands = [],
   countries = [],
   stores = [],
+  warehouses = [],
   existingOrderId,
   existingItems = [],
   existingStoreSelection,
+  existingWarehouseId,
   orderStatus = 'pending'
 }: ThriftedOrderCreationScreenProps) {
   const [step, setStep] = useState<CreationStep>(existingOrderId ? 'items' : 'setup');
@@ -77,6 +81,9 @@ export default function ThriftedOrderCreationScreen({
   const [selectedBrandId, setSelectedBrandId] = useState<string | undefined>(existingStoreSelection?.brandId);
   const [selectedCountryId, setSelectedCountryId] = useState<string | undefined>(existingStoreSelection?.countryId);
   const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>(existingStoreSelection?.storeId);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string | undefined>(
+    existingWarehouseId ?? existingStoreSelection?.warehouseId
+  );
   
   const [validationFilter, setValidationFilter] = useState<ValidationFilter>('all');
   const [uploadError, setUploadError] = useState<string>('');
@@ -85,7 +92,19 @@ export default function ThriftedOrderCreationScreen({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isEditing = !!existingOrderId;
-  const canEdit = !isEditing || orderStatus === 'pending';
+  const canEditItems = !isEditing || orderStatus === 'pending' || orderStatus === 'draft';
+  const canEditLocation =
+    !isEditing || orderStatus === 'pending' || orderStatus === 'draft' || orderStatus === 'registered';
+
+  const partnerWarehouses = useMemo(
+    () => warehouses.filter((w) => w.partnerId === currentPartner?.id),
+    [warehouses, currentPartner?.id]
+  );
+
+  useEffect(() => {
+    if (selectedWarehouseId || partnerWarehouses.length === 0) return;
+    setSelectedWarehouseId(partnerWarehouses[0].id);
+  }, [partnerWarehouses, selectedWarehouseId]);
 
   // Get filtered countries and stores based on selections
   const availableCountries = selectedBrandId 
@@ -96,15 +115,22 @@ export default function ThriftedOrderCreationScreen({
     ? stores.filter(s => s.brandId === selectedBrandId && s.countryId === selectedCountryId)
     : [];
 
-  // Build store selection object
-  const storeSelection: StoreSelection | undefined = selectedBrandId && selectedCountryId && selectedStoreId
-    ? {
-        brandId: selectedBrandId,
-        countryId: selectedCountryId,
-        storeId: selectedStoreId,
-        storeCode: stores.find(s => s.id === selectedStoreId)?.code || ''
-      }
+  const selectedWarehouseRecord = selectedWarehouseId
+    ? partnerWarehouses.find((w) => w.id === selectedWarehouseId)
     : undefined;
+
+  // Build store selection object (includes sending warehouse)
+  const storeSelection: StoreSelection | undefined =
+    selectedBrandId && selectedCountryId && selectedStoreId && selectedWarehouseId
+      ? {
+          brandId: selectedBrandId,
+          countryId: selectedCountryId,
+          storeId: selectedStoreId,
+          storeCode: stores.find((s) => s.id === selectedStoreId)?.code || '',
+          warehouseId: selectedWarehouseId,
+          warehouseName: selectedWarehouseRecord?.name || ''
+        }
+      : undefined;
 
   const selectedCountryRecord = selectedCountryId ? countries.find(c => c.id === selectedCountryId) : undefined;
   const selectedCurrency = selectedCountryRecord ? getCurrencyFromCountry(selectedCountryRecord.name) : undefined;
@@ -142,7 +168,7 @@ export default function ThriftedOrderCreationScreen({
     return () => {
       inputs.forEach((input) => input.removeAttribute('list'));
     };
-  }, [orderItems.length, filteredItems.length, validationFilter, step, canEdit]);
+  }, [orderItems.length, filteredItems.length, validationFilter, step, canEditItems]);
 
   const handleDownloadTemplate = () => {
     const template = generateThriftedTemplateCSV();
@@ -415,11 +441,12 @@ export default function ThriftedOrderCreationScreen({
                 {storeSelection && !showStoreEdit && (
                   <p className="body-small text-on-surface-variant mt-0.5">
                     {selectedBrand?.name} • {selectedCountry?.name}
+                    {selectedWarehouseRecord?.name ? ` • Sending: ${selectedWarehouseRecord.name}` : ''}
                   </p>
                 )}
               </div>
             </div>
-            {storeSelection && canEdit && step === 'items' && (
+            {storeSelection && canEditLocation && step === 'items' && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -435,88 +462,116 @@ export default function ThriftedOrderCreationScreen({
         <CardContent className="pt-0">
           {showStoreEdit || !storeSelection ? (
             <div className="space-y-4">
-              {/* Brand Selector */}
-              <div className="space-y-2">
-                <Label className="label-large text-on-surface">Brand</Label>
-                <Select 
-                  value={selectedBrandId} 
-                  onValueChange={(value: string) => {
-                    setSelectedBrandId(value);
-                    setSelectedCountryId(undefined);
-                    setSelectedStoreId(undefined);
-                  }}
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a brand" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {brands.map(brand => (
-                      <SelectItem key={brand.id} value={brand.id}>
-                        <span className="body-large">{brand.name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="label-large text-on-surface">Brand</Label>
+                  <Select
+                    value={selectedBrandId}
+                    onValueChange={(value: string) => {
+                      setSelectedBrandId(value);
+                      setSelectedCountryId(undefined);
+                      setSelectedStoreId(undefined);
+                    }}
+                    disabled={!canEditLocation}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brands.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          <span className="body-large">{brand.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="label-large text-on-surface">Country</Label>
+                  <Select
+                    value={selectedCountryId}
+                    onValueChange={(value: string) => {
+                      setSelectedCountryId(value);
+                      setSelectedStoreId(undefined);
+                    }}
+                    disabled={!selectedBrandId || !canEditLocation}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCountries.map((country) => (
+                        <SelectItem key={country.id} value={country.id}>
+                          <span className="body-large">{country.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="label-large text-on-surface">Store</Label>
+                  <Select
+                    value={selectedStoreId}
+                    onValueChange={(value: string) => {
+                      setSelectedStoreId(value);
+                      if (step === 'items') {
+                        setShowStoreEdit(false);
+                      }
+                    }}
+                    disabled={!selectedCountryId || !canEditLocation}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableStores.map((store) => (
+                        <SelectItem key={store.id} value={store.id}>
+                          <span className="body-large">
+                            {store.name} ({store.code})
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              {/* Country Selector */}
               <div className="space-y-2">
-                <Label className="label-large text-on-surface">Country</Label>
-                <Select 
-                  value={selectedCountryId} 
-                  onValueChange={(value: string) => {
-                    setSelectedCountryId(value);
-                    setSelectedStoreId(undefined);
-                  }}
-                  disabled={!selectedBrandId || !canEdit}
+                <Label className="label-large text-on-surface">Warehouse (sender)</Label>
+                <Select
+                  value={selectedWarehouseId}
+                  onValueChange={(value: string) => setSelectedWarehouseId(value)}
+                  disabled={!canEditLocation || partnerWarehouses.length === 0}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a country" />
+                  <SelectTrigger className="w-full md:max-w-md">
+                    <SelectValue placeholder="Select sending warehouse" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableCountries.map(country => (
-                      <SelectItem key={country.id} value={country.id}>
-                        <span className="body-large">{country.name}</span>
+                    {partnerWarehouses.map((wh) => (
+                      <SelectItem key={wh.id} value={wh.id}>
+                        <span className="body-large">{wh.name}</span>
+                        <span className="body-small text-on-surface-variant ml-2">({wh.location})</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              {/* Store Selector */}
-              <div className="space-y-2">
-                <Label className="label-large text-on-surface">Store</Label>
-                <Select 
-                  value={selectedStoreId} 
-                  onValueChange={(value: string) => {
-                    setSelectedStoreId(value);
-                    if (step === 'items') {
-                      setShowStoreEdit(false);
-                    }
-                  }}
-                  disabled={!selectedCountryId || !canEdit}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a store" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableStores.map(store => (
-                      <SelectItem key={store.id} value={store.id}>
-                        <span className="body-large">{store.name} ({store.code})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {partnerWarehouses.length === 0 && (
+                  <p className="body-small text-on-surface-variant">No warehouses available for this partner.</p>
+                )}
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3 py-2">
-              <div className="flex-1">
-                <p className="title-medium text-on-surface">
-                  {selectedStore?.name} ({selectedStore?.code})
+            <div className="space-y-1 py-2">
+              <p className="title-medium text-on-surface">
+                {selectedStore?.name} ({selectedStore?.code})
+              </p>
+              {selectedWarehouseRecord && (
+                <p className="body-small text-on-surface-variant">
+                  Sending warehouse: {selectedWarehouseRecord.name}
                 </p>
-              </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -539,12 +594,12 @@ export default function ThriftedOrderCreationScreen({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <button
               onClick={() => setCreationMethod('manual')}
-              disabled={!canEdit}
+              disabled={!canEditItems}
               className={`p-4 border rounded-xl transition-colors text-left ${
                 creationMethod === 'manual'
                   ? 'border-primary bg-primary-container'
                   : 'border-outline hover:bg-surface-container-high'
-              } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${!canEditItems ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-lg ${
@@ -565,12 +620,12 @@ export default function ThriftedOrderCreationScreen({
 
             <button
               onClick={() => setCreationMethod('bulk')}
-              disabled={!canEdit}
+              disabled={!canEditItems}
               className={`p-4 border rounded-xl transition-colors text-left ${
                 creationMethod === 'bulk'
                   ? 'border-primary bg-primary-container'
                   : 'border-outline hover:bg-surface-container-high'
-              } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${!canEditItems ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-lg ${
@@ -674,7 +729,7 @@ export default function ThriftedOrderCreationScreen({
   const renderItemsStep = () => (
     <div className="space-y-6 pb-32">
       {/* Re-upload Section (for bulk uploads only) */}
-      {canEdit && creationMethod === 'bulk' && (
+      {canEditItems && creationMethod === 'bulk' && (
         <Card className="bg-surface-container-low border-outline">
           <CardHeader>
             <CardTitle className="title-large">Import Items</CardTitle>
@@ -745,7 +800,7 @@ export default function ThriftedOrderCreationScreen({
           <div className="flex items-center justify-between flex-wrap gap-4">
             <CardTitle className="title-large">Order Items ({totalItems})</CardTitle>
             <div className="flex items-center gap-2 flex-wrap">
-              {canEdit && (
+              {canEditItems && (
                 <Button
                   variant="default"
                   size="sm"
@@ -766,7 +821,7 @@ export default function ThriftedOrderCreationScreen({
                   {validItems} valid
                 </Badge>
               )}
-              {canEdit && orderItems.length > 0 && (
+              {canEditItems && orderItems.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -843,9 +898,9 @@ export default function ThriftedOrderCreationScreen({
                 showPurchasePrice={false}
                 showPrice={true}
                 showStatus={false}
-                isEditable={canEdit}
+                isEditable={canEditItems}
                 onUpdateItem={handleUpdateItem}
-                onDeleteItem={canEdit ? handleDeleteItem : undefined}
+                onDeleteItem={canEditItems ? handleDeleteItem : undefined}
                 subcategoryOptions={getAllThriftedSubcategories()}
                 subcategoryLabel="Subcategory"
                 brandAsInput={true}
@@ -859,7 +914,7 @@ export default function ThriftedOrderCreationScreen({
               />
 
               {/* Delete Items Actions */}
-              {canEdit && filteredItems.length > 0 && (
+              {canEditItems && filteredItems.length > 0 && (
                 <div className="mt-4 flex justify-end gap-2">
                   <Button
                     variant="outline"

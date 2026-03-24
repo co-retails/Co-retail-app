@@ -995,6 +995,49 @@ export default function App() {
     toast.success('Receiver updated');
   };
 
+  const handleUpdateOrderSenderWarehouse = (
+    orderId: string,
+    warehouseId: string,
+    warehouseName: string
+  ) => {
+    setPartnerOrders((prev) =>
+      prev.map((order) =>
+        order.id === orderId ? { ...order, warehouseId, warehouseName } : order
+      )
+    );
+
+    setDeliveryNotes((prev) =>
+      prev.map((note) =>
+        note.orderId === orderId ? { ...note, warehouseId, warehouseName } : note
+      )
+    );
+
+    setDetailsScreenData((prev) => {
+      if (!prev) return prev;
+      if (prev.type === 'order') {
+        const o = prev.data as PartnerOrder;
+        if (o.id !== orderId) return prev;
+        return {
+          ...prev,
+          warehouseName,
+          data: { ...o, warehouseId, warehouseName },
+        };
+      }
+      if (prev.type === 'shipment') {
+        const s = prev.data as DeliveryNote;
+        if (s.orderId !== orderId) return prev;
+        return {
+          ...prev,
+          warehouseName,
+          data: { ...s, warehouseId, warehouseName },
+        };
+      }
+      return prev;
+    });
+
+    toast.success('Sending warehouse updated');
+  };
+
   const handleViewOrderListFromDialog = () => {
     setShowPostRegistrationDialog(false);
     // Navigate to partner dashboard for partners, shipping screen for others
@@ -2769,6 +2812,11 @@ export default function App() {
             <ThriftedOrderCreationScreen
               onBack={() => setCurrentScreenSafe('partner-dashboard')}
               onCreateOrder={(items, storeSelection, shouldRegister = false) => {
+                const sendingWarehouseId =
+                  storeSelection.warehouseId || currentPartnerWarehouseSelection?.warehouseId;
+                const sendingWarehouseName =
+                  storeSelection.warehouseName ||
+                  mockWarehouses.find((w) => w.id === sendingWarehouseId)?.name;
                 // Create a new order with the items (always as pending, user can register later)
                 const newOrder: PartnerOrder = {
                   id: `THR-ORD-${Date.now().toString().slice(-8)}`,
@@ -2780,8 +2828,8 @@ export default function App() {
                   partnerName: currentPartner?.name,
                   receivingStoreId: storeSelection.storeId,
                   receivingStoreName: mockStores?.find(s => s.id === storeSelection.storeId)?.name,
-                  warehouseId: currentPartnerWarehouseSelection?.warehouseId,
-                  warehouseName: mockWarehouses.find(w => w.id === currentPartnerWarehouseSelection?.warehouseId)?.name
+                  warehouseId: sendingWarehouseId,
+                  warehouseName: sendingWarehouseName,
                 };
                 
                 setPartnerOrders(prev => [...prev, newOrder]);
@@ -2801,7 +2849,7 @@ export default function App() {
                     storeName: store?.name,
                     storeCode: store?.code,
                     partnerName: currentPartner?.name,
-                    warehouseName: mockWarehouses.find(w => w.id === currentPartnerWarehouseSelection?.warehouseId)?.name,
+                    warehouseName: sendingWarehouseName,
                     orderItems: items // Pass items to the details screen
                   });
                   
@@ -2813,6 +2861,7 @@ export default function App() {
               brands={mockBrands}
               countries={mockCountries}
               stores={mockStores}
+              warehouses={mockWarehouses}
             />
           );
         }
@@ -3058,6 +3107,8 @@ export default function App() {
           onAddBox={handleAddBoxToDeliveryNote}
           onUpdateBoxLabel={handleUpdateBoxLabel}
           onUpdateReceiver={handleUpdateOrderReceiver}
+          warehouses={mockWarehouses}
+          onUpdateOrderSenderWarehouse={handleUpdateOrderSenderWarehouse}
           onOpenBoxDetails={handleOpenBoxDetails}
           relatedOrders={(() => {
             if (detailsScreenData?.type === 'shipment') {

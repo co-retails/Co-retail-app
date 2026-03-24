@@ -43,6 +43,7 @@ import BuyerShipmentsScreen from './BuyerShipmentsScreen';
 import BuyerPurchaseOrdersScreen from './BuyerPurchaseOrdersScreen';
 import BuyerOrderDetailsScreen from './BuyerOrderDetailsScreen';
 import { PortalConfigurationManager } from './PortalConfigurationManager';
+import { mockBrands, mockCountries, mockStores } from '../data/mockData';
 
 interface AppRouterProps {
   state: ReturnType<typeof useAppState>;
@@ -223,55 +224,58 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
     case 'portal-configuration':
       return <PortalConfigurationManager onBack={handlers.handleBack} />;
 
-    case 'order-creation':
-      const currentPartner = props.partners?.find(p => p.id === state.currentPartnerWarehouseSelection?.partnerId);
+    case 'order-creation': {
+      const currentPartner = state.partners?.find(
+        (p) => p.id === state.currentPartnerWarehouseSelection?.partnerId
+      );
       const isThriftedPartner = currentPartner?.name === 'Thrifted';
-      
+
       if (isThriftedPartner) {
         return (
           <ThriftedOrderCreationScreen
             onBack={() => state.setCurrentScreen('partner-dashboard')}
-            onCreateOrder={(items, storeSelection, shouldRegister = false) => {
-              // Create a new order with the items (always as pending, user can register later)
+            onCreateOrder={(items, storeSelection, _shouldRegister = false) => {
+              const sendingWarehouseId =
+                storeSelection.warehouseId ||
+                state.currentPartnerWarehouseSelection?.warehouseId;
+              const sendingWarehouseName =
+                storeSelection.warehouseName ||
+                state.warehouses.find((w) => w.id === sendingWarehouseId)?.name;
               const newOrder: import('./PartnerDashboard').ExtendedPartnerOrder = {
                 id: `THR-ORD-${Date.now().toString().slice(-8)}`,
-                status: 'draft', // Thrifted: Draft when saved without registering
+                status: 'draft',
                 createdDate: new Date().toISOString(),
                 itemCount: items.length,
                 boxCount: 0,
                 partnerId: currentPartner?.id,
                 partnerName: currentPartner?.name,
                 receivingStoreId: storeSelection.storeId,
-                receivingStoreName: props.stores?.find(s => s.id === storeSelection.storeId)?.name,
-                warehouseId: state.currentPartnerWarehouseSelection?.warehouseId,
-                warehouseName: props.warehouses?.find(w => w.id === state.currentPartnerWarehouseSelection?.warehouseId)?.name
+                receivingStoreName: mockStores.find((s) => s.id === storeSelection.storeId)?.name,
+                warehouseId: sendingWarehouseId,
+                warehouseName: sendingWarehouseName,
               };
-              
-              state.setPartnerOrders(prev => [...prev, newOrder]);
-              
-              // Store order items for the order details screen
-              // We need to store items in a way that can be accessed by OrderShipmentDetailsScreen
-              // For now, we'll pass them through detailsScreenData
-              const store = props.stores?.find(s => s.id === storeSelection.storeId);
-              
-              // Set up details screen data with order and items
+
+              state.setPartnerOrders((prev) => [...prev, newOrder]);
+
+              const store = mockStores.find((s) => s.id === storeSelection.storeId);
+
               state.setDetailsScreenData({
                 type: 'order',
                 data: newOrder,
                 storeName: store?.name,
                 storeCode: store?.code,
                 partnerName: currentPartner?.name,
-                warehouseName: props.warehouses?.find(w => w.id === state.currentPartnerWarehouseSelection?.warehouseId)?.name,
-                orderItems: items // Pass items to the details screen
+                warehouseName: sendingWarehouseName,
+                orderItems: items,
               });
-              
-              // Navigate to order details screen so user can fix validation errors
+
               state.setCurrentScreen('order-shipment-details');
             }}
             currentPartner={currentPartner}
-            brands={props.brands}
-            countries={props.countries}
-            stores={props.stores}
+            brands={mockBrands}
+            countries={mockCountries}
+            stores={mockStores}
+            warehouses={state.warehouses}
           />
         );
       }
@@ -284,6 +288,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
           </div>
         </div>
       );
+    }
 
     case 'order-details':
       return state.selectedSellpyOrder ? (
