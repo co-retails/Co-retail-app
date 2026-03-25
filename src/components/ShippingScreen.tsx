@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, QrCode, ArrowUp, ArrowDown, Plus } from 'lucide-react';
+import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, QrCode, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
 import { UserRole } from './RoleSwitcher';
 import type { ExtendedPartnerOrder } from './PartnerDashboard';
 import { DeliveryNote } from './BoxManagementScreen';
@@ -1370,51 +1370,6 @@ useEffect(() => {
     }));
   };
 
-  // Build active filter text grouped by brand (countries and stores shown under their brand)
-  const getActiveFilterText = (): string => {
-    const brandIds = viewFilter.brandIds ?? [];
-    const countryIds = viewFilter.countryIds ?? [];
-    const storeIds = viewFilter.storeIds ?? [];
-    const brandsList = brands ?? [];
-    const countriesList = countries ?? [];
-    const storesList = stores ?? [];
-    if (brandIds.length === 0 && countryIds.length === 0 && storeIds.length === 0) return '';
-    const selectedStores = storesList.filter(s => storeIds.includes(s.id));
-    const selectedCountries = countriesList.filter(c => countryIds.includes(c.id));
-    const selectedBrandsFromFilter = brandsList.filter(b => brandIds.includes(b.id));
-    const brandIdsFromStores = [...new Set(selectedStores.map(s => s.brandId))];
-    const allBrandIds = [...new Set([...brandIds, ...brandIdsFromStores])];
-    if (allBrandIds.length === 0) {
-      if (selectedBrandsFromFilter.length > 0) return selectedBrandsFromFilter.map(b => b.name).join(', ');
-      if (selectedCountries.length > 0) return selectedCountries.map(c => c.name).join(', ');
-      return '';
-    }
-    const parts: string[] = [];
-    const sortedBrands = allBrandIds
-      .map(id => brandsList.find(b => b.id === id))
-      .filter((b): b is BrandRecord => Boolean(b))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    for (const brand of sortedBrands) {
-      const storesInBrand = selectedStores.filter(s => s.brandId === brand.id);
-      const countryIdsInBrand = new Set(
-        storesInBrand.length > 0
-          ? storesInBrand.map(s => s.countryId)
-          : storesList.filter(s => s.brandId === brand.id).map(s => s.countryId)
-      );
-      const countriesInBrand = selectedCountries.filter(c => countryIdsInBrand.has(c.id));
-      const countryNames = countriesInBrand.map(c => c.name).join(', ');
-      const storeLabels = storesInBrand.map(s => `${s.name} (${s.code})`).join(', ');
-      const sub: string[] = [];
-      if (countryNames) sub.push(countryNames);
-      if (storeLabels) sub.push(storeLabels);
-      if (sub.length) parts.push(`${brand.name}: ${sub.join('; ')}`);
-      else parts.push(brand.name);
-    }
-    return parts.join('. ');
-  };
-
-  const activeFilterText = getActiveFilterText();
-
   // Helper function to get receiver display with brand and store code
   const getReceiverDisplay = (receivingStoreId?: string, receivingStoreName?: string) => {
     if (!receivingStoreId || !receivingStoreName) {
@@ -2072,65 +2027,9 @@ useEffect(() => {
       {/* Header */}
       <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant">
         <div className="px-4 md:px-6 py-4 md:pt-4">
-          <div className="flex items-center justify-between">
-            <h3 className="headline-small text-on-surface">
-              {role === 'partner' ? 'Orders & Shipments' : 'Shipping'}
-            </h3>
-            
-            {/* Filter Button - Partner Portal Only - Matching ItemsScreen design */}
-            {role === 'partner' && brands && brands.length > 0 && (
-              <StoreFilterBottomSheet
-                viewFilter={viewFilter}
-                onViewAllStores={handleViewAllStores}
-                onBrandFilterChange={handleBrandFilterChange}
-                onStoreFilterChange={handleStoreFilterChange}
-                onCountryFilterChange={handleCountryFilterChange}
-                currentPartnerId={currentPartnerId || ''}
-                partners={[]}
-                brands={brands}
-                stores={stores || []}
-                countries={countries || []}
-              >
-                <button 
-                  className={`
-                    h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
-                    ${((viewFilter.storeIds?.length || 0) > 0 || 
-                      (viewFilter.brandIds?.length || 0) > 0 || 
-                      (viewFilter.countryIds?.length || 0) > 0)
-                      ? 'bg-secondary-container border-outline text-on-secondary-container'
-                      : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
-                    }
-                  `}
-                >
-                  <FilterIcon size={20} />
-                  <span className="label-medium">Store Filter</span>
-                  {((viewFilter.brandIds?.length || 0) > 0 || 
-                    (viewFilter.countryIds?.length || 0) > 0 || 
-                    (viewFilter.storeIds?.length || 0) > 0) && (
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                  )}
-                </button>
-              </StoreFilterBottomSheet>
-            )}
-          </div>
-          
-          {/* Active filters as regular text, grouped by brand - Partner Portal Only */}
-          {role === 'partner' && activeFilterText && (
-            <div className="mt-3">
-              <p className="body-medium text-on-surface">
-                <span className="label-medium text-on-surface">Active filters: </span>
-                {activeFilterText}
-                {' · '}
-                <button
-                  type="button"
-                  onClick={handleViewAllStores}
-                  className="underline hover:no-underline text-on-surface hover:opacity-80 focus:outline-none focus:underline"
-                >
-                  Clear all
-                </button>
-              </p>
-            </div>
-          )}
+          <h3 className="headline-small text-on-surface">
+            {role === 'partner' ? 'Orders & Shipments' : 'Shipping'}
+          </h3>
 
           {showCreateOrderButton && (
             <div className="mt-4 md:max-w-sm md:w-auto">
@@ -2149,27 +2048,130 @@ useEffect(() => {
       {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
       <div className="px-4 md:px-6 pt-4 md:pt-6">
         
-        {/* Search Bar - Max width on desktop */}
+        {/* Search row (search + store filter) */}
         <div className="mb-4">
-          <div className="relative md:max-w-2xl">
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                <Search className="w-5 h-5 text-on-surface-variant" />
+          <div className="flex gap-3 items-start">
+            <div className="relative md:max-w-2xl flex-1">
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <Search className="w-5 h-5 text-on-surface-variant" />
+                </div>
+                <input
+                  type="text"
+                  id="shipping-search"
+                  name="shipping-search"
+                  placeholder={showReturns ? "Search for return delivery ID or store name" : 
+                    showSellpyOrders ? "Search for order ID or store name" :
+                    role === 'partner' ? "Search for order ID or delivery note" : "Search for delivery ID"
+                  }
+                  value={searchTerm}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                  className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
+                />
               </div>
-              <input
-                type="text"
-                id="shipping-search"
-                name="shipping-search"
-                placeholder={showReturns ? "Search for return delivery ID or store name" : 
-                  showSellpyOrders ? "Search for order ID or store name" :
-                  role === 'partner' ? "Search for order ID or delivery note" : "Search for delivery ID"
-                }
-                value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
-              />
             </div>
+
+            {role === 'partner' && brands && brands.length > 0 && (
+              <StoreFilterBottomSheet
+                viewFilter={viewFilter}
+                onViewAllStores={handleViewAllStores}
+                onBrandFilterChange={handleBrandFilterChange}
+                onStoreFilterChange={handleStoreFilterChange}
+                onCountryFilterChange={handleCountryFilterChange}
+                currentPartnerId={currentPartnerId || ''}
+                partners={[]}
+                brands={brands}
+                stores={stores || []}
+                countries={countries || []}
+              >
+                <button
+                  type="button"
+                  className={`
+                    h-12 px-3 sm:px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
+                    ${hasActivePartnerViewFilters
+                      ? 'bg-secondary-container border-outline text-on-secondary-container'
+                      : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
+                    }
+                  `}
+                >
+                  <FilterIcon size={20} />
+                  <span className="label-medium hidden sm:inline">Store Filter</span>
+                  {hasActivePartnerViewFilters && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </button>
+              </StoreFilterBottomSheet>
+            )}
           </div>
+
+          {/* Active view filters as blue bubbles (one bubble per category) */}
+          {role === 'partner' && hasActivePartnerViewFilters && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              {(viewFilter.brandIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.brandIds!.length === 1
+                      ? (brands?.find(b => b.id === viewFilter.brandIds![0])?.name ?? `Brand (1)`)
+                      : `Brand (${viewFilter.brandIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear brand filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleBrandFilterChange([]);
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {(viewFilter.countryIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.countryIds!.length === 1
+                      ? (countries?.find(c => c.id === viewFilter.countryIds![0])?.name ?? `Country (1)`)
+                      : `Country (${viewFilter.countryIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear country filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCountryFilterChange([]);
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {(viewFilter.storeIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.storeIds!.length === 1
+                      ? (stores?.find(s => s.id === viewFilter.storeIds![0])?.name ?? `Store (1)`)
+                      : `Store (${viewFilter.storeIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear store filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleStoreFilterChange([]);
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Button - Role-specific */}

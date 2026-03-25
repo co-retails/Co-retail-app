@@ -118,7 +118,7 @@ function SearchBar({ searchTerm, onSearchChange, onFilterClick }: {
   }
 
   return (
-    <div className="relative w-full mb-4 md:max-w-2xl">
+    <div className="relative w-full mb-0">
       <div className="relative">
         {/* Search icon on the left */}
         <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none z-10">
@@ -2931,8 +2931,27 @@ export default function ItemsScreen({
         <div className="px-4 md:px-6 py-4 md:pt-4">
           <div className="flex items-center justify-between">
             <h3 className="headline-small text-on-surface">Items</h3>
-            
-            {/* Filter Button - Partner Portal Only - Matching PartnerDashboard design */}
+          </div>
+        </div>
+      </div>
+
+      {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
+      <div 
+        className="px-4 md:px-6 pt-4 md:pt-6 h-full overflow-y-auto"
+        onScroll={handleScroll}
+      >
+        
+        {/* Search row (search + store filter) */}
+        <div className="mb-4">
+          <div className="flex gap-3 items-start">
+            <div className="flex-1">
+              <SearchBar 
+                searchTerm={quickSearchTerm} 
+                onSearchChange={setQuickSearchTerm}
+                onFilterClick={() => setShowFilterSheet(true)}
+              />
+            </div>
+
             {isPartnerPortal && (
               <StoreFilterBottomSheet
                 viewFilter={viewFilter}
@@ -2964,7 +2983,7 @@ export default function ItemsScreen({
                   setViewFilter({ 
                     mode: 'by-store', 
                     brandIds: viewFilter.brandIds,
-                    storeIds: viewFilter.storeIds,
+                    storeIds: viewFilter.storeIds, 
                     countryIds,
                     partnerId: viewFilter.partnerId
                   });
@@ -2975,19 +2994,20 @@ export default function ItemsScreen({
                 stores={stores}
                 countries={countries}
               >
-                <button 
+                <button
+                  type="button"
                   className={`
-                    h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
+                    h-12 px-2 sm:px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
                     ${(viewFilter.brandIds?.length || 0) > 0 || 
-                       (viewFilter.countryIds?.length || 0) > 0 || 
-                       (viewFilter.storeIds?.length || 0) > 0
+                      (viewFilter.countryIds?.length || 0) > 0 || 
+                      (viewFilter.storeIds?.length || 0) > 0
                       ? 'bg-secondary-container border-outline text-on-secondary-container'
                       : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
                     }
                   `}
                 >
                   <FilterIcon size={20} />
-                  <span className="label-medium">
+                  <span className="label-medium hidden sm:inline">
                     {((viewFilter.brandIds?.length || 0) > 0 || 
                       (viewFilter.countryIds?.length || 0) > 0 || 
                       (viewFilter.storeIds?.length || 0) > 0)
@@ -3004,104 +3024,77 @@ export default function ItemsScreen({
               </StoreFilterBottomSheet>
             )}
           </div>
-          
-          {/* Filter Chips Display - Partner Portal Only - Matching PartnerDashboard design */}
+
+          {/* Active view filters as blue bubbles (one per category) */}
           {isPartnerPortal && ((viewFilter.brandIds?.length || 0) > 0 || 
             (viewFilter.countryIds?.length || 0) > 0 || 
             (viewFilter.storeIds?.length || 0) > 0) && (
-            <div className="mt-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="label-small text-on-surface-variant">Active filters:</span>
-                
-                {/* Brand Filter Chips */}
-                {viewFilter.brandIds && viewFilter.brandIds.length > 0 && 
-                  brands.filter(b => viewFilter.brandIds!.includes(b.id)).map(brand => (
-                    <div 
-                      key={`brand-${brand.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
-                    >
-                      {brand.name}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewFilter({
-                            ...viewFilter,
-                            brandIds: viewFilter.brandIds?.filter(id => id !== brand.id)
-                          });
-                        }}
-                        className="hover:opacity-70"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))
-                }
-                
-                {/* Country Filter Chips */}
-                {viewFilter.countryIds && viewFilter.countryIds.length > 0 && 
-                  countries.filter(c => viewFilter.countryIds!.includes(c.id)).map(country => (
-                    <div 
-                      key={`country-${country.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
-                    >
-                      {country.name}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewFilter({
-                            ...viewFilter,
-                            countryIds: viewFilter.countryIds?.filter(id => id !== country.id)
-                          });
-                        }}
-                        className="hover:opacity-70"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))
-                }
-                
-                {/* Store Filter Chips */}
-                {viewFilter.storeIds && viewFilter.storeIds.length > 0 && 
-                  stores.filter(s => viewFilter.storeIds!.includes(s.id)).map(store => (
-                    <div 
-                      key={`store-${store.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
-                    >
-                      {store.name}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewFilter({
-                            ...viewFilter,
-                            storeIds: viewFilter.storeIds?.filter(id => id !== store.id)
-                          });
-                        }}
-                        className="hover:opacity-70"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))
-                }
-              </div>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              {(viewFilter.brandIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.brandIds!.length === 1
+                      ? (brands.find(b => b.id === viewFilter.brandIds![0])?.name ?? 'Brand')
+                      : `Brand (${viewFilter.brandIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear brand filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewFilter({ ...viewFilter, brandIds: [] });
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {(viewFilter.countryIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.countryIds!.length === 1
+                      ? (countries.find(c => c.id === viewFilter.countryIds![0])?.name ?? 'Country')
+                      : `Country (${viewFilter.countryIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear country filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewFilter({ ...viewFilter, countryIds: [] });
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {(viewFilter.storeIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.storeIds!.length === 1
+                      ? (stores.find(s => s.id === viewFilter.storeIds![0])?.name ?? 'Store')
+                      : `Store (${viewFilter.storeIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear store filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewFilter({ ...viewFilter, storeIds: [] });
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
-      <div 
-        className="px-4 md:px-6 pt-4 md:pt-6 h-full overflow-y-auto"
-        onScroll={handleScroll}
-      >
-        
-        {/* Search Bar with Filter Icon */}
-        <SearchBar 
-          searchTerm={quickSearchTerm} 
-          onSearchChange={setQuickSearchTerm}
-          onFilterClick={() => setShowFilterSheet(true)}
-        />
         
         {/* Quick Filter Chips */}
         <QuickFilterChips 
