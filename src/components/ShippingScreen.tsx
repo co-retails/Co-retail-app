@@ -2018,7 +2018,11 @@ useEffect(() => {
   const showReturns = activeTab === 'returns'; // Show returns for both partners and store staff
   // Store staff no longer has an 'orders' tab - removed
   const showSellpyOrders = false;
-  
+
+  const hasActivePartnerViewFilters =
+    (viewFilter.brandIds?.length ?? 0) > 0 ||
+    (viewFilter.countryIds?.length ?? 0) > 0 ||
+    (viewFilter.storeIds?.length ?? 0) > 0;
 
   return (
     <div className="bg-surface relative size-full">
@@ -2086,6 +2090,7 @@ useEffect(() => {
               >
                 <button
                   type="button"
+                  aria-label="Store filter"
                   className={`
                     h-12 px-3 sm:px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
                     ${hasActivePartnerViewFilters
@@ -2095,7 +2100,7 @@ useEffect(() => {
                   `}
                 >
                   <FilterIcon size={20} />
-                  <span className="label-medium hidden sm:inline">Store Filter</span>
+                  <span className="label-medium hidden sm:inline">Store filter</span>
                   {hasActivePartnerViewFilters && <div className="w-2 h-2 rounded-full bg-primary" />}
                 </button>
               </StoreFilterBottomSheet>

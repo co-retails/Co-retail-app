@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Settings, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
-import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
+import { Settings, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
+import type { ViewFilter } from './StoreFilterBottomSheet';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import type { Store, Country, Brand } from './StoreSelector';
 import PartnerWarehouseSelector, { Partner as WarehousePartner, Warehouse, PartnerWarehouseSelection } from './PartnerWarehouseSelector';
@@ -258,86 +258,6 @@ export default function PartnerDashboard({
     };
   };
 
-  // Handle view all stores (reset to partner only)
-  const handleViewAllStores = () => {
-    onViewFilterChange({ mode: 'by-partner', partnerId: currentPartnerWarehouseSelection.partnerId });
-  };
-
-  // Handle brand filter change (multiselect)
-  const handleBrandFilterChange = (brandIds: string[]) => {
-    onViewFilterChange({ 
-      mode: 'by-store', 
-      brandIds, 
-      storeIds: viewFilter.storeIds,
-      countryIds: viewFilter.countryIds,
-      partnerId: viewFilter.partnerId
-    });
-  };
-
-  // Handle store filter change (multiselect)
-  const handleStoreFilterChange = (storeIds: string[]) => {
-    onViewFilterChange({ 
-      mode: 'by-store', 
-      brandIds: viewFilter.brandIds,
-      storeIds, 
-      countryIds: viewFilter.countryIds,
-      partnerId: viewFilter.partnerId
-    });
-  };
-
-  // Handle country filter change (multiselect)
-  const handleCountryFilterChange = (countryIds: string[]) => {
-    onViewFilterChange({ 
-      mode: 'by-store', 
-      brandIds: viewFilter.brandIds,
-      storeIds: viewFilter.storeIds,
-      countryIds,
-      partnerId: viewFilter.partnerId
-    });
-  };
-
-  // Build active filter text grouped by brand (countries and stores shown under their brand)
-  const getActiveFilterText = (): string => {
-    const brandIds = viewFilter.brandIds ?? [];
-    const countryIds = viewFilter.countryIds ?? [];
-    const storeIds = viewFilter.storeIds ?? [];
-    if (brandIds.length === 0 && countryIds.length === 0 && storeIds.length === 0) return '';
-    const selectedStores = stores.filter(s => storeIds.includes(s.id));
-    const selectedCountries = countries.filter(c => countryIds.includes(c.id));
-    const selectedBrandsFromFilter = brands.filter(b => brandIds.includes(b.id));
-    const brandIdsFromStores = [...new Set(selectedStores.map(s => s.brandId))];
-    const allBrandIds = [...new Set([...brandIds, ...brandIdsFromStores])];
-    if (allBrandIds.length === 0) {
-      if (selectedBrandsFromFilter.length > 0) return selectedBrandsFromFilter.map(b => b.name).join(', ');
-      if (selectedCountries.length > 0) return selectedCountries.map(c => c.name).join(', ');
-      return '';
-    }
-    const parts: string[] = [];
-    const sortedBrands = allBrandIds
-      .map(id => brands.find(b => b.id === id))
-      .filter((b): b is Brand => Boolean(b))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    for (const brand of sortedBrands) {
-      const storesInBrand = selectedStores.filter(s => s.brandId === brand.id);
-      const countryIdsInBrand = new Set(
-        storesInBrand.length > 0
-          ? storesInBrand.map(s => s.countryId)
-          : stores.filter(s => s.brandId === brand.id).map(s => s.countryId)
-      );
-      const countriesInBrand = selectedCountries.filter(c => countryIdsInBrand.has(c.id));
-      const countryNames = countriesInBrand.map(c => c.name).join(', ');
-      const storeLabels = storesInBrand.map(s => `${s.name} (${s.code})`).join(', ');
-      const sub: string[] = [];
-      if (countryNames) sub.push(countryNames);
-      if (storeLabels) sub.push(storeLabels);
-      if (sub.length) parts.push(`${brand.name}: ${sub.join('; ')}`);
-      else parts.push(brand.name);
-    }
-    return parts.join('. ');
-  };
-
-  const activeFilterText = getActiveFilterText();
-
   const filteredStats = getFilteredStats();
   const filteredOrders = getFilteredOrders();
   const filteredDeliveryNotes = getFilteredDeliveryNotes();
@@ -524,68 +444,6 @@ export default function PartnerDashboard({
       <div className="w-full">
         {/* Main Content */}
         <div className="px-4 md:px-6 pt-6 pb-8 space-y-8 max-w-5xl mx-auto w-full">
-        {/* Partner Overview - Matching Home Screen Button Style */}
-        <div className="space-y-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-end md:justify-start">
-              {/* Filter Button - Mobile & Desktop - Matching ShippingScreen design */}
-              <StoreFilterBottomSheet
-                viewFilter={viewFilter}
-                onViewAllStores={handleViewAllStores}
-                onBrandFilterChange={handleBrandFilterChange}
-                onStoreFilterChange={handleStoreFilterChange}
-                onCountryFilterChange={handleCountryFilterChange}
-                currentPartnerId={currentPartnerWarehouseSelection.partnerId}
-                partners={partners}
-                brands={brands}
-                stores={stores}
-                countries={countries}
-              >
-                <button 
-                  className={`
-                    h-12 md:h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px] min-h-[48px] touch-manipulation
-                    ${((viewFilter.storeIds?.length || 0) > 0 || 
-                      (viewFilter.brandIds?.length || 0) > 0 || 
-                      (viewFilter.countryIds?.length || 0) > 0)
-                      ? 'bg-secondary-container border-outline text-on-secondary-container'
-                      : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
-                    }
-                  `}
-                >
-                  <FilterIcon className="h-4 w-4 flex-shrink-0" />
-                  <span className="label-medium">Store Filter</span>
-                  {((viewFilter.brandIds?.length || 0) > 0 || 
-                    (viewFilter.countryIds?.length || 0) > 0 || 
-                    (viewFilter.storeIds?.length || 0) > 0) && (
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                  )}
-                </button>
-              </StoreFilterBottomSheet>
-            </div>
-            
-            {/* Active filters as regular text, grouped by brand */}
-            {activeFilterText && (
-              <div className="mb-4">
-                <p className="body-medium text-on-surface">
-                  <span className="label-medium text-on-surface">Active filters: </span>
-                  {activeFilterText}
-                  {' · '}
-                  <button
-                    type="button"
-                    onClick={handleViewAllStores}
-                    className="underline hover:no-underline text-on-surface hover:opacity-80 focus:outline-none focus:underline"
-                  >
-                    Clear all
-                  </button>
-                </p>
-              </div>
-            )}
-            
-            {/* Mobile Filter summary removed to avoid duplication with chips */}
-          </div>
-          
-        </div>
-
         {/* Quick Actions */}
         {isThriftedOrSellpyPartner ? (
           <div>

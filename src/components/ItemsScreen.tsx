@@ -101,10 +101,11 @@ interface ItemsScreenProps {
   expireTimeWeeks?: number; // Expire time setting for the store (in weeks)
 }
 
-function SearchBar({ searchTerm, onSearchChange, onFilterClick }: { 
+function SearchBar({ searchTerm, onSearchChange, onFilterClick, placeholder = 'Search by name or ID' }: { 
   searchTerm: string; 
   onSearchChange: (value: string) => void;
   onFilterClick?: () => void;
+  placeholder?: string;
 }) {
   const hasText = searchTerm.length > 0;
   // Calculate right padding based on which buttons are visible
@@ -130,7 +131,7 @@ function SearchBar({ searchTerm, onSearchChange, onFilterClick }: {
           type="text"
           id="items-search"
           name="items-search"
-          placeholder="Search by name or ID"
+          placeholder={placeholder}
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
           className={`w-full h-12 pl-10 ${rightPadding} bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large`}
@@ -2944,11 +2945,12 @@ export default function ItemsScreen({
         {/* Search row (search + store filter) */}
         <div className="mb-4">
           <div className="flex gap-3 items-start">
-            <div className="flex-1">
+            <div className={isPartnerPortal ? 'flex-1' : 'flex-1 md:max-w-2xl'}>
               <SearchBar 
                 searchTerm={quickSearchTerm} 
                 onSearchChange={setQuickSearchTerm}
                 onFilterClick={() => setShowFilterSheet(true)}
+                placeholder={isPartnerPortal ? 'Search by name or ID' : 'Search only'}
               />
             </div>
 
