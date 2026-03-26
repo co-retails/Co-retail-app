@@ -1,4 +1,5 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -6,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { SharedHeader } from './ui/shared-header';
+import { useMediaQuery } from './ui/use-mobile';
 import { Section } from './ui/section';
 import { EmptyState } from './ui/empty-state';
 import { ItemDetailsTable, ItemDetailsTableItem } from './ItemDetailsTable';
@@ -63,6 +65,10 @@ import {
   getAllThriftedSubcategories
 } from '../utils/spreadsheetUtils';
 import { getCurrencyFromCountry, getPriceOptionsForCurrency } from '../data/partnerPricing';
+import PartnerWarehouseSelector, {
+  type Partner,
+  type Warehouse,
+} from './PartnerWarehouseSelector';
 
 export type DetailType = 'order' | 'shipment' | 'return';
 
@@ -78,7 +84,8 @@ interface OrderShipmentDetailsScreenProps {
   warehouseName?: string;
   receiverLabel?: string;
   onNavigateToRetailerIdScan?: () => void;
-  onRegisterOrder?: () => void;
+  /** Pass `{ lineItems }` when registering from editable rows (e.g. Thrifted) so parent can persist items. */
+  onRegisterOrder?: (payload?: { lineItems?: OrderItem[] }) => void;
   onCreateDeliveryNote?: (orderId: string) => void;
   isAdmin?: boolean;
   onAddBox?: (deliveryNoteId: string, boxLabel: string) => void;
@@ -91,6 +98,8 @@ interface OrderShipmentDetailsScreenProps {
     externalOrderId?: string;
   }>;
   onSaveAndClose?: () => void;
+  /** Persist Thrifted draft line items (partner app); then screen calls onBack. */
+  onSaveThriftedOrderDraft?: (orderId: string, items: OrderItem[]) => void;
   onRegisterDelivery?: (shippingLabel?: string) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
   onCancelReturn?: (deliveryId: string, reason: string) => void;
@@ -100,6 +109,25 @@ interface OrderShipmentDetailsScreenProps {
   brands?: Array<{ id: string; name: string }>;
   onUpdateBoxLabel?: (boxId: string, newLabel: string) => void;
   onUpdateReceiver?: (orderId: string, selection: StoreSelection) => void;
+  /** Partner sending warehouses — used to edit sender (Thrifted draft / registered). */
+  warehouses?: Warehouse[];
+  /** Update sending warehouse for the open order or delivery note (parent resolves id from details). */
+  onUpdateSenderWarehouse?: (warehouseId: string) => void;
+  /** Partner list for sender warehouse sheet (same component family as receiver store picker). */
+  partners?: Partner[];
+}
+
+/** Brand names from app catalog for Thrifted item-brand autocomplete */
+function useBrandAutocompleteOptions(
+  brands: Array<{ id: string; name: string }>
+): string[] {
+  return useMemo(
+    () =>
+      brands
+        .map((b) => b.name?.trim())
+        .filter((n): n is string => Boolean(n)),
+    [brands]
+  );
 }
 
 // Valid price points for SEK (Swedish Krona) - Sellpy partner market
@@ -225,6 +253,7 @@ export default function OrderShipmentDetailsScreen({
   onDeleteBox,
   relatedOrders = [],
   onSaveAndClose,
+  onSaveThriftedOrderDraft,
   onRegisterDelivery,
   onUpdateReturnDeliveryStatus,
   onCancelReturn,
@@ -232,8 +261,13 @@ export default function OrderShipmentDetailsScreen({
   countries = [],
   stores = [],
   brands = [],
-  onUpdateBoxLabel
+  onUpdateBoxLabel,
+  warehouses = [],
+  onUpdateSenderWarehouse,
+  partners = []
 }: OrderShipmentDetailsScreenProps) {
+  const brandAutocompleteOptions = useBrandAutocompleteOptions(brands);
+
   // State for editable items
   const [editableItems, setEditableItems] = useState<DetailItem[]>([]);
   const [validationFilter, setValidationFilter] = useState<'all' | 'errors' | 'valid'>('all');
@@ -247,7 +281,12 @@ export default function OrderShipmentDetailsScreen({
   const [pendingUploadItems, setPendingUploadItems] = useState<OrderItem[]>([]);
   const [uploadError, setUploadError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const isTableCompact = useMediaQuery('(max-width: 1023px)');
+  const [requestOpenMobileItemId, setRequestOpenMobileItemId] = useState<string | null>(null);
+  const [requestScrollToItemId, setRequestScrollToItemId] = useState<string | null>(null);
+  const clearOpenMobileRequest = useCallback(() => setRequestOpenMobileItemId(null), []);
+  const clearScrollRequest = useCallback(() => setRequestScrollToItemId(null), []);
+
   const getTitle = () => {
     switch (type) {
       case 'order':
@@ -493,8 +532,22 @@ export default function OrderShipmentDetailsScreen({
       (data as DeliveryNote).status === 'packing' ||
       (data as DeliveryNote).status === 'registered');
   const isReceiverEditable = isOrderReceiverEditable || isDeliveryReceiverEditable;
+
+  const shipmentNoteStatus = type === 'shipment' ? (data as DeliveryNote).status : undefined;
+  const isOrderSenderEditable =
+    isThriftedOrder &&
+    type === 'order' &&
+    (orderStatus === 'pending' || orderStatus === 'draft' || orderStatus === 'registered');
+  const isShipmentSenderEditable =
+    isThriftedOrder &&
+    type === 'shipment' &&
+    (shipmentNoteStatus === 'draft' ||
+      shipmentNoteStatus === 'packing' ||
+      shipmentNoteStatus === 'registered');
+  const canEditSenderByStatus = isOrderSenderEditable || isShipmentSenderEditable;
   
   const [isReceiverSelectorOpen, setIsReceiverSelectorOpen] = useState(false);
+  const [isSenderWarehouseOpen, setIsSenderWarehouseOpen] = useState(false);
 
   // Get brand name from store
   const receiverBrand = receivingStore 
@@ -523,13 +576,29 @@ export default function OrderShipmentDetailsScreen({
         : undefined
     );
 
+  const partnerWarehouses = useMemo(() => {
+    if (!partnerId) return warehouses;
+    return warehouses.filter((w) => w.partnerId === partnerId);
+  }, [warehouses, partnerId]);
+
+  const currentSenderWarehouseId =
+    type === 'order'
+      ? (data as PartnerOrder).warehouseId
+      : type === 'shipment'
+        ? (data as DeliveryNote).warehouseId
+        : undefined;
+
+  const isSenderEditable =
+    Boolean(onUpdateSenderWarehouse) &&
+    canEditSenderByStatus &&
+    partnerWarehouses.length > 0 &&
+    Boolean(partnerId);
+
   // Validation function for Thrifted items
   // For Thrifted, partners fill in subcategory, category is auto-mapped
   const validateThriftedItem = (item: DetailItem): boolean => {
-    // Mandatory: SKU (External ID) - can be in sku or partnerItemId field
-    const externalId = item.sku || item.partnerItemId || '';
-    if (!externalId || !externalId.trim()) return false;
-    
+    // External ID (sku / partnerItemId) is optional for Thrifted partner drafts
+
     // Mandatory: Retailer ID
     if (!item.retailerItemId || !item.retailerItemId.trim()) return false;
     
@@ -563,13 +632,7 @@ export default function OrderShipmentDetailsScreen({
   const validateAndSetFieldErrors = (item: DetailItem): DetailItem => {
     const isValid = validateThriftedItem(item);
     const fieldErrors: Record<string, string> = {};
-    
-    // Check sku (External ID) - can be in sku or partnerItemId field
-    const externalId = item.sku || item.partnerItemId || '';
-    if (!externalId || !externalId.trim()) {
-      fieldErrors.sku = 'Required';
-      fieldErrors.partnerItemId = 'Required';
-    }
+
     if (!item.retailerItemId || !item.retailerItemId.trim()) {
       fieldErrors.retailerItemId = 'Required (Mandatory)';
     }
@@ -667,17 +730,21 @@ export default function OrderShipmentDetailsScreen({
   // For Thrifted orders: validate all mandatory fields
   // For approval orders: don't require retailer ID (will be added after approval)
   // For other orders: require retailer ID and price
-  const canRegister = type === 'order' && allItems.length > 0 && (
-    isThriftedOrder && isPendingOrder
-      ? allItems.every(item => validateThriftedItem(item))
-      : isApprovalOrder
-      ? allItems.every(item => item.price && item.price > 0 && item.status !== 'error')
-      : allItems.every(item => 
-          item.retailerItemId && item.retailerItemId.trim() !== '' && 
-          item.price && item.price > 0 && 
-          item.status !== 'error'
-        )
-  );
+  const canRegister =
+    type === 'order' &&
+    allItems.length >= 1 &&
+    (isApprovalOrder
+      ? allItems.every((item) => item.price && item.price > 0 && item.status !== 'error')
+      : isThriftedOrder
+        ? allItems.every((item) => validateThriftedItem(item))
+        : allItems.every(
+            (item) =>
+              item.retailerItemId &&
+              item.retailerItemId.trim() !== '' &&
+              item.price &&
+              item.price > 0 &&
+              item.status !== 'error'
+          ));
 
   const summaryBadgeText = (() => {
     if (type === 'shipment') {
@@ -727,11 +794,25 @@ export default function OrderShipmentDetailsScreen({
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-on-surface-variant">
-                  <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                    <StoreIcon size={16} />
-                  </span>
-                  <span className="body-small">Sender</span>
+                <div className="flex items-center justify-between text-on-surface-variant">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                      <StoreIcon size={16} />
+                    </span>
+                    <span className="body-small">Sender</span>
+                  </div>
+                  {isSenderEditable && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 h-9 w-9 text-primary hover:bg-primary/10"
+                      onClick={() => setIsSenderWarehouseOpen(true)}
+                      aria-label="Edit sender warehouse"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
                 <p className="body-medium text-on-surface">
                   {senderName}
@@ -749,18 +830,19 @@ export default function OrderShipmentDetailsScreen({
                   </div>
                   {isReceiverEditable && onUpdateReceiver && (
                     <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 border-primary text-primary hover:bg-primary/10 active:bg-primary/20 font-medium shadow-sm"
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 h-9 w-9 text-primary hover:bg-primary/10"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         setIsReceiverSelectorOpen(true);
                       }}
                       disabled={!stores?.length || !brands?.length || !countries?.length || !currentOrderId}
+                      aria-label="Edit receiving store"
                     >
-                      <PencilIcon size={16} />
-                      <span className="label-medium">Edit</span>
+                      <PencilIcon className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
@@ -838,11 +920,25 @@ export default function OrderShipmentDetailsScreen({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(warehouseName || partnerName) && (
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-on-surface-variant">
-                <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <StoreIcon size={16} />
-                </span>
-                <span className="body-small">Sender</span>
+              <div className="flex items-center justify-between text-on-surface-variant">
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                    <StoreIcon size={16} />
+                  </span>
+                  <span className="body-small">Sender</span>
+                </div>
+                {isSenderEditable && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 h-9 w-9 text-primary hover:bg-primary/10"
+                    onClick={() => setIsSenderWarehouseOpen(true)}
+                    aria-label="Edit sender warehouse"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               <p className="body-medium text-on-surface">{warehouseName || partnerName}</p>
               {warehouseName && partnerName && (
@@ -862,18 +958,19 @@ export default function OrderShipmentDetailsScreen({
                 </div>
                 {isReceiverEditable && onUpdateReceiver && (
                   <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 border-primary text-primary hover:bg-primary/10 active:bg-primary/20 font-medium shadow-sm"
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 h-9 w-9 text-primary hover:bg-primary/10"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       setIsReceiverSelectorOpen(true);
                     }}
                     disabled={!stores?.length || !brands?.length || !countries?.length || !currentOrderId}
+                    aria-label="Edit receiving store"
                   >
-                    <PencilIcon size={16} className="w-4 h-4" />
-                    <span className="label-medium">Edit</span>
+                    <PencilIcon className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -932,9 +1029,17 @@ export default function OrderShipmentDetailsScreen({
   
   // Handler to save changes and close (for Thrifted and approval orders)
   const handleSaveAndClose = () => {
-    // Save the current editable items state
-    // In a real app, this would persist to backend
-    // For now, we'll just navigate back
+    if (
+      type === 'order' &&
+      partnerName === 'Thrifted' &&
+      isThriftedEditable &&
+      onSaveThriftedOrderDraft
+    ) {
+      const order = data as PartnerOrder;
+      onSaveThriftedOrderDraft(order.id, editableItems);
+      // Parent navigates to Orders (Draft); do not call onBack() or handleBack() would miss this screen.
+      return;
+    }
     onBack();
   };
   
@@ -988,8 +1093,7 @@ export default function OrderShipmentDetailsScreen({
           
           // Update field errors with clear marking for mandatory fields
           const fieldErrors: Record<string, string> = {};
-          if (!updatedItem.sku || !updatedItem.sku.trim()) fieldErrors.sku = 'Required';
-          
+
           // Retailer ID is mandatory - mark clearly
           if (!updatedItem.retailerItemId || !updatedItem.retailerItemId.trim()) {
             fieldErrors.retailerItemId = 'Required (Mandatory)';
@@ -1111,8 +1215,9 @@ export default function OrderShipmentDetailsScreen({
   
   // Handler to add a new row manually
   const handleAddItem = () => {
+    const newId = `item-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     const newItem: DetailItem = {
-      id: `item-${Date.now()}-${Math.random()}`,
+      id: newId,
       itemId: '',
       sku: '',
       category: '',
@@ -1127,7 +1232,6 @@ export default function OrderShipmentDetailsScreen({
       errors: ['Required fields missing'],
       source: 'manual',
       fieldErrors: {
-        sku: 'Required',
         subcategory: 'Required',
         size: 'Required',
         brand: 'Required',
@@ -1136,7 +1240,17 @@ export default function OrderShipmentDetailsScreen({
         retailerItemId: 'Required (Mandatory)'
       }
     };
-    setEditableItems(prev => [...prev, newItem]);
+    flushSync(() => {
+      setEditableItems((prev) => [...prev, newItem]);
+      setValidationFilter('all');
+    });
+    if (isTableCompact) {
+      setRequestOpenMobileItemId(newId);
+      setRequestScrollToItemId(null);
+    } else {
+      setRequestScrollToItemId(newId);
+      setRequestOpenMobileItemId(null);
+    }
   };
   
   // Handler to remove an item
@@ -1244,7 +1358,7 @@ export default function OrderShipmentDetailsScreen({
   ) : undefined;
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-surface">
       <SharedHeader 
         title={getTitle()}
         onBack={onBack}
@@ -1252,7 +1366,15 @@ export default function OrderShipmentDetailsScreen({
         rightElement={headerRightElement}
       />
 
-      <div className="flex-1 overflow-y-auto w-full px-4 md:px-6 py-4 md:py-6 pb-48 space-y-6">
+      <div
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden w-full px-4 md:px-6 py-4 md:py-6 space-y-6 ${
+          type === 'order' && partnerName === 'Thrifted' && isThriftedEditable
+            ? 'pb-[max(36rem,55vh)] md:pb-[46rem]'
+            : type === 'order' && partnerName === 'Thrifted'
+              ? 'pb-48 md:pb-56'
+            : 'pb-32 md:pb-40'
+        }`}
+      >
         {/* Summary Card */}
         <Card className={summaryCardClassName}>
           <CardHeader>
@@ -1650,6 +1772,10 @@ export default function OrderShipmentDetailsScreen({
                       subcategory: item.subcategory || '', // Preserve subcategory for all orders
                       date: item.date || (type === 'order' ? (data as PartnerOrder).createdDate : type === 'shipment' ? (data as DeliveryNote).createdDate : undefined)
                     }))}
+                    requestOpenMobileItemId={requestOpenMobileItemId}
+                    onRequestOpenMobileItemIdConsumed={clearOpenMobileRequest}
+                    requestScrollToItemId={requestScrollToItemId}
+                    onRequestScrollToItemIdConsumed={clearScrollRequest}
                     showRetailerId={type !== 'shipment' && !isApprovalOrder} // Hide retailer ID for approval orders
                     showPrice={type === 'order' || type === 'return'} // Always show price for orders and returns (sales price for store-staff/admin)
                     showPurchasePrice={type !== 'return' && (isApprovalOrder || (isSellpyOrder && isAdmin))} // Show purchase price for Approval orders or Sellpy orders for Admins, but NOT for returns
@@ -1670,6 +1796,8 @@ export default function OrderShipmentDetailsScreen({
                     currency={currency}
                     orderStatus={type === 'order' ? (data as PartnerOrder).status : type === 'shipment' ? (data as DeliveryNote).status : undefined}
                     isAdmin={isAdmin}
+                    thriftedPartnerTable={isThriftedOrder}
+                    brandAutocompleteOptions={brandAutocompleteOptions}
                   />
                 )}
               </>
@@ -1743,7 +1871,8 @@ export default function OrderShipmentDetailsScreen({
                   {(data as PartnerOrder).status === 'completed' && onRegisterOrder && (
                     <div className="flex justify-start md:justify-end flex-1 md:flex-initial min-w-[220px]">
                       <Button 
-                        onClick={onRegisterOrder}
+                        onClick={() => onRegisterOrder({ lineItems: allItems })}
+                        disabled={!canRegister}
                         size="lg"
                         className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
                       >
@@ -1775,101 +1904,93 @@ export default function OrderShipmentDetailsScreen({
         {/* Action Buttons for Thrifted and other manual partners - Fixed bottom bar */}
         {type === 'order' && partnerName === 'Thrifted' && (
           <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant z-50">
-            <div className="px-4 md:px-6 py-4 pb-safe">
-              <div className="max-w-screen-xl mx-auto">
-                {/* Mobile: Full width evenly spaced buttons */}
-                <div className="flex flex-row gap-3 md:hidden">
-                  {/* Pending status: Save & Close and Register order */}
-                  {isThriftedEditable && (
-                    <>
-                      <Button 
-                        onClick={handleSaveAndClose}
-                        variant="outline"
-                        size="lg"
-                        className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
-                      >
-                        <span className="label-large">Save & Close</span>
-                      </Button>
-                      {onRegisterOrder && (
-                        <Button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (canRegister && onRegisterOrder) {
-                              onRegisterOrder();
-                            }
-                          }}
-                          disabled={!canRegister}
-                          size="lg"
-                          className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
-                        >
-                          <CheckIcon size={20} className="mr-2" />
-                          <span className="label-large">Register order</span>
-                        </Button>
-                      )}
-                    </>
-                  )}
-
-                  {/* Registered status: Create delivery note */}
-                  {!isThriftedEditable && (data as PartnerOrder).status === 'registered' && onCreateDeliveryNote && (
-                    <Button 
-                      onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
+            <div className="px-4 md:px-6 py-4 pb-safe w-full flex flex-col md:flex-row md:justify-end md:items-center gap-3">
+              {/* Mobile: Full width evenly spaced buttons */}
+              <div className="flex flex-row gap-3 w-full md:hidden">
+                {isThriftedEditable && (
+                  <>
+                    <Button
+                      onClick={handleSaveAndClose}
+                      variant="outline"
                       size="lg"
-                      className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                      className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
                     >
-                      <PackageIcon size={20} className="mr-2" />
-                      <span className="label-large">Create delivery note</span>
+                      <span className="label-large">Save & Close</span>
                     </Button>
-                  )}
-                </div>
-
-                {/* Desktop: Right-aligned buttons with max width */}
-                <div className="hidden md:flex justify-end">
-                  <div className="flex flex-row gap-3 max-w-md w-full">
-                    {/* Pending status: Save & Close and Register order */}
-                    {isThriftedEditable && (
-                      <>
-                        <Button 
-                          onClick={handleSaveAndClose}
-                          variant="outline"
-                          size="lg"
-                          className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
-                        >
-                          <span className="label-large">Save & Close</span>
-                        </Button>
-                        {onRegisterOrder && (
-                          <Button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (canRegister && onRegisterOrder) {
-                                onRegisterOrder();
-                              }
-                            }}
-                            disabled={!canRegister}
-                            size="lg"
-                            className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
-                          >
-                            <CheckIcon size={20} className="mr-2" />
-                            <span className="label-large">Register order</span>
-                          </Button>
-                        )}
-                      </>
-                    )}
-
-                    {/* Registered status: Create delivery note */}
-                    {!isThriftedEditable && (data as PartnerOrder).status === 'registered' && onCreateDeliveryNote && (
-                      <Button 
-                        onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
+                    {onRegisterOrder && (
+                      <Button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (canRegister && onRegisterOrder) {
+                            onRegisterOrder({ lineItems: allItems });
+                          }
+                        }}
+                        disabled={!canRegister}
                         size="lg"
-                        className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                        className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
                       >
-                        <PackageIcon size={20} className="mr-2" />
-                        <span className="label-large">Create delivery note</span>
+                        <CheckIcon size={20} className="mr-2" />
+                        <span className="label-large">Register order</span>
                       </Button>
                     )}
-                  </div>
-                </div>
+                  </>
+                )}
+
+                {!isThriftedEditable && (data as PartnerOrder).status === 'registered' && onCreateDeliveryNote && (
+                  <Button
+                    onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
+                    size="lg"
+                    className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                  >
+                    <PackageIcon size={20} className="mr-2" />
+                    <span className="label-large">Create delivery note</span>
+                  </Button>
+                )}
+              </div>
+
+              {/* Desktop: flush right, natural button widths */}
+              <div className="hidden md:flex flex-row flex-wrap gap-3 justify-end shrink-0 w-full">
+                {isThriftedEditable && (
+                  <>
+                    <Button
+                      onClick={handleSaveAndClose}
+                      variant="outline"
+                      size="lg"
+                      className="shrink-0 min-w-[160px] border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
+                    >
+                      <span className="label-large">Save & Close</span>
+                    </Button>
+                    {onRegisterOrder && (
+                      <Button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (canRegister && onRegisterOrder) {
+                            onRegisterOrder({ lineItems: allItems });
+                          }
+                        }}
+                        disabled={!canRegister}
+                        size="lg"
+                        className="shrink-0 min-w-[180px] bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
+                      >
+                        <CheckIcon size={20} className="mr-2" />
+                        <span className="label-large">Register order</span>
+                      </Button>
+                    )}
+                  </>
+                )}
+
+                {!isThriftedEditable && (data as PartnerOrder).status === 'registered' && onCreateDeliveryNote && (
+                  <Button
+                    onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
+                    size="lg"
+                    className="shrink-0 min-w-[220px] bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                  >
+                    <PackageIcon size={20} className="mr-2" />
+                    <span className="label-large">Create delivery note</span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -2095,6 +2216,24 @@ export default function OrderShipmentDetailsScreen({
           countries={countries || []}
           stores={stores || []}
           currentSelection={currentReceiverSelection}
+        />
+      )}
+
+      {partnerId && (
+        <PartnerWarehouseSelector
+          isOpen={isSenderWarehouseOpen}
+          onClose={() => setIsSenderWarehouseOpen(false)}
+          onConfirm={(selection) => {
+            onUpdateSenderWarehouse?.(selection.warehouseId);
+            setIsSenderWarehouseOpen(false);
+          }}
+          partners={partners}
+          warehouses={warehouses}
+          currentSelection={{
+            partnerId,
+            warehouseId: currentSenderWarehouseId || '',
+          }}
+          lockToPartnerId={partnerId}
         />
       )}
       <BoxLabelSideSheet

@@ -9,6 +9,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Checkbox } from './ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import type { Store, Brand, Country } from './StoreSelector';
+import { sortByNameAlpha, sortStoresByCode } from '../utils/spreadsheetUtils';
 import { Partner as WarehousePartner } from './PartnerWarehouseSelector';
 import { DeliveryNote, Box } from './BoxManagementScreen';
 
@@ -152,6 +153,11 @@ export default function ShippingReportScreen({
     }
     return filtered;
   }, [stores, selectedBrandIds, selectedCountryIds]);
+
+  const sortedAvailableBrands = useMemo(() => sortByNameAlpha(availableBrands), [availableBrands]);
+  const sortedFilteredCountries = useMemo(() => sortByNameAlpha(filteredCountries), [filteredCountries]);
+  const sortedFilteredStores = useMemo(() => sortStoresByCode(filteredStores), [filteredStores]);
+  const sortedPartners = useMemo(() => sortByNameAlpha(partners), [partners]);
 
   // Helper: Map delivery note status to report status
   const mapDeliveryStatus = (status: DeliveryNote['status']): DeliveryStatus => {
@@ -652,7 +658,7 @@ export default function ShippingReportScreen({
                     <CommandList>
                       <CommandEmpty>No brands found.</CommandEmpty>
                       <CommandGroup>
-                        {availableBrands.map((brand) => (
+                        {sortedAvailableBrands.map((brand) => (
                           <CommandItem
                             key={brand.id}
                             value={brand.name}
@@ -696,7 +702,7 @@ export default function ShippingReportScreen({
                     <CommandList>
                       <CommandEmpty>No countries found.</CommandEmpty>
                       <CommandGroup>
-                        {filteredCountries.map((country) => (
+                        {sortedFilteredCountries.map((country) => (
                           <CommandItem
                             key={country.id}
                             value={country.name}
@@ -740,7 +746,7 @@ export default function ShippingReportScreen({
                     <CommandList>
                       <CommandEmpty>No stores found.</CommandEmpty>
                       <CommandGroup>
-                        {filteredStores.map((store) => (
+                        {sortedFilteredStores.map((store) => (
                           <CommandItem
                             key={store.id}
                             value={`${store.name} ${store.code}`}
@@ -785,7 +791,7 @@ export default function ShippingReportScreen({
                       <CommandList>
                         <CommandEmpty>No partners found.</CommandEmpty>
                         <CommandGroup>
-                          {partners.map((partner) => (
+                          {sortedPartners.map((partner) => (
                             <CommandItem
                               key={partner.id}
                               value={partner.name}

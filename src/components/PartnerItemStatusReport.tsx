@@ -9,6 +9,7 @@ import { getSekPriceOptions } from '../data/partnerPricing';
 import ItemStatusFilterBottomSheet from './ItemStatusFilterBottomSheet';
 import svgPaths from '../imports/svg-7un8q74kd7';
 import { mockDeliveryNotes, mockDeliveries } from '../data/mockData';
+import { sortOptionsAlpha } from '../utils/spreadsheetUtils';
 
 export interface PartnerItemStatusReportProps {
   items: Item[];
@@ -38,15 +39,14 @@ const mapStatusForPartner = (item: Item): string => {
   return item.status;
 };
 
-// Get all unique values from items
-const getUniqueValues = <T,>(items: Item[], getter: (item: Item) => T | undefined): T[] => {
-  const values = new Set<T>();
-  items.forEach(item => {
+function getUniqueStrings(items: Item[], getter: (item: Item) => string | undefined): string[] {
+  const values = new Set<string>();
+  items.forEach((item) => {
     const value = getter(item);
     if (value) values.add(value);
   });
-  return Array.from(values).sort();
-};
+  return Array.from(values);
+}
 
 export default function PartnerItemStatusReport({
   items,
@@ -78,12 +78,21 @@ export default function PartnerItemStatusReport({
       const mappedStatus = mapStatusForPartner(item);
       statuses.add(mappedStatus);
     });
-    return Array.from(statuses).sort();
+    return sortOptionsAlpha(Array.from(statuses));
   }, [items]);
 
-  const availableCategories = useMemo(() => getUniqueValues(items, item => item.category), [items]);
-  const availableItemBrands = useMemo(() => getUniqueValues(items, item => item.brand), [items]);
-  const availableColors = useMemo(() => getUniqueValues(items, item => item.color), [items]);
+  const availableCategories = useMemo(
+    () => sortOptionsAlpha(getUniqueStrings(items, (item) => item.category)),
+    [items]
+  );
+  const availableItemBrands = useMemo(
+    () => sortOptionsAlpha(getUniqueStrings(items, (item) => item.brand)),
+    [items]
+  );
+  const availableColors = useMemo(
+    () => sortOptionsAlpha(getUniqueStrings(items, (item) => item.color)),
+    [items]
+  );
 
   // Get available price points - use partner price points if available, otherwise use unique prices from items
   const availablePricePoints = useMemo(() => {

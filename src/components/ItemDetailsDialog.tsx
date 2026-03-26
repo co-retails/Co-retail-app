@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   FullScreenDialog as Dialog,
   FullScreenDialogContent as DialogContent,
@@ -17,12 +18,22 @@ import svgPaths from '../imports/svg-7un8q74kd7';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
+import { useOverlayPortalContainer } from './ui/overlay-portal-context';
 import ActiveScanner from './ActiveScanner';
 import { toast } from 'sonner@2.0.3';
+import {
+  THRIFTED_VALID_VALUES,
+  filterBrandsByQuery,
+  getAllThriftedSubcategories,
+  sortOptionsAlpha,
+  sortStoreItemSizes,
+} from '../utils/spreadsheetUtils';
 
 export interface ItemDetails {
   id: string;
   itemId: string;
+  /** Thrifted external ID (SKU); optional, shown separately from Item ID* */
+  externalId?: string;
   title: string;
   brand: string;
   category: string;
@@ -65,9 +76,153 @@ interface ItemDetailsDialogProps {
   userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer'; // User role to determine if location can be edited
   /** Called when user changes status from Available to Rejected (within 24h). Parent should show reject reason sheet and then call onSave with reason. */
   onRequestRejectReason?: (item: ItemDetails) => void;
+  /** Thrifted partner draft items: read-only Draft/In transit, Thrifted value lists, brand typeahead */
+  enableThriftedPartnerItemDialog?: boolean;
+  brandAutocompleteOptions?: string[];
+  /** Mobile Thrifted item sheet: Done closes; Next opens the following row (parent handles state). */
+  partnerMobileActions?: {
+    hasNext: boolean;
+    onNext: () => void;
+    onDone: () => void;
+  };
 }
 
 type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'location' | null;
+
+function ThriftedBrandAutocompleteEdit({
+  value,
+  onChange,
+  onBlurCommit,
+  onPickSuggestion,
+  suggestions,
+  className,
+  minCharsForPanel = 2,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /** Called when the field loses focus (commit to parent). */
+  onBlurCommit?: () => void;
+  /** Called when user picks a list item (commit immediately; avoids relying on blur). */
+  onPickSuggestion?: (name: string) => void;
+  suggestions: string[];
+  className?: string;
+  /** Avoid opening the portal on the first keystroke (iOS focus/layout issues). */
+  minCharsForPanel?: number;
+}) {
+  const overlayContainer = useOverlayPortalContainer();
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const filtered = useMemo(
+    () => filterBrandsByQuery(suggestions, value, 40),
+    [suggestions, value]
+  );
+  const showPanel =
+    open &&
+    value.trim().length >= minCharsForPanel &&
+    (filtered.length > 0 || value.trim().length >= minCharsForPanel);
+
+  const updateMenuRect = useCallback(() => {
+    const el = anchorRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const maxW = Math.max(120, window.innerWidth - r.left - 16);
+    setMenuRect({
+      top: r.bottom + 4,
+      left: r.left,
+      width: Math.min(r.width, maxW),
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!showPanel) {
+      setMenuRect(null);
+      return;
+    }
+    updateMenuRect();
+    const onReposition = () => updateMenuRect();
+    window.addEventListener('resize', onReposition);
+    return () => {
+      window.removeEventListener('resize', onReposition);
+    };
+  }, [showPanel, updateMenuRect, filtered.length, value]);
+
+  const list =
+    showPanel && menuRect ? (
+      <ul
+        className="fixed z-[10100] max-h-52 overflow-y-auto rounded-md border border-outline-variant bg-surface-container py-1 shadow-lg"
+        style={{ top: menuRect.top, left: menuRect.left, width: menuRect.width }}
+        role="listbox"
+      >
+        {filtered.length === 0 ? (
+          <li className="px-3 py-2 body-small text-on-surface-variant">No matching brands</li>
+        ) : (
+          filtered.map((name) => (
+            <li key={name}>
+              <button
+                type="button"
+                className="w-full px-3 py-2.5 text-left body-medium hover:bg-surface-container-high min-h-[44px] touch-manipulation"
+                onMouseDown={(e) => e.preventDefault()}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  clearBlurCommitTimer();
+                  onChange(name);
+                  onPickSuggestion?.(name);
+                  setOpen(false);
+                }}
+              >
+                {name}
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+    ) : null;
+
+  const portalTarget = overlayContainer ?? (typeof document !== 'undefined' ? document.body : null);
+  const blurCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearBlurCommitTimer = useCallback(() => {
+    if (blurCommitTimerRef.current) {
+      clearTimeout(blurCommitTimerRef.current);
+      blurCommitTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearBlurCommitTimer(), [clearBlurCommitTimer]);
+
+  return (
+    <div ref={anchorRef} className="relative flex-1 min-w-0">
+      <Input
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => {
+          clearBlurCommitTimer();
+          setOpen(true);
+        }}
+        onBlur={() => {
+          clearBlurCommitTimer();
+          const delay = onBlurCommit ? 400 : 200;
+          blurCommitTimerRef.current = setTimeout(() => {
+            blurCommitTimerRef.current = null;
+            setOpen(false);
+            onBlurCommit?.();
+          }, delay);
+        }}
+        className={className}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        inputMode="text"
+        placeholder="Type brand name"
+      />
+      {portalTarget && list ? createPortal(list, portalTarget) : null}
+    </div>
+  );
+}
 
 // Helper to check if item can be rejected
 const canRejectItem = (item: ItemDetails, history: StatusHistoryEntry[]): boolean => {
@@ -185,6 +340,263 @@ const AVAILABLE_LOCATIONS = [
   'Store'
 ];
 
+const SORTED_AVAILABLE_CATEGORIES = sortOptionsAlpha(AVAILABLE_CATEGORIES);
+const SORTED_AVAILABLE_COLORS = sortOptionsAlpha(AVAILABLE_COLORS);
+const SORTED_AVAILABLE_BRANDS = sortOptionsAlpha(AVAILABLE_BRANDS);
+const SORTED_AVAILABLE_SIZES = sortStoreItemSizes(AVAILABLE_SIZES);
+const SORTED_AVAILABLE_LOCATIONS = sortOptionsAlpha(AVAILABLE_LOCATIONS);
+const SORTED_THRIFTED_CATEGORIES = sortOptionsAlpha([...THRIFTED_VALID_VALUES.categories]);
+const SORTED_THRIFTED_COLORS = sortOptionsAlpha([...THRIFTED_VALID_VALUES.colors]);
+const SORTED_ALL_THRIFTED_SUBCATEGORIES = sortOptionsAlpha(getAllThriftedSubcategories());
+
+function ThriftedPartnerInlineSection({
+  item,
+  onPatch,
+  brandAutocompleteOptions,
+  priceSelectOptions,
+  priceCurrency,
+  getStatusColor,
+  onOpenScanner,
+  retailerDraft,
+  externalDraft,
+  brandDraft,
+  onRetailerDraftChange,
+  onExternalDraftChange,
+  onBrandDraftChange,
+}: {
+  item: ItemDetails;
+  onPatch: (updates: Partial<ItemDetails>) => void;
+  brandAutocompleteOptions: string[];
+  priceSelectOptions: Array<{ value: string; label: string }>;
+  priceCurrency?: string;
+  getStatusColor: (status: string) => string;
+  onOpenScanner: () => void;
+  retailerDraft: string;
+  externalDraft: string;
+  brandDraft: string;
+  onRetailerDraftChange: (v: string) => void;
+  onExternalDraftChange: (v: string) => void;
+  onBrandDraftChange: (v: string) => void;
+}) {
+  const subcategoryBase = useMemo(() => {
+    const c = item.category?.trim();
+    if (c && THRIFTED_VALID_VALUES.subcategories[c]) {
+      return sortOptionsAlpha([...THRIFTED_VALID_VALUES.subcategories[c]]);
+    }
+    return SORTED_ALL_THRIFTED_SUBCATEGORIES;
+  }, [item.category]);
+
+  const subcategoryOptions = useMemo(() => {
+    const cur = item.subcategory?.trim();
+    if (cur && !subcategoryBase.includes(cur)) {
+      return sortOptionsAlpha([...subcategoryBase, cur]);
+    }
+    return subcategoryBase;
+  }, [subcategoryBase, item.subcategory]);
+
+  const sizeOptions = useMemo(
+    () => sortStoreItemSizes([...THRIFTED_VALID_VALUES.sizes]),
+    []
+  );
+
+  const priceOptsSafe = priceSelectOptions.filter((o) => o.value !== '');
+  const priceValue =
+    item.price !== undefined && item.price !== null && item.price > 0
+      ? String(item.price)
+      : '';
+  const priceOptionsForSelect = useMemo(() => {
+    if (
+      priceValue &&
+      !priceOptsSafe.some((o) => o.value === priceValue)
+    ) {
+      return [
+        ...priceOptsSafe,
+        { value: priceValue, label: `${priceCurrency || 'SEK'} ${priceValue}` },
+      ];
+    }
+    return priceOptsSafe;
+  }, [priceOptsSafe, priceValue, priceCurrency]);
+
+  const categoryOpts = useMemo(() => {
+    const c = item.category?.trim();
+    const base = SORTED_THRIFTED_CATEGORIES;
+    if (c && !base.includes(c)) return sortOptionsAlpha([...base, c]);
+    return base;
+  }, [item.category]);
+
+  const sizeOpts = useMemo(() => {
+    const s = item.size?.trim();
+    if (s && !sizeOptions.includes(s)) return [...sizeOptions, s];
+    return sizeOptions;
+  }, [item.size, sizeOptions]);
+
+  const colorOpts = useMemo(() => {
+    const c = item.color?.trim();
+    const base = SORTED_THRIFTED_COLORS;
+    if (c && !base.includes(c)) return sortOptionsAlpha([...base, c]);
+    return base;
+  }, [item.color]);
+
+  const FieldRow = ({
+    icon: Icon,
+    label,
+    children,
+  }: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    children: React.ReactNode;
+  }) => (
+    <div className="flex items-start gap-3 pb-2">
+      <Icon className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-2.5" />
+      <div className="flex-1 min-w-0">
+        <p className="label-small text-on-surface-variant mb-1">{label}</p>
+        <div className="mt-0">{children}</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-8">
+      <FieldRow icon={RefreshCw} label="Status">
+        <Badge className={`${getStatusColor(item.status)} px-2 py-0.5 rounded-full`}>
+          {item.status}
+        </Badge>
+      </FieldRow>
+
+      <FieldRow icon={Tag} label="Item ID*">
+        <div className="flex gap-2">
+          <Input
+            value={retailerDraft}
+            onChange={(e) => onRetailerDraftChange(e.target.value)}
+            className="relative z-[1] bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base flex-1 touch-manipulation"
+            placeholder="Required"
+            autoComplete="off"
+            inputMode="text"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-12 w-12 shrink-0 touch-manipulation"
+            onClick={onOpenScanner}
+            aria-label="Scan item ID"
+          >
+            <QrCode size={18} />
+          </Button>
+        </div>
+      </FieldRow>
+
+      <FieldRow icon={Tag} label="External ID (optional)">
+        <Input
+          value={externalDraft}
+          onChange={(e) => onExternalDraftChange(e.target.value)}
+          className="relative z-[1] bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base touch-manipulation"
+          placeholder="Optional"
+          autoComplete="off"
+          inputMode="text"
+        />
+      </FieldRow>
+
+      <FieldRow icon={Tag} label="Brand">
+        <ThriftedBrandAutocompleteEdit
+          value={brandDraft}
+          onChange={(v) => onBrandDraftChange(v)}
+          suggestions={brandAutocompleteOptions}
+          minCharsForPanel={2}
+          className="relative z-[1] bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base touch-manipulation w-full"
+        />
+      </FieldRow>
+
+      <FieldRow icon={Tag} label="Category">
+        <Select
+          modal={false}
+          value={item.category || ''}
+          onValueChange={(v) => onPatch({ category: v })}
+        >
+          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+            <SelectValue placeholder="Select category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categoryOpts.map((c) => (
+              <SelectItem key={c} value={c} className="min-h-[44px] py-3 touch-manipulation">
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldRow>
+
+      <FieldRow icon={Tag} label="Subcategory">
+        <Select
+          modal={false}
+          value={item.subcategory || ''}
+          onValueChange={(v) => onPatch({ subcategory: v })}
+        >
+          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+            <SelectValue placeholder="Select subcategory" />
+          </SelectTrigger>
+          <SelectContent>
+            {subcategoryOptions.map((c) => (
+              <SelectItem key={c} value={c} className="min-h-[44px] py-3 touch-manipulation">
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldRow>
+
+      <FieldRow icon={Package} label="Size">
+        <Select modal={false} value={item.size || ''} onValueChange={(v) => onPatch({ size: v })}>
+          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+            <SelectValue placeholder="Select size" />
+          </SelectTrigger>
+          <SelectContent>
+            {sizeOpts.map((s) => (
+              <SelectItem key={s} value={s} className="min-h-[44px] py-3 touch-manipulation">
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldRow>
+
+      <FieldRow icon={Package} label="Color">
+        <Select modal={false} value={item.color || ''} onValueChange={(v) => onPatch({ color: v })}>
+          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+            <SelectValue placeholder="Select color" />
+          </SelectTrigger>
+          <SelectContent>
+            {colorOpts.map((c) => (
+              <SelectItem key={c} value={c} className="min-h-[44px] py-3 touch-manipulation">
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldRow>
+
+      <FieldRow icon={Euro} label={`Price${priceCurrency ? ` (${priceCurrency})` : ''}`}>
+        <Select
+          modal={false}
+          value={priceValue}
+          onValueChange={(v) => onPatch({ price: parseFloat(v) })}
+        >
+          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+            <SelectValue placeholder="Select price" />
+          </SelectTrigger>
+          <SelectContent>
+            {priceOptionsForSelect.map((o) => (
+              <SelectItem key={o.value} value={o.value} className="min-h-[44px] py-3 touch-manipulation">
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldRow>
+    </div>
+  );
+}
+
 export default function ItemDetailsDialog({ 
   item, 
   isOpen, 
@@ -195,7 +607,10 @@ export default function ItemDetailsDialog({
   priceCurrency,
   expireTimeWeeks,
   userRole,
-  onRequestRejectReason
+  onRequestRejectReason,
+  enableThriftedPartnerItemDialog = false,
+  brandAutocompleteOptions = [],
+  partnerMobileActions,
 }: ItemDetailsDialogProps) {
   const [editingField, setEditingField] = useState<EditField>(null);
   const [editValues, setEditValues] = useState<Partial<ItemDetails>>({});
@@ -207,6 +622,101 @@ export default function ItemDetailsDialog({
   const [openBrandPopover, setOpenBrandPopover] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const thriftedFlushDraftsRef = useRef<(() => void) | null>(null);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const itemIdRef = useRef<string | undefined>(undefined);
+  itemIdRef.current = item?.id;
+
+  const itemSnapshotRef = useRef<ItemDetails | null>(null);
+  if (item) {
+    itemSnapshotRef.current = item;
+  }
+
+  const [thriftedRetailerDraft, setThriftedRetailerDraft] = useState('');
+  const [thriftedExternalDraft, setThriftedExternalDraft] = useState('');
+  const [thriftedBrandDraft, setThriftedBrandDraft] = useState('');
+  const thriftedRetailerDraftRef = useRef('');
+  const thriftedExternalDraftRef = useRef('');
+  const thriftedBrandDraftRef = useRef('');
+  thriftedRetailerDraftRef.current = thriftedRetailerDraft;
+  thriftedExternalDraftRef.current = thriftedExternalDraft;
+  thriftedBrandDraftRef.current = thriftedBrandDraft;
+
+  const [thriftedDraftResyncEpoch, setThriftedDraftResyncEpoch] = useState(0);
+  const prevShowScannerRef = useRef(false);
+  useEffect(() => {
+    if (prevShowScannerRef.current && !showIdScanner && enableThriftedPartnerItemDialog) {
+      setThriftedDraftResyncEpoch((e) => e + 1);
+    }
+    prevShowScannerRef.current = showIdScanner;
+  }, [showIdScanner, enableThriftedPartnerItemDialog]);
+
+  useEffect(() => {
+    if (item?.id) {
+      setShowIdScanner(false);
+    }
+  }, [item?.id]);
+
+  useEffect(() => {
+    if (!enableThriftedPartnerItemDialog) return;
+    const rowId = item?.id;
+    if (!rowId) return;
+    const cur = itemSnapshotRef.current;
+    if (!cur || cur.id !== rowId) return;
+    setThriftedRetailerDraft(cur.itemId);
+    setThriftedExternalDraft(cur.externalId ?? '');
+    setThriftedBrandDraft(cur.brand || '');
+  }, [item?.id, thriftedDraftResyncEpoch, enableThriftedPartnerItemDialog]);
+
+  useLayoutEffect(() => {
+    if (!enableThriftedPartnerItemDialog) {
+      thriftedFlushDraftsRef.current = null;
+      return;
+    }
+    thriftedFlushDraftsRef.current = () => {
+      const id = itemIdRef.current;
+      if (!id) return;
+      onSaveRef.current(id, {
+        itemId: thriftedRetailerDraftRef.current,
+        externalId: thriftedExternalDraftRef.current,
+        brand: thriftedBrandDraftRef.current,
+      });
+    };
+    return () => {
+      thriftedFlushDraftsRef.current = null;
+    };
+  }, [enableThriftedPartnerItemDialog]);
+
+  const stableThriftedPatch = useCallback((updates: Partial<ItemDetails>) => {
+    const id = itemIdRef.current;
+    if (!id) return;
+    onSaveRef.current(id, updates);
+  }, []);
+
+  const effectivePricePoints = useMemo(() => {
+    if (priceOptions && priceOptions.length > 0) return priceOptions;
+    if (enableThriftedPartnerItemDialog) return [...THRIFTED_VALID_VALUES.prices];
+    return [];
+  }, [priceOptions, enableThriftedPartnerItemDialog]);
+
+  const flushThriftedDraftsToParent = () => {
+    if (enableThriftedPartnerItemDialog) {
+      thriftedFlushDraftsRef.current?.();
+    }
+  };
+
+  const closeWithThriftedFlush = () => {
+    flushThriftedDraftsToParent();
+    onClose();
+  };
+
+  const handleMainDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      flushThriftedDraftsToParent();
+      onClose();
+    }
+  };
 
   if (!item) return null;
 
@@ -259,6 +769,9 @@ export default function ItemDetailsDialog({
       const mockId = `${Math.floor(100000 + Math.random() * 900000)}`;
       // Automatically save and close
       onSave(item.id, { itemId: mockId });
+      if (enableThriftedPartnerItemDialog) {
+        setThriftedRetailerDraft(mockId);
+      }
       toast.success(`Item ID updated to ${mockId}`);
       setShowIdScanner(false);
       setScannedId('');
@@ -270,6 +783,9 @@ export default function ItemDetailsDialog({
     if (newId.trim()) {
       // Automatically save and close
       onSave(item.id, { itemId: newId });
+      if (enableThriftedPartnerItemDialog) {
+        setThriftedRetailerDraft(newId.trim());
+      }
       toast.success(`Item ID updated to ${newId}`);
       setShowIdScanner(false);
       setScannedId('');
@@ -360,11 +876,10 @@ export default function ItemDetailsDialog({
 
   const daysInStore = calculateDaysInStore(item?.lastInStoreAt);
 
-  const priceSelectOptions =
-    priceOptions?.map((option) => ({
-      value: option.toString(),
-      label: formatPriceValue(option)
-    })) ?? [];
+  const priceSelectOptions = effectivePricePoints.map((option) => ({
+    value: option.toString(),
+    label: formatPriceValue(option),
+  }));
 
   const EditableField = ({
     field,
@@ -373,15 +888,17 @@ export default function ItemDetailsDialog({
     icon: Icon,
     type = 'text',
     options,
-    formatValue
+    formatValue,
+    brandSuggestions = [],
   }: {
     field: EditField;
     label: string;
     value: any;
     icon: any;
-    type?: 'text' | 'number' | 'select';
+    type?: 'text' | 'number' | 'select' | 'brand-autocomplete';
     options?: Array<string | { value: string; label: string }>;
     formatValue?: (value: any) => React.ReactNode;
+    brandSuggestions?: string[];
   }) => {
     const isEditing = editingField === field;
     const currentValue = isEditing ? (editValues[field] ?? value) : value;
@@ -392,17 +909,23 @@ export default function ItemDetailsDialog({
           : { value: option.value, label: option.label }
       ) ?? [];
 
-    let selectOptions = normalizedOptions;
+    // Radix SelectItem must not use value="" (empty string is reserved for clearing the Select).
+    const normalizedOptionsSafe = normalizedOptions.filter((option) => option.value !== '');
+
+    let selectOptions = normalizedOptionsSafe;
     if (
       type === 'select' &&
-      normalizedOptions.length > 0 &&
+      normalizedOptionsSafe.length > 0 &&
       currentValue !== undefined &&
       currentValue !== null
     ) {
       const currentStringValue = currentValue.toString();
-      if (!normalizedOptions.some((option) => option.value === currentStringValue)) {
+      if (
+        currentStringValue !== '' &&
+        !normalizedOptionsSafe.some((option) => option.value === currentStringValue)
+      ) {
         selectOptions = [
-          ...normalizedOptions,
+          ...normalizedOptionsSafe,
           {
             value: currentStringValue,
             label:
@@ -421,7 +944,14 @@ export default function ItemDetailsDialog({
             <p className="label-small text-on-surface-variant mb-1">{label}</p>
             {isEditing ? (
               <div className="flex items-center gap-2">
-                {type === 'select' && field === 'brand' ? (
+                {type === 'brand-autocomplete' && field === 'brand' ? (
+                  <ThriftedBrandAutocompleteEdit
+                    value={currentValue?.toString() || ''}
+                    onChange={(v) => setEditValues({ ...editValues, brand: v })}
+                    suggestions={brandSuggestions}
+                    className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base touch-manipulation"
+                  />
+                ) : type === 'select' && field === 'brand' ? (
                   <Popover open={openBrandPopover} onOpenChange={setOpenBrandPopover}>
                     <PopoverTrigger asChild>
                       <Button
@@ -491,11 +1021,17 @@ export default function ItemDetailsDialog({
                       <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
-                          {option.label}
-                        </SelectItem>
-                      ))}
+                      {selectOptions
+                        .filter((option) => option.value !== '')
+                        .map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 ) : (
@@ -543,7 +1079,7 @@ export default function ItemDetailsDialog({
             )}
           </div>
         </div>
-        {!isEditing && (
+        {!isEditing && !(enableThriftedPartnerItemDialog && field === 'status') && (
           <Button
             size="icon"
             variant="ghost"
@@ -621,15 +1157,21 @@ export default function ItemDetailsDialog({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-surface border-0 m-0 p-0 rounded-none flex flex-col [&>button]:hidden">
+    <Dialog open={isOpen} onOpenChange={handleMainDialogOpenChange}>
+      <DialogContent
+        className={
+          enableThriftedPartnerItemDialog && partnerMobileActions
+            ? 'bg-surface border-0 m-0 p-0 rounded-none flex flex-col min-h-0 h-[100dvh] max-h-[100dvh] box-border [&>button]:hidden'
+            : 'bg-surface border-0 m-0 p-0 rounded-none flex flex-col min-h-0 [&>button]:hidden'
+        }
+      >
         <VisuallyHidden>
           <DialogTitle>Item details</DialogTitle>
           <DialogDescription>View and edit item information</DialogDescription>
         </VisuallyHidden>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch]">
           {/* Image Section */}
           {displayImage ? (
             <div className="relative w-full aspect-square bg-surface-container-high">
@@ -637,7 +1179,7 @@ export default function ItemDetailsDialog({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onClose}
+                onClick={closeWithThriftedFlush}
                 className="absolute top-4 left-4 min-h-[48px] min-w-[48px] bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-10 touch-manipulation"
                 aria-label="Back"
               >
@@ -667,7 +1209,7 @@ export default function ItemDetailsDialog({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onClose}
+                onClick={closeWithThriftedFlush}
                 className="absolute top-4 left-4 min-h-[48px] min-w-[48px] bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-10 touch-manipulation"
                 aria-label="Back"
               >
@@ -724,201 +1266,292 @@ export default function ItemDetailsDialog({
               </div>
             )}
 
-            {/* Item ID - Replaces Title */}
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="title-large text-on-surface mb-1 flex-1 min-w-0 break-words">
-                Item ID: {item.itemId}
-              </h2>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowIdScanner(true)}
-                className="flex items-center gap-2 flex-shrink-0 min-h-[48px] touch-manipulation"
-              >
-                <QrCode size={18} />
-                Scan new ID
-              </Button>
-            </div>
-
-            <Separator className="bg-outline-variant" />
-
-            {/* Editable Fields */}
-            <div className="space-y-4">
-              {/* Status */}
-              <EditableField
-                field="status"
-                label="Status"
-                value={item.status}
-                icon={RefreshCw}
-                type="select"
-                options={getAvailableStatuses(item, statusHistory)}
-              />
-
-              {/* Rejected reason - read-only when saved */}
-              {item.rejectReason && (
-                <div className="flex items-start gap-3">
-                  <Ban className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="label-small text-on-surface-variant mb-1">Rejected reason</p>
-                    <p className="body-large text-on-surface break-words">{item.rejectReason}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Price */}
-              <EditableField
-                field="price"
-                label={`Price${priceCurrency ? ` (${priceCurrency})` : ''}`}
-                value={item.price}
-                icon={Euro}
-                type={priceSelectOptions.length ? 'select' : 'number'}
-                options={priceSelectOptions}
-                formatValue={(val) =>
-                  val !== undefined && val !== null
-                    ? formatPriceValue(
-                        typeof val === 'number' ? val : parseFloat(val as string)
-                      )
-                    : 'Not set'
-                }
-              />
-
-              {/* Brand */}
-              <EditableField
-                field="brand"
-                label="Brand"
-                value={item.brand}
-                icon={Tag}
-                type="select"
-                options={AVAILABLE_BRANDS}
-              />
-
-              {/* Category */}
-              <EditableField
-                field="category"
-                label="Category"
-                value={item.category}
-                icon={Tag}
-                type="select"
-                options={AVAILABLE_CATEGORIES}
-              />
-
-              {/* Subcategory */}
-              {(item.subcategory || editingField === 'subcategory') && (
-                <EditableField
-                  field="subcategory"
-                  label="Subcategory"
-                  value={item.subcategory}
-                  icon={Tag}
+            {enableThriftedPartnerItemDialog ? (
+              <>
+                <h2 className="title-large text-on-surface">Item details</h2>
+                <Separator className="bg-outline-variant" />
+                <ThriftedPartnerInlineSection
+                  item={item}
+                  onPatch={stableThriftedPatch}
+                  brandAutocompleteOptions={brandAutocompleteOptions}
+                  priceSelectOptions={priceSelectOptions}
+                  priceCurrency={priceCurrency}
+                  getStatusColor={getStatusColor}
+                  onOpenScanner={() => setShowIdScanner(true)}
+                  retailerDraft={thriftedRetailerDraft}
+                  externalDraft={thriftedExternalDraft}
+                  brandDraft={thriftedBrandDraft}
+                  onRetailerDraftChange={setThriftedRetailerDraft}
+                  onExternalDraftChange={setThriftedExternalDraft}
+                  onBrandDraftChange={setThriftedBrandDraft}
                 />
-              )}
-
-              {/* Size */}
-              <EditableField
-                field="size"
-                label="Size"
-                value={item.size}
-                icon={Package}
-                type="select"
-                options={AVAILABLE_SIZES}
-              />
-
-              {/* Color */}
-              <EditableField
-                field="color"
-                label="Color"
-                value={item.color}
-                icon={Package}
-                type="select"
-                options={AVAILABLE_COLORS}
-              />
-
-              {/* Location - Only visible/editable for admin (location is system-managed) */}
-              {userRole === 'admin' && (
-                <EditableField
-                  field="location"
-                  label="Location"
-                  value={item.location}
-                  icon={MapPin}
-                  type="select"
-                  options={AVAILABLE_LOCATIONS}
-                />
-              )}
-
-              <Separator className="bg-outline-variant" />
-
-              {/* Date */}
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
-                <div>
-                  <p className="label-small text-on-surface-variant">Registered date</p>
-                  <p className="body-large text-on-surface">{item.date}</p>
+              </>
+            ) : (
+              <>
+                {/* Item ID - Replaces Title */}
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="title-large text-on-surface mb-1 flex-1 min-w-0 break-words">
+                    Item ID: {item.itemId}
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowIdScanner(true)}
+                    className="flex items-center gap-2 flex-shrink-0 min-h-[48px] touch-manipulation"
+                  >
+                    <QrCode size={18} />
+                    Scan new ID
+                  </Button>
                 </div>
-              </div>
 
-              {/* Days Remaining */}
-              {item.daysRemaining !== undefined && (
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="label-small text-on-surface-variant">Days remaining</p>
-                    <p className="body-large text-on-surface">
-                      {item.daysRemaining} {item.daysRemaining === 1 ? 'day' : 'days'}
-                      {expireTimeWeeks !== undefined && (
-                        <span className="body-medium text-on-surface-variant ml-2">
-                          ({expireTimeWeeks} {expireTimeWeeks === 1 ? 'week' : 'weeks'})
-                        </span>
-                      )}
-                    </p>
+                <Separator className="bg-outline-variant" />
+
+                {/* Editable Fields */}
+                <div className="space-y-4">
+                  <EditableField
+                    field="status"
+                    label="Status"
+                    value={item.status}
+                    icon={RefreshCw}
+                    type="select"
+                    options={getAvailableStatuses(item, statusHistory)}
+                  />
+
+                  {/* Rejected reason - read-only when saved */}
+                  {item.rejectReason && (
+                    <div className="flex items-start gap-3">
+                      <Ban className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="label-small text-on-surface-variant mb-1">Rejected reason</p>
+                        <p className="body-large text-on-surface break-words">{item.rejectReason}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <EditableField
+                    field="price"
+                    label={`Price${priceCurrency ? ` (${priceCurrency})` : ''}`}
+                    value={item.price}
+                    icon={Euro}
+                    type={priceSelectOptions.length > 0 ? 'select' : 'number'}
+                    options={priceSelectOptions}
+                    formatValue={(val) =>
+                      val !== undefined && val !== null
+                        ? formatPriceValue(
+                            typeof val === 'number' ? val : parseFloat(val as string)
+                          )
+                        : 'Not set'
+                    }
+                  />
+
+                  <EditableField
+                    field="brand"
+                    label="Brand"
+                    value={item.brand}
+                    icon={Tag}
+                    type="select"
+                    options={SORTED_AVAILABLE_BRANDS}
+                  />
+
+                  <EditableField
+                    field="category"
+                    label="Category"
+                    value={item.category}
+                    icon={Tag}
+                    type="select"
+                    options={SORTED_AVAILABLE_CATEGORIES}
+                  />
+
+                  {(item.subcategory || editingField === 'subcategory') && (
+                    <EditableField
+                      field="subcategory"
+                      label="Subcategory"
+                      value={item.subcategory}
+                      icon={Tag}
+                      type="text"
+                    />
+                  )}
+
+                  <EditableField
+                    field="size"
+                    label="Size"
+                    value={item.size}
+                    icon={Package}
+                    type="select"
+                    options={SORTED_AVAILABLE_SIZES}
+                  />
+
+                  <EditableField
+                    field="color"
+                    label="Color"
+                    value={item.color}
+                    icon={Package}
+                    type="select"
+                    options={SORTED_AVAILABLE_COLORS}
+                  />
+
+                  {userRole === 'admin' && (
+                    <EditableField
+                      field="location"
+                      label="Location"
+                      value={item.location}
+                      icon={MapPin}
+                      type="select"
+                      options={SORTED_AVAILABLE_LOCATIONS}
+                    />
+                  )}
+
+                  <Separator className="bg-outline-variant" />
+
+                  {/* Date */}
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                    <div>
+                      <p className="label-small text-on-surface-variant">Registered date</p>
+                      <p className="body-large text-on-surface">{item.date}</p>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {/* Days in Store */}
-              {daysInStore !== null && (
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="label-small text-on-surface-variant">Days in store</p>
-                    <p className="body-large text-on-surface">
-                      {daysInStore} {daysInStore === 1 ? 'day' : 'days'}
-                    </p>
-                  </div>
-                </div>
-              )}
+                  {/* Days Remaining */}
+                  {item.daysRemaining !== undefined && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="label-small text-on-surface-variant">Days remaining</p>
+                        <p className="body-large text-on-surface">
+                          {item.daysRemaining} {item.daysRemaining === 1 ? 'day' : 'days'}
+                          {expireTimeWeeks !== undefined && (
+                            <span className="body-medium text-on-surface-variant ml-2">
+                              ({expireTimeWeeks} {expireTimeWeeks === 1 ? 'week' : 'weeks'})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Delivery ID */}
-              {item.deliveryId && (
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
-                  <div>
-                    <p className="label-small text-on-surface-variant">Delivery ID</p>
-                    <p className="body-large text-on-surface">{item.deliveryId}</p>
-                  </div>
-                </div>
-              )}
+                  {/* Days in Store */}
+                  {daysInStore !== null && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="label-small text-on-surface-variant">Days in store</p>
+                        <p className="body-large text-on-surface">
+                          {daysInStore} {daysInStore === 1 ? 'day' : 'days'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Box Label */}
-              {item.boxLabel && (
-                <div className="flex items-center gap-3">
-                  <Package className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
-                  <div>
-                    <p className="label-small text-on-surface-variant">Box label</p>
-                    <p className="body-large text-on-surface">{item.boxLabel}</p>
-                  </div>
-                </div>
-              )}
+                  {/* Delivery ID */}
+                  {item.deliveryId && (
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div>
+                        <p className="label-small text-on-surface-variant">Delivery ID</p>
+                        <p className="body-large text-on-surface">{item.deliveryId}</p>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Source */}
-              {item.source && (
-                <div className="flex items-center gap-3">
-                  <Tag className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
-                  <div>
-                    <p className="label-small text-on-surface-variant">Source</p>
-                    <p className="body-large text-on-surface">{item.source}</p>
-                  </div>
+                  {/* Box Label */}
+                  {item.boxLabel && (
+                    <div className="flex items-center gap-3">
+                      <Package className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div>
+                        <p className="label-small text-on-surface-variant">Box label</p>
+                        <p className="body-large text-on-surface">{item.boxLabel}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Source */}
+                  {item.source && (
+                    <div className="flex items-center gap-3">
+                      <Tag className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div>
+                        <p className="label-small text-on-surface-variant">Source</p>
+                        <p className="body-large text-on-surface">{item.source}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
+
+            {enableThriftedPartnerItemDialog && (
+              <>
+                <Separator className="bg-outline-variant" />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                    <div>
+                      <p className="label-small text-on-surface-variant">Registered date</p>
+                      <p className="body-large text-on-surface">{item.date}</p>
+                    </div>
+                  </div>
+
+                  {item.daysRemaining !== undefined && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="label-small text-on-surface-variant">Days remaining</p>
+                        <p className="body-large text-on-surface">
+                          {item.daysRemaining} {item.daysRemaining === 1 ? 'day' : 'days'}
+                          {expireTimeWeeks !== undefined && (
+                            <span className="body-medium text-on-surface-variant ml-2">
+                              ({expireTimeWeeks} {expireTimeWeeks === 1 ? 'week' : 'weeks'})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {daysInStore !== null && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="label-small text-on-surface-variant">Days in store</p>
+                        <p className="body-large text-on-surface">
+                          {daysInStore} {daysInStore === 1 ? 'day' : 'days'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.deliveryId && (
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div>
+                        <p className="label-small text-on-surface-variant">Delivery ID</p>
+                        <p className="body-large text-on-surface">{item.deliveryId}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.boxLabel && (
+                    <div className="flex items-center gap-3">
+                      <Package className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div>
+                        <p className="label-small text-on-surface-variant">Box label</p>
+                        <p className="body-large text-on-surface">{item.boxLabel}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.source && (
+                    <div className="flex items-center gap-3">
+                      <Tag className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+                      <div>
+                        <p className="label-small text-on-surface-variant">Source</p>
+                        <p className="body-large text-on-surface">{item.source}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Status History Section at Bottom */}
@@ -964,6 +1597,42 @@ export default function ItemDetailsDialog({
             </div>
           )}
         </div>
+
+        {enableThriftedPartnerItemDialog && partnerMobileActions && (
+          <div
+            className="flex-shrink-0 border-t border-outline-variant bg-surface mx-4 pt-3 flex gap-3"
+            style={{
+              paddingLeft: 'max(12px, env(safe-area-inset-left, 0px))',
+              paddingRight: 'max(12px, env(safe-area-inset-right, 0px))',
+              paddingBottom: 'max(28px, calc(env(safe-area-inset-bottom, 24px) + 20px))',
+            }}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 min-h-[48px] touch-manipulation"
+              onClick={() => {
+                flushThriftedDraftsToParent();
+                partnerMobileActions.onDone();
+              }}
+            >
+              Done
+            </Button>
+            {partnerMobileActions.hasNext ? (
+              <Button
+                type="button"
+                variant="default"
+                className="flex-1 min-h-[48px] touch-manipulation"
+                onClick={() => {
+                  flushThriftedDraftsToParent();
+                  partnerMobileActions.onNext();
+                }}
+              >
+                Next
+              </Button>
+            ) : null}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

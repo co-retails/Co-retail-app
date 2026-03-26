@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Label } from './ui/label';
@@ -7,6 +8,7 @@ import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { SharedHeader } from './ui/shared-header';
+import { useMediaQuery } from './ui/use-mobile';
 import { ItemDetailsTable } from './ItemDetailsTable';
 import type { ItemDetailsTableItem } from './ItemDetailsTable';
 import { 
@@ -24,7 +26,7 @@ import {
   StoreIcon
 } from 'lucide-react';
 import { Store, Brand, Country, StoreSelection } from './StoreSelector';
-import { Partner } from './PartnerWarehouseSelector';
+import { Partner, type Warehouse } from './PartnerWarehouseSelector';
 import { getCurrencyFromCountry } from '../data/partnerPricing';
 import { OrderItem } from './OrderCreationScreen';
 import { 
@@ -35,7 +37,9 @@ import {
   exportThriftedItemsToCSV,
   mapSubcategoryToCategory,
   getAllThriftedSubcategories,
-  THRIFTED_VALID_VALUES
+  THRIFTED_VALID_VALUES,
+  sortByNameAlpha,
+  sortStoresByCode,
 } from '../utils/spreadsheetUtils';
 
 type CreationStep = 'setup' | 'items';
@@ -49,11 +53,13 @@ interface ThriftedOrderCreationScreenProps {
   brands?: Brand[];
   countries?: Country[];
   stores?: Store[];
+  warehouses?: Warehouse[];
   // For editing existing order
   existingOrderId?: string;
   existingItems?: OrderItem[];
   existingStoreSelection?: StoreSelection;
-  orderStatus?: 'pending' | 'registered';
+  existingWarehouseId?: string;
+  orderStatus?: 'pending' | 'draft' | 'registered';
 }
 
 export default function ThriftedOrderCreationScreen({
@@ -63,9 +69,11 @@ export default function ThriftedOrderCreationScreen({
   brands = [],
   countries = [],
   stores = [],
+  warehouses = [],
   existingOrderId,
   existingItems = [],
   existingStoreSelection,
+  existingWarehouseId,
   orderStatus = 'pending'
 }: ThriftedOrderCreationScreenProps) {
   const [step, setStep] = useState<CreationStep>(existingOrderId ? 'items' : 'setup');
@@ -77,34 +85,68 @@ export default function ThriftedOrderCreationScreen({
   const [selectedBrandId, setSelectedBrandId] = useState<string | undefined>(existingStoreSelection?.brandId);
   const [selectedCountryId, setSelectedCountryId] = useState<string | undefined>(existingStoreSelection?.countryId);
   const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>(existingStoreSelection?.storeId);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string | undefined>(
+    existingWarehouseId ?? existingStoreSelection?.warehouseId
+  );
   
   const [validationFilter, setValidationFilter] = useState<ValidationFilter>('all');
   const [uploadError, setUploadError] = useState<string>('');
   const [showReplaceDialog, setShowReplaceDialog] = useState(false);
   const [pendingUploadItems, setPendingUploadItems] = useState<OrderItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isThriftedTableCompact = useMediaQuery('(max-width: 1023px)');
+  const [requestOpenMobileItemId, setRequestOpenMobileItemId] = useState<string | null>(null);
+  const [requestScrollToItemId, setRequestScrollToItemId] = useState<string | null>(null);
+  const clearOpenMobileRequest = useCallback(() => setRequestOpenMobileItemId(null), []);
+  const clearScrollRequest = useCallback(() => setRequestScrollToItemId(null), []);
 
   const isEditing = !!existingOrderId;
-  const canEdit = !isEditing || orderStatus === 'pending';
+  const canEditItems = !isEditing || orderStatus === 'pending' || orderStatus === 'draft';
+  const canEditLocation =
+    !isEditing || orderStatus === 'pending' || orderStatus === 'draft' || orderStatus === 'registered';
 
-  // Get filtered countries and stores based on selections
-  const availableCountries = selectedBrandId 
-    ? countries.filter(c => c.brandId === selectedBrandId)
-    : [];
-  
-  const availableStores = selectedBrandId && selectedCountryId
-    ? stores.filter(s => s.brandId === selectedBrandId && s.countryId === selectedCountryId)
-    : [];
+  const partnerWarehouses = useMemo(
+    () => warehouses.filter((w) => w.partnerId === currentPartner?.id),
+    [warehouses, currentPartner?.id]
+  );
 
-  // Build store selection object
-  const storeSelection: StoreSelection | undefined = selectedBrandId && selectedCountryId && selectedStoreId
-    ? {
-        brandId: selectedBrandId,
-        countryId: selectedCountryId,
-        storeId: selectedStoreId,
-        storeCode: stores.find(s => s.id === selectedStoreId)?.code || ''
-      }
+  useEffect(() => {
+    if (selectedWarehouseId || partnerWarehouses.length === 0) return;
+    setSelectedWarehouseId(partnerWarehouses[0].id);
+  }, [partnerWarehouses, selectedWarehouseId]);
+
+  const sortedBrands = useMemo(() => sortByNameAlpha(brands), [brands]);
+
+  const availableCountries = useMemo(() => {
+    if (!selectedBrandId) return [];
+    return sortByNameAlpha(countries.filter((c) => c.brandId === selectedBrandId));
+  }, [countries, selectedBrandId]);
+
+  const availableStores = useMemo(() => {
+    if (!selectedBrandId || !selectedCountryId) return [];
+    return sortStoresByCode(
+      stores.filter(
+        (s) => s.brandId === selectedBrandId && s.countryId === selectedCountryId
+      )
+    );
+  }, [stores, selectedBrandId, selectedCountryId]);
+
+  const selectedWarehouseRecord = selectedWarehouseId
+    ? partnerWarehouses.find((w) => w.id === selectedWarehouseId)
     : undefined;
+
+  // Build store selection object (includes sending warehouse)
+  const storeSelection: StoreSelection | undefined =
+    selectedBrandId && selectedCountryId && selectedStoreId && selectedWarehouseId
+      ? {
+          brandId: selectedBrandId,
+          countryId: selectedCountryId,
+          storeId: selectedStoreId,
+          storeCode: stores.find((s) => s.id === selectedStoreId)?.code || '',
+          warehouseId: selectedWarehouseId,
+          warehouseName: selectedWarehouseRecord?.name || ''
+        }
+      : undefined;
 
   const selectedCountryRecord = selectedCountryId ? countries.find(c => c.id === selectedCountryId) : undefined;
   const selectedCurrency = selectedCountryRecord ? getCurrencyFromCountry(selectedCountryRecord.name) : undefined;
@@ -112,17 +154,34 @@ export default function ThriftedOrderCreationScreen({
 
   // Validation stats
   const totalItems = orderItems.length;
-  const itemsWithErrors = orderItems.filter(item => item.status === 'error').length;
-  const validItems = orderItems.filter(item => item.status !== 'error').length;
+  const itemHasFieldErrors = (item: OrderItem) =>
+    !!item.fieldErrors && Object.keys(item.fieldErrors).length > 0;
+  const itemsWithErrors = orderItems.filter(itemHasFieldErrors).length;
+  const validItems = orderItems.filter((item) => !itemHasFieldErrors(item)).length;
 
-  // Filter items based on validation filter (only for bulk upload)
-  const filteredItems = creationMethod === 'bulk' 
-    ? orderItems.filter(item => {
-        if (validationFilter === 'errors') return item.status === 'error';
-        if (validationFilter === 'valid') return item.status !== 'error';
-        return true;
-      })
-    : orderItems; // For manual entry, show all items without filtering
+  // Filter items based on validation filter (only for bulk upload); memoized so ItemDetailsTable
+  // does not get a new `items` reference on every render (avoids killing add-row effects).
+  const filteredItems = useMemo(() => {
+    if (creationMethod !== 'bulk') return orderItems;
+    return orderItems.filter((item) => {
+      if (validationFilter === 'errors') return itemHasFieldErrors(item);
+      if (validationFilter === 'valid') return !itemHasFieldErrors(item);
+      return true;
+    });
+  }, [creationMethod, orderItems, validationFilter]);
+
+  const tableItemsForDisplay = useMemo(
+    () =>
+      filteredItems.map((item) => ({
+        ...item,
+        partnerItemId: item.partnerItemId ?? item.sku ?? '',
+        subcategory: item.subcategory || '',
+        price: item.price || 0,
+        imageUrl: undefined,
+        fieldErrors: item.fieldErrors,
+      })),
+    [filteredItems]
+  );
   const brandSuggestions = useMemo(() => {
     const suggestionSet = new Set<string>();
     brands.forEach((brand) => suggestionSet.add(brand.name));
@@ -133,16 +192,6 @@ export default function ThriftedOrderCreationScreen({
     });
     return Array.from(suggestionSet).sort((a, b) => a.localeCompare(b));
   }, [brands, orderItems]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const selector = 'input[placeholder="Enter item brand"]';
-    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(selector));
-    inputs.forEach((input) => input.setAttribute('list', 'thrifted-brand-suggestions'));
-    return () => {
-      inputs.forEach((input) => input.removeAttribute('list'));
-    };
-  }, [orderItems.length, filteredItems.length, validationFilter, step, canEdit]);
 
   const handleDownloadTemplate = () => {
     const template = generateThriftedTemplateCSV();
@@ -205,8 +254,9 @@ export default function ThriftedOrderCreationScreen({
 
   const handleAddItem = () => {
     // Create an empty row for manual entry
+    const newId = `item-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     const newItem: OrderItem = {
-      id: `item-${Date.now()}-${Math.random()}`,
+      id: newId,
       itemId: '',
       sku: '',
       category: '', // Auto-mapped from subcategory
@@ -217,21 +267,38 @@ export default function ThriftedOrderCreationScreen({
       gender: '',
       price: 0,
       retailerItemId: '',
-      status: 'error',
-      errors: ['Required fields missing'],
+      status: 'draft',
       source: 'manual',
       fieldErrors: {
-        sku: 'Required',
         subcategory: 'Required',
         size: 'Required',
         brand: 'Required',
         color: 'Required',
         price: 'Required (Mandatory)',
         retailerItemId: 'Required (Mandatory)'
-      }
+      },
+      errors: Object.values({
+        subcategory: 'Required',
+        size: 'Required',
+        brand: 'Required',
+        color: 'Required',
+        price: 'Required (Mandatory)',
+        retailerItemId: 'Required (Mandatory)'
+      }),
     };
 
-    setOrderItems(prev => [...prev, newItem]);
+    flushSync(() => {
+      setOrderItems((prev) => [...prev, newItem]);
+      // New rows have field errors until filled — ensure they are visible (e.g. not hidden behind "Valid" filter).
+      setValidationFilter('all');
+    });
+    if (isThriftedTableCompact) {
+      setRequestOpenMobileItemId(newId);
+      setRequestScrollToItemId(null);
+    } else {
+      setRequestScrollToItemId(newId);
+      setRequestOpenMobileItemId(null);
+    }
   };
 
   const handleDeleteItem = (itemId: string) => {
@@ -241,22 +308,22 @@ export default function ThriftedOrderCreationScreen({
   const handleUpdateItem = (itemId: string, field: keyof ItemDetailsTableItem, value: any) => {
     setOrderItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
-      
-      // Map fields for Thrifted orders (table uses different field names internally)
-      let actualField = field;
+
+      const stringish = (v: unknown) =>
+        typeof v === 'string' ? v : v != null ? String(v) : '';
+
+      let updatedItem: OrderItem;
+      let actualField: keyof OrderItem = field as keyof OrderItem;
       let actualValue = value;
-      
-      if (field === 'partnerItemId') {
-        // partnerItemId maps to both sku and itemId
-        actualField = 'sku' as keyof OrderItem;
-      }
-      
-      // Update the field value
-      const updatedItem = { ...item, [actualField]: actualValue };
-      
-      // For SKU, also update itemId to keep them in sync
-      if (actualField === 'sku') {
-        updatedItem.itemId = actualValue;
+
+      // External ID: keep sku and partnerItemId in sync; do not overwrite retailer itemId
+      if (field === 'partnerItemId' || field === 'sku') {
+        const ext = stringish(value);
+        updatedItem = { ...item, sku: ext, partnerItemId: ext };
+        actualField = 'sku';
+        actualValue = ext;
+      } else {
+        updatedItem = { ...item, [field]: value };
       }
       
       // When category changes, clear subcategory if it's not valid for the new category
@@ -286,15 +353,11 @@ export default function ThriftedOrderCreationScreen({
       // Update field errors
       const fieldErrors = { ...(updatedItem.fieldErrors || {}) };
       
-      // Validate updated field
       if (actualField === 'sku') {
-        if (actualValue && actualValue.toString().trim() !== '') {
-          delete fieldErrors.sku;
-        } else {
-          fieldErrors.sku = 'Required';
-        }
+        delete fieldErrors.sku;
+        delete fieldErrors.partnerItemId;
       }
-      
+
       // Retailer ID is mandatory - mark clearly
       if (actualField === 'retailerItemId') {
         if (actualValue && actualValue.toString().trim() !== '') {
@@ -361,10 +424,9 @@ export default function ThriftedOrderCreationScreen({
         }
       }
       
-      // Update status based on errors
       const hasErrors = Object.keys(fieldErrors).length > 0;
-      updatedItem.status = hasErrors ? 'error' : undefined;
-      updatedItem.fieldErrors = fieldErrors;
+      updatedItem.status = 'draft';
+      updatedItem.fieldErrors = hasErrors ? fieldErrors : undefined;
       updatedItem.errors = hasErrors ? Object.values(fieldErrors) : [];
       
       return updatedItem;
@@ -415,11 +477,12 @@ export default function ThriftedOrderCreationScreen({
                 {storeSelection && !showStoreEdit && (
                   <p className="body-small text-on-surface-variant mt-0.5">
                     {selectedBrand?.name} • {selectedCountry?.name}
+                    {selectedWarehouseRecord?.name ? ` • Sending: ${selectedWarehouseRecord.name}` : ''}
                   </p>
                 )}
               </div>
             </div>
-            {storeSelection && canEdit && step === 'items' && (
+            {storeSelection && canEditLocation && step === 'items' && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -435,88 +498,116 @@ export default function ThriftedOrderCreationScreen({
         <CardContent className="pt-0">
           {showStoreEdit || !storeSelection ? (
             <div className="space-y-4">
-              {/* Brand Selector */}
-              <div className="space-y-2">
-                <Label className="label-large text-on-surface">Brand</Label>
-                <Select 
-                  value={selectedBrandId} 
-                  onValueChange={(value: string) => {
-                    setSelectedBrandId(value);
-                    setSelectedCountryId(undefined);
-                    setSelectedStoreId(undefined);
-                  }}
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a brand" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {brands.map(brand => (
-                      <SelectItem key={brand.id} value={brand.id}>
-                        <span className="body-large">{brand.name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="label-large text-on-surface">Brand</Label>
+                  <Select
+                    value={selectedBrandId}
+                    onValueChange={(value: string) => {
+                      setSelectedBrandId(value);
+                      setSelectedCountryId(undefined);
+                      setSelectedStoreId(undefined);
+                    }}
+                    disabled={!canEditLocation}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedBrands.map((brand) => (
+                        <SelectItem key={brand.id} value={brand.id}>
+                          <span className="body-large">{brand.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="label-large text-on-surface">Country</Label>
+                  <Select
+                    value={selectedCountryId}
+                    onValueChange={(value: string) => {
+                      setSelectedCountryId(value);
+                      setSelectedStoreId(undefined);
+                    }}
+                    disabled={!selectedBrandId || !canEditLocation}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCountries.map((country) => (
+                        <SelectItem key={country.id} value={country.id}>
+                          <span className="body-large">{country.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="label-large text-on-surface">Store</Label>
+                  <Select
+                    value={selectedStoreId}
+                    onValueChange={(value: string) => {
+                      setSelectedStoreId(value);
+                      if (step === 'items') {
+                        setShowStoreEdit(false);
+                      }
+                    }}
+                    disabled={!selectedCountryId || !canEditLocation}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableStores.map((store) => (
+                        <SelectItem key={store.id} value={store.id}>
+                          <span className="body-large">
+                            {store.name} ({store.code})
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              {/* Country Selector */}
               <div className="space-y-2">
-                <Label className="label-large text-on-surface">Country</Label>
-                <Select 
-                  value={selectedCountryId} 
-                  onValueChange={(value: string) => {
-                    setSelectedCountryId(value);
-                    setSelectedStoreId(undefined);
-                  }}
-                  disabled={!selectedBrandId || !canEdit}
+                <Label className="label-large text-on-surface">Warehouse (sender)</Label>
+                <Select
+                  value={selectedWarehouseId}
+                  onValueChange={(value: string) => setSelectedWarehouseId(value)}
+                  disabled={!canEditLocation || partnerWarehouses.length === 0}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a country" />
+                  <SelectTrigger className="w-full md:max-w-md">
+                    <SelectValue placeholder="Select sending warehouse" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableCountries.map(country => (
-                      <SelectItem key={country.id} value={country.id}>
-                        <span className="body-large">{country.name}</span>
+                    {partnerWarehouses.map((wh) => (
+                      <SelectItem key={wh.id} value={wh.id}>
+                        <span className="body-large">{wh.name}</span>
+                        <span className="body-small text-on-surface-variant ml-2">({wh.location})</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              {/* Store Selector */}
-              <div className="space-y-2">
-                <Label className="label-large text-on-surface">Store</Label>
-                <Select 
-                  value={selectedStoreId} 
-                  onValueChange={(value: string) => {
-                    setSelectedStoreId(value);
-                    if (step === 'items') {
-                      setShowStoreEdit(false);
-                    }
-                  }}
-                  disabled={!selectedCountryId || !canEdit}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a store" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableStores.map(store => (
-                      <SelectItem key={store.id} value={store.id}>
-                        <span className="body-large">{store.name} ({store.code})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {partnerWarehouses.length === 0 && (
+                  <p className="body-small text-on-surface-variant">No warehouses available for this partner.</p>
+                )}
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3 py-2">
-              <div className="flex-1">
-                <p className="title-medium text-on-surface">
-                  {selectedStore?.name} ({selectedStore?.code})
+            <div className="space-y-1 py-2">
+              <p className="title-medium text-on-surface">
+                {selectedStore?.name} ({selectedStore?.code})
+              </p>
+              {selectedWarehouseRecord && (
+                <p className="body-small text-on-surface-variant">
+                  Sending warehouse: {selectedWarehouseRecord.name}
                 </p>
-              </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -539,12 +630,12 @@ export default function ThriftedOrderCreationScreen({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <button
               onClick={() => setCreationMethod('manual')}
-              disabled={!canEdit}
+              disabled={!canEditItems}
               className={`p-4 border rounded-xl transition-colors text-left ${
                 creationMethod === 'manual'
                   ? 'border-primary bg-primary-container'
                   : 'border-outline hover:bg-surface-container-high'
-              } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${!canEditItems ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-lg ${
@@ -565,12 +656,12 @@ export default function ThriftedOrderCreationScreen({
 
             <button
               onClick={() => setCreationMethod('bulk')}
-              disabled={!canEdit}
+              disabled={!canEditItems}
               className={`p-4 border rounded-xl transition-colors text-left ${
                 creationMethod === 'bulk'
                   ? 'border-primary bg-primary-container'
                   : 'border-outline hover:bg-surface-container-high'
-              } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${!canEditItems ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-lg ${
@@ -672,9 +763,9 @@ export default function ThriftedOrderCreationScreen({
 
   // Render step 2: Items management
   const renderItemsStep = () => (
-    <div className="space-y-6 pb-32">
+    <div className="space-y-6">
       {/* Re-upload Section (for bulk uploads only) */}
-      {canEdit && creationMethod === 'bulk' && (
+      {canEditItems && creationMethod === 'bulk' && (
         <Card className="bg-surface-container-low border-outline">
           <CardHeader>
             <CardTitle className="title-large">Import Items</CardTitle>
@@ -745,7 +836,7 @@ export default function ThriftedOrderCreationScreen({
           <div className="flex items-center justify-between flex-wrap gap-4">
             <CardTitle className="title-large">Order Items ({totalItems})</CardTitle>
             <div className="flex items-center gap-2 flex-wrap">
-              {canEdit && (
+              {canEditItems && (
                 <Button
                   variant="default"
                   size="sm"
@@ -766,7 +857,7 @@ export default function ThriftedOrderCreationScreen({
                   {validItems} valid
                 </Badge>
               )}
-              {canEdit && orderItems.length > 0 && (
+              {canEditItems && orderItems.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -831,21 +922,14 @@ export default function ThriftedOrderCreationScreen({
           {orderItems.length > 0 ? (
             <>
               <ItemDetailsTable
-                items={filteredItems.map(item => ({
-                  ...item,
-                  partnerItemId: item.sku || item.itemId,
-                  subcategory: item.subcategory || '', // Use subcategory (not gender)
-                  price: item.price || 0,
-                  imageUrl: undefined,
-                  fieldErrors: item.fieldErrors
-                }))}
+                items={tableItemsForDisplay}
                 showRetailerId={true}
                 showPurchasePrice={false}
                 showPrice={true}
-                showStatus={false}
-                isEditable={canEdit}
+                showStatus={true}
+                isEditable={canEditItems}
                 onUpdateItem={handleUpdateItem}
-                onDeleteItem={canEdit ? handleDeleteItem : undefined}
+                onDeleteItem={canEditItems ? handleDeleteItem : undefined}
                 subcategoryOptions={getAllThriftedSubcategories()}
                 subcategoryLabel="Subcategory"
                 brandAsInput={true}
@@ -856,10 +940,16 @@ export default function ThriftedOrderCreationScreen({
                 partnerId={partnerIdForPricing}
                 countryName={selectedCountryRecord?.name}
                 currency={selectedCurrency}
+                thriftedPartnerTable
+                brandAutocompleteOptions={brandSuggestions}
+                requestOpenMobileItemId={requestOpenMobileItemId}
+                onRequestOpenMobileItemIdConsumed={clearOpenMobileRequest}
+                requestScrollToItemId={requestScrollToItemId}
+                onRequestScrollToItemIdConsumed={clearScrollRequest}
               />
 
               {/* Delete Items Actions */}
-              {canEdit && filteredItems.length > 0 && (
+              {canEditItems && filteredItems.length > 0 && (
                 <div className="mt-4 flex justify-end gap-2">
                   <Button
                     variant="outline"
@@ -903,6 +993,12 @@ export default function ThriftedOrderCreationScreen({
           </Button>
         </div>
       )}
+
+      {/* In-flow space so the last table row clears the fixed footer (footer height + validation varies) */}
+      <div
+        aria-hidden
+        className="w-full shrink-0 min-h-[min(48vh,36rem)] lg:min-h-[min(42vh,40rem)]"
+      />
     </div>
   );
 
@@ -913,7 +1009,13 @@ export default function ThriftedOrderCreationScreen({
         onBack={onBack}
       />
 
-      <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6 pb-32">
+      <div
+        className={`px-4 md:px-6 lg:px-8 py-6 space-y-6 ${
+          step === 'items'
+            ? 'pb-[min(28rem,55vh)] lg:pb-[min(32rem,50vh)]'
+            : 'pb-8'
+        }`}
+      >
         <datalist id="thrifted-brand-suggestions">
           {brandSuggestions.map((brand) => (
             <option key={brand} value={brand} />

@@ -9,6 +9,7 @@ interface NavigationHandlersProps {
   receivePreviousScreen?: Screen | null;
   returnManagementPreviousScreen?: Screen | null;
   returnManagementPreviousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined;
+  orderCreationReturnScreen?: Screen;
 }
 
 /**
@@ -22,7 +23,8 @@ export function useNavigationHandlers({
   currentUserRole,
   receivePreviousScreen,
   returnManagementPreviousScreen,
-  returnManagementPreviousTab
+  returnManagementPreviousTab,
+  orderCreationReturnScreen = 'partner-dashboard'
 }: NavigationHandlersProps) {
   
   const handleBack = useCallback(() => {
@@ -71,7 +73,7 @@ export function useNavigationHandlers({
     } else if (currentScreen === 'retailer-id-scan') {
       setCurrentScreen('order-shipment-details');
     } else if (currentScreen === 'order-creation') {
-      setCurrentScreen('partner-dashboard');
+      setCurrentScreen(orderCreationReturnScreen);
     } else if (currentScreen === 'delivery-note-creation') {
       setCurrentScreen('partner-dashboard');
     } else if (currentScreen === 'order-shipment-details') {
@@ -130,7 +132,7 @@ export function useNavigationHandlers({
     } else {
       setCurrentScreen('home');
     }
-  }, [currentScreen, setCurrentScreen, setShippingInitialTab, currentUserRole, receivePreviousScreen, returnManagementPreviousScreen, returnManagementPreviousTab]);
+  }, [currentScreen, setCurrentScreen, setShippingInitialTab, currentUserRole, receivePreviousScreen, returnManagementPreviousScreen, returnManagementPreviousTab, orderCreationReturnScreen]);
 
   const handleBackToHome = useCallback(() => {
     setCurrentScreen('home');

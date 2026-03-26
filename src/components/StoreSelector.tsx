@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { sortByNameAlpha, sortStoresByCode } from '../utils/spreadsheetUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { ChevronRight, Check, ChevronLeft } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
@@ -27,6 +28,9 @@ export interface StoreSelection {
   countryId: string;
   storeId: string;
   storeCode?: string;
+  /** Sending warehouse for partner orders (e.g. Thrifted) */
+  warehouseId?: string;
+  warehouseName?: string;
 }
 
 interface StoreSelectorProps {
@@ -120,6 +124,21 @@ export default function StoreSelector({
   const filteredStores = stores.filter(store => 
     !selectedCountryId || store.countryId === selectedCountryId
   );
+
+  const sortedBrands = useMemo(() => sortByNameAlpha(brands), [brands]);
+  const sortedFilteredCountries = useMemo(() => {
+    const list = countries.filter(
+      (country) => !selectedBrandId || country.brandId === selectedBrandId
+    );
+    return sortByNameAlpha(list);
+  }, [countries, selectedBrandId]);
+
+  const sortedFilteredStores = useMemo(() => {
+    const list = stores.filter(
+      (store) => !selectedCountryId || store.countryId === selectedCountryId
+    );
+    return sortStoresByCode(list);
+  }, [stores, selectedCountryId]);
 
   // Reset dependent selections when parent changes
   useEffect(() => {
@@ -236,7 +255,7 @@ export default function StoreSelector({
                 Choose your brand
               </p>
               <div className="space-y-1">
-                {brands.map((brand) => (
+                {sortedBrands.map((brand) => (
                   <SelectionListItem
                     key={brand.id}
                     id={brand.id}
@@ -255,7 +274,7 @@ export default function StoreSelector({
                 Choose your country ({filteredCountries.length} available)
               </p>
               <div className="space-y-1">
-                {filteredCountries.map((country) => (
+                {sortedFilteredCountries.map((country) => (
                   <SelectionListItem
                     key={country.id}
                     id={country.id}
@@ -274,7 +293,7 @@ export default function StoreSelector({
                 Choose your store ({filteredStores.length} available)
               </p>
               <div className="space-y-1">
-                {filteredStores.map((store) => (
+                {sortedFilteredStores.map((store) => (
                   <SelectionListItem
                     key={store.id}
                     id={store.id}

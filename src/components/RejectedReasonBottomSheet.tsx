@@ -25,6 +25,8 @@ interface RejectedReasonBottomSheetProps {
   onClose: () => void;
   onConfirm: (reason: RejectedReason) => void;
   itemId?: string;
+  /** When rejecting multiple items at once */
+  bulkCount?: number;
 }
 
 export default function RejectedReasonBottomSheet({
@@ -32,6 +34,7 @@ export default function RejectedReasonBottomSheet({
   onClose,
   onConfirm,
   itemId,
+  bulkCount,
 }: RejectedReasonBottomSheetProps) {
   const [selectedReason, setSelectedReason] = useState<RejectedReason>(REJECTED_REASONS[0]);
   const [isMobile, setIsMobile] = useState(false);
@@ -65,10 +68,12 @@ export default function RejectedReasonBottomSheet({
       >
         <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
           <SheetTitle className="title-large text-on-surface">
-            Reject item
+            {bulkCount && bulkCount > 1 ? 'Reject items' : 'Reject item'}
           </SheetTitle>
           <SheetDescription className="body-medium text-on-surface-variant">
-            Select a reason to reject {itemId || 'the item'}. Rejections are only allowed within 24 hours of receiving it in store.
+            {bulkCount && bulkCount > 1
+              ? `Select a reason to reject ${bulkCount} items. Rejections are only allowed within 24 hours of receiving each item in store.`
+              : `Select a reason to reject ${itemId || 'the item'}. Rejections are only allowed within 24 hours of receiving it in store.`}
           </SheetDescription>
         </SheetHeader>
 

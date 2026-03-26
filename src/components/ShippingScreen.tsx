@@ -8,6 +8,7 @@ import { ShowroomOrder } from './ShowroomTypes';
 import { OrderItem } from './OrderCreationScreen';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { Button } from './ui/button';
+import { useMediaQuery } from './ui/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -205,6 +206,67 @@ const resolveDeliveryNoteParties = (
   return { sender, warehouse, receiver, storeNameDisplay };
 };
 
+function countItemsInBoxes(deliveryNote: DeliveryNote): number {
+  return (
+    deliveryNote.boxes?.reduce((sum, box) => {
+      const arr = box.items ?? [];
+      return sum + arr.filter(i => i.status !== 'removed').length;
+    }, 0) ?? 0
+  );
+}
+
+/** After the delivery is registered (shipped), list item count reflects packed lines only. */
+function deliveryNoteUsesBoxedItemCount(status: DeliveryNote['status']): boolean {
+  return (
+    status === 'registered' ||
+    status === 'delivered' ||
+    status === 'partially-delivered' ||
+    status === 'cancelled' ||
+    status === 'rejected'
+  );
+}
+
+/**
+ * Shipment list counts: prefer orders with `deliveryNote` matching the note id (legacy/mock),
+ * else match `order.id` to `deliveryNote.orderId`. Item count: order size until register, then lines in boxes.
+ */
+function getDeliveryNoteShipmentCounts(
+  deliveryNote: DeliveryNote,
+  partnerOrders: ShippingPartnerOrder[],
+): {
+  relatedOrdersForParties: ShippingPartnerOrder[];
+  orderCount: number;
+  itemCount: number;
+} {
+  const byDeliveryNoteId = partnerOrders.filter(o => o.deliveryNote === deliveryNote.id);
+  const relatedOrdersForParties =
+    byDeliveryNoteId.length > 0
+      ? byDeliveryNoteId
+      : partnerOrders.filter(o => o.id === deliveryNote.orderId);
+
+  const orderCount =
+    relatedOrdersForParties.length > 0
+      ? relatedOrdersForParties.length
+      : deliveryNote.orderId
+        ? 1
+        : 0;
+
+  const orderItemSum = relatedOrdersForParties.reduce((s, o) => s + (o.itemCount || 0), 0);
+  const itemsInBoxes = countItemsInBoxes(deliveryNote);
+
+  const itemCount = deliveryNoteUsesBoxedItemCount(deliveryNote.status)
+    ? itemsInBoxes
+    : orderItemSum > 0
+      ? orderItemSum
+      : itemsInBoxes;
+
+  return {
+    relatedOrdersForParties,
+    orderCount,
+    itemCount,
+  };
+}
+
 const resolveReturnDeliveryParties = (
   returnDelivery: ReturnDelivery,
   stores?: StoreRecord[],
@@ -367,8 +429,8 @@ function PartnerDeliveryNoteItem({
   warehouses?: Warehouse[];
   inTransitOver10Days?: boolean;
 }) {
-  const relatedOrders = orders.filter(order => order.deliveryNote === deliveryNote.id);
-  const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
+  const { relatedOrdersForParties: relatedOrders, orderCount, itemCount: totalItems } =
+    getDeliveryNoteShipmentCounts(deliveryNote, orders);
   const deliveryStatus = deliveryNote.status as DeliveryNoteStatus;
   const { sender, warehouse, receiver, storeNameDisplay } = resolveDeliveryNoteParties(
     deliveryNote,
@@ -414,7 +476,7 @@ function PartnerDeliveryNoteItem({
           
           {/* Secondary Line - Orders and Items */}
           <div className="text-xs font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]">
-            {relatedOrders.length} order{relatedOrders.length !== 1 ? 's' : ''} • {totalItems} items
+            {orderCount} order{orderCount !== 1 ? 's' : ''} • {totalItems} items
           </div>
           
           {/* Metadata Line - Sender/Receiver (only if requested) */}
@@ -1139,6 +1201,7 @@ export default function ShippingScreen({
   onViewFilterChange: externalOnViewFilterChange
 }: ShippingScreenProps) {
   const role: ShippingUserRole = currentUserRole ?? 'store-staff';
+  const showPartnerStoreFilterLabel = useMediaQuery('(min-width: 640px)');
 
   const handleScanClick = () => {
     if (onScanBox) {
@@ -1470,25 +1533,22 @@ useEffect(() => {
           aVal = a.id.toLowerCase();
           bVal = b.id.toLowerCase();
           break;
-        case 'senderReceiver':
-          const aOrders = partnerOrdersList.filter(o => o.deliveryNote === a.id);
-          const aWarehouse = aOrders[0]?.warehouseName || (aOrders[0]?.warehouseId ? warehouses?.find(w => w.id === aOrders[0]?.warehouseId)?.name : '');
-          const aReceiver = getReceiverDisplay(aOrders[0]?.receivingStoreId, aOrders[0]?.receivingStoreName);
-          aVal = `${aWarehouse} ${aReceiver}`.toLowerCase();
-          const bOrders = partnerOrdersList.filter(o => o.deliveryNote === b.id);
-          const bWarehouse = bOrders[0]?.warehouseName || (bOrders[0]?.warehouseId ? warehouses?.find(w => w.id === bOrders[0]?.warehouseId)?.name : '');
-          const bReceiver = getReceiverDisplay(bOrders[0]?.receivingStoreId, bOrders[0]?.receivingStoreName);
-          bVal = `${bWarehouse} ${bReceiver}`.toLowerCase();
+        case 'senderReceiver': {
+          const aCtx = getDeliveryNoteShipmentCounts(a, partnerOrdersList);
+          const aParties = resolveDeliveryNoteParties(a, aCtx.relatedOrdersForParties, stores, brands, warehouses);
+          aVal = `${aParties.warehouse || ''} ${aParties.receiver}`.toLowerCase();
+          const bCtx = getDeliveryNoteShipmentCounts(b, partnerOrdersList);
+          const bParties = resolveDeliveryNoteParties(b, bCtx.relatedOrdersForParties, stores, brands, warehouses);
+          bVal = `${bParties.warehouse || ''} ${bParties.receiver}`.toLowerCase();
           break;
+        }
         case 'orders':
-          aVal = partnerOrdersList.filter(o => o.deliveryNote === a.id).length;
-          bVal = partnerOrdersList.filter(o => o.deliveryNote === b.id).length;
+          aVal = getDeliveryNoteShipmentCounts(a, partnerOrdersList).orderCount;
+          bVal = getDeliveryNoteShipmentCounts(b, partnerOrdersList).orderCount;
           break;
         case 'items':
-          const aOrderItems = partnerOrdersList.filter(o => o.deliveryNote === a.id).reduce((sum, o) => sum + (o.itemCount || 0), 0);
-          const bOrderItems = partnerOrdersList.filter(o => o.deliveryNote === b.id).reduce((sum, o) => sum + (o.itemCount || 0), 0);
-          aVal = aOrderItems;
-          bVal = bOrderItems;
+          aVal = getDeliveryNoteShipmentCounts(a, partnerOrdersList).itemCount;
+          bVal = getDeliveryNoteShipmentCounts(b, partnerOrdersList).itemCount;
           break;
         case 'boxes':
           aVal = a.boxes?.length || 0;
@@ -1893,10 +1953,10 @@ useEffect(() => {
 
   const filteredDeliveryNotes = deliveryNotes.filter(note => {
     // Comprehensive search across all fields
-    const relatedOrders = partnerOrdersList.filter(o => o.deliveryNote === note.id);
+    const { relatedOrdersForParties: relatedOrders, orderCount, itemCount: totalItems } =
+      getDeliveryNoteShipmentCounts(note, partnerOrdersList);
     const noteWarehouse = relatedOrders[0]?.warehouseName || (relatedOrders[0]?.warehouseId ? warehouses?.find(w => w.id === relatedOrders[0]?.warehouseId)?.name : '');
     const noteReceiver = getReceiverDisplay(relatedOrders[0]?.receivingStoreId, relatedOrders[0]?.receivingStoreName);
-    const totalItems = relatedOrders.reduce((sum, o) => sum + (o.itemCount || 0), 0);
     const matchesSearch = matchesSearchTerm(searchTerm, [
       note.id,
       note.orderId,
@@ -1904,7 +1964,7 @@ useEffect(() => {
       note.createdDate,
       noteWarehouse,
       noteReceiver,
-      relatedOrders.length,
+      orderCount,
       totalItems,
       note.boxes?.length,
       ...relatedOrders.map(o => o.id),
@@ -2038,7 +2098,7 @@ useEffect(() => {
           {showCreateOrderButton && (
             <div className="mt-4 md:max-w-sm md:w-auto">
               <Button
-                onClick={onCreateOrder}
+                onClick={() => onCreateOrder?.()}
                 className="w-full md:w-auto justify-center h-14 rounded-[12px] gap-3 bg-primary text-on-primary hover:bg-primary/90 transition-colors px-6"
               >
                 <Plus className="w-5 h-5" />
@@ -2052,10 +2112,10 @@ useEffect(() => {
       {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
       <div className="px-4 md:px-6 pt-4 md:pt-6">
         
-        {/* Search row (search + store filter) */}
+        {/* Search row + store filter (partner); label from sm (tablet) up, icon-only on narrow mobile */}
         <div className="mb-4">
           <div className="flex gap-3 items-start">
-            <div className="relative md:max-w-2xl flex-1">
+            <div className="relative md:max-w-2xl flex-1 min-w-0">
               <div className="relative">
                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                   <Search className="w-5 h-5 text-on-surface-variant" />
@@ -2092,16 +2152,26 @@ useEffect(() => {
                   type="button"
                   aria-label="Store filter"
                   className={`
-                    h-12 px-3 sm:px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
+                    h-12 min-w-12 px-3 border transition-colors inline-flex items-center justify-center gap-2 flex-shrink-0 rounded-[8px]
                     ${hasActivePartnerViewFilters
                       ? 'bg-secondary-container border-outline text-on-secondary-container'
                       : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
                     }
                   `}
                 >
-                  <FilterIcon size={20} />
-                  <span className="label-medium hidden sm:inline">Store filter</span>
-                  {hasActivePartnerViewFilters && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  <FilterIcon size={20} className="shrink-0" />
+                  <span
+                    className={
+                      showPartnerStoreFilterLabel
+                        ? 'label-medium whitespace-nowrap shrink-0'
+                        : 'label-medium hidden whitespace-nowrap shrink-0'
+                    }
+                  >
+                    Store filter
+                  </span>
+                  {hasActivePartnerViewFilters && (
+                    <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                  )}
                 </button>
               </StoreFilterBottomSheet>
             )}
@@ -2926,8 +2996,8 @@ useEffect(() => {
                     <tbody>
                       {paginatedDeliveryNotes.map((deliveryNote) => {
                         const noteStatus = deliveryNote.status as DeliveryNoteStatus;
-                        const relatedOrders = partnerOrdersList.filter(order => order.deliveryNote === deliveryNote.id);
-                        const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
+                        const { relatedOrdersForParties: relatedOrders, orderCount, itemCount: totalItems } =
+                          getDeliveryNoteShipmentCounts(deliveryNote, partnerOrdersList);
                         const { sender, warehouse, receiver, storeNameDisplay } = resolveDeliveryNoteParties(
                           deliveryNote,
                           relatedOrders,
@@ -2966,7 +3036,7 @@ useEffect(() => {
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
-                            >{relatedOrders.length}</td>
+                            >{orderCount}</td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}

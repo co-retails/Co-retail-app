@@ -36,6 +36,22 @@ import { UserRole } from './ItemCard';
 import { toast } from 'sonner';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import { getSekPriceOptions } from '../data/partnerPricing';
+import { sortOptionsAlpha } from '../utils/spreadsheetUtils';
+
+const SCAN_BULK_CATEGORY_OPTIONS = sortOptionsAlpha([
+  'Tops',
+  'Bottoms',
+  'Dresses',
+  'Outerwear',
+  'Shoes',
+  'Accessories',
+  'Hoodie',
+  'Shorts',
+  'Trousers',
+  'Jackets',
+  'Skirts',
+  'Knitwear',
+]);
 
 export interface ScannedItem extends BaseItem {
   selected: boolean;
@@ -290,18 +306,9 @@ function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole = 'sto
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No change</SelectItem>
-                <SelectItem value="Tops">Tops</SelectItem>
-                <SelectItem value="Bottoms">Bottoms</SelectItem>
-                <SelectItem value="Dresses">Dresses</SelectItem>
-                <SelectItem value="Outerwear">Outerwear</SelectItem>
-                <SelectItem value="Shoes">Shoes</SelectItem>
-                <SelectItem value="Accessories">Accessories</SelectItem>
-                <SelectItem value="Hoodie">Hoodie</SelectItem>
-                <SelectItem value="Shorts">Shorts</SelectItem>
-                <SelectItem value="Trousers">Trousers</SelectItem>
-                <SelectItem value="Jackets">Jackets</SelectItem>
-                <SelectItem value="Skirts">Skirts</SelectItem>
-                <SelectItem value="Knitwear">Knitwear</SelectItem>
+                {SCAN_BULK_CATEGORY_OPTIONS.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

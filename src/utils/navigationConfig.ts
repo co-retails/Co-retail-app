@@ -136,29 +136,32 @@ export function getNavigationDestinations({
 /**
  * Get active destination ID based on current screen
  */
-export function getActiveDestination(currentScreen: string, currentUserRole: string): string {
-  if (currentUserRole === 'buyer') {
-    if (currentScreen === 'buyer-dashboard') return 'buyer-dashboard';
-    if (currentScreen.startsWith('showroom-browse') || currentScreen === 'showroom-cart' || currentScreen === 'showroom-product-detail') return 'buyer-browse';
-    if (currentScreen.includes('quotation')) return 'buyer-quotations';
+export function getActiveDestination(currentScreen: unknown, currentUserRole: unknown): string {
+  const screen = typeof currentScreen === 'string' ? currentScreen : 'home';
+  const role = typeof currentUserRole === 'string' ? currentUserRole : 'store-staff';
+
+  if (role === 'buyer') {
+    if (screen === 'buyer-dashboard') return 'buyer-dashboard';
+    if (screen.startsWith('showroom-browse') || screen === 'showroom-cart' || screen === 'showroom-product-detail') return 'buyer-browse';
+    if (screen.includes('quotation')) return 'buyer-quotations';
     return 'buyer-dashboard';
   }
   
-  if (currentUserRole === 'partner') {
-    if (currentScreen.startsWith('showroom') || currentScreen === 'line-sheet-creation' || currentScreen === 'product-edit') return 'showroom-dashboard';
-    if (currentScreen.includes('quotation')) return 'partner-quotations';
-    if (currentScreen === 'price-fork-calibration') return 'partner-dashboard';
-    if (currentScreen === 'partner-dashboard' || currentScreen === 'order-creation' || currentScreen === 'box-management' || currentScreen === 'sellpy-orders' || currentScreen === 'order-details' || currentScreen === 'retailer-id-scan' || currentScreen === 'order-shipment-details') return 'partner-dashboard';
-    if (currentScreen === 'scan') return 'scan';
-    if (currentScreen.includes('shipping') || currentScreen === 'receive') return 'shipping';
+  if (role === 'partner') {
+    if (screen.startsWith('showroom') || screen === 'line-sheet-creation' || screen === 'product-edit') return 'showroom-dashboard';
+    if (screen.includes('quotation')) return 'partner-quotations';
+    if (screen === 'price-fork-calibration') return 'partner-dashboard';
+    if (screen === 'partner-dashboard' || screen === 'order-creation' || screen === 'box-management' || screen === 'sellpy-orders' || screen === 'order-details' || screen === 'retailer-id-scan' || screen === 'order-shipment-details') return 'partner-dashboard';
+    if (screen === 'scan') return 'scan';
+    if (screen.includes('shipping') || screen === 'receive') return 'shipping';
     return 'partner-dashboard';
   }
   
   // Store staff
-  if (currentScreen === 'home' || currentScreen === 'return-management' || currentScreen === 'return-confirmation' || currentScreen === 'partner-selection' || currentScreen === 'stock-check' || currentScreen === 'stock-check-report' || currentScreen === 'stock-check-review' || currentScreen === 'status-update') return 'home';
-  if (currentScreen === 'items') return 'items';
-  if (currentScreen === 'scan') return 'scan';
-  if (currentScreen.includes('shipping') || currentScreen === 'receive') return 'shipping';
+  if (screen === 'home' || screen === 'return-management' || screen === 'return-confirmation' || screen === 'partner-selection' || screen === 'stock-check' || screen === 'stock-check-report' || screen === 'stock-check-review' || screen === 'status-update') return 'home';
+  if (screen === 'items') return 'items';
+  if (screen === 'scan') return 'scan';
+  if (screen.includes('shipping') || screen === 'receive') return 'shipping';
   
   return 'home';
 }

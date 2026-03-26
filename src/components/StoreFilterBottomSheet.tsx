@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { sortByNameAlpha, sortStoresByCode } from '../utils/spreadsheetUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from './ui/sheet';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -32,7 +33,11 @@ interface StoreFilterBottomSheetProps {
   brands: Brand[];
   stores: Store[];
   countries: Country[];
-  children: React.ReactNode;
+  /** When omitted with controlled `open`/`onOpenChange`, triggers live outside this component. */
+  children?: React.ReactNode;
+  /** Controlled open state (e.g. multiple toolbar triggers). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export default function StoreFilterBottomSheet({
@@ -46,14 +51,27 @@ export default function StoreFilterBottomSheet({
   brands,
   stores,
   countries,
-  children
+  children,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange
 }: StoreFilterBottomSheetProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isControlled = controlledOpen !== undefined && controlledOnOpenChange !== undefined;
+  const sheetOpen = isControlled ? controlledOpen : internalOpen;
+  const setSheetOpen = React.useCallback(
+    (next: boolean) => {
+      if (isControlled) controlledOnOpenChange(next);
+      else setInternalOpen(next);
+    },
+    [isControlled, controlledOnOpenChange]
+  );
   const isMobile = useMediaQuery('(max-width: 640px)'); // sm breakpoint
+
+  const sortedBrands = useMemo(() => sortByNameAlpha(brands), [brands]);
 
   const handleViewAllStores = () => {
     onViewAllStores();
-    setIsOpen(false);
+    setSheetOpen(false);
   };
 
   const handleBrandToggle = (brandId: string) => {
@@ -133,7 +151,7 @@ export default function StoreFilterBottomSheet({
     onViewAllStores();
   };
 
-  // Get filtered stores based on selected brands and countries
+  // Get filtered stores based on selected brands and countries (order by store code)
   const getFilteredStores = () => {
     let filteredStores = stores;
     
@@ -151,7 +169,7 @@ export default function StoreFilterBottomSheet({
       );
     }
     
-    return filteredStores;
+    return sortStoresByCode(filteredStores);
   };
 
   // Get all countries (independent of brand selection)
@@ -165,14 +183,14 @@ export default function StoreFilterBottomSheet({
       return acc;
     }, [] as Country[]);
     
-    return uniqueCountries.sort((a, b) => a.name.localeCompare(b.name));
+    return sortByNameAlpha(uniqueCountries);
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        {children}
-      </SheetTrigger>
+    <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      {children != null ? (
+        <SheetTrigger asChild>{children}</SheetTrigger>
+      ) : null}
       <SheetContent 
         side={isMobile ? "bottom" : "right"} 
         className={isMobile 
@@ -247,7 +265,7 @@ export default function StoreFilterBottomSheet({
                       <CommandList>
                         <CommandEmpty>No brands found.</CommandEmpty>
                         <CommandGroup>
-                          {brands.map((brand) => (
+                          {sortedBrands.map((brand) => (
                             <CommandItem
                               key={brand.id}
                               value={brand.name}
@@ -494,13 +512,13 @@ export default function StoreFilterBottomSheet({
             <Button
               variant="outline"
               className="flex-1 h-12 md:h-10 min-h-[48px] md:min-h-0 touch-manipulation"
-              onClick={() => setIsOpen(false)}
+              onClick={() => setSheetOpen(false)}
             >
               Cancel
             </Button>
             <Button
               className="flex-1 h-12 md:h-10 min-h-[48px] md:min-h-0 touch-manipulation"
-              onClick={() => setIsOpen(false)}
+              onClick={() => setSheetOpen(false)}
               disabled={false}
             >
               Apply
