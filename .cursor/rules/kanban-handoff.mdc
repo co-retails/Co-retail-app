@@ -1,0 +1,126 @@
+---
+alwaysApply: true
+name: Agent Kanban Board & Handoff Protocol
+---
+
+# 📋 Agent Kanban Board Protocol
+
+You have access to a shared kanban board at **🤖 Agent Handoffs** for coordinating work with Brian and other agents.
+
+## Status Columns
+
+| Column | Purpose |
+|--------|---------|
+| **To Do** | Unstarted tasks |
+| **Cursor** | Assigned to Cursor agent |
+| **Antigravity** | Assigned to Antigravity agent |
+| **Needs Brian Review** | Requires human review/decision |
+| **Done** | Completed |
+
+---
+
+## ⚠️ MANDATORY: When to Create a Card
+
+You **MUST** create a card when:
+
+1. **Starting a new task or investigation** — Create immediately when beginning work
+2. **Encountering a decision that requires human input** — Move to "Needs Brian Review"
+3. **Completing work that needs review** — Update handoff notes and move appropriately
+4. **Handing off to another agent** — Document context for seamless transition
+
+---
+
+## Required Fields When Creating
+
+| Field | Description |
+|-------|-------------|
+| **Task** | Clear, concise name (e.g., "Fix login validation", "Implement scan flow") |
+| **Type** | `Bug`, `Feature`, `Question`, `Research`, or `Code Review` |
+| **Context** | Brief background (1-2 sentences max) |
+| **Status** | Set to `Cursor` if you're working, or `Needs Brian Review` if blocked |
+
+---
+
+## Handoff Protocol
+
+### When Handing Off Work:
+
+1. **Update Handoff Notes** with:
+   - ✅ What you did (summarize changes made)
+   - ⏳ What's pending (next steps)
+   - 🚫 Any blockers (decisions needed, unclear requirements)
+
+2. **Move status** to the appropriate column:
+   - `Done` — If work is complete and no approval needed
+   - `Needs Brian Review` — If decision/approval is required
+   - `Antigravity` — If handing to another agent
+
+3. **Be specific** about what action is needed from Brian
+
+---
+
+## When You Complete Work
+
+1. **Summarize outcome** in Handoff Notes:
+   - Files changed
+   - Features implemented
+   - Tests passing (if applicable)
+
+2. **Move to appropriate column:**
+   - `Done` — If self-contained and no approval required
+   - `Needs Brian Review` — If any of these apply:
+     - Architecture decisions made
+     - Design deviations
+     - Breaking changes
+     - New dependencies added
+     - Unclear requirements resolved with assumptions
+
+---
+
+## Examples
+
+### ✅ Good Card Creation
+
+```
+Task: Fix scanner duplicate scan handling
+Type: Bug
+Context: Scanner allows same barcode twice in session. Need to add client-side debounce.
+Status: Cursor
+```
+
+### ✅ Good Handoff Notes
+
+```
+COMPLETED:
+- Added 500ms debounce to ScanViewer.vue
+- Updated useScanner composable with dedup logic
+
+PENDING:
+- Backend validation TBD (out of scope for frontend)
+
+BLOCKERS: None
+```
+
+### ❌ Bad Card (Too Vague)
+
+```
+Task: Fix bug
+Context: Something is broken
+Status: Cursor
+```
+
+---
+
+## Quick Reference Checklist
+
+Before ending your session:
+
+- [ ] Did I create a card for my task?
+- [ ] Did I update Handoff Notes with what I did?
+- [ ] Did I move the card to the correct column?
+- [ ] If blocked, did I specify what decision Brian needs to make?
+- [ ] If complete, did I summarize the outcome?
+
+---
+
+**This protocol ensures continuity across agent sessions and clear communication with Brian.**
