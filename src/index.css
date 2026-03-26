@@ -5778,3 +5778,41 @@ html {
     transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
   }
 }
+
+/* ===== Feature Highlight Styles (PR #8 & #9) ===== */
+
+.new-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #1976d2, #42a5f5);
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 16px;
+  box-shadow: 0 1px 3px rgba(25, 118, 210, 0.3);
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+.new-feature-highlight {
+  position: relative;
+  outline: 2px dashed #1976d2;
+  outline-offset: 4px;
+  border-radius: 8px;
+  animation: pulse-outline 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-outline {
+  0%, 100% { outline-color: rgba(25, 118, 210, 0.8); }
+  50% { outline-color: rgba(25, 118, 210, 0.2); }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}

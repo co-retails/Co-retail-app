@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { HIGHLIGHT_NEW } from '../config/featureHighlights';
 import { flushSync } from 'react-dom';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -473,7 +474,7 @@ export default function ThriftedOrderCreationScreen({
                 <StoreIcon size={20} className="text-on-primary-container" />
               </div>
               <div>
-                <CardTitle className="title-large text-on-surface">Receiving Store</CardTitle>
+                <CardTitle className="title-large text-on-surface">Receiving Store{HIGHLIGHT_NEW && <span className="new-badge">NEW</span>}</CardTitle>
                 {storeSelection && !showStoreEdit && (
                   <p className="body-small text-on-surface-variant mt-0.5">
                     {selectedBrand?.name} • {selectedCountry?.name}

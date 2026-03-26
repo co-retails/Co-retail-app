@@ -1,4 +1,5 @@
 import React from 'react';
+import { HIGHLIGHT_NEW } from '../config/featureHighlights';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
 import { Badge } from './ui/badge';
 import { Store, TruckIcon } from 'lucide-react';
@@ -36,7 +37,7 @@ export default function SwitchViewSheet({ isOpen, onClose, currentView, onViewCh
         )}
 
         <SheetHeader className={`relative px-6 pb-4 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
-          <SheetTitle className="title-large text-on-surface text-left">Switch view</SheetTitle>
+          <SheetTitle className="title-large text-on-surface text-left">Switch view{HIGHLIGHT_NEW && <span className="new-badge">NEW</span>}</SheetTitle>
           <SheetDescription className="body-small text-on-surface-variant text-left">
             Choose which app experience to open.
           </SheetDescription>

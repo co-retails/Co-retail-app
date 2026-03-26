@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import { HIGHLIGHT_NEW } from '../config/featureHighlights';
 import { sortByNameAlpha } from '../utils/spreadsheetUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { ChevronRight, Check, ChevronLeft } from 'lucide-react';
@@ -212,7 +213,7 @@ export default function PartnerWarehouseSelector({
               </button>
             )}
             <SheetTitle className={`text-on-surface text-left flex-1 ${isLargeScreen ? 'title-large' : 'title-large'}`}>
-              {getStepTitle()}
+              {getStepTitle()}{HIGHLIGHT_NEW && <span className="new-badge">NEW</span>}
             </SheetTitle>
           </div>
           <SheetDescription className="body-small text-on-surface-variant text-left">

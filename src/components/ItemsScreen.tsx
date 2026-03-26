@@ -34,6 +34,7 @@ import { X, FilterIcon } from "lucide-react";
 import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { ItemCard, BaseItem, ItemQuickAction, getItemListQuickActions, quickActionIcon } from './ItemCard';
+import { HIGHLIGHT_NEW } from '../config/featureHighlights';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import RejectedReasonBottomSheet, { RejectedReason } from './RejectedReasonBottomSheet';
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
@@ -1877,7 +1878,7 @@ function MultiSelectActions({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Bulk actions</DropdownMenuLabel>
+              <DropdownMenuLabel>Bulk actions{HIGHLIGHT_NEW && <span className="new-badge">NEW</span>}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {bulkQuickActions.map(({ action, label, className }) => (
                 <DropdownMenuItem
