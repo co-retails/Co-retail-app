@@ -1,15 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Settings, FilterIcon, QrCodeIcon, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
-import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
+import { Settings, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
 import svgPaths from "../imports/svg-8iuolkmxl8";
-import type { Store, Country, Brand } from './StoreSelector';
+import type { Store, Brand } from './StoreSelector';
 import PartnerWarehouseSelector, { Partner as WarehousePartner, Warehouse, PartnerWarehouseSelection } from './PartnerWarehouseSelector';
 import { ShowroomOrder } from './ShowroomTypes';
 import type { ReturnDelivery } from './ShippingScreen';
 import type { DeliveryNote } from './BoxManagementScreen';
+
+/** Calendar-day match in local timezone; supports `YYYY-MM-DD` and ISO datetimes. */
+function isPartnerOrderCreatedToday(createdDate: string, now: Date = new Date()): boolean {
+  const head = createdDate.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(head)) {
+    const [y, m, d] = head.split('-').map(Number);
+    return y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate();
+  }
+  const t = new Date(createdDate);
+  if (Number.isNaN(t.getTime())) return false;
+  return (
+    t.getFullYear() === now.getFullYear() &&
+    t.getMonth() === now.getMonth() &&
+    t.getDate() === now.getDate()
+  );
+}
 
 export interface PartnerOrder {
   id: string;
@@ -40,9 +55,6 @@ export interface ExtendedPartnerOrder extends PartnerOrder {
   receivingStoreName?: string;
 }
 
-// View filter types
-export type ViewMode = 'all' | 'by-partner' | 'by-store';
-
 interface PartnerDashboardProps {
   onCreateOrder: () => void;
   onViewOrders: () => void;
@@ -58,7 +70,6 @@ interface PartnerDashboardProps {
   returnDeliveries?: ReturnDelivery[];
   deliveryNotes?: DeliveryNote[];
   brands: Brand[];
-  countries: Country[];
   stores: Store[];
   partners: WarehousePartner[];
   warehouses: Warehouse[];
@@ -70,9 +81,6 @@ interface PartnerDashboardProps {
   onViewQuotationDetails?: (quotationId: string) => void;
   onOpenOrderDetails?: (order: ExtendedPartnerOrder) => void;
   onNavigateToReports?: () => void;
-  // Shared filter state for partner portal
-  viewFilter: ViewFilter;
-  onViewFilterChange: (filter: ViewFilter) => void;
 }
 
 export default function PartnerDashboard({
@@ -90,7 +98,6 @@ export default function PartnerDashboard({
   returnDeliveries = [],
   deliveryNotes = [],
   brands,
-  countries,
   stores,
   partners,
   warehouses,
@@ -100,29 +107,10 @@ export default function PartnerDashboard({
   showroomOrders = [],
   onNavigateToQuotations,
   onViewQuotationDetails,
-  viewFilter,
-  onViewFilterChange,
   onOpenOrderDetails,
   onNavigateToReports
 }: PartnerDashboardProps) {
   const [isPartnerWarehouseSelectorOpen, setIsPartnerWarehouseSelectorOpen] = useState(false);
-  
-  // Update view filter when partner selection changes (reset to partner-only view)
-  useEffect(() => {
-    // Only reset if switching to a different partner, preserve brand/country/store filters if same partner
-    if (viewFilter.partnerId !== currentPartnerWarehouseSelection.partnerId) {
-      onViewFilterChange({ 
-        mode: 'by-partner', 
-        partnerId: currentPartnerWarehouseSelection.partnerId 
-      });
-    } else if (!viewFilter.partnerId) {
-      // Initialize if no partner ID set
-      onViewFilterChange({ 
-        mode: 'by-partner', 
-        partnerId: currentPartnerWarehouseSelection.partnerId 
-      });
-    }
-  }, [currentPartnerWarehouseSelection.partnerId]);
 
   // Get current partner/warehouse display name
   const getCurrentPartnerWarehouseDisplay = () => {
@@ -145,57 +133,17 @@ export default function PartnerDashboard({
     onPartnerWarehouseSelectionChange(selection);
   };
 
-  // Filter recent orders based on current view mode
-  const selectedPartnerId = viewFilter.partnerId || currentPartnerWarehouseSelection.partnerId;
+  // Lists and stats: scoped to selected partner + warehouse only (brand/store/country filters live on Orders & Shipments / Items)
+  const selectedPartnerId = currentPartnerWarehouseSelection.partnerId;
 
   const getFilteredOrders = () => {
-    let filteredOrders = recentOrders;
     const selectedWarehouseId = currentPartnerWarehouseSelection.warehouseId;
-    
-    // Always respect the currently selected partner/warehouse
-    filteredOrders = filteredOrders.filter(order => {
+
+    return recentOrders.filter(order => {
       const matchesPartner = !selectedPartnerId || order.partnerId === selectedPartnerId;
       const matchesWarehouse = !selectedWarehouseId || order.warehouseId === selectedWarehouseId;
       return matchesPartner && matchesWarehouse;
     });
-
-    switch (viewFilter.mode) {
-      case 'by-partner':
-        return filteredOrders;
-      case 'by-store':
-        // Apply all active filters
-        
-        // Filter by selected stores
-        if (viewFilter.storeIds?.length) {
-          filteredOrders = filteredOrders.filter(order => 
-            order.receivingStoreId && viewFilter.storeIds!.includes(order.receivingStoreId)
-          );
-        }
-        
-        // Filter by selected brands (if no specific stores selected)
-        if (viewFilter.brandIds?.length && (!viewFilter.storeIds?.length)) {
-          const brandStoreIds = stores
-            .filter(store => viewFilter.brandIds!.includes(store.brandId))
-            .map(store => store.id);
-          filteredOrders = filteredOrders.filter(order => 
-            order.receivingStoreId && brandStoreIds.includes(order.receivingStoreId)
-          );
-        }
-        
-        // Filter by selected countries (if no specific stores/brands selected)
-        if (viewFilter.countryIds?.length && (!viewFilter.storeIds?.length) && (!viewFilter.brandIds?.length)) {
-          const countryStoreIds = stores
-            .filter(store => viewFilter.countryIds!.includes(store.countryId))
-            .map(store => store.id);
-          filteredOrders = filteredOrders.filter(order => 
-            order.receivingStoreId && countryStoreIds.includes(order.receivingStoreId)
-          );
-        }
-        
-        return filteredOrders;
-      default:
-        return filteredOrders;
-    }
   };
 
   const getFilteredDeliveryNotes = () => {
@@ -205,44 +153,16 @@ export default function PartnerDashboard({
 
     const selectedWarehouseId = currentPartnerWarehouseSelection.warehouseId;
 
-    let filteredNotes = deliveryNotes.filter(note => {
+    return deliveryNotes.filter(note => {
       const matchesPartner = !selectedPartnerId || note.partnerId === selectedPartnerId;
       const matchesWarehouse = !selectedWarehouseId || note.warehouseId === selectedWarehouseId;
       return matchesPartner && matchesWarehouse;
     });
-
-    if (viewFilter.mode === 'by-partner' && viewFilter.partnerId) {
-      filteredNotes = filteredNotes.filter(note => note.partnerId === viewFilter.partnerId);
-    }
-
-    if (viewFilter.mode === 'by-store') {
-      if (viewFilter.storeIds?.length) {
-        filteredNotes = filteredNotes.filter(note =>
-          note.storeId && viewFilter.storeIds!.includes(note.storeId)
-        );
-      } else if (viewFilter.brandIds?.length) {
-        const brandStoreIds = stores
-          .filter(store => viewFilter.brandIds!.includes(store.brandId))
-          .map(store => store.id);
-        filteredNotes = filteredNotes.filter(note =>
-          note.storeId && brandStoreIds.includes(note.storeId)
-        );
-      } else if (viewFilter.countryIds?.length) {
-        const countryStoreIds = stores
-          .filter(store => viewFilter.countryIds!.includes(store.countryId))
-          .map(store => store.id);
-        filteredNotes = filteredNotes.filter(note =>
-          note.storeId && countryStoreIds.includes(note.storeId)
-        );
-      }
-    }
-
-    return filteredNotes;
   };
 
-  // Calculate filtered stats based on current view mode
+  // Calculate filtered stats from orders for the selected partner + warehouse
   const getFilteredStats = (): PartnerStats => {
-    if (viewFilter.mode === 'all' && !selectedPartnerId) {
+    if (!selectedPartnerId) {
       return stats;
     }
     const filteredOrders = getFilteredOrders();
@@ -258,88 +178,19 @@ export default function PartnerDashboard({
     };
   };
 
-  // Handle view all stores (reset to partner only)
-  const handleViewAllStores = () => {
-    onViewFilterChange({ mode: 'by-partner', partnerId: currentPartnerWarehouseSelection.partnerId });
-  };
-
-  // Handle brand filter change (multiselect)
-  const handleBrandFilterChange = (brandIds: string[]) => {
-    onViewFilterChange({ 
-      mode: 'by-store', 
-      brandIds, 
-      storeIds: viewFilter.storeIds,
-      countryIds: viewFilter.countryIds,
-      partnerId: viewFilter.partnerId
-    });
-  };
-
-  // Handle store filter change (multiselect)
-  const handleStoreFilterChange = (storeIds: string[]) => {
-    onViewFilterChange({ 
-      mode: 'by-store', 
-      brandIds: viewFilter.brandIds,
-      storeIds, 
-      countryIds: viewFilter.countryIds,
-      partnerId: viewFilter.partnerId
-    });
-  };
-
-  // Handle country filter change (multiselect)
-  const handleCountryFilterChange = (countryIds: string[]) => {
-    onViewFilterChange({ 
-      mode: 'by-store', 
-      brandIds: viewFilter.brandIds,
-      storeIds: viewFilter.storeIds,
-      countryIds,
-      partnerId: viewFilter.partnerId
-    });
-  };
-
-  // Build active filter text grouped by brand (countries and stores shown under their brand)
-  const getActiveFilterText = (): string => {
-    const brandIds = viewFilter.brandIds ?? [];
-    const countryIds = viewFilter.countryIds ?? [];
-    const storeIds = viewFilter.storeIds ?? [];
-    if (brandIds.length === 0 && countryIds.length === 0 && storeIds.length === 0) return '';
-    const selectedStores = stores.filter(s => storeIds.includes(s.id));
-    const selectedCountries = countries.filter(c => countryIds.includes(c.id));
-    const selectedBrandsFromFilter = brands.filter(b => brandIds.includes(b.id));
-    const brandIdsFromStores = [...new Set(selectedStores.map(s => s.brandId))];
-    const allBrandIds = [...new Set([...brandIds, ...brandIdsFromStores])];
-    if (allBrandIds.length === 0) {
-      if (selectedBrandsFromFilter.length > 0) return selectedBrandsFromFilter.map(b => b.name).join(', ');
-      if (selectedCountries.length > 0) return selectedCountries.map(c => c.name).join(', ');
-      return '';
-    }
-    const parts: string[] = [];
-    const sortedBrands = allBrandIds
-      .map(id => brands.find(b => b.id === id))
-      .filter((b): b is Brand => Boolean(b))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    for (const brand of sortedBrands) {
-      const storesInBrand = selectedStores.filter(s => s.brandId === brand.id);
-      const countryIdsInBrand = new Set(
-        storesInBrand.length > 0
-          ? storesInBrand.map(s => s.countryId)
-          : stores.filter(s => s.brandId === brand.id).map(s => s.countryId)
-      );
-      const countriesInBrand = selectedCountries.filter(c => countryIdsInBrand.has(c.id));
-      const countryNames = countriesInBrand.map(c => c.name).join(', ');
-      const storeLabels = storesInBrand.map(s => `${s.name} (${s.code})`).join(', ');
-      const sub: string[] = [];
-      if (countryNames) sub.push(countryNames);
-      if (storeLabels) sub.push(storeLabels);
-      if (sub.length) parts.push(`${brand.name}: ${sub.join('; ')}`);
-      else parts.push(brand.name);
-    }
-    return parts.join('. ');
-  };
-
-  const activeFilterText = getActiveFilterText();
-
   const filteredStats = getFilteredStats();
   const filteredOrders = getFilteredOrders();
+  const todaysOrdersForList = useMemo(() => {
+    const wid = currentPartnerWarehouseSelection.warehouseId;
+    return recentOrders
+      .filter((order) => {
+        const matchesPartner = !selectedPartnerId || order.partnerId === selectedPartnerId;
+        const matchesWarehouse = !wid || order.warehouseId === wid;
+        return matchesPartner && matchesWarehouse;
+      })
+      .filter((o) => isPartnerOrderCreatedToday(o.createdDate))
+      .filter((o) => !(currentUserRole === 'partner' && o.status === 'approval'));
+  }, [recentOrders, selectedPartnerId, currentPartnerWarehouseSelection.warehouseId, currentUserRole]);
   const filteredDeliveryNotes = getFilteredDeliveryNotes();
   const currentPartner = partners.find(partner => partner.id === currentPartnerWarehouseSelection.partnerId);
   const currentWarehouse = warehouses.find(warehouse => warehouse.id === currentPartnerWarehouseSelection.warehouseId);
@@ -347,6 +198,9 @@ export default function PartnerDashboard({
   const isChinesePartner = currentPartnerName === 'Shenzhen Fashion Manufacturing';
   const isThriftedOrSellpyPartner = ['Thrifted', 'Sellpy', 'Sellpy Operations'].some(name => currentPartnerName.includes(name));
   const isThriftedPartner = currentPartnerName.includes('Thrifted');
+  /** Sellpy / API-driven partners — orders are not created manually in the portal (only Thrifted can). */
+  const isSellpyPartner = !isThriftedPartner && currentPartnerName.includes('Sellpy');
+  const partnerCanManuallyCreateOrder = isThriftedPartner;
   const isThriftedCopenhagenHub = isThriftedPartner && currentWarehouse?.name === 'Thrifted Copenhagen Hub';
   const pendingOrdersCount = filteredStats.pendingOrders;
   const draftOrdersCount = filteredStats.draftOrders ?? 0;
@@ -378,10 +232,16 @@ export default function PartnerDashboard({
   const hasShowroomQuickAction = Boolean(onNavigateToShowroom && currentPartner?.productType === 'white-label');
   const thriftedHasActionableQuickActions = canShowApprovalOrdersAction || showPendingOrdersAction || showRegisteredOrdersAction || showDeliveriesAction || showReturnsAction;
   const otherPartnersHaveActionableQuickActions = canShowApprovalOrdersAction || showPendingOrdersAction || showActiveShipmentsAction || showReturnsAction || showDeliveriesAction;
+  /** Thrifted/Sellpy quick-actions empty card with primary CTA (same screen as Today's orders). */
+  const showThriftedSellpyQuickActionsEmpty = Boolean(onNavigateToReports && !thriftedHasActionableQuickActions);
+  /** Avoid two Create-order buttons when Today's orders is also empty for Thrifted. */
+  const hideTodaysOrdersCreateButtonThrifted = isThriftedPartner && showThriftedSellpyQuickActionsEmpty;
   const quickActionEmptyStateTitle = currentPartnerName ? `${currentPartnerName} is all set` : "You're all set";
   const quickActionEmptyStateDescription = isThriftedPartner
     ? 'No actions needed right now. Create a new Thrifted order whenever you are ready.'
-    : 'No partner actions need attention right now. Start a new order whenever you are ready.';
+    : isSellpyPartner
+      ? 'No actions need attention right now. New orders will appear when they are received from your integration.'
+      : 'No partner actions need attention right now. Start a new order whenever you are ready.';
   const quickActionEmptyStateButtonLabel = isThriftedPartner ? 'Create Thrifted order' : 'Create new order';
   const quickActionEmptyStateButtonLabelWithOverride = isThriftedCopenhagenHub ? 'Create order' : quickActionEmptyStateButtonLabel;
 
@@ -524,68 +384,6 @@ export default function PartnerDashboard({
       <div className="w-full">
         {/* Main Content */}
         <div className="px-4 md:px-6 pt-6 pb-8 space-y-8 max-w-5xl mx-auto w-full">
-        {/* Partner Overview - Matching Home Screen Button Style */}
-        <div className="space-y-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-end md:justify-start">
-              {/* Filter Button - Mobile & Desktop - Matching ShippingScreen design */}
-              <StoreFilterBottomSheet
-                viewFilter={viewFilter}
-                onViewAllStores={handleViewAllStores}
-                onBrandFilterChange={handleBrandFilterChange}
-                onStoreFilterChange={handleStoreFilterChange}
-                onCountryFilterChange={handleCountryFilterChange}
-                currentPartnerId={currentPartnerWarehouseSelection.partnerId}
-                partners={partners}
-                brands={brands}
-                stores={stores}
-                countries={countries}
-              >
-                <button 
-                  className={`
-                    h-12 md:h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px] min-h-[48px] touch-manipulation
-                    ${((viewFilter.storeIds?.length || 0) > 0 || 
-                      (viewFilter.brandIds?.length || 0) > 0 || 
-                      (viewFilter.countryIds?.length || 0) > 0)
-                      ? 'bg-secondary-container border-outline text-on-secondary-container'
-                      : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
-                    }
-                  `}
-                >
-                  <FilterIcon className="h-4 w-4 flex-shrink-0" />
-                  <span className="label-medium">Store Filter</span>
-                  {((viewFilter.brandIds?.length || 0) > 0 || 
-                    (viewFilter.countryIds?.length || 0) > 0 || 
-                    (viewFilter.storeIds?.length || 0) > 0) && (
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                  )}
-                </button>
-              </StoreFilterBottomSheet>
-            </div>
-            
-            {/* Active filters as regular text, grouped by brand */}
-            {activeFilterText && (
-              <div className="mb-4">
-                <p className="body-medium text-on-surface">
-                  <span className="label-medium text-on-surface">Active filters: </span>
-                  {activeFilterText}
-                  {' · '}
-                  <button
-                    type="button"
-                    onClick={handleViewAllStores}
-                    className="underline hover:no-underline text-on-surface hover:opacity-80 focus:outline-none focus:underline"
-                  >
-                    Clear all
-                  </button>
-                </p>
-              </div>
-            )}
-            
-            {/* Mobile Filter summary removed to avoid duplication with chips */}
-          </div>
-          
-        </div>
-
         {/* Quick Actions */}
         {isThriftedOrSellpyPartner ? (
           <div>
@@ -685,7 +483,7 @@ export default function PartnerDashboard({
 
             </div>
 
-            {onNavigateToReports && !thriftedHasActionableQuickActions && (
+            {showThriftedSellpyQuickActionsEmpty && (
               <div className="mt-4 p-4 bg-surface-container-high border border-dashed border-outline-variant rounded-lg text-center flex flex-col items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <Sparkles className="w-6 h-6 text-primary" />
@@ -694,14 +492,16 @@ export default function PartnerDashboard({
                   <p className="title-small text-on-surface mb-1">{quickActionEmptyStateTitle}</p>
                   <p className="body-small text-on-surface-variant">{quickActionEmptyStateDescription}</p>
                 </div>
-                <Button
-                  variant="outline"
-                  className="inline-flex items-center justify-center gap-2"
-                  onClick={onCreateOrder}
-                >
-                  <Plus size={16} />
-                  {quickActionEmptyStateButtonLabelWithOverride}
-                </Button>
+                {partnerCanManuallyCreateOrder && (
+                  <Button
+                    variant="outline"
+                    className="inline-flex items-center justify-center gap-2"
+                    onClick={() => onCreateOrder()}
+                  >
+                    <Plus size={16} />
+                    {quickActionEmptyStateButtonLabelWithOverride}
+                  </Button>
+                )}
               </div>
             )}
 
@@ -914,7 +714,7 @@ export default function PartnerDashboard({
                 <Button
                   variant="outline"
                   className="inline-flex items-center justify-center gap-2"
-                  onClick={onCreateOrder}
+                  onClick={() => onCreateOrder()}
                 >
                   <Plus size={16} />
                   {quickActionEmptyStateButtonLabel}
@@ -1007,39 +807,41 @@ export default function PartnerDashboard({
           </Card>
         )}
 
-        {/* Recent Orders */}
+        {/* Today's orders (incoming orders for the selected partner + warehouse) */}
         {!isChinesePartner && (
           <Card className="bg-transparent border border-outline-variant shadow-none">
             <CardHeader>
-              <CardTitle className="title-medium">Recent Orders</CardTitle>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <CardTitle className="title-medium">Today&apos;s orders</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onViewOrders}
+                  className="body-small shrink-0"
+                >
+                  View orders
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              {filteredOrders.length === 0 ? (
+              {todaysOrdersForList.length === 0 ? (
                 <div className="text-center py-8">
                   <Package size={48} className="mx-auto text-on-surface-variant/50 mb-4" />
-                  {partners?.find(p => p.id === currentPartnerWarehouseSelection.partnerId)?.name === 'Sellpy Operations' ? (
-                    <>
-                      <p className="body-large text-on-surface-variant">No items need item IDs</p>
-                      <p className="body-medium text-on-surface-variant">Items from API integration will appear here when they need item IDs</p>
-                      <Button onClick={onCreateOrder} className="mt-4">
-                        <QrCodeIcon size={16} className="mr-2" />
-                        Check for Items
+                  <p className="body-large text-on-surface-variant">No orders today</p>
+                  <p className="body-medium text-on-surface-variant">Older orders are available in Orders &amp; Shipments.</p>
+                  {partnerCanManuallyCreateOrder && !hideTodaysOrdersCreateButtonThrifted && (
+                    <div className="mt-4 flex justify-center">
+                      <Button onClick={() => onCreateOrder()} className="inline-flex items-center justify-center gap-2">
+                        <Plus size={16} />
+                        Create order
                       </Button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="body-large text-on-surface-variant">No orders yet</p>
-                      <p className="body-medium text-on-surface-variant">Create your first order to get started</p>
-                      <Button onClick={onCreateOrder} className="mt-4">
-                        <Plus size={16} className="mr-2" />
-                        Create Order
-                      </Button>
-                    </>
+                    </div>
                   )}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {filteredOrders.map(order => (
+                  {todaysOrdersForList.map(order => (
                     <Card 
                       key={order.id}
                       role="button"

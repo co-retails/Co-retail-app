@@ -31,6 +31,7 @@ import {
   mockDeliveryNotes,
   mockReturnDeliveries,
   mockPartnerOrders,
+  applyDemoPartnerOrdersTodaysDates,
   mockWarehousePartners,
   visibleWarehousePartners,
   mockWarehouses
@@ -103,6 +104,8 @@ export function useAppState() {
   const [receivePreviousScreen, setReceivePreviousScreen] = useState<Screen | null>(null);
   const [returnManagementPreviousScreen, setReturnManagementPreviousScreen] = useState<Screen | null>(null);
   const [returnManagementPreviousTab, setReturnManagementPreviousTab] = useState<'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined>(undefined);
+  /** Where Back from order-creation should return (partner home vs Orders & Shipments). */
+  const [orderCreationReturnScreen, setOrderCreationReturnScreen] = useState<Screen>('partner-dashboard');
   
   // Role management state
   const [currentUserRole, setCurrentUserRole] = useState<AppUserRole>('store-staff');
@@ -137,7 +140,13 @@ export function useAppState() {
   
   // Data state
   const [deliveries, setDeliveries] = useState<Delivery[]>(mockDeliveries);
-  const [partnerOrders, setPartnerOrders] = useState<ExtendedPartnerOrder[]>(mockPartnerOrders);
+  const [partnerOrders, setPartnerOrders] = useState<ExtendedPartnerOrder[]>(() =>
+    applyDemoPartnerOrdersTodaysDates(mockPartnerOrders)
+  );
+  /** Line items for partner orders (Thrifted drafts etc.) — keyed by order id */
+  const [partnerOrderLineItemsByOrderId, setPartnerOrderLineItemsByOrderId] = useState<
+    Record<string, OrderItem[]>
+  >({});
   const [currentOrder, setCurrentOrder] = useState<{ id: string; items: OrderItem[] } | null>(null);
   const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNote[]>(mockDeliveryNotes);
   const [partners, setPartners] = useState<WarehousePartner[]>(visibleWarehousePartners);
@@ -218,6 +227,8 @@ export function useAppState() {
     setReturnManagementPreviousScreen,
     returnManagementPreviousTab,
     setReturnManagementPreviousTab,
+    orderCreationReturnScreen,
+    setOrderCreationReturnScreen,
     
     // Role management
     currentUserRole,
@@ -244,6 +255,8 @@ export function useAppState() {
     setDeliveries,
     partnerOrders,
     setPartnerOrders,
+    partnerOrderLineItemsByOrderId,
+    setPartnerOrderLineItemsByOrderId,
     currentOrder,
     setCurrentOrder,
     deliveryNotes,

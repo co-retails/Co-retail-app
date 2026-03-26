@@ -215,7 +215,10 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
         <PartnerDashboard
           onBack={handlers.handleBack}
           onViewOrder={handlers.onViewOrder}
-          onCreateOrder={() => state.setCurrentScreen('order-creation')}
+          onCreateOrder={() => {
+            state.setOrderCreationReturnScreen('partner-dashboard');
+            state.setCurrentScreen('order-creation');
+          }}
           onViewDeliveryNote={handlers.onViewDeliveryNote}
           onViewReturnDelivery={handlers.onViewReturnDelivery}
         />
@@ -233,7 +236,7 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
       if (isThriftedPartner) {
         return (
           <ThriftedOrderCreationScreen
-            onBack={() => state.setCurrentScreen('partner-dashboard')}
+            onBack={() => state.setCurrentScreen(state.orderCreationReturnScreen)}
             onCreateOrder={(items, storeSelection, _shouldRegister = false) => {
               const sendingWarehouseId =
                 storeSelection.warehouseId ||

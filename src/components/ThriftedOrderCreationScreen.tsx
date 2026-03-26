@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Label } from './ui/label';
@@ -7,6 +8,7 @@ import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { SharedHeader } from './ui/shared-header';
+import { useMediaQuery } from './ui/use-mobile';
 import { ItemDetailsTable } from './ItemDetailsTable';
 import type { ItemDetailsTableItem } from './ItemDetailsTable';
 import { 
@@ -35,7 +37,9 @@ import {
   exportThriftedItemsToCSV,
   mapSubcategoryToCategory,
   getAllThriftedSubcategories,
-  THRIFTED_VALID_VALUES
+  THRIFTED_VALID_VALUES,
+  sortByNameAlpha,
+  sortStoresByCode,
 } from '../utils/spreadsheetUtils';
 
 type CreationStep = 'setup' | 'items';
@@ -90,6 +94,11 @@ export default function ThriftedOrderCreationScreen({
   const [showReplaceDialog, setShowReplaceDialog] = useState(false);
   const [pendingUploadItems, setPendingUploadItems] = useState<OrderItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isThriftedTableCompact = useMediaQuery('(max-width: 1023px)');
+  const [requestOpenMobileItemId, setRequestOpenMobileItemId] = useState<string | null>(null);
+  const [requestScrollToItemId, setRequestScrollToItemId] = useState<string | null>(null);
+  const clearOpenMobileRequest = useCallback(() => setRequestOpenMobileItemId(null), []);
+  const clearScrollRequest = useCallback(() => setRequestScrollToItemId(null), []);
 
   const isEditing = !!existingOrderId;
   const canEditItems = !isEditing || orderStatus === 'pending' || orderStatus === 'draft';
@@ -106,14 +115,21 @@ export default function ThriftedOrderCreationScreen({
     setSelectedWarehouseId(partnerWarehouses[0].id);
   }, [partnerWarehouses, selectedWarehouseId]);
 
-  // Get filtered countries and stores based on selections
-  const availableCountries = selectedBrandId 
-    ? countries.filter(c => c.brandId === selectedBrandId)
-    : [];
-  
-  const availableStores = selectedBrandId && selectedCountryId
-    ? stores.filter(s => s.brandId === selectedBrandId && s.countryId === selectedCountryId)
-    : [];
+  const sortedBrands = useMemo(() => sortByNameAlpha(brands), [brands]);
+
+  const availableCountries = useMemo(() => {
+    if (!selectedBrandId) return [];
+    return sortByNameAlpha(countries.filter((c) => c.brandId === selectedBrandId));
+  }, [countries, selectedBrandId]);
+
+  const availableStores = useMemo(() => {
+    if (!selectedBrandId || !selectedCountryId) return [];
+    return sortStoresByCode(
+      stores.filter(
+        (s) => s.brandId === selectedBrandId && s.countryId === selectedCountryId
+      )
+    );
+  }, [stores, selectedBrandId, selectedCountryId]);
 
   const selectedWarehouseRecord = selectedWarehouseId
     ? partnerWarehouses.find((w) => w.id === selectedWarehouseId)
@@ -138,17 +154,34 @@ export default function ThriftedOrderCreationScreen({
 
   // Validation stats
   const totalItems = orderItems.length;
-  const itemsWithErrors = orderItems.filter(item => item.status === 'error').length;
-  const validItems = orderItems.filter(item => item.status !== 'error').length;
+  const itemHasFieldErrors = (item: OrderItem) =>
+    !!item.fieldErrors && Object.keys(item.fieldErrors).length > 0;
+  const itemsWithErrors = orderItems.filter(itemHasFieldErrors).length;
+  const validItems = orderItems.filter((item) => !itemHasFieldErrors(item)).length;
 
-  // Filter items based on validation filter (only for bulk upload)
-  const filteredItems = creationMethod === 'bulk' 
-    ? orderItems.filter(item => {
-        if (validationFilter === 'errors') return item.status === 'error';
-        if (validationFilter === 'valid') return item.status !== 'error';
-        return true;
-      })
-    : orderItems; // For manual entry, show all items without filtering
+  // Filter items based on validation filter (only for bulk upload); memoized so ItemDetailsTable
+  // does not get a new `items` reference on every render (avoids killing add-row effects).
+  const filteredItems = useMemo(() => {
+    if (creationMethod !== 'bulk') return orderItems;
+    return orderItems.filter((item) => {
+      if (validationFilter === 'errors') return itemHasFieldErrors(item);
+      if (validationFilter === 'valid') return !itemHasFieldErrors(item);
+      return true;
+    });
+  }, [creationMethod, orderItems, validationFilter]);
+
+  const tableItemsForDisplay = useMemo(
+    () =>
+      filteredItems.map((item) => ({
+        ...item,
+        partnerItemId: item.partnerItemId ?? item.sku ?? '',
+        subcategory: item.subcategory || '',
+        price: item.price || 0,
+        imageUrl: undefined,
+        fieldErrors: item.fieldErrors,
+      })),
+    [filteredItems]
+  );
   const brandSuggestions = useMemo(() => {
     const suggestionSet = new Set<string>();
     brands.forEach((brand) => suggestionSet.add(brand.name));
@@ -159,16 +192,6 @@ export default function ThriftedOrderCreationScreen({
     });
     return Array.from(suggestionSet).sort((a, b) => a.localeCompare(b));
   }, [brands, orderItems]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const selector = 'input[placeholder="Enter item brand"]';
-    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(selector));
-    inputs.forEach((input) => input.setAttribute('list', 'thrifted-brand-suggestions'));
-    return () => {
-      inputs.forEach((input) => input.removeAttribute('list'));
-    };
-  }, [orderItems.length, filteredItems.length, validationFilter, step, canEditItems]);
 
   const handleDownloadTemplate = () => {
     const template = generateThriftedTemplateCSV();
@@ -231,8 +254,9 @@ export default function ThriftedOrderCreationScreen({
 
   const handleAddItem = () => {
     // Create an empty row for manual entry
+    const newId = `item-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     const newItem: OrderItem = {
-      id: `item-${Date.now()}-${Math.random()}`,
+      id: newId,
       itemId: '',
       sku: '',
       category: '', // Auto-mapped from subcategory
@@ -243,21 +267,38 @@ export default function ThriftedOrderCreationScreen({
       gender: '',
       price: 0,
       retailerItemId: '',
-      status: 'error',
-      errors: ['Required fields missing'],
+      status: 'draft',
       source: 'manual',
       fieldErrors: {
-        sku: 'Required',
         subcategory: 'Required',
         size: 'Required',
         brand: 'Required',
         color: 'Required',
         price: 'Required (Mandatory)',
         retailerItemId: 'Required (Mandatory)'
-      }
+      },
+      errors: Object.values({
+        subcategory: 'Required',
+        size: 'Required',
+        brand: 'Required',
+        color: 'Required',
+        price: 'Required (Mandatory)',
+        retailerItemId: 'Required (Mandatory)'
+      }),
     };
 
-    setOrderItems(prev => [...prev, newItem]);
+    flushSync(() => {
+      setOrderItems((prev) => [...prev, newItem]);
+      // New rows have field errors until filled — ensure they are visible (e.g. not hidden behind "Valid" filter).
+      setValidationFilter('all');
+    });
+    if (isThriftedTableCompact) {
+      setRequestOpenMobileItemId(newId);
+      setRequestScrollToItemId(null);
+    } else {
+      setRequestScrollToItemId(newId);
+      setRequestOpenMobileItemId(null);
+    }
   };
 
   const handleDeleteItem = (itemId: string) => {
@@ -267,22 +308,22 @@ export default function ThriftedOrderCreationScreen({
   const handleUpdateItem = (itemId: string, field: keyof ItemDetailsTableItem, value: any) => {
     setOrderItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
-      
-      // Map fields for Thrifted orders (table uses different field names internally)
-      let actualField = field;
+
+      const stringish = (v: unknown) =>
+        typeof v === 'string' ? v : v != null ? String(v) : '';
+
+      let updatedItem: OrderItem;
+      let actualField: keyof OrderItem = field as keyof OrderItem;
       let actualValue = value;
-      
-      if (field === 'partnerItemId') {
-        // partnerItemId maps to both sku and itemId
-        actualField = 'sku' as keyof OrderItem;
-      }
-      
-      // Update the field value
-      const updatedItem = { ...item, [actualField]: actualValue };
-      
-      // For SKU, also update itemId to keep them in sync
-      if (actualField === 'sku') {
-        updatedItem.itemId = actualValue;
+
+      // External ID: keep sku and partnerItemId in sync; do not overwrite retailer itemId
+      if (field === 'partnerItemId' || field === 'sku') {
+        const ext = stringish(value);
+        updatedItem = { ...item, sku: ext, partnerItemId: ext };
+        actualField = 'sku';
+        actualValue = ext;
+      } else {
+        updatedItem = { ...item, [field]: value };
       }
       
       // When category changes, clear subcategory if it's not valid for the new category
@@ -312,15 +353,11 @@ export default function ThriftedOrderCreationScreen({
       // Update field errors
       const fieldErrors = { ...(updatedItem.fieldErrors || {}) };
       
-      // Validate updated field
       if (actualField === 'sku') {
-        if (actualValue && actualValue.toString().trim() !== '') {
-          delete fieldErrors.sku;
-        } else {
-          fieldErrors.sku = 'Required';
-        }
+        delete fieldErrors.sku;
+        delete fieldErrors.partnerItemId;
       }
-      
+
       // Retailer ID is mandatory - mark clearly
       if (actualField === 'retailerItemId') {
         if (actualValue && actualValue.toString().trim() !== '') {
@@ -387,10 +424,9 @@ export default function ThriftedOrderCreationScreen({
         }
       }
       
-      // Update status based on errors
       const hasErrors = Object.keys(fieldErrors).length > 0;
-      updatedItem.status = hasErrors ? 'error' : undefined;
-      updatedItem.fieldErrors = fieldErrors;
+      updatedItem.status = 'draft';
+      updatedItem.fieldErrors = hasErrors ? fieldErrors : undefined;
       updatedItem.errors = hasErrors ? Object.values(fieldErrors) : [];
       
       return updatedItem;
@@ -478,7 +514,7 @@ export default function ThriftedOrderCreationScreen({
                       <SelectValue placeholder="Select a brand" />
                     </SelectTrigger>
                     <SelectContent>
-                      {brands.map((brand) => (
+                      {sortedBrands.map((brand) => (
                         <SelectItem key={brand.id} value={brand.id}>
                           <span className="body-large">{brand.name}</span>
                         </SelectItem>
@@ -727,7 +763,7 @@ export default function ThriftedOrderCreationScreen({
 
   // Render step 2: Items management
   const renderItemsStep = () => (
-    <div className="space-y-6 pb-32">
+    <div className="space-y-6">
       {/* Re-upload Section (for bulk uploads only) */}
       {canEditItems && creationMethod === 'bulk' && (
         <Card className="bg-surface-container-low border-outline">
@@ -886,18 +922,11 @@ export default function ThriftedOrderCreationScreen({
           {orderItems.length > 0 ? (
             <>
               <ItemDetailsTable
-                items={filteredItems.map(item => ({
-                  ...item,
-                  partnerItemId: item.sku || item.itemId,
-                  subcategory: item.subcategory || '', // Use subcategory (not gender)
-                  price: item.price || 0,
-                  imageUrl: undefined,
-                  fieldErrors: item.fieldErrors
-                }))}
+                items={tableItemsForDisplay}
                 showRetailerId={true}
                 showPurchasePrice={false}
                 showPrice={true}
-                showStatus={false}
+                showStatus={true}
                 isEditable={canEditItems}
                 onUpdateItem={handleUpdateItem}
                 onDeleteItem={canEditItems ? handleDeleteItem : undefined}
@@ -911,6 +940,12 @@ export default function ThriftedOrderCreationScreen({
                 partnerId={partnerIdForPricing}
                 countryName={selectedCountryRecord?.name}
                 currency={selectedCurrency}
+                thriftedPartnerTable
+                brandAutocompleteOptions={brandSuggestions}
+                requestOpenMobileItemId={requestOpenMobileItemId}
+                onRequestOpenMobileItemIdConsumed={clearOpenMobileRequest}
+                requestScrollToItemId={requestScrollToItemId}
+                onRequestScrollToItemIdConsumed={clearScrollRequest}
               />
 
               {/* Delete Items Actions */}
@@ -958,6 +993,12 @@ export default function ThriftedOrderCreationScreen({
           </Button>
         </div>
       )}
+
+      {/* In-flow space so the last table row clears the fixed footer (footer height + validation varies) */}
+      <div
+        aria-hidden
+        className="w-full shrink-0 min-h-[min(48vh,36rem)] lg:min-h-[min(42vh,40rem)]"
+      />
     </div>
   );
 
@@ -968,7 +1009,13 @@ export default function ThriftedOrderCreationScreen({
         onBack={onBack}
       />
 
-      <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6 pb-32">
+      <div
+        className={`px-4 md:px-6 lg:px-8 py-6 space-y-6 ${
+          step === 'items'
+            ? 'pb-[min(28rem,55vh)] lg:pb-[min(32rem,50vh)]'
+            : 'pb-8'
+        }`}
+      >
         <datalist id="thrifted-brand-suggestions">
           {brandSuggestions.map((brand) => (
             <option key={brand} value={brand} />

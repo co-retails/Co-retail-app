@@ -2856,6 +2856,27 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
   }
 ];
 
+function formatLocalYyyyMmDd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Mock order IDs stamped with local today on load so partner dashboard "Today's orders" has demo rows. */
+const DEMO_PARTNER_ORDER_IDS_FOR_TODAY: ReadonlySet<string> = new Set([
+  'SEL-ORD-2024-APPROVAL-001',
+  'SEL-ORD-2024-101',
+  'THR-ORD-2024-001',
+]);
+
+export function applyDemoPartnerOrdersTodaysDates(orders: ExtendedPartnerOrder[]): ExtendedPartnerOrder[] {
+  const today = formatLocalYyyyMmDd(new Date());
+  return orders.map((o) =>
+    DEMO_PARTNER_ORDER_IDS_FOR_TODAY.has(o.id) ? { ...o, createdDate: today } : o
+  );
+}
+
 // Note: For brevity, large mock data arrays (partnerOrders, deliveryNotes, etc.)
 // are truncated. Add them from the original App.tsx as needed.
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, QrCode, ArrowUp, ArrowDown, Plus } from 'lucide-react';
+import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, QrCode, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
 import { UserRole } from './RoleSwitcher';
 import type { ExtendedPartnerOrder } from './PartnerDashboard';
 import { DeliveryNote } from './BoxManagementScreen';
@@ -8,6 +8,7 @@ import { ShowroomOrder } from './ShowroomTypes';
 import { OrderItem } from './OrderCreationScreen';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { Button } from './ui/button';
+import { useMediaQuery } from './ui/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -205,6 +206,67 @@ const resolveDeliveryNoteParties = (
   return { sender, warehouse, receiver, storeNameDisplay };
 };
 
+function countItemsInBoxes(deliveryNote: DeliveryNote): number {
+  return (
+    deliveryNote.boxes?.reduce((sum, box) => {
+      const arr = box.items ?? [];
+      return sum + arr.filter(i => i.status !== 'removed').length;
+    }, 0) ?? 0
+  );
+}
+
+/** After the delivery is registered (shipped), list item count reflects packed lines only. */
+function deliveryNoteUsesBoxedItemCount(status: DeliveryNote['status']): boolean {
+  return (
+    status === 'registered' ||
+    status === 'delivered' ||
+    status === 'partially-delivered' ||
+    status === 'cancelled' ||
+    status === 'rejected'
+  );
+}
+
+/**
+ * Shipment list counts: prefer orders with `deliveryNote` matching the note id (legacy/mock),
+ * else match `order.id` to `deliveryNote.orderId`. Item count: order size until register, then lines in boxes.
+ */
+function getDeliveryNoteShipmentCounts(
+  deliveryNote: DeliveryNote,
+  partnerOrders: ShippingPartnerOrder[],
+): {
+  relatedOrdersForParties: ShippingPartnerOrder[];
+  orderCount: number;
+  itemCount: number;
+} {
+  const byDeliveryNoteId = partnerOrders.filter(o => o.deliveryNote === deliveryNote.id);
+  const relatedOrdersForParties =
+    byDeliveryNoteId.length > 0
+      ? byDeliveryNoteId
+      : partnerOrders.filter(o => o.id === deliveryNote.orderId);
+
+  const orderCount =
+    relatedOrdersForParties.length > 0
+      ? relatedOrdersForParties.length
+      : deliveryNote.orderId
+        ? 1
+        : 0;
+
+  const orderItemSum = relatedOrdersForParties.reduce((s, o) => s + (o.itemCount || 0), 0);
+  const itemsInBoxes = countItemsInBoxes(deliveryNote);
+
+  const itemCount = deliveryNoteUsesBoxedItemCount(deliveryNote.status)
+    ? itemsInBoxes
+    : orderItemSum > 0
+      ? orderItemSum
+      : itemsInBoxes;
+
+  return {
+    relatedOrdersForParties,
+    orderCount,
+    itemCount,
+  };
+}
+
 const resolveReturnDeliveryParties = (
   returnDelivery: ReturnDelivery,
   stores?: StoreRecord[],
@@ -367,8 +429,8 @@ function PartnerDeliveryNoteItem({
   warehouses?: Warehouse[];
   inTransitOver10Days?: boolean;
 }) {
-  const relatedOrders = orders.filter(order => order.deliveryNote === deliveryNote.id);
-  const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
+  const { relatedOrdersForParties: relatedOrders, orderCount, itemCount: totalItems } =
+    getDeliveryNoteShipmentCounts(deliveryNote, orders);
   const deliveryStatus = deliveryNote.status as DeliveryNoteStatus;
   const { sender, warehouse, receiver, storeNameDisplay } = resolveDeliveryNoteParties(
     deliveryNote,
@@ -414,7 +476,7 @@ function PartnerDeliveryNoteItem({
           
           {/* Secondary Line - Orders and Items */}
           <div className="text-xs font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]">
-            {relatedOrders.length} order{relatedOrders.length !== 1 ? 's' : ''} • {totalItems} items
+            {orderCount} order{orderCount !== 1 ? 's' : ''} • {totalItems} items
           </div>
           
           {/* Metadata Line - Sender/Receiver (only if requested) */}
@@ -1139,6 +1201,7 @@ export default function ShippingScreen({
   onViewFilterChange: externalOnViewFilterChange
 }: ShippingScreenProps) {
   const role: ShippingUserRole = currentUserRole ?? 'store-staff';
+  const showPartnerStoreFilterLabel = useMediaQuery('(min-width: 640px)');
 
   const handleScanClick = () => {
     if (onScanBox) {
@@ -1370,51 +1433,6 @@ useEffect(() => {
     }));
   };
 
-  // Build active filter text grouped by brand (countries and stores shown under their brand)
-  const getActiveFilterText = (): string => {
-    const brandIds = viewFilter.brandIds ?? [];
-    const countryIds = viewFilter.countryIds ?? [];
-    const storeIds = viewFilter.storeIds ?? [];
-    const brandsList = brands ?? [];
-    const countriesList = countries ?? [];
-    const storesList = stores ?? [];
-    if (brandIds.length === 0 && countryIds.length === 0 && storeIds.length === 0) return '';
-    const selectedStores = storesList.filter(s => storeIds.includes(s.id));
-    const selectedCountries = countriesList.filter(c => countryIds.includes(c.id));
-    const selectedBrandsFromFilter = brandsList.filter(b => brandIds.includes(b.id));
-    const brandIdsFromStores = [...new Set(selectedStores.map(s => s.brandId))];
-    const allBrandIds = [...new Set([...brandIds, ...brandIdsFromStores])];
-    if (allBrandIds.length === 0) {
-      if (selectedBrandsFromFilter.length > 0) return selectedBrandsFromFilter.map(b => b.name).join(', ');
-      if (selectedCountries.length > 0) return selectedCountries.map(c => c.name).join(', ');
-      return '';
-    }
-    const parts: string[] = [];
-    const sortedBrands = allBrandIds
-      .map(id => brandsList.find(b => b.id === id))
-      .filter((b): b is BrandRecord => Boolean(b))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    for (const brand of sortedBrands) {
-      const storesInBrand = selectedStores.filter(s => s.brandId === brand.id);
-      const countryIdsInBrand = new Set(
-        storesInBrand.length > 0
-          ? storesInBrand.map(s => s.countryId)
-          : storesList.filter(s => s.brandId === brand.id).map(s => s.countryId)
-      );
-      const countriesInBrand = selectedCountries.filter(c => countryIdsInBrand.has(c.id));
-      const countryNames = countriesInBrand.map(c => c.name).join(', ');
-      const storeLabels = storesInBrand.map(s => `${s.name} (${s.code})`).join(', ');
-      const sub: string[] = [];
-      if (countryNames) sub.push(countryNames);
-      if (storeLabels) sub.push(storeLabels);
-      if (sub.length) parts.push(`${brand.name}: ${sub.join('; ')}`);
-      else parts.push(brand.name);
-    }
-    return parts.join('. ');
-  };
-
-  const activeFilterText = getActiveFilterText();
-
   // Helper function to get receiver display with brand and store code
   const getReceiverDisplay = (receivingStoreId?: string, receivingStoreName?: string) => {
     if (!receivingStoreId || !receivingStoreName) {
@@ -1515,25 +1533,22 @@ useEffect(() => {
           aVal = a.id.toLowerCase();
           bVal = b.id.toLowerCase();
           break;
-        case 'senderReceiver':
-          const aOrders = partnerOrdersList.filter(o => o.deliveryNote === a.id);
-          const aWarehouse = aOrders[0]?.warehouseName || (aOrders[0]?.warehouseId ? warehouses?.find(w => w.id === aOrders[0]?.warehouseId)?.name : '');
-          const aReceiver = getReceiverDisplay(aOrders[0]?.receivingStoreId, aOrders[0]?.receivingStoreName);
-          aVal = `${aWarehouse} ${aReceiver}`.toLowerCase();
-          const bOrders = partnerOrdersList.filter(o => o.deliveryNote === b.id);
-          const bWarehouse = bOrders[0]?.warehouseName || (bOrders[0]?.warehouseId ? warehouses?.find(w => w.id === bOrders[0]?.warehouseId)?.name : '');
-          const bReceiver = getReceiverDisplay(bOrders[0]?.receivingStoreId, bOrders[0]?.receivingStoreName);
-          bVal = `${bWarehouse} ${bReceiver}`.toLowerCase();
+        case 'senderReceiver': {
+          const aCtx = getDeliveryNoteShipmentCounts(a, partnerOrdersList);
+          const aParties = resolveDeliveryNoteParties(a, aCtx.relatedOrdersForParties, stores, brands, warehouses);
+          aVal = `${aParties.warehouse || ''} ${aParties.receiver}`.toLowerCase();
+          const bCtx = getDeliveryNoteShipmentCounts(b, partnerOrdersList);
+          const bParties = resolveDeliveryNoteParties(b, bCtx.relatedOrdersForParties, stores, brands, warehouses);
+          bVal = `${bParties.warehouse || ''} ${bParties.receiver}`.toLowerCase();
           break;
+        }
         case 'orders':
-          aVal = partnerOrdersList.filter(o => o.deliveryNote === a.id).length;
-          bVal = partnerOrdersList.filter(o => o.deliveryNote === b.id).length;
+          aVal = getDeliveryNoteShipmentCounts(a, partnerOrdersList).orderCount;
+          bVal = getDeliveryNoteShipmentCounts(b, partnerOrdersList).orderCount;
           break;
         case 'items':
-          const aOrderItems = partnerOrdersList.filter(o => o.deliveryNote === a.id).reduce((sum, o) => sum + (o.itemCount || 0), 0);
-          const bOrderItems = partnerOrdersList.filter(o => o.deliveryNote === b.id).reduce((sum, o) => sum + (o.itemCount || 0), 0);
-          aVal = aOrderItems;
-          bVal = bOrderItems;
+          aVal = getDeliveryNoteShipmentCounts(a, partnerOrdersList).itemCount;
+          bVal = getDeliveryNoteShipmentCounts(b, partnerOrdersList).itemCount;
           break;
         case 'boxes':
           aVal = a.boxes?.length || 0;
@@ -1938,10 +1953,10 @@ useEffect(() => {
 
   const filteredDeliveryNotes = deliveryNotes.filter(note => {
     // Comprehensive search across all fields
-    const relatedOrders = partnerOrdersList.filter(o => o.deliveryNote === note.id);
+    const { relatedOrdersForParties: relatedOrders, orderCount, itemCount: totalItems } =
+      getDeliveryNoteShipmentCounts(note, partnerOrdersList);
     const noteWarehouse = relatedOrders[0]?.warehouseName || (relatedOrders[0]?.warehouseId ? warehouses?.find(w => w.id === relatedOrders[0]?.warehouseId)?.name : '');
     const noteReceiver = getReceiverDisplay(relatedOrders[0]?.receivingStoreId, relatedOrders[0]?.receivingStoreName);
-    const totalItems = relatedOrders.reduce((sum, o) => sum + (o.itemCount || 0), 0);
     const matchesSearch = matchesSearchTerm(searchTerm, [
       note.id,
       note.orderId,
@@ -1949,7 +1964,7 @@ useEffect(() => {
       note.createdDate,
       noteWarehouse,
       noteReceiver,
-      relatedOrders.length,
+      orderCount,
       totalItems,
       note.boxes?.length,
       ...relatedOrders.map(o => o.id),
@@ -2063,7 +2078,11 @@ useEffect(() => {
   const showReturns = activeTab === 'returns'; // Show returns for both partners and store staff
   // Store staff no longer has an 'orders' tab - removed
   const showSellpyOrders = false;
-  
+
+  const hasActivePartnerViewFilters =
+    (viewFilter.brandIds?.length ?? 0) > 0 ||
+    (viewFilter.countryIds?.length ?? 0) > 0 ||
+    (viewFilter.storeIds?.length ?? 0) > 0;
 
   return (
     <div className="bg-surface relative size-full">
@@ -2072,70 +2091,14 @@ useEffect(() => {
       {/* Header */}
       <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant">
         <div className="px-4 md:px-6 py-4 md:pt-4">
-          <div className="flex items-center justify-between">
-            <h3 className="headline-small text-on-surface">
-              {role === 'partner' ? 'Orders & Shipments' : 'Shipping'}
-            </h3>
-            
-            {/* Filter Button - Partner Portal Only - Matching ItemsScreen design */}
-            {role === 'partner' && brands && brands.length > 0 && (
-              <StoreFilterBottomSheet
-                viewFilter={viewFilter}
-                onViewAllStores={handleViewAllStores}
-                onBrandFilterChange={handleBrandFilterChange}
-                onStoreFilterChange={handleStoreFilterChange}
-                onCountryFilterChange={handleCountryFilterChange}
-                currentPartnerId={currentPartnerId || ''}
-                partners={[]}
-                brands={brands}
-                stores={stores || []}
-                countries={countries || []}
-              >
-                <button 
-                  className={`
-                    h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
-                    ${((viewFilter.storeIds?.length || 0) > 0 || 
-                      (viewFilter.brandIds?.length || 0) > 0 || 
-                      (viewFilter.countryIds?.length || 0) > 0)
-                      ? 'bg-secondary-container border-outline text-on-secondary-container'
-                      : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
-                    }
-                  `}
-                >
-                  <FilterIcon size={20} />
-                  <span className="label-medium">Store Filter</span>
-                  {((viewFilter.brandIds?.length || 0) > 0 || 
-                    (viewFilter.countryIds?.length || 0) > 0 || 
-                    (viewFilter.storeIds?.length || 0) > 0) && (
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                  )}
-                </button>
-              </StoreFilterBottomSheet>
-            )}
-          </div>
-          
-          {/* Active filters as regular text, grouped by brand - Partner Portal Only */}
-          {role === 'partner' && activeFilterText && (
-            <div className="mt-3">
-              <p className="body-medium text-on-surface">
-                <span className="label-medium text-on-surface">Active filters: </span>
-                {activeFilterText}
-                {' · '}
-                <button
-                  type="button"
-                  onClick={handleViewAllStores}
-                  className="underline hover:no-underline text-on-surface hover:opacity-80 focus:outline-none focus:underline"
-                >
-                  Clear all
-                </button>
-              </p>
-            </div>
-          )}
+          <h3 className="headline-small text-on-surface">
+            {role === 'partner' ? 'Orders & Shipments' : 'Shipping'}
+          </h3>
 
           {showCreateOrderButton && (
             <div className="mt-4 md:max-w-sm md:w-auto">
               <Button
-                onClick={onCreateOrder}
+                onClick={() => onCreateOrder?.()}
                 className="w-full md:w-auto justify-center h-14 rounded-[12px] gap-3 bg-primary text-on-primary hover:bg-primary/90 transition-colors px-6"
               >
                 <Plus className="w-5 h-5" />
@@ -2149,27 +2112,141 @@ useEffect(() => {
       {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
       <div className="px-4 md:px-6 pt-4 md:pt-6">
         
-        {/* Search Bar - Max width on desktop */}
+        {/* Search row + store filter (partner); label from sm (tablet) up, icon-only on narrow mobile */}
         <div className="mb-4">
-          <div className="relative md:max-w-2xl">
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                <Search className="w-5 h-5 text-on-surface-variant" />
+          <div className="flex gap-3 items-start">
+            <div className="relative md:max-w-2xl flex-1 min-w-0">
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <Search className="w-5 h-5 text-on-surface-variant" />
+                </div>
+                <input
+                  type="text"
+                  id="shipping-search"
+                  name="shipping-search"
+                  placeholder={showReturns ? "Search for return delivery ID or store name" : 
+                    showSellpyOrders ? "Search for order ID or store name" :
+                    role === 'partner' ? "Search for order ID or delivery note" : "Search for delivery ID"
+                  }
+                  value={searchTerm}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                  className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
+                />
               </div>
-              <input
-                type="text"
-                id="shipping-search"
-                name="shipping-search"
-                placeholder={showReturns ? "Search for return delivery ID or store name" : 
-                  showSellpyOrders ? "Search for order ID or store name" :
-                  role === 'partner' ? "Search for order ID or delivery note" : "Search for delivery ID"
-                }
-                value={searchTerm}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-                className="w-full h-12 pl-10 pr-4 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
-              />
             </div>
+
+            {role === 'partner' && brands && brands.length > 0 && (
+              <StoreFilterBottomSheet
+                viewFilter={viewFilter}
+                onViewAllStores={handleViewAllStores}
+                onBrandFilterChange={handleBrandFilterChange}
+                onStoreFilterChange={handleStoreFilterChange}
+                onCountryFilterChange={handleCountryFilterChange}
+                currentPartnerId={currentPartnerId || ''}
+                partners={[]}
+                brands={brands}
+                stores={stores || []}
+                countries={countries || []}
+              >
+                <button
+                  type="button"
+                  aria-label="Store filter"
+                  className={`
+                    h-12 min-w-12 px-3 border transition-colors inline-flex items-center justify-center gap-2 flex-shrink-0 rounded-[8px]
+                    ${hasActivePartnerViewFilters
+                      ? 'bg-secondary-container border-outline text-on-secondary-container'
+                      : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
+                    }
+                  `}
+                >
+                  <FilterIcon size={20} className="shrink-0" />
+                  <span
+                    className={
+                      showPartnerStoreFilterLabel
+                        ? 'label-medium whitespace-nowrap shrink-0'
+                        : 'label-medium hidden whitespace-nowrap shrink-0'
+                    }
+                  >
+                    Store filter
+                  </span>
+                  {hasActivePartnerViewFilters && (
+                    <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                  )}
+                </button>
+              </StoreFilterBottomSheet>
+            )}
           </div>
+
+          {/* Active view filters as blue bubbles (one bubble per category) */}
+          {role === 'partner' && hasActivePartnerViewFilters && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              {(viewFilter.brandIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.brandIds!.length === 1
+                      ? (brands?.find(b => b.id === viewFilter.brandIds![0])?.name ?? `Brand (1)`)
+                      : `Brand (${viewFilter.brandIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear brand filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleBrandFilterChange([]);
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {(viewFilter.countryIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.countryIds!.length === 1
+                      ? (countries?.find(c => c.id === viewFilter.countryIds![0])?.name ?? `Country (1)`)
+                      : `Country (${viewFilter.countryIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear country filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCountryFilterChange([]);
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {(viewFilter.storeIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.storeIds!.length === 1
+                      ? (stores?.find(s => s.id === viewFilter.storeIds![0])?.name ?? `Store (1)`)
+                      : `Store (${viewFilter.storeIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear store filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleStoreFilterChange([]);
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Button - Role-specific */}
@@ -2919,8 +2996,8 @@ useEffect(() => {
                     <tbody>
                       {paginatedDeliveryNotes.map((deliveryNote) => {
                         const noteStatus = deliveryNote.status as DeliveryNoteStatus;
-                        const relatedOrders = partnerOrdersList.filter(order => order.deliveryNote === deliveryNote.id);
-                        const totalItems = relatedOrders.reduce((sum, order) => sum + order.itemCount, 0);
+                        const { relatedOrdersForParties: relatedOrders, orderCount, itemCount: totalItems } =
+                          getDeliveryNoteShipmentCounts(deliveryNote, partnerOrdersList);
                         const { sender, warehouse, receiver, storeNameDisplay } = resolveDeliveryNoteParties(
                           deliveryNote,
                           relatedOrders,
@@ -2959,7 +3036,7 @@ useEffect(() => {
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
-                            >{relatedOrders.length}</td>
+                            >{orderCount}</td>
                             <td 
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}

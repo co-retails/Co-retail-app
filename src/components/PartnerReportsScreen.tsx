@@ -13,6 +13,7 @@ import type { Store, Brand, Country } from './StoreSelector';
 import { Partner as WarehousePartner } from './PartnerWarehouseSelector';
 import type { Item } from './ItemsScreen';
 import type { CurrencyCode } from './PortalConfigTypes';
+import { sortByNameAlpha, sortStoresByCode } from '../utils/spreadsheetUtils';
 
 export interface PartnerReportsScreenProps {
   onBack: () => void;
@@ -85,29 +86,27 @@ export default function PartnerReportsScreen({
 
   // Filter available brands, countries, and stores based on selected partners
   const filteredBrands = useMemo(() => {
-    if (!selectedPartnerBrandIds) {
-      return brands;
-    }
-    return brands.filter(brand => selectedPartnerBrandIds.includes(brand.id));
+    const list = !selectedPartnerBrandIds
+      ? brands
+      : brands.filter((brand) => selectedPartnerBrandIds.includes(brand.id));
+    return sortByNameAlpha(list);
   }, [selectedPartnerBrandIds, brands]);
 
   const filteredCountries = useMemo(() => {
-    if (!selectedPartnerBrandIds) {
-      return countries;
-    }
-    return countries.filter(country => 
-      selectedPartnerBrandIds.includes(country.brandId)
-    );
+    const list = !selectedPartnerBrandIds
+      ? countries
+      : countries.filter((country) => selectedPartnerBrandIds.includes(country.brandId));
+    return sortByNameAlpha(list);
   }, [selectedPartnerBrandIds, countries]);
 
   const filteredStores = useMemo(() => {
-    if (!selectedPartnerBrandIds) {
-      return stores;
-    }
-    return stores.filter(store => 
-      selectedPartnerBrandIds.includes(store.brandId)
-    );
+    const list = !selectedPartnerBrandIds
+      ? stores
+      : stores.filter((store) => selectedPartnerBrandIds.includes(store.brandId));
+    return sortStoresByCode(list);
   }, [selectedPartnerBrandIds, stores]);
+
+  const sortedPartners = useMemo(() => sortByNameAlpha(partners), [partners]);
 
   // Reset brand/country/store filters when partner changes
   useEffect(() => {
@@ -287,7 +286,7 @@ export default function PartnerReportsScreen({
                       <CommandList>
                         <CommandEmpty>No partners found.</CommandEmpty>
                         <CommandGroup>
-                          {partners.map((partner) => (
+                          {sortedPartners.map((partner) => (
                             <CommandItem
                               key={partner.id}
                               value={partner.name}

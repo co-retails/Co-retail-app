@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import { sortByNameAlpha } from '../utils/spreadsheetUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { ChevronRight, Check, ChevronLeft } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
@@ -33,6 +34,8 @@ interface PartnerWarehouseSelectorProps {
   partners: Partner[];
   warehouses: Warehouse[];
   currentSelection?: PartnerWarehouseSelection;
+  /** Skip partner list; open on warehouse step for this partner (same pattern as locked store pickers). */
+  lockToPartnerId?: string;
 }
 
 // Selection step types
@@ -88,7 +91,8 @@ export default function PartnerWarehouseSelector({
   onConfirm,
   partners,
   warehouses,
-  currentSelection
+  currentSelection,
+  lockToPartnerId
 }: PartnerWarehouseSelectorProps) {
   const [selectedPartnerId, setSelectedPartnerId] = useState(currentSelection?.partnerId || '');
   const [selectedWarehouseId, setSelectedWarehouseId] = useState(currentSelection?.warehouseId || '');
@@ -97,19 +101,32 @@ export default function PartnerWarehouseSelector({
   // Detect screen size for responsive sheet behavior
   const isLargeScreen = useMediaQuery('(min-width: 640px)');
 
-  // Reset form when modal opens/closes
-  useEffect(() => {
-    if (isOpen) {
+  // Reset before paint when opening so we never flash the wrong step (e.g. partner list when locked).
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    if (lockToPartnerId) {
+      setSelectedPartnerId(lockToPartnerId);
+      setSelectedWarehouseId(currentSelection?.warehouseId || '');
+      setCurrentStep('warehouse');
+    } else {
       setSelectedPartnerId(currentSelection?.partnerId || '');
       setSelectedWarehouseId(currentSelection?.warehouseId || '');
       setCurrentStep('partner');
     }
-  }, [isOpen, currentSelection]);
+  }, [isOpen, lockToPartnerId, currentSelection?.partnerId, currentSelection?.warehouseId]);
 
   // Filter warehouses based on selected partner
   const filteredWarehouses = warehouses.filter(warehouse => 
     !selectedPartnerId || warehouse.partnerId === selectedPartnerId
   );
+
+  const sortedPartners = useMemo(() => sortByNameAlpha(partners), [partners]);
+  const sortedFilteredWarehouses = useMemo(() => {
+    const list = warehouses.filter(
+      (w) => !selectedPartnerId || w.partnerId === selectedPartnerId
+    );
+    return sortByNameAlpha(list);
+  }, [warehouses, selectedPartnerId]);
 
   // Reset dependent selections when parent changes
   useEffect(() => {
@@ -138,6 +155,10 @@ export default function PartnerWarehouseSelector({
   };
 
   const handleBack = () => {
+    if (lockToPartnerId) {
+      onClose();
+      return;
+    }
     switch (currentStep) {
       case 'warehouse':
         setCurrentStep('partner');
@@ -148,6 +169,9 @@ export default function PartnerWarehouseSelector({
   };
 
   const getStepTitle = () => {
+    if (lockToPartnerId && currentStep === 'warehouse') {
+      return 'Select warehouse';
+    }
     switch (currentStep) {
       case 'partner': return 'Select Partner';
       case 'warehouse': return 'Select Warehouse';
@@ -159,6 +183,7 @@ export default function PartnerWarehouseSelector({
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent 
         side={isLargeScreen ? "right" : "bottom"}
+        containerZIndex={10000}
         className={`
           bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
           ${isLargeScreen 
@@ -177,8 +202,9 @@ export default function PartnerWarehouseSelector({
         {/* Header */}
         <SheetHeader className={`relative flex-shrink-0 ${isLargeScreen ? 'px-6 pt-6 pb-4' : 'px-6 pb-4'}`}>
           <div className="flex items-center">
-            {currentStep !== 'partner' && (
+            {currentStep !== 'partner' && !(lockToPartnerId && currentStep === 'warehouse') && (
               <button
+                type="button"
                 onClick={handleBack}
                 className="mr-3 p-2 rounded-full hover:bg-surface-container-highest transition-colors"
               >
@@ -190,7 +216,9 @@ export default function PartnerWarehouseSelector({
             </SheetTitle>
           </div>
           <SheetDescription className="body-small text-on-surface-variant text-left">
-            {currentStep === 'partner' 
+            {lockToPartnerId && currentStep === 'warehouse'
+              ? `Choose the sending warehouse for ${partners.find(p => p.id === lockToPartnerId)?.name || 'this partner'}.`
+              : currentStep === 'partner' 
               ? 'Select a partner organization to work with. This will determine which warehouses are available for your operations.'
               : `Select a warehouse from ${partners.find(p => p.id === selectedPartnerId)?.name || 'the selected partner'}. ${filteredWarehouses.length} warehouses are available.`
             }
@@ -202,7 +230,7 @@ export default function PartnerWarehouseSelector({
           {currentStep === 'partner' && (
             <div className={isLargeScreen ? 'px-6 pb-6' : 'px-6 pb-6'}>
               <div className="space-y-1">
-                {partners.map((partner) => (
+                {sortedPartners.map((partner) => (
                   <SelectionListItem
                     key={partner.id}
                     id={partner.id}
@@ -219,7 +247,7 @@ export default function PartnerWarehouseSelector({
           {currentStep === 'warehouse' && (
             <div className={isLargeScreen ? 'px-6 pb-6' : 'px-6 pb-6'}>
               <div className="space-y-1">
-                {filteredWarehouses.map((warehouse) => (
+                {sortedFilteredWarehouses.map((warehouse) => (
                   <SelectionListItem
                     key={warehouse.id}
                     id={warehouse.id}

@@ -25,9 +25,136 @@ export const THRIFTED_VALID_VALUES = {
     'Other': [] as string[] // Can be extended if needed
   },
   genders: ['Women', 'Men', 'Kids', 'Unisex'],
+  /** Aligned with store size dropdowns; includes letter, numeric EU bands, and one-size */
+  sizes: [...VALID_VALUES.sizes, 'One size'],
   prices: [50, 75, 100, 120, 150, 200, 250, 300, 400, 500, 600, 750, 1000, 1200, 1500, 2000],
   colors: ['Black', 'White', 'Gray', 'Navy', 'Blue', 'Red', 'Pink', 'Green', 'Yellow', 'Brown', 'Beige', 'Purple', 'Orange', 'Silver', 'Gold', 'Multicolor']
 };
+
+/** Case-insensitive A–Z sort for category / subcategory / color dropdowns */
+export function sortOptionsAlpha(values: readonly string[]): string[] {
+  return [...values].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
+const normBrandLetters = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Whether typed letters appear in order inside the brand (e.g. "lv" → "Levi's"). */
+function brandMatchesLetterSubsequence(brand: string, query: string): boolean {
+  const b = normBrandLetters(brand);
+  const q = normBrandLetters(query);
+  if (!q) return true;
+  let j = 0;
+  for (let i = 0; i < b.length && j < q.length; i++) {
+    if (b[i] === q[j]) j += 1;
+  }
+  return j === q.length;
+}
+
+/**
+ * Brand typeahead: exact / starts-with / contains / letter-subsequence (punctuation ignored).
+ * Prioritizes stronger matches first.
+ */
+export function filterBrandsByQuery(
+  suggestions: readonly string[],
+  query: string,
+  limit = 40
+): string[] {
+  const uniq = [...new Set(suggestions.map((s) => s.trim()).filter(Boolean))];
+  const q = query.trim();
+  if (!q) {
+    return sortOptionsAlpha(uniq).slice(0, limit);
+  }
+  const qLower = q.toLowerCase();
+  const scored = uniq
+    .map((brand) => {
+      const l = brand.toLowerCase();
+      let score = 0;
+      if (l === qLower) score = 100;
+      else if (l.startsWith(qLower)) score = 80;
+      else if (l.includes(qLower)) score = 60;
+      else if (brandMatchesLetterSubsequence(brand, q)) score = 40;
+      else score = -1;
+      return { brand, score };
+    })
+    .filter((x) => x.score >= 0)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.brand.localeCompare(b.brand, undefined, { sensitivity: 'base' })
+    )
+    .slice(0, limit)
+    .map((x) => x.brand);
+  return scored;
+}
+
+/** Letter sizes for store item size dropdowns (shown before numeric bands). */
+const LETTER_SIZE_ORDER = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
+
+function isAllDigitsSize(s: string): boolean {
+  return /^\d+$/.test(s.trim());
+}
+
+function isOneSizeLabel(s: string): boolean {
+  return s.trim().localeCompare('one size', undefined, { sensitivity: 'base' }) === 0;
+}
+
+function letterSizeIndex(s: string): number | null {
+  const t = s.trim();
+  const idx = LETTER_SIZE_ORDER.findIndex(
+    (x) => x.localeCompare(t, undefined, { sensitivity: 'base' }) === 0
+  );
+  return idx >= 0 ? idx : null;
+}
+
+/**
+ * Sort size options: letter sizes (XXS → XXL) first, then numeric sizes ascending, then "One size".
+ */
+export function sortStoreItemSizes(values: readonly string[]): string[] {
+  return [...values].sort((a, b) => {
+    const aOne = isOneSizeLabel(a);
+    const bOne = isOneSizeLabel(b);
+    if (aOne !== bOne) return aOne ? 1 : -1;
+
+    const aNum = isAllDigitsSize(a);
+    const bNum = isAllDigitsSize(b);
+    if (aNum && bNum) return parseInt(a, 10) - parseInt(b, 10);
+    if (aNum !== bNum) return aNum ? 1 : -1;
+
+    const ia = letterSizeIndex(a);
+    const ib = letterSizeIndex(b);
+    if (ia !== null && ib !== null) return ia - ib;
+    if (ia !== null) return -1;
+    if (ib !== null) return 1;
+
+    return a.localeCompare(b, undefined, { sensitivity: 'base' });
+  });
+}
+
+/**
+ * Compare store codes (e.g. AT0200, SE0038 vs SE0100): letter prefix A–Z, then numeric suffix.
+ */
+export function compareStoreCode(a: string, b: string): number {
+  const re = /^([A-Za-z]+)(\d+)$/;
+  const ma = a.trim().match(re);
+  const mb = b.trim().match(re);
+  if (ma && mb) {
+    const pref = ma[1].localeCompare(mb[1], undefined, { sensitivity: 'base' });
+    if (pref !== 0) return pref;
+    return parseInt(ma[2], 10) - parseInt(mb[2], 10);
+  }
+  return a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+}
+
+export function sortStoresByCode<T extends { code: string }>(stores: readonly T[]): T[] {
+  return [...stores].sort((x, y) => compareStoreCode(x.code, y.code));
+}
+
+/** Case-insensitive A–Z by `name` (brands, countries, partners, warehouses). */
+export function sortByNameAlpha<T extends { name: string }>(items: readonly T[]): T[] {
+  return [...items].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
+}
 
 /**
  * Map subcategory to its parent category for Thrifted orders
@@ -399,7 +526,7 @@ export function convertToThriftedOrderItems(csvRows: Array<Record<string, string
       color: (row['Color*']?.trim() || row['Color']?.trim()) || '',
       gender: (row['Gender*']?.trim() || row['Gender']?.trim()) || '',
       price: parseFloat(row['Price (SEK)*'] || row['Price (SEK)'] || '0') || 0,
-      status: validation.valid ? undefined : 'error',
+      status: 'draft',
       errors: validation.errors,
       fieldErrors: validation.fieldErrors,
       source: 'excel'

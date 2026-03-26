@@ -22,6 +22,7 @@ import { Store, Brand, Country, StoreSelection } from './StoreSelector';
 import { Partner, Warehouse } from './PartnerWarehouseSelector';
 import { ItemCard, BaseItem } from './ItemCard';
 import StoreSelector from './StoreSelector';
+import { sortOptionsAlpha } from '../utils/spreadsheetUtils';
 
 export interface OrderItem {
   id: string;
@@ -34,7 +35,7 @@ export interface OrderItem {
   color: string;
   price: number;
   purchasePrice?: number;
-  status?: 'error' | 'pending' | 'scanned';
+  status?: 'error' | 'pending' | 'scanned' | 'draft' | 'in-transit';
   errors?: string[];
   partnerItemId?: string; // For API integration orders
   retailerItemId?: string; // For connected retailer items
@@ -103,17 +104,17 @@ export default function OrderCreationScreen({
     }
   };
 
-  // Mock data for dropdowns
+  // Mock data for dropdowns (category / subcategory / color sorted A–Z)
   const itemBrands = ['H&M', 'WEEKDAY', 'COS', 'Monki'];
   const genders = ['Men', 'Women', 'Kids', 'Unisex'];
-  const categories = ['Clothing', 'Shoes', 'Accessories'];
+  const categories = sortOptionsAlpha(['Clothing', 'Shoes', 'Accessories']);
   const subcategories = {
-    'Clothing': ['Tops', 'Bottoms', 'Dresses', 'Outerwear'],
-    'Shoes': ['Sneakers', 'Boots', 'Sandals', 'Formal'],
-    'Accessories': ['Bags', 'Jewelry', 'Belts', 'Hats']
+    'Clothing': sortOptionsAlpha(['Tops', 'Bottoms', 'Dresses', 'Outerwear']),
+    'Shoes': sortOptionsAlpha(['Sneakers', 'Boots', 'Sandals', 'Formal']),
+    'Accessories': sortOptionsAlpha(['Bags', 'Jewelry', 'Belts', 'Hats'])
   };
   const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'];
-  const colors = ['Black', 'White', 'Gray', 'Navy', 'Blue', 'Red', 'Pink', 'Green', 'Yellow', 'Brown', 'Beige', 'Purple', 'Orange', 'Silver', 'Gold'];
+  const colors = sortOptionsAlpha(['Black', 'White', 'Gray', 'Navy', 'Blue', 'Red', 'Pink', 'Green', 'Yellow', 'Brown', 'Beige', 'Purple', 'Orange', 'Silver', 'Gold']);
 
   const validateItem = (item: Partial<OrderItem>): { valid: boolean; errors: string[] } => {
     const errors: string[] = [];

@@ -82,6 +82,8 @@ interface OrderDetailsCardConfig {
   errorMessages?: string[];
   orderStatus?: string; // Order status to derive item display status
   isAdmin?: boolean; // Whether user is admin (for purchase price and margin visibility)
+  /** Thrifted partner items: show Draft / In transit on the row, not Error/Ready from validation */
+  thriftedPartnerItemCard?: boolean;
 }
 
 interface ItemCardProps {
@@ -99,6 +101,118 @@ interface ItemCardProps {
   showExternalIdOnly?: boolean;
   showBothIds?: boolean;
   hideMissingAction?: boolean;
+}
+
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+function normalizeTimestampForItem(value: string) {
+  if (value.includes('T')) return value;
+  const sanitized = value.replace(' ', 'T');
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(sanitized) ? `${sanitized}:00` : sanitized;
+}
+
+function getLastInStoreTimestampForItem(item: BaseItem): number | undefined {
+  if (item.lastInStoreAt) {
+    const parsed = Date.parse(item.lastInStoreAt);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  if (item.statusHistory && item.statusHistory.length) {
+    for (let i = item.statusHistory.length - 1; i >= 0; i--) {
+      const entry = item.statusHistory[i];
+      if (!entry) {
+        continue;
+      }
+      if (entry.status?.toLowerCase() === 'in store' || entry.status?.toLowerCase() === 'available') {
+        const parsed = entry.timestamp ? Date.parse(normalizeTimestampForItem(entry.timestamp)) : NaN;
+        if (!Number.isNaN(parsed)) {
+          return parsed;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+/** Same rules as the row overflow menu — used for bulk actions on ItemsScreen. */
+export function getItemListQuickActions(
+  item: BaseItem,
+  userRole: UserRole,
+  hideMissingAction = false,
+): Array<{ action: ItemQuickAction; label: string; className?: string }> {
+  if (!item.status) return [];
+
+  const status = item.status.toLowerCase();
+  const isAdmin = userRole === 'admin';
+  const actions: Array<{ action: ItemQuickAction; label: string; className?: string }> = [];
+
+  const canReject =
+    userRole === 'admin' &&
+    (status === 'available' || status === 'in store') &&
+    (() => {
+      const timestamp = getLastInStoreTimestampForItem(item);
+      if (timestamp === undefined) return false;
+      return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
+    })();
+
+  if (status === 'in transit') {
+    actions.push(
+      { action: 'mark-available', label: 'In store' },
+      { action: 'store-transfer', label: 'Store transfer' },
+    );
+  } else if (status === 'available' || status === 'in store') {
+    if (isAdmin) {
+      actions.push({ action: 'mark-sold', label: 'Sold' });
+    }
+    actions.push({ action: 'mark-broken', label: 'Broken' });
+    if (canReject) {
+      actions.push({ action: 'mark-rejected', label: 'Rejected', className: 'text-error' });
+    }
+  } else if (status === 'missing') {
+    actions.push(
+      { action: 'mark-available', label: 'Available' },
+      { action: 'mark-sold', label: 'Sold' },
+    );
+  } else if (status === 'pending') {
+    actions.push({ action: 'mark-available', label: 'In store' });
+  } else if (status === 'expired') {
+    actions.push({ action: 'mark-available', label: 'In store' });
+  } else if (status === 'draft') {
+    actions.push({ action: 'mark-available', label: 'In store' });
+  }
+
+  if (item.isExpired) {
+    actions.push({ action: 'unflag-expired', label: 'Unflag expired' });
+  }
+
+  if (hideMissingAction) {
+    return actions.filter(a => a.action !== 'mark-missing');
+  }
+  return actions;
+}
+
+export function quickActionIcon(action: ItemQuickAction): ReactNode {
+  switch (action) {
+    case 'mark-available':
+      return <Package className="mr-2 h-4 w-4 shrink-0" />;
+    case 'store-transfer':
+      return <Store className="mr-2 h-4 w-4 shrink-0" />;
+    case 'mark-sold':
+      return <ShoppingBag className="mr-2 h-4 w-4 shrink-0" />;
+    case 'mark-missing':
+      return <AlertTriangle className="mr-2 h-4 w-4 shrink-0" />;
+    case 'mark-broken':
+      return <XCircle className="mr-2 h-4 w-4 shrink-0" />;
+    case 'mark-rejected':
+      return <Ban className="mr-2 h-4 w-4 shrink-0" />;
+    case 'mark-return-transit':
+      return <MapPin className="mr-2 h-4 w-4 shrink-0" />;
+    case 'unflag-expired':
+      return <RotateCcw className="mr-2 h-4 w-4 shrink-0" />;
+    default:
+      return null;
+  }
 }
 
 export const ItemCard = memo(function ItemCard({ 
@@ -123,7 +237,6 @@ export const ItemCard = memo(function ItemCard({
       className={`${variant === 'card' ? 'w-6 h-6' : 'w-5 h-5'} text-on-surface-variant/60`}
     />
   );
-  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
   const normalizeTimestamp = (value: string) => {
     if (value.includes('T')) return value;
     const sanitized = value.replace(' ', 'T');
@@ -179,67 +292,13 @@ export const ItemCard = memo(function ItemCard({
 
   const daysInStore = calculateDaysInStore();
   const daysExpired = item.isExpired ? calculateDaysExpired() : null;
-  const canRejectItem = () => {
-    if (!onMoreActions) return false;
-    if (userRole !== 'admin') return false;
-    const status = item.status?.toLowerCase();
-    if (!status || (status !== 'available' && status !== 'in store')) return false;
-    const timestamp = getLastInStoreTimestamp();
-    if (timestamp === undefined) return false;
-    return Date.now() - timestamp <= TWENTY_FOUR_HOURS_MS;
-  };
 
-  // Get available actions based on item status
   const getAvailableActions = () => {
     if (!onMoreActions || !item.status) return [];
-    
-    const status = item.status.toLowerCase();
-    const isAdmin = userRole === 'admin';
-    const actions: Array<{ action: ItemQuickAction; label: string; icon: React.ReactNode; className?: string }> = [];
-
-    // Handle ItemsScreen statuses
-    if (status === 'in transit') {
-      actions.push(
-        { action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> },
-        { action: 'store-transfer', label: 'Store transfer', icon: <Store className="mr-2 h-4 w-4" /> }
-      );
-    } else if (status === 'available' || status === 'in store') {
-      if (isAdmin) {
-        actions.push({ action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> });
-      }
-      actions.push(
-        { action: 'mark-broken', label: 'Broken', icon: <XCircle className="mr-2 h-4 w-4" /> }
-      );
-      if (canRejectItem()) {
-        actions.push({ action: 'mark-rejected', label: 'Rejected', icon: <Ban className="mr-2 h-4 w-4" />, className: 'text-error' });
-      }
-    } else if (status === 'missing') {
-      actions.push(
-        { action: 'mark-available', label: 'Available', icon: <Package className="mr-2 h-4 w-4" /> },
-        { action: 'mark-sold', label: 'Sold', icon: <ShoppingBag className="mr-2 h-4 w-4" /> }
-      );
-    } else if (status === 'pending') {
-      // For ScanScreen: Pending items can be marked as In Store
-      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
-    } else if (status === 'expired') {
-      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
-    } else if (status === 'draft') {
-      // For ItemsScreen: Draft items can be marked as Available
-      actions.push({ action: 'mark-available', label: 'In store', icon: <Package className="mr-2 h-4 w-4" /> });
-    }
-    // No actions for: sold, broken, rejected, returned
-
-    // Add "Unflag expired" option for items with expired flag (regardless of status)
-    if (item.isExpired) {
-      actions.push({ action: 'unflag-expired', label: 'Unflag expired', icon: <RotateCcw className="mr-2 h-4 w-4" /> });
-    }
-
-    // Filter out "Missing" action if hideMissingAction is true
-    const filteredActions = hideMissingAction 
-      ? actions.filter(action => action.action !== 'mark-missing')
-      : actions;
-
-    return filteredActions;
+    return getItemListQuickActions(item, userRole, hideMissingAction).map((a) => ({
+      ...a,
+      icon: quickActionIcon(a.action),
+    }));
   };
   const getStatusColor = (status?: string) => {
     if (!status) return 'text-on-surface-variant';
@@ -283,11 +342,20 @@ export const ItemCard = memo(function ItemCard({
       extraFields = [],
       errorMessages,
       orderStatus,
-      isAdmin = false
+      isAdmin = false,
+      thriftedPartnerItemCard = false
     } = orderDetailsConfig || {};
 
     // Derive item display status from order status and item state
     const getItemDisplayStatus = () => {
+      if (thriftedPartnerItemCard) {
+        const normalized = item.status?.toLowerCase().replace(/-/g, ' ').trim() || '';
+        if (normalized === 'in transit') {
+          return { text: 'In Transit', color: 'text-primary' };
+        }
+        return { text: 'Draft', color: 'text-on-surface-variant' };
+      }
+
       // If order status is provided, use it to determine item status
       // For partner portal: approval, pending, and ready-for-packaging orders show "Draft" for all items
       // In transit orders show "In Transit" for all items
@@ -295,6 +363,7 @@ export const ItemCard = memo(function ItemCard({
         switch (orderStatus) {
           case 'approval':
           case 'pending':
+          case 'draft':
           case 'registered': // "ready for packaging"
             // All items in approval, pending, and ready-for-packaging orders show "Draft"
             return { text: 'Draft', color: 'text-on-surface-variant' };
@@ -615,9 +684,11 @@ export const ItemCard = memo(function ItemCard({
             {item.brand}
           </div>
           
-          {/* Line 3: Category • Size */}
+          {/* Line 3: Category • Size • Color */}
           <div className="body-small text-on-surface mb-0.5 truncate">
-            {item.category}{item.size ? ` • ${item.size}` : ''}
+            {item.category}
+            {item.size ? ` • ${item.size}` : ''}
+            {item.color ? ` • ${item.color}` : ''}
           </div>
           
           {/* Line 4: ID and Delivery */}

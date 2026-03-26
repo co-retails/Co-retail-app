@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { sortOptionsAlpha } from '../utils/spreadsheetUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from './ui/sheet';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -49,6 +50,27 @@ export default function ItemStatusFilterBottomSheet({
 }: ItemStatusFilterBottomSheetProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const isMobile = useMediaQuery('(max-width: 640px)'); // sm breakpoint
+
+  const sortedStatuses = useMemo(
+    () => sortOptionsAlpha(availableStatuses),
+    [availableStatuses]
+  );
+  const sortedCategories = useMemo(
+    () => sortOptionsAlpha(availableCategories),
+    [availableCategories]
+  );
+  const sortedBrands = useMemo(
+    () => sortOptionsAlpha(availableItemBrands),
+    [availableItemBrands]
+  );
+  const sortedColors = useMemo(
+    () => sortOptionsAlpha(availableColors),
+    [availableColors]
+  );
+  const sortedPricePoints = useMemo(
+    () => [...availablePricePoints].sort((a, b) => a - b),
+    [availablePricePoints]
+  );
 
   const handleStatusToggle = (status: string) => {
     const newStatuses = selectedStatuses.includes(status)
@@ -203,7 +225,7 @@ export default function ItemStatusFilterBottomSheet({
                     <CommandList>
                       <CommandEmpty>No statuses found.</CommandEmpty>
                       <CommandGroup>
-                        {availableStatuses.map((status) => (
+                        {sortedStatuses.map((status) => (
                           <CommandItem
                             key={status}
                             value={status}
@@ -280,7 +302,7 @@ export default function ItemStatusFilterBottomSheet({
                     <CommandList>
                       <CommandEmpty>No categories found.</CommandEmpty>
                       <CommandGroup>
-                        {availableCategories.map((category) => (
+                        {sortedCategories.map((category) => (
                           <CommandItem
                             key={category}
                             value={category}
@@ -357,7 +379,7 @@ export default function ItemStatusFilterBottomSheet({
                     <CommandList>
                       <CommandEmpty>No brands found.</CommandEmpty>
                       <CommandGroup>
-                        {availableItemBrands.map((brand) => (
+                        {sortedBrands.map((brand) => (
                           <CommandItem
                             key={brand}
                             value={brand}
@@ -434,7 +456,7 @@ export default function ItemStatusFilterBottomSheet({
                     <CommandList>
                       <CommandEmpty>No colors found.</CommandEmpty>
                       <CommandGroup>
-                        {availableColors.map((color) => (
+                        {sortedColors.map((color) => (
                           <CommandItem
                             key={color}
                             value={color}
@@ -511,7 +533,7 @@ export default function ItemStatusFilterBottomSheet({
                     <CommandList>
                       <CommandEmpty>No prices found.</CommandEmpty>
                       <CommandGroup>
-                        {availablePricePoints.map((price) => (
+                        {sortedPricePoints.map((price) => (
                           <CommandItem
                             key={price}
                             value={price.toString()}

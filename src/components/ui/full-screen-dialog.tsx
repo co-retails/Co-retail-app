@@ -166,7 +166,7 @@ const FullScreenDialogContent = React.forwardRef<
         ref={assignRef}
         data-slot="full-screen-dialog-content"
         className={cn(
-          "bg-surface fixed z-[9999]",
+          "bg-surface fixed z-[9999] min-h-0 overflow-hidden flex flex-col",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "duration-300",
           // Mobile: full screen, slide up from bottom, ensure it covers bottom nav

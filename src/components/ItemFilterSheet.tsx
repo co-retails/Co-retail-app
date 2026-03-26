@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { sortOptionsAlpha, sortStoreItemSizes } from '../utils/spreadsheetUtils';
 import {
   Sheet,
   SheetContent,
@@ -20,6 +21,7 @@ export interface ItemFilters {
   category: string;
   status: string;
   colour: string;
+  size: string;
   priceRange: [number, number];
   sortBy: 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 }
@@ -29,6 +31,7 @@ export const defaultFilters: ItemFilters = {
   category: 'all',
   status: 'all',
   colour: 'all',
+  size: 'all',
   priceRange: [0, 1000],
   sortBy: 'date-desc'
 };
@@ -43,6 +46,56 @@ interface ItemFilterSheetProps {
 }
 
 const DEFAULT_BRAND_OPTIONS = ['Nike', 'Adidas', 'H&M', 'Zara', 'Uniqlo', "Levi's"];
+
+const FILTER_CATEGORY_VALUES = sortOptionsAlpha([
+  'Tops',
+  'Bottoms',
+  'Dresses',
+  'Outerwear',
+  'Shoes',
+  'Accessories',
+]);
+
+const FILTER_COLOUR_VALUES = sortOptionsAlpha([
+  'Black',
+  'White',
+  'Blue',
+  'Red',
+  'Green',
+  'Gray',
+  'Beige',
+]);
+
+/** Same universe as item details (ItemDetailsDialog AVAILABLE_SIZES). */
+const FILTER_SIZE_VALUES = sortStoreItemSizes([
+  'XXS',
+  'XS',
+  'S',
+  'M',
+  'L',
+  'XL',
+  'XXL',
+  '32',
+  '34',
+  '36',
+  '38',
+  '40',
+  '42',
+  '44',
+  '46',
+  'One size',
+]);
+
+const FILTER_STATUS_VALUES = sortOptionsAlpha([
+  'Available',
+  'Draft',
+  'In transit',
+  'Sold',
+  'Returned',
+  'Missing',
+  'Broken',
+  'Rejected',
+]);
 
 export default function ItemFilterSheet({
   open,
@@ -207,12 +260,11 @@ export default function ItemFilterSheet({
               </SelectTrigger>
               <SelectContent className="bg-surface-container-high border border-outline">
                 <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All categories</SelectItem>
-                <SelectItem value="Tops" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Tops</SelectItem>
-                <SelectItem value="Bottoms" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Bottoms</SelectItem>
-                <SelectItem value="Dresses" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Dresses</SelectItem>
-                <SelectItem value="Outerwear" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Outerwear</SelectItem>
-                <SelectItem value="Shoes" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Shoes</SelectItem>
-                <SelectItem value="Accessories" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Accessories</SelectItem>
+                {FILTER_CATEGORY_VALUES.map((cat) => (
+                  <SelectItem key={cat} value={cat} className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
+                    {cat}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -234,14 +286,11 @@ export default function ItemFilterSheet({
               </SelectTrigger>
               <SelectContent className="bg-surface-container-high border border-outline">
                 <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All statuses</SelectItem>
-                <SelectItem value="Available" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Available</SelectItem>
-                <SelectItem value="Draft" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Draft</SelectItem>
-                <SelectItem value="In transit" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">In transit</SelectItem>
-                <SelectItem value="Sold" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Sold</SelectItem>
-                <SelectItem value="Returned" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Returned</SelectItem>
-                <SelectItem value="Missing" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Missing</SelectItem>
-                <SelectItem value="Broken" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Broken</SelectItem>
-                <SelectItem value="Rejected" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Rejected</SelectItem>
+                {FILTER_STATUS_VALUES.map((st) => (
+                  <SelectItem key={st} value={st} className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
+                    {st}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -263,13 +312,37 @@ export default function ItemFilterSheet({
               </SelectTrigger>
               <SelectContent className="bg-surface-container-high border border-outline">
                 <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All colours</SelectItem>
-                <SelectItem value="Black" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Black</SelectItem>
-                <SelectItem value="White" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">White</SelectItem>
-                <SelectItem value="Blue" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Blue</SelectItem>
-                <SelectItem value="Red" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Red</SelectItem>
-                <SelectItem value="Green" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Green</SelectItem>
-                <SelectItem value="Gray" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Gray</SelectItem>
-                <SelectItem value="Beige" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">Beige</SelectItem>
+                {FILTER_COLOUR_VALUES.map((col) => (
+                  <SelectItem key={col} value={col} className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
+                    {col}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Size Filter */}
+          <div className="space-y-2">
+            <Label htmlFor="size" className="label-large text-on-surface">
+              Size
+            </Label>
+            <Select
+              value={localFilters.size}
+              onValueChange={(value) => updateFilter('size', value)}
+            >
+              <SelectTrigger
+                id="size"
+                className="bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large"
+              >
+                <SelectValue placeholder="Select size" />
+              </SelectTrigger>
+              <SelectContent className="bg-surface-container-high border border-outline">
+                <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All sizes</SelectItem>
+                {FILTER_SIZE_VALUES.map((sz) => (
+                  <SelectItem key={sz} value={sz} className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
+                    {sz}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

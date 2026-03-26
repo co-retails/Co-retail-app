@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { sortOptionsAlpha } from '../utils/spreadsheetUtils';
 import {
   Dialog,
   DialogContent,
@@ -93,6 +94,7 @@ export function StatusUpdateDialog({
   const [note, setNote] = useState('');
 
   const availableStatuses = getAvailableStatuses(currentStatus, userRole);
+  const sortedAvailableStatuses = sortOptionsAlpha(availableStatuses);
 
   const handleConfirm = () => {
     if (selectedStatus) {
@@ -141,7 +143,7 @@ export function StatusUpdateDialog({
                   <SelectValue placeholder="Select new status" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableStatuses.map((status) => (
+                  {sortedAvailableStatuses.map((status) => (
                     <SelectItem key={status} value={status} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
                       {status}
                     </SelectItem>

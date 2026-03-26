@@ -30,11 +30,10 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { Textarea } from "./ui/textarea";
-import { Edit3, X, FilterIcon, RefreshCw } from "lucide-react";
+import { X, FilterIcon } from "lucide-react";
 import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
-import { ItemCard, BaseItem, ItemQuickAction } from './ItemCard';
+import { ItemCard, BaseItem, ItemQuickAction, getItemListQuickActions, quickActionIcon } from './ItemCard';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import RejectedReasonBottomSheet, { RejectedReason } from './RejectedReasonBottomSheet';
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
@@ -101,10 +100,11 @@ interface ItemsScreenProps {
   expireTimeWeeks?: number; // Expire time setting for the store (in weeks)
 }
 
-function SearchBar({ searchTerm, onSearchChange, onFilterClick }: { 
+function SearchBar({ searchTerm, onSearchChange, onFilterClick, placeholder = 'Search by name or ID' }: { 
   searchTerm: string; 
   onSearchChange: (value: string) => void;
   onFilterClick?: () => void;
+  placeholder?: string;
 }) {
   const hasText = searchTerm.length > 0;
   // Calculate right padding based on which buttons are visible
@@ -118,7 +118,7 @@ function SearchBar({ searchTerm, onSearchChange, onFilterClick }: {
   }
 
   return (
-    <div className="relative w-full mb-4 md:max-w-2xl">
+    <div className="relative w-full mb-0">
       <div className="relative">
         {/* Search icon on the left */}
         <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none z-10">
@@ -130,7 +130,7 @@ function SearchBar({ searchTerm, onSearchChange, onFilterClick }: {
           type="text"
           id="items-search"
           name="items-search"
-          placeholder="Search by name or ID"
+          placeholder={placeholder}
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
           className={`w-full h-12 pl-10 ${rightPadding} bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large`}
@@ -538,237 +538,6 @@ function ActiveFiltersDisplay({
         ))}
       </div>
     </div>
-  );
-}
-
-
-
-function BulkEditModal({ isOpen, onClose, selectedItems, onSave, userRole, activeFilter }: {
-  isOpen: boolean;
-  onClose: () => void;
-  selectedItems: Item[];
-  onSave: (updates: Partial<Item>) => void;
-  userRole?: UserRole;
-  activeFilter?: string;
-}) {
-  const [formData, setFormData] = useState({
-    status: 'none',
-    category: '',
-    priceReduction: 'none',
-    comment: ''
-  });
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detect mobile screen size
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const handleSave = () => {
-    const updates: Partial<Item> = {};
-    if (formData.status !== 'none') updates.status = formData.status as Item['status'];
-    // Location removed - system-managed only
-    if (formData.category) updates.category = formData.category;
-    if (formData.priceReduction !== 'none') {
-      const reductionPercent = parseFloat(formData.priceReduction);
-      // Store the reduction percentage - the actual price calculation will be done in handleBulkEditSave
-      (updates as any).priceReduction = reductionPercent;
-    }
-    if (formData.comment) {
-      (updates as any).comment = formData.comment;
-    }
-    
-    onSave(updates);
-    setFormData({ status: 'none', category: '', priceReduction: 'none', comment: '' });
-    onClose();
-  };
-
-  return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent 
-        side={isMobile ? "bottom" : "right"} 
-        className="bg-surface border-outline-variant p-0 flex flex-col md:max-w-[400px] md:h-full max-h-[85vh] md:max-h-full"
-      >
-        {/* Header - Fixed */}
-        <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
-          <SheetTitle className="title-large text-on-surface">
-            Bulk Edit Items
-          </SheetTitle>
-          <SheetDescription className="body-medium text-on-surface-variant">
-            Edit properties for {selectedItems.length} selected items. Only filled fields will be updated.
-          </SheetDescription>
-        </SheetHeader>
-
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-          {/* Determine if we should show limited fields (only for expired or available filters) */}
-          {(() => {
-            const isLimitedMode = activeFilter === 'expired' || 
-                                  activeFilter === 'available';
-            
-            if (isLimitedMode) {
-              // Limited mode: Only show Price reduction
-              return (
-                <>
-                  {/* Price % Reduction Field */}
-                  <div className="space-y-2">
-                    <Label htmlFor="priceReduction" className="label-large text-on-surface">
-                      Price % reduction
-                    </Label>
-                    <Select
-                      value={formData.priceReduction}
-                      onValueChange={(value: string) =>
-                        setFormData(prev => ({ ...prev, priceReduction: value }))
-                      }
-                    >
-                      <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                        <SelectValue placeholder="Select reduction" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No change</SelectItem>
-                        <SelectItem value="10">10%</SelectItem>
-                        <SelectItem value="20">20%</SelectItem>
-                        <SelectItem value="30">30%</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              );
-            }
-            
-            // Full mode: Show all fields
-            return (
-              <>
-                {/* Status Field - Only show to admins */}
-                {userRole === 'admin' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="status" className="label-large text-on-surface">
-                      Status
-                    </Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value: string) =>
-                        setFormData(prev => ({ ...prev, status: value as Item['status'] | 'none' }))
-                      }
-                    >
-                      <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No change</SelectItem>
-                        <SelectItem value="Available">Available</SelectItem>
-                        <SelectItem value="Draft">Draft</SelectItem>
-                        <SelectItem value="In transit">In transit</SelectItem>
-                        <SelectItem value="Sold">Sold</SelectItem>
-                        <SelectItem value="Returned">Returned</SelectItem>
-                        <SelectItem value="Missing">Missing</SelectItem>
-                        <SelectItem value="Broken">Broken</SelectItem>
-                        <SelectItem value="Rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Category Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="category" className="label-large text-on-surface">
-                    Category
-                  </Label>
-                  <Select
-                    value={formData.category || 'none'}
-                    onValueChange={(value: string) =>
-                      setFormData(prev => ({ ...prev, category: value === 'none' ? '' : value }))
-                    }
-                  >
-                    <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No change</SelectItem>
-                      <SelectItem value="Tops">Tops</SelectItem>
-                      <SelectItem value="Bottoms">Bottoms</SelectItem>
-                      <SelectItem value="Dresses">Dresses</SelectItem>
-                      <SelectItem value="Outerwear">Outerwear</SelectItem>
-                      <SelectItem value="Shoes">Shoes</SelectItem>
-                      <SelectItem value="Accessories">Accessories</SelectItem>
-                      <SelectItem value="Hoodie">Hoodie</SelectItem>
-                      <SelectItem value="Shorts">Shorts</SelectItem>
-                      <SelectItem value="Trousers">Trousers</SelectItem>
-                      <SelectItem value="Jackets">Jackets</SelectItem>
-                      <SelectItem value="Skirts">Skirts</SelectItem>
-                      <SelectItem value="Knitwear">Knitwear</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Price % Reduction Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="priceReduction" className="label-large text-on-surface">
-                    Price % reduction
-                  </Label>
-                  <Select
-                    value={formData.priceReduction}
-                    onValueChange={(value: string) =>
-                      setFormData(prev => ({ ...prev, priceReduction: value }))
-                    }
-                  >
-                    <SelectTrigger className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
-                      <SelectValue placeholder="Select reduction" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No change</SelectItem>
-                      <SelectItem value="10">10%</SelectItem>
-                      <SelectItem value="20">20%</SelectItem>
-                      <SelectItem value="30">30%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Comment Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="comment" className="label-large text-on-surface">
-                    Comment (optional)
-                  </Label>
-                  <Textarea
-                    id="comment"
-                    value={formData.comment}
-                    onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
-                    className="w-full bg-surface-container-high border border-outline rounded-lg min-h-[80px] body-large resize-none"
-                    placeholder="Add a comment..."
-                    rows={3}
-                  />
-                </div>
-              </>
-            );
-          })()}
-        </div>
-
-        {/* Footer - Fixed at bottom */}
-        <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
-          <Button 
-            variant="outline" 
-            size="lg"
-            onClick={onClose}
-            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large touch-manipulation"
-          >
-            Cancel
-          </Button>
-          <Button 
-            size="lg"
-            onClick={handleSave}
-            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
-          >
-            Update items
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
   );
 }
 
@@ -2042,19 +1811,15 @@ function MultiSelectActions({
   totalCount,
   isAllSelected,
   onSelectAll,
-  onBulkEdit,
-  onUnflagExpired,
-  hasExpiredItems,
-  activeFilter
+  bulkQuickActions,
+  onBulkQuickAction,
 }: {
   selectedCount: number;
   totalCount: number;
   isAllSelected: boolean;
   onSelectAll: () => void;
-  onBulkEdit: () => void;
-  onUnflagExpired?: () => void;
-  hasExpiredItems?: boolean;
-  activeFilter?: string;
+  bulkQuickActions: Array<{ action: ItemQuickAction; label: string; className?: string }>;
+  onBulkQuickAction: (action: ItemQuickAction) => void;
 }) {
   // Don't show if there are no items
   if (totalCount === 0) return null;
@@ -2098,15 +1863,13 @@ function MultiSelectActions({
           </div>
         </div>
         
-        {/* Right side - Actions (only show when items are selected) */}
-        {hasSelectedItems && (
-        <div className="flex items-center gap-2">
-          {/* More Actions Dropdown */}
+        {hasSelectedItems && bulkQuickActions.length > 0 && (
+        <div className="flex items-center justify-center h-full">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button 
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-                aria-label="More actions"
+                className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                aria-label="Bulk actions"
               >
                 <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
                   <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
@@ -2114,21 +1877,18 @@ function MultiSelectActions({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Bulk Actions</DropdownMenuLabel>
+              <DropdownMenuLabel>Bulk actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onBulkEdit}>
-                <Edit3 className="mr-2 h-4 w-4" />
-                <span>Bulk edit</span>
-              </DropdownMenuItem>
-              {activeFilter === 'expired' && hasExpiredItems && onUnflagExpired && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onUnflagExpired}>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    <span>Unflag expired</span>
-                  </DropdownMenuItem>
-                </>
-              )}
+              {bulkQuickActions.map(({ action, label, className }) => (
+                <DropdownMenuItem
+                  key={action}
+                  onClick={() => onBulkQuickAction(action)}
+                  className={className}
+                >
+                  {quickActionIcon(action)}
+                  <span>{label}</span>
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -2154,8 +1914,9 @@ export default function ItemsScreen({
   const [quickSearchTerm, setQuickSearchTerm] = useState('');
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [itemFilters, setItemFilters] = useState<ItemFilters>(defaultFilters);
-  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<Item | null>(null);
+  const [bulkUnflagItemIds, setBulkUnflagItemIds] = useState<string[] | null>(null);
+  const [bulkRejectItemIds, setBulkRejectItemIds] = useState<string[] | null>(null);
   
   // Pagination state for performance with large item lists
   const [loadedItemsCount, setLoadedItemsCount] = useState(50);
@@ -2178,9 +1939,6 @@ export default function ItemsScreen({
     }
     return getSekPriceOptions(partnerIdForPricing, selectedItemForDetails.brand);
   }, [partnerIdForPricing, selectedItemForDetails]);
-  const [showBatchStatusUpdate, setShowBatchStatusUpdate] = useState(false);
-  const [batchNewStatus, setBatchNewStatus] = useState<string>('none');
-  const [batchStatusNote, setBatchStatusNote] = useState('');
   const [showStatusUpdateDialog, setShowStatusUpdateDialog] = useState(false);
   const [itemToUpdateStatus, setItemToUpdateStatus] = useState<Item | null>(null);
   const [showRejectSheet, setShowRejectSheet] = useState(false);
@@ -2577,7 +2335,26 @@ export default function ItemsScreen({
     };
   }, []);
 
-  const selectedItems = items.filter(item => item.selected);
+  /** Selection scoped to the current chip/filter so bulk actions match visible rows (avoids stale picks from other tabs). */
+  const selectedItemsInCurrentFilter = useMemo(
+    () => filteredItems.filter((item) => item.selected),
+    [filteredItems],
+  );
+
+  const bulkQuickActions = useMemo(() => {
+    if (selectedItemsInCurrentFilter.length === 0) return [];
+    const role = userRole ?? 'store-staff';
+    const lists = selectedItemsInCurrentFilter.map((i) => getItemListQuickActions(i, role));
+    const first = lists[0];
+    if (!first?.length) return [];
+    const actionSets = lists.map((l) => new Set(l.map((x) => x.action)));
+    return first.filter((entry) => actionSets.every((s) => s.has(entry.action)));
+  }, [selectedItemsInCurrentFilter, userRole]);
+
+  const deselectIds = (ids: string[]) => {
+    const idSet = new Set(ids);
+    setItems((prev) => prev.map((item) => (idSet.has(item.id) ? { ...item, selected: false } : item)));
+  };
 
   const handleToggleSelect = (id: string) => {
     setItems(prev => prev.map(item => 
@@ -2726,9 +2503,27 @@ export default function ItemsScreen({
   const handleRejectSheetClose = () => {
     setShowRejectSheet(false);
     setItemToReject(null);
+    setBulkRejectItemIds(null);
   };
 
   const handleConfirmReject = (reason: RejectedReason) => {
+    const bulkIds = bulkRejectItemIds;
+    if (bulkIds && bulkIds.length > 0) {
+      bulkIds.forEach((id) => {
+        handleSaveItemDetails(id, {
+          status: 'Rejected',
+          rejectReason: reason,
+          location: 'Back of House',
+        });
+      });
+      toast.info(`${bulkIds.length} items marked as rejected (${reason})`);
+      deselectIds(bulkIds);
+      setBulkRejectItemIds(null);
+      setShowRejectSheet(false);
+      setItemToReject(null);
+      return;
+    }
+
     if (!itemToReject) return;
     handleSaveItemDetails(itemToReject.id, {
       status: 'Rejected',
@@ -2739,71 +2534,96 @@ export default function ItemsScreen({
     handleRejectSheetClose();
   };
 
+  const handleBulkQuickAction = (action: ItemQuickAction) => {
+    const targets = selectedItemsInCurrentFilter
+      .map((s) => items.find((i) => i.id === s.id))
+      .filter((x): x is Item => Boolean(x));
+    if (targets.length === 0) return;
 
-  const handleBulkEdit = () => {
-    setShowBulkEditModal(true);
-  };
+    if (action === 'unflag-expired') {
+      const expired = targets.filter((i) => i.isExpired);
+      if (expired.length === 0) return;
+      setBulkUnflagItemIds(expired.map((i) => i.id));
+      setItemToUnflagExpired(expired[0]);
+      setShowUnflagExpiredSheet(true);
+      return;
+    }
 
-  const handleBulkEditSave = (updates: Partial<Item>) => {
-    const selectedIds = selectedItems.map(item => item.id);
-    const priceReduction = (updates as any).priceReduction;
-    const comment = (updates as any).comment;
-    const statusChange = updates.status;
-    
-    setItems(prev => prev.map(item => {
-      if (!selectedIds.includes(item.id)) return item;
-      
-      const itemUpdates: Partial<Item> = { ...updates, selected: false };
-      
-      // Automatically set location based on status changes
-      if (statusChange === 'Available' && !updates.location) {
-        itemUpdates.location = 'Shopfloor';
-        itemUpdates.lastInStoreAt = new Date().toISOString();
-      } else if ((statusChange === 'Broken' || statusChange === 'Rejected') && !updates.location) {
-        itemUpdates.location = 'Back of House';
+    if (action === 'mark-rejected') {
+      const eligible = targets.filter(canRejectItem);
+      if (eligible.length === 0) {
+        toast.error('No selected items can be rejected (within 24 hours of arriving in store).');
+        return;
       }
-      
-      // Calculate new price if price reduction is specified
-      if (priceReduction && typeof priceReduction === 'number') {
-        const reductionPercent = priceReduction / 100;
-        itemUpdates.price = Math.round(item.price * (1 - reductionPercent) * 100) / 100;
-        // Remove priceReduction from updates as it's not a real field
-        delete (itemUpdates as any).priceReduction;
+      if (eligible.length < targets.length) {
+        toast.info(`Reject applies to ${eligible.length} of ${targets.length} selected items.`);
       }
-      
-      // Handle comment - add to statusHistory if status changed or if comment provided
-      if (comment || (statusChange && statusChange !== item.status)) {
-        const newHistoryEntry: StatusHistoryEntry = {
-          status: (statusChange || item.status) as Item['status'],
-          timestamp: formatTimestamp(),
-          user: 'Current User',
-          note: comment || undefined
-        };
-        
-        itemUpdates.statusHistory = [
-          ...(item.statusHistory || []),
-          newHistoryEntry
-        ];
-        
-        // Remove comment from updates as it's not a real field
-        delete (itemUpdates as any).comment;
-      }
-      
-      // Update lastInStoreAt if status changed to 'Available'
-      if (statusChange === 'Available') {
-        itemUpdates.lastInStoreAt = new Date().toISOString();
-      }
-      
-      return { ...item, ...itemUpdates };
-    }));
-    
-    const updateCount = Object.keys(updates).filter(key => 
-      key !== 'priceReduction' && key !== 'comment' || 
-      (key === 'priceReduction' && priceReduction) ||
-      (key === 'comment' && comment)
-    ).length;
-    const reductionText = priceReduction ? ` with ${priceReduction}% price reduction` : '';
-    toast.success(`${selectedItems.length} items updated${reductionText}`);
+      setBulkRejectItemIds(eligible.map((i) => i.id));
+      setItemToReject(eligible[0]);
+      setShowRejectSheet(true);
+      return;
+    }
+
+    const ids = targets.map((t) => t.id);
+    let message = '';
+
+    switch (action) {
+      case 'mark-available':
+        targets.forEach((fullItem) => {
+          handleSaveItemDetails(fullItem.id, {
+            status: 'Available',
+            lastInStoreAt: new Date().toISOString(),
+            location: 'Shopfloor',
+            isExpired: false,
+          });
+        });
+        message = `${targets.length} items marked as in store`;
+        break;
+      case 'store-transfer':
+        targets.forEach((fullItem) => {
+          handleSaveItemDetails(fullItem.id, {
+            status: 'In transit',
+            location: 'In transit',
+            orderType: 'order',
+          });
+        });
+        message = `${targets.length} items marked for store transfer`;
+        break;
+      case 'mark-sold':
+        targets.forEach((fullItem) => {
+          handleSaveItemDetails(fullItem.id, { status: 'Sold' });
+        });
+        message = `${targets.length} items marked as sold`;
+        break;
+      case 'mark-missing':
+        targets.forEach((fullItem) => {
+          handleSaveItemDetails(fullItem.id, { status: 'Missing' });
+        });
+        message = `${targets.length} items marked as missing`;
+        break;
+      case 'mark-broken':
+        targets.forEach((fullItem) => {
+          handleSaveItemDetails(fullItem.id, { status: 'Broken', location: 'Back of House' });
+        });
+        message = `${targets.length} items marked as broken`;
+        break;
+      case 'mark-return-transit':
+        targets.forEach((fullItem) => {
+          handleSaveItemDetails(fullItem.id, {
+            status: 'In transit',
+            orderType: 'return',
+            location: 'In transit',
+            isExpired: false,
+          });
+        });
+        message = `${targets.length} items scheduled for return transit`;
+        break;
+      default:
+        return;
+    }
+
+    toast.success(message);
+    deselectIds(ids);
   };
 
   const handleItemClick = (item: Item) => {
@@ -2851,6 +2671,24 @@ export default function ItemsScreen({
   };
 
   const handleUnflagExpired = (updates: Partial<Item>) => {
+    const bulkIds = bulkUnflagItemIds;
+    if (bulkIds && bulkIds.length > 0) {
+      bulkIds.forEach((id) => handleSaveItemDetails(id, updates));
+      const n = bulkIds.length;
+      const successMessage =
+        updates.isExpired === false
+          ? `Expired flag removed for ${n} items`
+          : updates.expiredPostponeWeeks === 4
+            ? `${n} items will be flagged as expired again after 4 weeks`
+            : `${n} items will be flagged as expired again after 8 weeks`;
+      toast.success(successMessage);
+      deselectIds(bulkIds);
+      setBulkUnflagItemIds(null);
+      setShowUnflagExpiredSheet(false);
+      setItemToUnflagExpired(null);
+      return;
+    }
+
     if (!itemToUnflagExpired) return;
 
     const successMessage = updates.isExpired === false
@@ -2865,63 +2703,6 @@ export default function ItemsScreen({
     setItemToUnflagExpired(null);
   };
 
-  const handleUnflagExpiredSelected = () => {
-    // Find the first expired item in the selected items
-    const expiredItem = selectedItems.find(item => item.isExpired);
-    if (expiredItem) {
-      setItemToUnflagExpired(expiredItem);
-      setShowUnflagExpiredSheet(true);
-    }
-  };
-
-  const handleBatchStatusUpdate = () => {
-    if (batchNewStatus !== 'none') {
-      const selectedIds = selectedItems.map(item => item.id);
-      const timestamp = formatTimestamp();
-      
-      setItems(prev => prev.map(item => {
-        if (selectedIds.includes(item.id)) {
-          const newHistoryEntry: StatusHistoryEntry = {
-            status: batchNewStatus,
-            timestamp,
-            user: 'Current User',
-            note: batchStatusNote || undefined
-          };
-          
-          // Set location based on new status
-          let location = item.location;
-          if (batchNewStatus === 'Draft' || batchNewStatus === 'Returned') {
-            location = 'Warehouse';
-          } else if (batchNewStatus === 'In transit') {
-            location = 'In transit';
-          } else if (batchNewStatus === 'Available') {
-            location = 'Shopfloor';
-          } else if (batchNewStatus === 'Broken' || batchNewStatus === 'Rejected') {
-            location = 'Back of House';
-          }
-          
-          return {
-            ...item,
-            status: batchNewStatus as Item['status'],
-            location,
-            selected: false,
-            statusHistory: [
-              ...(item.statusHistory || []),
-              newHistoryEntry
-            ],
-            ...(batchNewStatus === 'Available' ? { lastInStoreAt: new Date().toISOString() } : {})
-          } as Item;
-        }
-        return item;
-      }));
-      
-      toast.success(`${selectedItems.length} items updated to ${batchNewStatus}`);
-      setShowBatchStatusUpdate(false);
-      setBatchNewStatus('none');
-      setBatchStatusNote('');
-    }
-  };
-
   return (
     <div className="bg-surface relative size-full">
       {/* Spacer for top nav on desktop */}
@@ -2931,8 +2712,28 @@ export default function ItemsScreen({
         <div className="px-4 md:px-6 py-4 md:pt-4">
           <div className="flex items-center justify-between">
             <h3 className="headline-small text-on-surface">Items</h3>
-            
-            {/* Filter Button - Partner Portal Only - Matching PartnerDashboard design */}
+          </div>
+        </div>
+      </div>
+
+      {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
+      <div 
+        className="px-4 md:px-6 pt-4 md:pt-6 h-full overflow-y-auto"
+        onScroll={handleScroll}
+      >
+        
+        {/* Search row (search + store filter) */}
+        <div className="mb-4">
+          <div className="flex gap-3 items-start">
+            <div className={isPartnerPortal ? 'flex-1' : 'flex-1 md:max-w-2xl'}>
+              <SearchBar 
+                searchTerm={quickSearchTerm} 
+                onSearchChange={setQuickSearchTerm}
+                onFilterClick={() => setShowFilterSheet(true)}
+                placeholder={isPartnerPortal ? 'Search by name or ID' : 'Search'}
+              />
+            </div>
+
             {isPartnerPortal && (
               <StoreFilterBottomSheet
                 viewFilter={viewFilter}
@@ -2964,7 +2765,7 @@ export default function ItemsScreen({
                   setViewFilter({ 
                     mode: 'by-store', 
                     brandIds: viewFilter.brandIds,
-                    storeIds: viewFilter.storeIds,
+                    storeIds: viewFilter.storeIds, 
                     countryIds,
                     partnerId: viewFilter.partnerId
                   });
@@ -2975,19 +2776,20 @@ export default function ItemsScreen({
                 stores={stores}
                 countries={countries}
               >
-                <button 
+                <button
+                  type="button"
                   className={`
-                    h-12 px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
+                    h-12 px-2 sm:px-3 border transition-colors flex items-center gap-2 flex-shrink-0 rounded-[8px]
                     ${(viewFilter.brandIds?.length || 0) > 0 || 
-                       (viewFilter.countryIds?.length || 0) > 0 || 
-                       (viewFilter.storeIds?.length || 0) > 0
+                      (viewFilter.countryIds?.length || 0) > 0 || 
+                      (viewFilter.storeIds?.length || 0) > 0
                       ? 'bg-secondary-container border-outline text-on-secondary-container'
                       : 'bg-surface border-outline text-on-surface-variant hover:bg-surface-container-high'
                     }
                   `}
                 >
                   <FilterIcon size={20} />
-                  <span className="label-medium">
+                  <span className="label-medium hidden sm:inline">
                     {((viewFilter.brandIds?.length || 0) > 0 || 
                       (viewFilter.countryIds?.length || 0) > 0 || 
                       (viewFilter.storeIds?.length || 0) > 0)
@@ -3004,104 +2806,77 @@ export default function ItemsScreen({
               </StoreFilterBottomSheet>
             )}
           </div>
-          
-          {/* Filter Chips Display - Partner Portal Only - Matching PartnerDashboard design */}
+
+          {/* Active view filters as blue bubbles (one per category) */}
           {isPartnerPortal && ((viewFilter.brandIds?.length || 0) > 0 || 
             (viewFilter.countryIds?.length || 0) > 0 || 
             (viewFilter.storeIds?.length || 0) > 0) && (
-            <div className="mt-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="label-small text-on-surface-variant">Active filters:</span>
-                
-                {/* Brand Filter Chips */}
-                {viewFilter.brandIds && viewFilter.brandIds.length > 0 && 
-                  brands.filter(b => viewFilter.brandIds!.includes(b.id)).map(brand => (
-                    <div 
-                      key={`brand-${brand.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
-                    >
-                      {brand.name}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewFilter({
-                            ...viewFilter,
-                            brandIds: viewFilter.brandIds?.filter(id => id !== brand.id)
-                          });
-                        }}
-                        className="hover:opacity-70"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))
-                }
-                
-                {/* Country Filter Chips */}
-                {viewFilter.countryIds && viewFilter.countryIds.length > 0 && 
-                  countries.filter(c => viewFilter.countryIds!.includes(c.id)).map(country => (
-                    <div 
-                      key={`country-${country.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
-                    >
-                      {country.name}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewFilter({
-                            ...viewFilter,
-                            countryIds: viewFilter.countryIds?.filter(id => id !== country.id)
-                          });
-                        }}
-                        className="hover:opacity-70"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))
-                }
-                
-                {/* Store Filter Chips */}
-                {viewFilter.storeIds && viewFilter.storeIds.length > 0 && 
-                  stores.filter(s => viewFilter.storeIds!.includes(s.id)).map(store => (
-                    <div 
-                      key={`store-${store.id}`} 
-                      className="inline-flex items-center gap-1.5 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full label-small"
-                    >
-                      {store.name}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewFilter({
-                            ...viewFilter,
-                            storeIds: viewFilter.storeIds?.filter(id => id !== store.id)
-                          });
-                        }}
-                        className="hover:opacity-70"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))
-                }
-              </div>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              {(viewFilter.brandIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.brandIds!.length === 1
+                      ? (brands.find(b => b.id === viewFilter.brandIds![0])?.name ?? 'Brand')
+                      : `Brand (${viewFilter.brandIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear brand filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewFilter({ ...viewFilter, brandIds: [] });
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {(viewFilter.countryIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.countryIds!.length === 1
+                      ? (countries.find(c => c.id === viewFilter.countryIds![0])?.name ?? 'Country')
+                      : `Country (${viewFilter.countryIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear country filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewFilter({ ...viewFilter, countryIds: [] });
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {(viewFilter.storeIds?.length || 0) > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-container text-on-primary-container label-small">
+                  <span className="whitespace-nowrap">
+                    {viewFilter.storeIds!.length === 1
+                      ? (stores.find(s => s.id === viewFilter.storeIds![0])?.name ?? 'Store')
+                      : `Store (${viewFilter.storeIds!.length})`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Clear store filters"
+                    className="hover:opacity-70"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewFilter({ ...viewFilter, storeIds: [] });
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
-      <div 
-        className="px-4 md:px-6 pt-4 md:pt-6 h-full overflow-y-auto"
-        onScroll={handleScroll}
-      >
-        
-        {/* Search Bar with Filter Icon */}
-        <SearchBar 
-          searchTerm={quickSearchTerm} 
-          onSearchChange={setQuickSearchTerm}
-          onFilterClick={() => setShowFilterSheet(true)}
-        />
         
         {/* Quick Filter Chips */}
         <QuickFilterChips 
@@ -3134,14 +2909,12 @@ export default function ItemsScreen({
         {/* Multi-select Actions - Only show when not on 'all' filter */}
         {quickFilter !== 'all' && (
           <MultiSelectActions 
-            selectedCount={selectedItems.length}
+            selectedCount={selectedItemsInCurrentFilter.length}
             totalCount={filteredItems.length}
             isAllSelected={paginatedItems.length > 0 && paginatedItems.every(item => item.selected)}
             onSelectAll={handleSelectAll}
-            onBulkEdit={handleBulkEdit}
-            onUnflagExpired={selectedItems.some(item => item.isExpired) ? handleUnflagExpiredSelected : undefined}
-            hasExpiredItems={selectedItems.some(item => item.isExpired)}
-            activeFilter={quickFilter}
+            bulkQuickActions={bulkQuickActions}
+            onBulkQuickAction={handleBulkQuickAction}
           />
         )}
         
@@ -3193,16 +2966,6 @@ export default function ItemsScreen({
         brandOptions={availableBrandOptions}
       />
       
-      {/* Bulk Edit Modal */}
-      <BulkEditModal 
-        isOpen={showBulkEditModal}
-        onClose={() => setShowBulkEditModal(false)}
-        selectedItems={selectedItems}
-        onSave={handleBulkEditSave}
-        userRole={userRole}
-        activeFilter={quickFilter}
-      />
-
       {/* Item Details Dialog */}
       <ItemDetailsDialog
         item={selectedItemForDetails as ItemDetails | null}
@@ -3248,84 +3011,11 @@ export default function ItemsScreen({
         onClose={() => {
           setShowUnflagExpiredSheet(false);
           setItemToUnflagExpired(null);
+          setBulkUnflagItemIds(null);
         }}
         item={itemToUnflagExpired}
         onSave={handleUnflagExpired}
       />
-
-      {/* Batch Status Update Dialog */}
-      <Dialog open={showBatchStatusUpdate} onOpenChange={setShowBatchStatusUpdate}>
-        <DialogContent className="bg-surface border border-outline-variant rounded-xl max-w-[calc(100%-2rem)] sm:max-w-md mx-auto">
-          <DialogHeader>
-            <DialogTitle className="title-large text-on-surface">
-              Update status for {selectedItems.length} items
-            </DialogTitle>
-            <DialogDescription className="body-medium text-on-surface-variant">
-              Change the status for all selected items at once
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 mt-4">
-            {/* New Status */}
-            <div>
-              <label className="label-medium text-on-surface-variant mb-2 block">
-                New status
-              </label>
-              <Select value={batchNewStatus} onValueChange={setBatchNewStatus}>
-                <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px]">
-                  <SelectValue placeholder="Select new status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Select new status</SelectItem>
-                  <SelectItem value="Available">Available</SelectItem>
-                  <SelectItem value="Draft">Draft</SelectItem>
-                  <SelectItem value="In transit">In transit</SelectItem>
-                  <SelectItem value="Sold">Sold</SelectItem>
-                  <SelectItem value="Returned">Returned</SelectItem>
-                  <SelectItem value="Missing">Missing</SelectItem>
-                  <SelectItem value="Broken">Broken</SelectItem>
-                  <SelectItem value="Rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="label-medium text-on-surface-variant mb-2 block">
-                Add a note (optional)
-              </label>
-              <Textarea
-                value={batchStatusNote}
-                onChange={(e) => setBatchStatusNote(e.target.value)}
-                placeholder="Add any additional notes..."
-                className="bg-surface-container-high border border-outline rounded-lg resize-none"
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowBatchStatusUpdate(false);
-                setBatchNewStatus('none');
-                setBatchStatusNote('');
-              }}
-              className="w-full sm:w-auto sm:min-w-[120px]"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleBatchStatusUpdate}
-              disabled={batchNewStatus === 'none'}
-              className="w-full sm:w-auto sm:min-w-[120px]"
-            >
-              Update {selectedItems.length} items
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
