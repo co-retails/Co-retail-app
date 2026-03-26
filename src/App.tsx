@@ -38,6 +38,7 @@ import { useIsMobile } from './components/ui/use-mobile';
 import BoxLabelSideSheet from './components/BoxLabelSideSheet';
 import ShippingLabelScreen from './components/ShippingLabelScreen';
 import SwitchViewSheet from './components/SwitchViewSheet';
+import WhatsNewDialog from './components/WhatsNewDialog';
 
 // Digital Showroom Components - Lazy loaded for code splitting
 const PartnerShowroomDashboard = React.lazy(() => import('./components/PartnerShowroomDashboard'));
@@ -4456,6 +4457,9 @@ export default function App() {
         currentView={adminView}
         onViewChange={handleSwitchAdminView}
       />
+
+      {/* What's New dialog — shows once per version on first load */}
+      <WhatsNewDialog onNavigate={(screen) => setCurrentScreenSafe(screen as any)} />
 
       {/* Show main navigation only for main app screens */}
       {showMainNavigation && (
