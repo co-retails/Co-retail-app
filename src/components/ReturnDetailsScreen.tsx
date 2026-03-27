@@ -44,7 +44,7 @@ interface ReturnDetailsScreenProps {
   onAddManually: () => void;
   onSaveAndClose: () => void;
   onReturn: () => void;
-  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner';
 }
 
 function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
@@ -130,7 +130,7 @@ function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions, userRo
   isScanned: boolean;
   onToggleSelect: (id: string) => void;
   onMoreActions: (id: string) => void;
-  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner';
 }) {
   // Extend item with missing fields for M3 compliance
   const extendedItem = {
@@ -318,7 +318,7 @@ function ItemsList({ items, isScanned, onToggleSelect, onMoreActions, userRole =
   isScanned: boolean;
   onToggleSelect: (id: string) => void;
   onMoreActions: (id: string) => void;
-  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner';
 }) {
   if (items.length === 0) return null;
 

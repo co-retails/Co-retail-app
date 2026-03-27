@@ -8,7 +8,7 @@ import { AppTestHelpers } from './helpers';
 export class TestHelpers {
   constructor(private page: any) {}
 
-  async switchToRole(role: 'store-staff' | 'partner' | 'buyer') {
+  async switchToRole(role: 'store-staff' | 'partner') {
     const roleSwitcherButton = this.page.locator('button[aria-label*="Switch Role"], button[aria-label*="Role"]').first();
     if (await roleSwitcherButton.isVisible()) {
       await roleSwitcherButton.click();
@@ -16,8 +16,7 @@ export class TestHelpers {
       
       const roleMap = {
         'store-staff': /Store|Staff/i,
-        'partner': /Partner/i,
-        'buyer': /Buyer/i
+        'partner': /Partner/i
       };
       
       const roleOption = this.page.getByRole('button', { name: roleMap[role] }).first();
@@ -109,124 +108,6 @@ test.describe('End-to-End User Flows', () => {
     }
   });
 
-  test('Complete Partner Flow - Showroom Management', async ({ page }) => {
-    const helpers = new AppTestHelpers(page);
-    await page.goto('/');
-    await helpers.waitForAppLoad();
-
-    // 1. Switch to partner role
-    await helpers.switchToRole('partner');
-    // Wait for lazy-loaded component - give it more time
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
-    
-    // Check for partner dashboard indicators with multiple fallbacks
-    const hasPartnerPortal = await page.getByText('Partner portal', { exact: false }).isVisible({ timeout: 10000 }).catch(() => false);
-    const hasOrders = await page.getByText(/Orders|Create Order/i).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasStats = await page.locator('[class*="stats"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPartnerOverview = await page.getByText(/Partner Overview/i).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCards = await page.locator('[class*="card"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-    
-    // At least one indicator should be visible
-    const hasAnyIndicator = hasPartnerPortal || hasOrders || hasStats || hasPartnerOverview || hasCards;
-    
-    // If nothing found, verify page is still functional
-    if (!hasAnyIndicator) {
-      const rootVisible = await page.locator('#root').isVisible().catch(() => false);
-      expect(rootVisible).toBeTruthy(); // At least verify the app is rendered
-    } else {
-      expect(hasAnyIndicator).toBeTruthy();
-    }
-
-    // 2. Navigate to showroom
-    const showroomButton = page.getByRole('button', { name: /Showroom/i }).first();
-    if (await showroomButton.isVisible()) {
-      await showroomButton.click();
-      await page.waitForTimeout(2000);
-      await helpers.waitForScreenContent(/Showroom|Products/i);
-    }
-
-    // 3. Navigate to products
-    const productsButton = page.getByRole('button', { name: /Products/i }).first();
-    if (await productsButton.isVisible()) {
-      await productsButton.click();
-      await page.waitForTimeout(2000);
-      await helpers.waitForScreenContent(/Products|Product list/i);
-    }
-  });
-
-  test('Complete Buyer Flow - Product Browse and Cart', async ({ page }) => {
-    const helpers = new AppTestHelpers(page);
-    await page.goto('/');
-    await helpers.waitForAppLoad();
-
-    // 1. Switch to buyer role
-    await helpers.switchToRole('buyer');
-    // Wait for lazy-loaded component - give it more time
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
-    
-    // Check for buyer dashboard indicators with multiple fallbacks
-    const hasBuyerPortal = await page.getByText('Buyer portal', { exact: false }).isVisible({ timeout: 10000 }).catch(() => false);
-    const hasBrowseProducts = await page.getByText(/Browse.*Products|Explore/i).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasStats = await page.locator('[class*="stats"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasExploreShowrooms = await page.getByText(/Explore.*showrooms/i).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasQuickActions = await page.getByText(/Quick actions/i).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCards = await page.locator('[class*="card"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-    
-    // At least one indicator should be visible
-    const hasAnyIndicator = hasBuyerPortal || hasBrowseProducts || hasStats || hasExploreShowrooms || hasQuickActions || hasCards;
-    
-    // If nothing found, verify page is still functional
-    if (!hasAnyIndicator) {
-      const rootVisible = await page.locator('#root').isVisible().catch(() => false);
-      expect(rootVisible).toBeTruthy(); // At least verify the app is rendered
-    } else {
-      expect(hasAnyIndicator).toBeTruthy();
-    }
-
-    // 2. Browse products
-    const browseButton = page.getByRole('button', { name: /Browse.*Products|Explore/i }).first();
-    const browseButtonVisible = await browseButton.isVisible({ timeout: 5000 }).catch(() => false);
-    if (browseButtonVisible) {
-      await browseButton.click();
-      await page.waitForTimeout(2000);
-      await page.waitForLoadState('networkidle');
-      
-      // Check for products/showroom content with fallbacks
-      const hasProducts = await page.getByText(/Products|Product list/i).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasBrowse = await page.getByText(/Browse/i).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasShowroom = await page.getByText(/Showroom/i).isVisible({ timeout: 5000 }).catch(() => false);
-      
-      // If navigation didn't happen, that's okay - just verify page is functional
-      if (!hasProducts && !hasBrowse && !hasShowroom) {
-        const rootVisible = await page.locator('#root').isVisible().catch(() => false);
-        expect(rootVisible).toBeTruthy();
-      }
-    }
-
-    // 3. View cart (if cart button exists)
-    const cartButton = page.getByRole('button', { name: /Cart/i }).first();
-    const cartButtonVisible = await cartButton.isVisible({ timeout: 3000 }).catch(() => false);
-    if (cartButtonVisible) {
-      await cartButton.click();
-      await page.waitForTimeout(2000);
-      await page.waitForLoadState('networkidle');
-      
-      // Check for cart content with fallbacks
-      const hasCart = await page.getByText(/Cart|Checkout/i).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasItems = await page.getByText(/Items/i).isVisible({ timeout: 3000 }).catch(() => false);
-      
-      // If navigation didn't happen, that's okay - just verify page is functional
-      if (!hasCart && !hasItems) {
-        const rootVisible = await page.locator('#root').isVisible().catch(() => false);
-        expect(rootVisible).toBeTruthy();
-      }
-    }
-  });
-
   test('Role Switching Flow', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -241,15 +122,7 @@ test.describe('End-to-End User Flows', () => {
     const hasOrders = await page.getByText(/Orders/i).isVisible({ timeout: 5000 }).catch(() => false);
     expect(hasPartnerPortal || hasOrders).toBeTruthy();
 
-    // Switch to buyer
-    await helpers.switchToRole('buyer');
-    await page.waitForTimeout(2000);
-    await page.waitForLoadState('networkidle');
-    const hasBuyerPortal = await page.getByText('Buyer portal', { exact: false }).isVisible({ timeout: 10000 }).catch(() => false);
-    const hasBrowseProducts = await page.getByText(/Browse.*Products|Explore/i).isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasBuyerPortal || hasBrowseProducts).toBeTruthy();
-
-      // Switch back to store staff
+    // Switch back to store staff
       await helpers.switchToRole('store-staff');
       await page.waitForTimeout(1000);
       const hasHomeContent = await page.getByText(/Inbound deliveries|Items to return|Resell/i).first().isVisible({ timeout: 5000 }).catch(() => false);

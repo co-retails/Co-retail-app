@@ -4,7 +4,6 @@ import { UserRole } from './RoleSwitcher';
 import type { ExtendedPartnerOrder } from './PartnerDashboard';
 import { DeliveryNote } from './BoxManagementScreen';
 import { ReturnItem } from './ReturnManagementScreen';
-import { ShowroomOrder } from './ShowroomTypes';
 import { OrderItem } from './OrderCreationScreen';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { Button } from './ui/button';
@@ -30,7 +29,7 @@ type ShippingTab = 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 
 type OrderStatusFilter = 'approval' | 'pending' | 'draft' | 'registered' | 'in-transit' | 'all';
 type ShipmentStatusFilter = 'packing' | 'in-transit' | 'delivered' | 'all';
 type ReturnStatusFilter = 'in-transit' | 'returned' | 'all';
-type ShippingUserRole = UserRole | 'admin' | 'store-manager' | 'buyer';
+type ShippingUserRole = UserRole | 'admin' | 'store-manager';
 
 export interface SellpyOrder {
   id: string;
@@ -110,8 +109,6 @@ interface ShippingScreenProps {
   onOpenOrderDetails?: (order: ShippingPartnerOrder, activeTab?: ShippingTab, activeFilter?: string) => void;
   onOpenShipmentDetails?: (deliveryNote: DeliveryNote, activeTab?: ShippingTab, activeFilter?: string) => void;
   onOpenReturnDetails?: (returnDelivery: ReturnDelivery, activeTab?: ShippingTab, activeFilter?: string) => void;
-  showroomOrders?: ShowroomOrder[];
-  onViewShowroomOrder?: (orderId: string) => void;
   sellpyOrders?: SellpyOrder[];
   brands?: BrandRecord[];
   countries?: CountryRecord[];
@@ -966,104 +963,6 @@ function PartnerOrderItem({
   );
 }
 
-function ShowroomOrderItem({ 
-  order, 
-  onClick 
-}: { 
-  order: ShowroomOrder; 
-  onClick?: () => void; 
-}) {
-  const getStatusDisplay = (status: ShowroomOrder['status']) => {
-    switch (status) {
-      case 'submitted': return 'Submitted';
-      case 'in_review': return 'In Review';
-      case 'approved': return 'Approved';
-      case 'rejected': return 'Rejected';
-      case 'fulfillment': return 'Fulfillment';
-      case 'shipped': return 'Shipped';
-      case 'closed': return 'Closed';
-      default: return status;
-    }
-  };
-
-  const getStatusBadgeColor = (status: ShowroomOrder['status']) => {
-    switch (status) {
-      case 'submitted': return 'bg-surface-container-high text-on-surface-variant';
-      case 'in_review': return 'bg-warning-container text-on-warning-container';
-      case 'approved': return 'bg-tertiary-container text-on-tertiary-container';
-      case 'rejected': return 'bg-error-container text-on-error-container';
-      case 'fulfillment': return 'bg-primary-container text-on-primary-container';
-      case 'shipped': return 'bg-tertiary-container text-on-tertiary-container';
-      case 'closed': return 'bg-surface-container-high text-on-surface-variant';
-      default: return 'bg-surface-container-high text-on-surface-variant';
-    }
-  };
-
-  return (
-    <button 
-      className="w-full bg-surface-container border-b border-outline-variant hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200 text-left"
-      onClick={onClick}
-    >
-      {/* M3 Three-line List Item */}
-      <div className="flex items-center gap-4 px-4 py-3">
-        
-        {/* Leading Element - Package Icon */}
-        <div className="flex-shrink-0 w-10 h-10 bg-surface-container rounded-full flex items-center justify-center">
-          <Package className="w-5 h-5 text-on-surface-variant" />
-        </div>
-        
-        {/* Main Content */}
-        <div className="flex-1 min-w-0">
-          {/* Top Line - Date and Status */}
-          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="label-small text-on-surface-variant">
-              {new Date(order.createdAt).toLocaleDateString()},
-            </span>
-            <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeColor(order.status)}`}>
-              {getStatusDisplay(order.status)}
-            </span>
-          </div>
-          
-          {/* Primary Line - Order ID */}
-          <div className="body-medium text-on-surface mb-0.5">
-            <span className="block truncate">Order #{order.id}</span>
-          </div>
-          
-          {/* Secondary Line - Order Type and Items */}
-          <div className="body-small text-on-surface-variant mb-0.5">
-            {order.type.toUpperCase()} • {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
-          </div>
-          
-          {/* Metadata Line - Buyer */}
-          <div className="label-small text-on-surface-variant opacity-90">
-            <div className="truncate">Buyer: {order.buyerName}</div>
-          </div>
-        </div>
-        
-        {/* Trailing Elements */}
-        <div className="flex-shrink-0 flex items-center gap-3">
-          {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
-          <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(order.status)}`}>
-            {getStatusDisplay(order.status)}
-          </div>
-          
-          {/* Total */}
-          <div className="text-right hidden md:block min-w-[80px]">
-            <div className="body-medium text-on-surface">
-              ${order.subtotal.toFixed(2)}
-            </div>
-          </div>
-          
-          {/* Arrow */}
-          <div className="w-5 h-5 flex items-center justify-center">
-            <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-          </div>
-        </div>
-      </div>
-    </button>
-  );
-}
-
 function SellpyOrderItem({ 
   order, 
   onClick 
@@ -1184,8 +1083,6 @@ export default function ShippingScreen({
   onOpenOrderDetails,
   onOpenShipmentDetails,
   onOpenReturnDetails,
-  showroomOrders = [],
-  onViewShowroomOrder,
   sellpyOrders = [],
   brands = [] as BrandRecord[],
   countries = [] as CountryRecord[],
@@ -2023,38 +1920,6 @@ useEffect(() => {
     ? sortedDeliveryNotes.slice(0, loadedItemsCount)
     : sortedDeliveryNotes;
 
-  // Filter showroom orders (purchase orders for Chinese partners)
-  const filteredShowroomOrders = showroomOrders.filter(order => {
-    const matchesSearch = searchTerm === '' || 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.buyerName.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesTab = (() => {
-      if (activeTab === 'pending') {
-        return order.status === 'submitted' || order.status === 'in_review' || order.status === 'approved';
-      }
-
-      if (activeTab === 'in-transit') {
-        switch (shipmentStatusFilter) {
-          case 'in-transit':
-            return order.status === 'fulfillment' || order.status === 'shipped';
-          case 'delivered':
-            return order.status === 'shipped' || order.status === 'closed';
-          case 'all':
-          default:
-            return ['fulfillment', 'shipped', 'closed'].includes(order.status);
-        }
-      }
-
-      return false;
-    })();
-    
-    return matchesSearch && matchesTab;
-  }).sort((a, b) => {
-    // Sort by createdAt descending (newest first)
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
-
   // Filter Sellpy orders (API integration orders for store staff - no filters needed as selection is done on home screen)
   const filteredSellpyOrders = sellpyOrders.filter(order => {
     const matchesSearch = searchTerm === '' || 
@@ -2072,7 +1937,6 @@ useEffect(() => {
   const isThriftedPartner = currentPartnerId === '2'; // Thrifted
   const canShowSalesMarginColumn = !isThriftedPartner && role !== 'partner';
   const showCreateOrderButton = role === 'partner' && isThriftedPartner && !!onCreateOrder;
-  const showShowroomOrders = role === 'partner' && isChinesePartner && (activeTab === 'pending' || activeTab === 'in-transit');
   const showDeliveryNotes = role === 'partner' && !isChinesePartner && activeTab === 'in-transit';
   const showOrders = role === 'partner' && !isChinesePartner && activeTab === 'pending';
   const showReturns = activeTab === 'returns'; // Show returns for both partners and store staff
@@ -2484,9 +2348,7 @@ useEffect(() => {
                 showSellpyOrders ?
                   `${filteredSellpyOrders.length} orders` :
                 role === 'partner' ? 
-                  (showShowroomOrders ?
-                    `${filteredShowroomOrders.length} ${activeTab === 'pending' ? 'purchase orders' : shipmentStatusFilter === 'delivered' ? 'deliveries' : 'shipments'}` :
-                    showDeliveryNotes ? 
+                  (showDeliveryNotes ? 
                       `${filteredDeliveryNotes.length} ${shipmentStatusFilter === 'delivered' ? 'deliveries' : 'shipments'}` :
                       `${filteredPartnerOrders.length} orders`
                   ) :
@@ -2845,93 +2707,8 @@ useEffect(() => {
               </div>
             )
           ) : role === 'partner' ? (
-            // Partner View - Show showroom orders (Chinese partner), delivery notes, or regular orders
-            showShowroomOrders && filteredShowroomOrders.length > 0 ? (
-              // Show Showroom Purchase Orders (Chinese Partner)
-              <>
-                {/* Mobile: Card View */}
-                <div className="flex lg:!hidden flex-col gap-2" data-tablet-mobile-only>
-                  {filteredShowroomOrders.map((order) => (
-                    <div key={order.id} className="bg-surface border border-outline-variant rounded-lg overflow-hidden">
-                      <ShowroomOrderItem 
-                        order={order}
-                        onClick={() => onViewShowroomOrder?.(order.id)}
-                      />
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Desktop: Table View */}
-                <div className="hidden lg:!block bg-surface border border-outline-variant rounded-lg overflow-hidden" data-desktop-table>
-                  <table className="w-full">
-                    <thead className="bg-surface-container-high border-b border-outline-variant">
-                      <tr>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Order ID</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Type</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Status</th>
-                        <th className="px-4 py-3 text-left title-small text-on-surface">Buyer</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Total</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredShowroomOrders.map((order) => {
-                        const getStatusColor = (status: ShowroomOrder['status']) => {
-                          switch (status) {
-                            case 'submitted': return 'text-on-surface-variant';
-                            case 'in_review': return 'text-warning';
-                            case 'approved': return 'text-tertiary';
-                            case 'rejected': return 'text-error';
-                            case 'fulfillment': return 'text-primary';
-                            case 'shipped': return 'text-tertiary';
-                            case 'closed': return 'text-on-surface-variant';
-                            default: return 'text-on-surface-variant';
-                          }
-                        };
-
-                        const getStatusDisplay = (status: ShowroomOrder['status']) => {
-                          switch (status) {
-                            case 'submitted': return 'Submitted';
-                            case 'in_review': return 'In Review';
-                            case 'approved': return 'Approved';
-                            case 'rejected': return 'Rejected';
-                            case 'fulfillment': return 'Fulfillment';
-                            case 'shipped': return 'Shipped';
-                            case 'closed': return 'Closed';
-                            default: return status;
-                          }
-                        };
-                        
-                        return (
-                          <tr 
-                            key={order.id}
-                            onClick={() => onViewShowroomOrder?.(order.id)}
-                            className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-3 body-medium text-on-surface-variant">{new Date(order.createdAt).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 body-medium text-on-surface">#{order.id}</td>
-                            <td className="px-4 py-3 body-medium text-on-surface-variant">{order.type.toUpperCase()}</td>
-                            <td className="px-4 py-3">
-                              <span className={`body-medium ${getStatusColor(order.status)}`}>
-                                {getStatusDisplay(order.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 body-medium text-on-surface">{order.buyerName}</td>
-                            <td className="px-4 py-3 body-medium text-on-surface text-right">{order.items.length}</td>
-                            <td className="px-4 py-3 body-medium text-on-surface text-right">${order.subtotal.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-right">
-                              <ChevronRight className="w-5 h-5 text-on-surface-variant inline-block" />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : showDeliveryNotes && filteredDeliveryNotes.length > 0 ? (
+            // Partner View - Show delivery notes or regular orders
+            showDeliveryNotes && filteredDeliveryNotes.length > 0 ? (
               // Show Delivery Notes (Shipments)
               <>
                 {/* Mobile: Card View */}
@@ -3380,14 +3157,12 @@ useEffect(() => {
               <div className="flex flex-col items-center justify-center py-16 px-4">
                 <div className="text-center space-y-2">
                   <h5 className="title-medium text-on-surface">
-                    {isChinesePartner && activeTab === 'pending' ? 'No purchase orders found' :
-                     activeTab === 'pending' ? 'No orders found' :
+                    {activeTab === 'pending' ? 'No orders found' :
                      activeTab === 'in-transit' ? (shipmentStatusFilter === 'delivered' ? 'No delivered shipments' : shipmentStatusFilter === 'all' ? 'No shipments found' : 'No shipments in transit') :
                      'No items found'}
                   </h5>
                   <p className="body-medium text-on-surface-variant">
-                    {isChinesePartner && activeTab === 'pending' ? 'Purchase orders from buyers will appear here' :
-                     activeTab === 'pending' ? 'Create your first order to get started' :
+                    {activeTab === 'pending' ? 'Create your first order to get started' :
                      activeTab === 'in-transit' ? (shipmentStatusFilter === 'delivered' ? 'Delivered shipments will appear here' : 'Orders will appear here once they are packaged and shipped') :
                      'Items will appear here when available'}
                   </p>

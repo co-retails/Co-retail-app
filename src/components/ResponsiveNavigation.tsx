@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, TruckIcon, Tag, Store, User, QrCode, ClipboardList, ShoppingBag, FileText, Sparkles } from 'lucide-react';
+import { TruckIcon, Tag, Store, User, QrCode, FileText, Sparkles } from 'lucide-react';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import TopNavigationBar from './TopNavigationBar';
 
@@ -26,21 +26,6 @@ function NavigationBar({ activeDestination, destinations }: ResponsiveNavigation
     if (destination.id === 'price-fork') {
       return <Sparkles className="w-6 h-6" style={{ color }} />;
     }
-    // Use lucide-react icons for specific destinations
-    if (destination.id === 'buyer-wishlist') {
-      return (
-        <Bookmark 
-          className="w-6 h-6" 
-          fill={isActive ? "var(--primary)" : "none"}
-          stroke={color}
-          strokeWidth={2}
-        />
-      );
-    }
-    
-    if (destination.id === 'price-fork') {
-      return <Sparkles className="w-6 h-6" style={{ color }} />;
-    }
     if (destination.id === 'shipping') {
       return <TruckIcon className="w-6 h-6" style={{ color }} />;
     }
@@ -57,19 +42,11 @@ function NavigationBar({ activeDestination, destinations }: ResponsiveNavigation
       return <User className="w-6 h-6" style={{ color }} />;
     }
     
-    if (destination.id === 'home' || destination.id === 'buyer-dashboard' || destination.id === 'partner-dashboard') {
+    if (destination.id === 'home' || destination.id === 'partner-dashboard') {
       return <Store className="w-6 h-6" style={{ color }} />;
     }
     
-    if (destination.id === 'showroom-browse' || destination.id === 'showroom-dashboard') {
-      return <ShoppingBag className="w-6 h-6" style={{ color }} />;
-    }
-    
-    if (destination.id === 'buyer-orders') {
-      return <ClipboardList className="w-6 h-6" style={{ color }} />;
-    }
-    
-    if (destination.id === 'buyer-quotations' || destination.id === 'partner-quotations' || destination.id === 'documents') {
+    if (destination.id === 'documents') {
       return <FileText className="w-6 h-6" style={{ color }} />;
     }
     
@@ -127,17 +104,6 @@ function NavigationRail({ activeDestination, destinations }: ResponsiveNavigatio
     const color = isActive ? "var(--on-secondary-container)" : "var(--on-surface-variant)";
     
     // Use lucide-react icons for specific destinations
-    if (destination.id === 'buyer-wishlist') {
-      return (
-        <Bookmark 
-          className="w-6 h-6" 
-          fill={isActive ? "var(--on-secondary-container)" : "none"}
-          stroke={color}
-          strokeWidth={2}
-        />
-      );
-    }
-    
     if (destination.id === 'shipping') {
       return <TruckIcon className="w-6 h-6" style={{ color }} />;
     }
@@ -154,19 +120,11 @@ function NavigationRail({ activeDestination, destinations }: ResponsiveNavigatio
       return <User className="w-6 h-6" style={{ color }} />;
     }
     
-    if (destination.id === 'home' || destination.id === 'buyer-dashboard' || destination.id === 'partner-dashboard') {
+    if (destination.id === 'home' || destination.id === 'partner-dashboard') {
       return <Store className="w-6 h-6" style={{ color }} />;
     }
     
-    if (destination.id === 'showroom-browse' || destination.id === 'showroom-dashboard') {
-      return <ShoppingBag className="w-6 h-6" style={{ color }} />;
-    }
-    
-    if (destination.id === 'buyer-orders') {
-      return <ClipboardList className="w-6 h-6" style={{ color }} />;
-    }
-    
-    if (destination.id === 'buyer-quotations' || destination.id === 'partner-quotations' || destination.id === 'documents') {
+    if (destination.id === 'documents') {
       return <FileText className="w-6 h-6" style={{ color }} />;
     }
     

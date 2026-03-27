@@ -42,17 +42,7 @@ npx playwright test --project=chromium
 ### Partner Role
 - Partner dashboard
 - Order creation
-- Showroom management
 - Product management
-- Quotations handling
-
-### Buyer Role
-- Buyer dashboard
-- Product browsing
-- Cart functionality
-- Wishlist
-- Quotations
-- Orders and shipments
 
 ### Common Features
 - Role switching

@@ -22,26 +22,6 @@ import DeliveryNoteDetailsScreen from './DeliveryNoteDetailsScreen';
 import OrderDetailsScreen from './OrderDetailsScreen';
 import RetailerIdScanScreen from './RetailerIdScanScreen';
 import OrderShipmentDetailsScreen from './OrderShipmentDetailsScreen';
-import PartnerShowroomDashboard from './PartnerShowroomDashboard';
-import ShowroomProductsScreen from './ShowroomProductsScreen';
-import ShowroomImportScreen from './ShowroomImportScreen';
-import BuyerShowroomBrowse from './BuyerShowroomBrowse';
-import ShowroomProductDetail from './ShowroomProductDetail';
-import ShowroomCart from './ShowroomCart';
-import ShowroomOrdersScreen from './ShowroomOrdersScreen';
-import PurchaseOrderDetailsScreen from './PurchaseOrderDetailsScreen';
-import LineSheetCreationScreen from './LineSheetCreationScreen';
-import LineSheetsListScreen from './LineSheetsListScreen';
-import ProductEditScreen from './ProductEditScreen';
-import PartnerQuotationsScreen from './PartnerQuotationsScreen';
-import QuotationDetailsScreen from './QuotationDetailsScreen';
-import BuyerDashboard from './BuyerDashboard';
-import BuyerWishlistScreen from './BuyerWishlistScreen';
-import BuyerQuotationsScreen from './BuyerQuotationsScreen';
-import BuyerQuotationDetailsScreen from './BuyerQuotationDetailsScreen';
-import BuyerShipmentsScreen from './BuyerShipmentsScreen';
-import BuyerPurchaseOrdersScreen from './BuyerPurchaseOrdersScreen';
-import BuyerOrderDetailsScreen from './BuyerOrderDetailsScreen';
 import { PortalConfigurationManager } from './PortalConfigurationManager';
 import { mockBrands, mockCountries, mockStores } from '../data/mockData';
 
@@ -55,8 +35,6 @@ interface AppRouterProps {
     handleNavigateToSellers: () => void;
     handleNavigateToShipping: () => void;
     handleNavigateToPartnerDashboard: () => void;
-    handleNavigateToShowroom: () => void;
-    handleNavigateToPartnerQuotations: () => void;
     handleViewInShipping: () => void;
     handleRoleChange: (role: string) => void;
     [key: string]: any;  // Allow additional handlers
@@ -103,7 +81,6 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
           partnerOrders={state.partnerOrders}
           deliveryNotes={state.deliveryNotes}
           returnDeliveries={state.returnDeliveries}
-          showroomOrders={state.showroomOrders}
           sellpyOrders={state.sellpyOrders}
           currentPartnerId={state.currentPartnerWarehouseSelection?.partnerId}
           onSelectSellpyOrder={(order) => {
@@ -118,13 +95,6 @@ export function AppRouter({ state, handlers }: AppRouterProps) {
           }}
           onOpenReturnDetails={(returnDelivery) => {
             handlers.onViewReturnDelivery?.(returnDelivery);
-          }}
-          onViewShowroomOrder={(orderId) => {
-            const order = state.showroomOrders.find(o => o.id === orderId);
-            if (order) {
-              state.setSelectedShowroomOrder(order);
-              state.setCurrentScreen('purchase-order-details');
-            }
           }}
           onUpdateReturnDeliveryStatus={(deliveryId, status) => {
             state.setReturnDeliveries(prev => prev.map(delivery =>

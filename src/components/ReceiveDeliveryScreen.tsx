@@ -31,7 +31,7 @@ export interface Box {
   cancellationReason?: 'Missing box';
 }
 
-type ReceiveUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+type ReceiveUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner';
 
 interface ReceiveDeliveryScreenProps {
   delivery: Delivery;

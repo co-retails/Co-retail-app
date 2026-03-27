@@ -77,7 +77,7 @@ const getAvailableStatuses = (currentStatus: string | undefined, userRole: UserR
     }
   }
 
-  // Partners and buyers cannot update status
+  // Partners cannot update status
   return [];
 };
 

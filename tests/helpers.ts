@@ -19,7 +19,7 @@ export class AppTestHelpers {
   /**
    * Switch to a specific user role
    */
-  async switchToRole(role: 'store-staff' | 'partner' | 'buyer') {
+  async switchToRole(role: 'store-staff' | 'partner') {
     const roleSwitcherButton = this.page.locator('button[aria-label*="Switch view"], button[aria-label*="Switch View"], button[aria-label*="Role"], button:has([class*="UserIcon"])').first();
     
     if (await roleSwitcherButton.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -28,15 +28,14 @@ export class AppTestHelpers {
       
       const roleMap = {
         'store-staff': /Store app/i,
-        'partner': /Partner portal/i,
-        'buyer': /Buyer portal/i
+        'partner': /Partner portal/i
       };
       
       const roleOption = this.page.getByRole('button', { name: roleMap[role] }).first();
       if (await roleOption.isVisible({ timeout: 5000 }).catch(() => false)) {
         await roleOption.click();
-        // Wait longer for lazy-loaded components (partner and buyer dashboards)
-        const waitTime = role === 'partner' || role === 'buyer' ? 3000 : 1000;
+        // Wait longer for lazy-loaded components (partner dashboard)
+        const waitTime = role === 'partner' ? 3000 : 1000;
         await this.page.waitForTimeout(waitTime);
         // Wait for the component to actually render
         await this.page.waitForLoadState('networkidle');
@@ -168,17 +167,14 @@ export class AppTestHelpers {
 export const TEST_CONSTANTS = {
   ROLES: {
     STORE_STAFF: 'store-staff',
-    PARTNER: 'partner',
-    BUYER: 'buyer'
+    PARTNER: 'partner'
   },
   SCREENS: {
     HOME: 'home',
     SHIPPING: 'shipping',
     ITEMS: 'items',
     SCAN: 'scan',
-    SELLERS: 'sellers',
-    SHOWROOM: 'showroom',
-    BUYER_DASHBOARD: 'buyer-dashboard'
+    SELLERS: 'sellers'
   },
   TIMEOUTS: {
     SHORT: 1000,

@@ -5,7 +5,7 @@ import { Badge } from './ui/badge';
 import { UserIcon, TruckIcon, Shield } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
 
-export type UserRole = 'store-staff' | 'partner' | 'admin' | 'buyer';
+export type UserRole = 'store-staff' | 'partner' | 'admin';
 
 interface RoleSwitcherSheetProps {
   isOpen: boolean;

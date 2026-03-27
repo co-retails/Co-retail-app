@@ -5,7 +5,7 @@ interface NavigationHandlersProps {
   currentScreen: Screen;
   setCurrentScreen: (screen: Screen) => void;
   setShippingInitialTab: (tab: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined) => void;
-  currentUserRole?: 'store-staff' | 'partner' | 'buyer' | 'admin';
+  currentUserRole?: 'store-staff' | 'partner' | 'admin';
   receivePreviousScreen?: Screen | null;
   returnManagementPreviousScreen?: Screen | null;
   returnManagementPreviousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | undefined;
@@ -88,34 +88,6 @@ export function useNavigationHandlers({
         setShippingInitialTab('shipments');
       }
       setCurrentScreen('shipping');
-    } else if (currentScreen === 'showroom-products' || 
-               currentScreen === 'showroom-orders' || 
-               currentScreen === 'line-sheets-list') {
-      setCurrentScreen('showroom-dashboard');
-    } else if (currentScreen === 'showroom-product-detail') {
-      setCurrentScreen('showroom-products');
-    } else if (currentScreen === 'showroom-import' || 
-               currentScreen === 'line-sheet-creation' || 
-               currentScreen === 'product-edit') {
-      setCurrentScreen('showroom-dashboard');
-    } else if (currentScreen === 'showroom-browse') {
-      setCurrentScreen('buyer-dashboard');
-    } else if (currentScreen === 'showroom-cart') {
-      setCurrentScreen('showroom-browse');
-    } else if (currentScreen === 'purchase-order-details') {
-      setCurrentScreen('showroom-orders');
-    } else if (currentScreen === 'buyer-quotation-details') {
-      setCurrentScreen('buyer-quotations');
-    } else if (currentScreen === 'buyer-order-details') {
-      setCurrentScreen('buyer-orders');
-    } else if (currentScreen === 'buyer-wishlist' || 
-               currentScreen === 'buyer-quotations' || 
-               currentScreen === 'buyer-shipments' ||
-               currentScreen === 'buyer-orders') {
-      setCurrentScreen('buyer-dashboard');
-    } else if (currentScreen === 'partner-quotations' || 
-               currentScreen === 'quotation-details') {
-      setCurrentScreen('partner-dashboard');
     } else if (currentScreen === 'price-fork-calibration') {
       setCurrentScreen('partner-dashboard');
     } else if (currentScreen === 'portal-configuration') {
@@ -169,34 +141,6 @@ export function useNavigationHandlers({
     setCurrentScreen('partner-dashboard');
   }, [setCurrentScreen]);
 
-  const handleNavigateToShowroom = useCallback(() => {
-    setCurrentScreen('showroom-dashboard');
-  }, [setCurrentScreen]);
-
-  const handleNavigateToPartnerQuotations = useCallback(() => {
-    setCurrentScreen('partner-quotations');
-  }, [setCurrentScreen]);
-
-  const handleNavigateToBuyerDashboard = useCallback(() => {
-    setCurrentScreen('buyer-dashboard');
-  }, [setCurrentScreen]);
-
-  const handleNavigateToBuyerWishlist = useCallback(() => {
-    setCurrentScreen('buyer-wishlist');
-  }, [setCurrentScreen]);
-
-  const handleNavigateToBuyerOrders = useCallback(() => {
-    setCurrentScreen('buyer-orders');
-  }, [setCurrentScreen]);
-
-  const handleNavigateToBuyerQuotations = useCallback(() => {
-    setCurrentScreen('buyer-quotations');
-  }, [setCurrentScreen]);
-
-  const handleNavigateToBuyerShipments = useCallback(() => {
-    setCurrentScreen('buyer-shipments');
-  }, [setCurrentScreen]);
-
   const handleNavigateToPortalConfig = useCallback(() => {
     setCurrentScreen('portal-configuration');
   }, [setCurrentScreen]);
@@ -223,13 +167,6 @@ export function useNavigationHandlers({
     handleNavigateToShipping,
     handleViewInShipping,
     handleNavigateToPartnerDashboard,
-    handleNavigateToShowroom,
-    handleNavigateToPartnerQuotations,
-    handleNavigateToBuyerDashboard,
-    handleNavigateToBuyerWishlist,
-    handleNavigateToBuyerOrders,
-    handleNavigateToBuyerQuotations,
-    handleNavigateToBuyerShipments,
     handleNavigateToPortalConfig,
     handleNavigateToSellpyOrders,
     handleNavigateToStoreUserAccess,

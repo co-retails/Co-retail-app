@@ -31,7 +31,7 @@ interface BoxDetailsScreenProps {
   onBack: () => void;
   onMarkDelivered?: () => void;
   onMarkRejected?: () => void;
-  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner';
   deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Draft' | 'Packing';
 }
 
@@ -46,7 +46,7 @@ function TopAppBar({
   box: Box;
   onMarkDelivered?: () => void;
   onMarkRejected?: () => void;
-  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner';
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   

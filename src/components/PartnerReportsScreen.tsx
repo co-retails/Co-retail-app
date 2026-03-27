@@ -25,7 +25,7 @@ export interface PartnerReportsScreenProps {
   countries: Country[];
   partners: WarehousePartner[];
   partnerId?: string;
-  currentUserRole?: 'admin' | 'partner' | 'store-staff' | 'buyer';
+  currentUserRole?: 'admin' | 'partner' | 'store-staff';
 }
 
 type ReportTab = 'sales' | 'stock' | 'item-status';
