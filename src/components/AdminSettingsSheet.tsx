@@ -39,7 +39,7 @@ export interface UserAccount {
   role: UserRole;
 }
 
-type AppRole = 'admin' | 'store-staff' | 'partner' | 'buyer';
+type AppRole = 'admin' | 'store-staff' | 'partner';
 
 interface AdminSettingsSheetProps {
   isOpen: boolean;

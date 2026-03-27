@@ -5,7 +5,7 @@ import { Badge } from './ui/badge';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/select';
 import { UserIcon, TruckIcon, Shield } from 'lucide-react';
 
-export type UserRole = 'store-staff' | 'partner' | 'admin' | 'buyer';
+export type UserRole = 'store-staff' | 'partner' | 'admin';
 
 interface RoleSwitcherProps {
   currentRole: UserRole;

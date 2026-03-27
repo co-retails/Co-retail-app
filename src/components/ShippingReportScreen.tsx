@@ -20,7 +20,7 @@ export interface ShippingReportScreenProps {
   brands: Brand[];
   countries: Country[];
   partners: WarehousePartner[];
-  currentUserRole?: 'admin' | 'store-staff' | 'partner' | 'buyer';
+  currentUserRole?: 'admin' | 'store-staff' | 'partner';
   partnerId?: string;
   userBrandIds?: string[]; // For Brand Admin filtering
 }

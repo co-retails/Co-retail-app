@@ -40,30 +40,6 @@ import ShippingLabelScreen from './components/ShippingLabelScreen';
 import SwitchViewSheet from './components/SwitchViewSheet';
 import WhatsNewDialog from './components/WhatsNewDialog';
 
-// Digital Showroom Components - Lazy loaded for code splitting
-const PartnerShowroomDashboard = React.lazy(() => import('./components/PartnerShowroomDashboard'));
-const ShowroomProductsScreen = React.lazy(() => import('./components/ShowroomProductsScreen'));
-const ShowroomImportScreen = React.lazy(() => import('./components/ShowroomImportScreen'));
-const BuyerShowroomBrowse = React.lazy(() => import('./components/BuyerShowroomBrowse'));
-const ShowroomProductDetail = React.lazy(() => import('./components/ShowroomProductDetail'));
-const ShowroomCart = React.lazy(() => import('./components/ShowroomCart'));
-const ShowroomOrdersScreen = React.lazy(() => import('./components/ShowroomOrdersScreen'));
-const PurchaseOrderDetailsScreen = React.lazy(() => import('./components/PurchaseOrderDetailsScreen'));
-const LineSheetCreationScreen = React.lazy(() => import('./components/LineSheetCreationScreen'));
-const LineSheetsListScreen = React.lazy(() => import('./components/LineSheetsListScreen'));
-const ProductEditScreen = React.lazy(() => import('./components/ProductEditScreen'));
-const PartnerQuotationsScreen = React.lazy(() => import('./components/PartnerQuotationsScreen'));
-const QuotationDetailsScreen = React.lazy(() => import('./components/QuotationDetailsScreen'));
-
-// Buyer Components - Lazy loaded for code splitting
-const BuyerDashboard = React.lazy(() => import('./components/BuyerDashboard'));
-const BuyerWishlistScreen = React.lazy(() => import('./components/BuyerWishlistScreen'));
-const BuyerQuotationsScreen = React.lazy(() => import('./components/BuyerQuotationsScreen'));
-const BuyerQuotationDetailsScreen = React.lazy(() => import('./components/BuyerQuotationDetailsScreen'));
-const BuyerShipmentsScreen = React.lazy(() => import('./components/BuyerShipmentsScreen'));
-const BuyerPurchaseOrdersScreen = React.lazy(() => import('./components/BuyerPurchaseOrdersScreen'));
-const BuyerOrderDetailsScreen = React.lazy(() => import('./components/BuyerOrderDetailsScreen'));
-
 // Portal Configuration Components - Lazy loaded
 const PortalConfigurationManager = React.lazy(() => import('./components/PortalConfigurationManager').then(module => ({ default: module.PortalConfigurationManager })));
 const PartnerSettingsScreen = React.lazy(() => import('./components/PartnerSettingsScreen').then(module => ({ default: module.default })));
@@ -79,11 +55,6 @@ const ShippingReportScreen = React.lazy(() => import('./components/ShippingRepor
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
 import { Check } from 'lucide-react';
-import { mockShowroomAnalytics } from './components/ShowroomMockData';
-import { ShowroomProduct, CartItem, ShowroomMessage } from './components/ShowroomTypes';
-import { QuotationRequest } from './components/BuyerQuotationsScreen';
-import { Shipment } from './components/BuyerShipmentsScreen';
-import { PurchaseOrder } from './components/BuyerPurchaseOrdersScreen';
 
 // Loading fallback component for lazy-loaded routes
 const LoadingFallback = () => (
@@ -121,26 +92,6 @@ export default function App() {
   
   // List of screens that use lazy-loaded components
   const lazyLoadedScreens: Screen[] = [
-    'showroom-dashboard',
-    'showroom-products',
-    'showroom-import',
-    'showroom-browse',
-    'showroom-product-detail',
-    'showroom-cart',
-    'showroom-orders',
-    'purchase-order-details',
-    'line-sheet-creation',
-    'line-sheets-list',
-    'product-edit',
-    'partner-quotations',
-    'quotation-details',
-    'buyer-dashboard',
-    'buyer-wishlist',
-    'buyer-quotations',
-    'buyer-quotation-details',
-    'buyer-shipments',
-    'buyer-orders',
-    'buyer-order-details',
     'portal-configuration',
     'partner-settings',
     'store-user-access',
@@ -246,30 +197,6 @@ export default function App() {
     currentMonthlySales,
     detailsScreenData,
     setDetailsScreenData,
-    showroomProducts,
-    setShowroomProducts,
-    showroomOrders,
-    setShowroomOrders,
-    showroomCart,
-    setShowroomCart,
-    selectedShowroomProduct,
-    setSelectedShowroomProduct,
-    selectedShowroomOrder,
-    setSelectedShowroomOrder,
-    lineSheets,
-    setLineSheets,
-    selectedLineSheet,
-    setSelectedLineSheet,
-    selectedProductForEdit,
-    setSelectedProductForEdit,
-    showroomActiveTab,
-    setShowroomActiveTab,
-    showroomMessages,
-    setShowroomMessages,
-    buyerQuotations,
-    setBuyerQuotations,
-    selectedQuotation,
-    setSelectedQuotation,
     orderCreationReturnScreen,
     setOrderCreationReturnScreen
   } = state;
@@ -277,7 +204,7 @@ export default function App() {
   const isMobile = useIsMobile();
   const appViewRole = currentUserRole === 'admin' ? (adminView === 'partner' ? 'partner' : 'store-staff') : currentUserRole;
   const currentViewLabel =
-    appViewRole === 'partner' ? 'Partner portal' : appViewRole === 'buyer' ? 'Buyer portal' : 'Store app';
+    appViewRole === 'partner' ? 'Partner portal' : 'Store app';
 
   const effectiveUserAccount: SettingsUserAccount = {
     ...mockUserAccount,
@@ -311,7 +238,7 @@ export default function App() {
     currentScreen,
     setCurrentScreen: setCurrentScreenSafe,
     setShippingInitialTab,
-    currentUserRole: appViewRole as 'store-staff' | 'partner' | 'buyer' | 'admin',
+    currentUserRole: appViewRole as 'store-staff' | 'partner' | 'admin',
     receivePreviousScreen: state.receivePreviousScreen,
     returnManagementPreviousScreen: state.returnManagementPreviousScreen,
     returnManagementPreviousTab: state.returnManagementPreviousTab,
@@ -327,13 +254,6 @@ export default function App() {
     handleNavigateToShipping,
     handleViewInShipping,
     handleNavigateToPartnerDashboard,
-    handleNavigateToShowroom,
-    handleNavigateToPartnerQuotations,
-    handleNavigateToBuyerDashboard,
-    handleNavigateToBuyerWishlist,
-    handleNavigateToBuyerOrders,
-    handleNavigateToBuyerQuotations,
-    handleNavigateToBuyerShipments,
     handleNavigateToPortalConfig
   } = navigationHandlers;
 
@@ -418,13 +338,6 @@ export default function App() {
     };
   };
 
-
-  // Buyer-specific state
-  const [wishlistProductIds, setWishlistProductIds] = React.useState<string[]>([]);
-  const [buyerShipments, setBuyerShipments] = React.useState<Shipment[]>([]);
-  const [buyerPurchaseOrders, setBuyerPurchaseOrders] = React.useState<PurchaseOrder[]>([]);
-  const [selectedBuyerQuotationId, setSelectedBuyerQuotationId] = React.useState<string | null>(null);
-  const [selectedBuyerOrderId, setSelectedBuyerOrderId] = React.useState<string | null>(null);
 
   // === Shipping and Delivery Handlers ===
   const handleReceiveDelivery = (delivery: Delivery) => {
@@ -1641,8 +1554,6 @@ export default function App() {
         }
       }
       setCurrentScreenSafe('partner-dashboard');
-    } else if (role === 'buyer') {
-      setCurrentScreenSafe('buyer-dashboard');
     } else if (role === 'admin') {
       setCurrentScreenSafe(adminView === 'partner' ? 'partner-dashboard' : 'home');
     } else {
@@ -1674,223 +1585,6 @@ export default function App() {
 
 
 
-  // === Showroom Handlers ===
-  const handleShowroomProducts = () => {
-    setCurrentScreenSafe('showroom-products');
-  };
-
-  const handleShowroomImport = () => {
-    setCurrentScreenSafe('showroom-import');
-  };
-
-  const handleShowroomProductClick = (productId: string) => {
-    const product = showroomProducts.find(p => p.id === productId);
-    if (product) {
-      setSelectedShowroomProduct(product);
-      setCurrentScreenSafe('showroom-product-detail');
-    }
-  };
-
-  const handleShowroomCart = () => {
-    setCurrentScreenSafe('showroom-cart');
-  };
-
-  const handleShowroomAddToCart = (productId: string, quantity: number) => {
-    const product = showroomProducts.find(p => p.id === productId);
-    if (product) {
-      const existingItem = showroomCart.find(item => item.productId === productId);
-      if (existingItem) {
-        setShowroomCart(showroomCart.map(item =>
-          item.productId === productId ? { ...item, quantity: item.quantity + quantity } : item
-        ));
-      } else {
-        const newItem: CartItem = {
-          productId: product.id,
-          sku: product.sku,
-          title: product.title,
-          quantity,
-          pricePerUnit: product.wholesalePrice,
-          image: product.images[0],
-          partnerId: product.partnerId,
-          partnerName: product.partnerName,
-          moq: product.moq
-        };
-        setShowroomCart([...showroomCart, newItem]);
-      }
-      setCurrentScreenSafe('showroom-cart');
-    }
-  };
-
-  const handleShowroomUpdateQuantity = (productId: string, quantity: number) => {
-    setShowroomCart(showroomCart.map(item =>
-      item.productId === productId ? { ...item, quantity } : item
-    ));
-  };
-
-  const handleShowroomRemoveItem = (productId: string) => {
-    setShowroomCart(showroomCart.filter(item => item.productId !== productId));
-  };
-
-  const handleShowroomCheckout = (type: 'rfq' | 'po', notes?: string) => {
-    // In real app, would create order via API
-    setShowroomCart([]);
-    setCurrentScreenSafe('buyer-quotations');
-  };
-
-  const handleShowroomImportComplete = () => {
-    setShowroomActiveTab('products');
-    setCurrentScreenSafe('showroom-dashboard');
-  };
-
-  // === Partner Quotations Handlers ===
-  const handleSendQuotationMessage = (orderId: string, message: string) => {
-    const newMessage: ShowroomMessage = {
-      id: `msg-${Date.now()}`,
-      threadId: orderId,
-      author: 'Partner Support',
-      authorRole: 'partner',
-      body: message,
-      createdAt: new Date().toISOString()
-    };
-    
-    setShowroomMessages(prev => ({
-      ...prev,
-      [orderId]: [...(prev[orderId] || []), newMessage]
-    }));
-
-    // Update order status to negotiation if it was pending
-    setShowroomOrders(prev => prev.map(order => 
-      order.id === orderId && order.status === 'pending' 
-        ? { ...order, status: 'negotiation' as const }
-        : order
-    ));
-  };
-
-  const handleApproveQuotation = (quotationId: string, finalPrice: number) => {
-    setShowroomOrders(prev => prev.map(order =>
-      order.id === quotationId
-        ? { ...order, status: 'accepted' as const, subtotal: finalPrice }
-        : order
-    ));
-    
-    // Navigate back to quotations list if we're on the details screen
-    if (currentScreen === 'quotation-details') {
-      setCurrentScreenSafe('partner-quotations');
-      setSelectedShowroomOrder(null);
-    }
-  };
-
-  const handleRejectQuotation = (quotationId: string, reason: string) => {
-    setShowroomOrders(prev => prev.map(order =>
-      order.id === quotationId
-        ? { ...order, status: 'declined' as const, notes: reason }
-        : order
-    ));
-    
-    // Navigate back to quotations list if we're on the details screen
-    if (currentScreen === 'quotation-details') {
-      setCurrentScreenSafe('partner-quotations');
-      setSelectedShowroomOrder(null);
-    }
-  };
-
-  const handleViewQuotationDetails = (quotationId: string) => {
-    const quotation = showroomOrders.find(o => o.id === quotationId);
-    if (quotation) {
-      setSelectedShowroomOrder(quotation);
-      setCurrentScreenSafe('quotation-details');
-    }
-  };
-
-  // === Buyer Handlers ===
-  const handleBuyerToggleWishlist = (productId: string) => {
-    setWishlistProductIds(prev =>
-      prev.includes(productId)
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
-  };
-
-  const handleRequestQuotation = (productIds: string[], message: string) => {
-    const selectedProducts = showroomProducts.filter(p => productIds.includes(p.id));
-    
-    const newQuotation: QuotationRequest = {
-      id: `RFQ-${Date.now()}`,
-      partnerId: selectedProducts[0]?.partnerId || '6',
-      partnerName: selectedProducts[0]?.partnerName || 'Partner',
-      status: 'pending',
-      createdDate: new Date().toISOString().split('T')[0],
-      items: selectedProducts.map(p => ({
-        productId: p.id,
-        productName: p.title,
-        sku: p.sku,
-        quantity: p.moq,
-        imageUrl: p.images[0]
-      })),
-      message
-    };
-
-    setBuyerQuotations(prev => [...prev, newQuotation]);
-    setCurrentScreenSafe('buyer-quotations');
-  };
-
-  const handleViewBuyerQuotation = (quotationId: string) => {
-    setSelectedBuyerQuotationId(quotationId);
-    setCurrentScreenSafe('buyer-quotation-details');
-  };
-
-  const handleAcceptQuotation = (quotationId: string) => {
-    setBuyerQuotations(prev => prev.map(q =>
-      q.id === quotationId ? { ...q, status: 'accepted' as const } : q
-    ));
-    setCurrentScreenSafe('buyer-quotations');
-  };
-
-  const handleDeclineQuotation = (quotationId: string, reason: string) => {
-    setBuyerQuotations(prev => prev.map(q =>
-      q.id === quotationId ? { ...q, status: 'declined' as const } : q
-    ));
-    setCurrentScreenSafe('buyer-quotations');
-  };
-
-  const handleSendBuyerQuotationMessage = (quotationId: string, message: string) => {
-    setBuyerQuotations(prev => prev.map(q => {
-      if (q.id === quotationId) {
-        const newMessage = {
-          id: `msg-${Date.now()}`,
-          author: 'Buyer User',
-          authorRole: 'buyer' as const,
-          body: message,
-          createdAt: new Date().toISOString()
-        };
-        return {
-          ...q,
-          messages: [...(q.messages || []), newMessage]
-        };
-      }
-      return q;
-    }));
-  };
-
-  const handleViewShipment = (shipmentId: string) => {
-    // View shipment logic would go here
-  };
-
-  const handleViewOrder = (orderId: string) => {
-    setSelectedBuyerOrderId(orderId);
-    setCurrentScreenSafe('buyer-order-details');
-  };
-
-  const handleTrackShipment = (shipmentId: string) => {
-    // Track shipment logic would go here
-  };
-
-  const handleUpdateBuyerOrder = (orderId: string, updates: Partial<PurchaseOrder>) => {
-    setBuyerPurchaseOrders(prev => prev.map(o =>
-      o.id === orderId ? { ...o, ...updates } : o
-    ));
-  };
-
   // === Navigation Configuration ===
   const navigationDestinations = getNavigationDestinations({
     currentUserRole: appViewRole,
@@ -1898,17 +1592,10 @@ export default function App() {
     currentPartnerWarehouseSelection,
     handlers: {
       handleNavigateToPartnerDashboard,
-      handleNavigateToShowroom,
-      handleNavigateToPartnerQuotations,
       handleNavigateToItems,
       handleNavigateToScan,
       handleNavigateToSellers,
       handleNavigateToShipping,
-      handleNavigateToBuyerDashboard,
-      handleNavigateToBuyerWishlist,
-      handleNavigateToBuyerOrders,
-      handleNavigateToBuyerQuotations,
-      handleNavigateToBuyerShipments,
       setCurrentScreen: setCurrentScreenSafe
     }
   });
@@ -1944,8 +1631,6 @@ export default function App() {
       showBackButton={
         currentScreen !== 'home' &&
         currentScreen !== 'partner-dashboard' &&
-        currentScreen !== 'buyer-dashboard' &&
-        currentScreen !== 'showroom-dashboard' &&
         currentScreen !== 'return-confirmation'
       }
       onBackClick={handleBack}
@@ -2143,7 +1828,6 @@ export default function App() {
           currentUserRole={appViewRole as typeof currentUserRole}
           partnerOrders={partnerOrders}
           deliveryNotes={deliveryNotes}
-          showroomOrders={showroomOrders}
           sellpyOrders={sellpyOrders}
           currentPartnerId={currentPartnerWarehouseSelection?.partnerId}
           currentWarehouseId={currentPartnerWarehouseSelection?.warehouseId}
@@ -2293,13 +1977,6 @@ export default function App() {
             const tabToRestore = activeTab === 'returns' ? 'returns' : (activeTab || 'returns');
             console.log('Opening return details, will restore tab:', tabToRestore, 'filter:', activeFilter);
             handleViewShipmentDetails('return', returnDelivery, 'shipping', tabToRestore, activeFilter as 'in-transit' | 'returned' | 'all' | undefined);
-          }}
-          onViewShowroomOrder={(orderId) => {
-            const order = showroomOrders.find(o => o.id === orderId);
-            if (order) {
-              setSelectedShowroomOrder(order);
-              setCurrentScreenSafe('purchase-order-details');
-            }
           }}
           onUpdateReturnDeliveryStatus={handleUpdateReturnDeliveryStatus}
           onCancelReturn={handleCancelReturn}
@@ -2743,7 +2420,6 @@ export default function App() {
             setCurrentScreenSafe('shipping');
           }}
           onViewReturns={handleNavigateToReturnsTab}
-          onNavigateToShowroom={handleNavigateToShowroom}
           onAdminClick={handleOpenAdminSettings}
           stats={mockPartnerStats}
           recentOrders={partnerOrders}
@@ -2758,17 +2434,7 @@ export default function App() {
           currentPartnerWarehouseSelection={currentPartnerWarehouseSelection}
           onPartnerWarehouseSelectionChange={setCurrentPartnerWarehouseSelection}
           currentUserRole={currentUserRole === 'partner' ? 'partner' : 'store-staff'}
-          showroomOrders={showroomOrders}
-          onNavigateToOrdersTab={handleNavigateToPartnerQuotations}
           onNavigateToShipmentsTab={handleNavigateToShipmentsTab}
-          onNavigateToQuotations={handleNavigateToPartnerQuotations}
-          onViewQuotationDetails={(quotationId) => {
-            const quotation = showroomOrders.find(o => o.id === quotationId);
-            if (quotation) {
-              setSelectedShowroomOrder(quotation);
-              setCurrentScreenSafe('quotation-details');
-            }
-          }}
           onOpenOrderDetails={(order) => {
             setSelectedPartnerOrder(order);
             handleViewShipmentDetails('order', order, 'partner-dashboard');
@@ -3981,351 +3647,13 @@ export default function App() {
         );
       })()}
 
-      {/* Digital Showroom Screens */}
-      {currentScreen === 'showroom-dashboard' && (
-        <Suspense fallback={<LoadingFallback />}>
-        <PartnerShowroomDashboard 
-          onNavigateToProducts={handleShowroomProducts}
-          onNavigateToImport={() => {
-            setShowroomActiveTab('products');
-            handleShowroomImport();
-          }}
-          onNavigateToLineSheets={() => setCurrentScreenSafe('line-sheets-list')}
-          products={showroomProducts}
-          lineSheets={lineSheets}
-          catalogHealth={{
-            total: showroomProducts.length,
-            active: showroomProducts.filter(p => p.status === 'active').length,
-            draft: showroomProducts.filter(p => p.status === 'draft').length,
-            missingMedia: showroomProducts.filter(p => p.images.length === 0).length,
-            missingAttributes: showroomProducts.filter(p => !p.description || !p.category).length
-          }}
-          analytics={mockShowroomAnalytics}
-          onEditProduct={(productId) => {
-            const product = showroomProducts.find(p => p.id === productId);
-            if (product) {
-              setSelectedProductForEdit(product);
-              setCurrentScreenSafe('product-edit');
-            }
-          }}
-          onDuplicateProduct={(productId) => {}}
-          onArchiveProduct={(productId) => {}}
-          onBulkAction={(action, productIds) => {}}
-          onCreateLineSheet={() => {
-            setSelectedLineSheet(null);
-            setShowroomActiveTab('linesheets');
-            setCurrentScreenSafe('line-sheet-creation');
-          }}
-          onEditLineSheet={(lineSheetId) => {
-            const lineSheet = lineSheets.find(ls => ls.id === lineSheetId);
-            if (lineSheet) {
-              setSelectedLineSheet(lineSheet);
-              setCurrentScreenSafe('line-sheet-creation');
-            }
-          }}
-          onDeleteLineSheet={(lineSheetId) => {
-            setLineSheets(prev => prev.filter(ls => ls.id !== lineSheetId));
-          }}
-          onShareLineSheet={(lineSheetId) => {}}
-          onViewLineSheet={(lineSheetId) => {}}
-          activeTab={showroomActiveTab}
-          onTabChange={setShowroomActiveTab}
-        />
-        </Suspense>
-      )}
 
-      {currentScreen === 'showroom-products' && (
-        <Suspense fallback={<LoadingFallback />}>
-        <ShowroomProductsScreen 
-          onBack={() => setCurrentScreenSafe('showroom-dashboard')}
-          products={showroomProducts}
-          onEditProduct={(productId) => {
-            const product = showroomProducts.find(p => p.id === productId);
-            if (product) {
-              setSelectedProductForEdit(product);
-              setCurrentScreenSafe('product-edit');
-            }
-          }}
-          onDuplicateProduct={(productId) => {}}
-          onArchiveProduct={(productId) => {}}
-          onBulkAction={(action, productIds) => {}}
-          onImport={handleShowroomImport}
-          onCreateLineSheet={() => {
-            setSelectedLineSheet(null);
-            setCurrentScreenSafe('line-sheet-creation');
-          }}
-        />
-        </Suspense>
-      )}
 
-      {currentScreen === 'showroom-import' && (
-        <Suspense fallback={<LoadingFallback />}>
-        <ShowroomImportScreen 
-          onBack={() => {
-            setShowroomActiveTab('products');
-            setCurrentScreenSafe('showroom-dashboard');
-          }}
-          onImportComplete={handleShowroomImportComplete}
-        />
-        </Suspense>
-      )}
 
-      {currentScreen === 'showroom-browse' && (
-        <Suspense fallback={<LoadingFallback />}>
-        <BuyerShowroomBrowse 
-          products={showroomProducts.filter(p => p.productType === 'white_label')}
-          onProductClick={handleShowroomProductClick}
-          onAddToCart={handleShowroomAddToCart}
-          cartItemCount={showroomCart.length}
-          onViewCart={handleShowroomCart}
-          wishlistProductIds={wishlistProductIds}
-          onToggleWishlist={handleBuyerToggleWishlist}
-        />
-        </Suspense>
-      )}
 
-      {currentScreen === 'showroom-product-detail' && selectedShowroomProduct && (
-        <Suspense fallback={<LoadingFallback />}>
-        <ShowroomProductDetail 
-          product={selectedShowroomProduct}
-          onBack={() => setCurrentScreenSafe('showroom-browse')}
-          onAddToCart={(quantity) => handleShowroomAddToCart(selectedShowroomProduct.id, quantity)}
-        />
-        </Suspense>
-      )}
 
-      {currentScreen === 'showroom-cart' && (
-        <Suspense fallback={<LoadingFallback />}>
-        <ShowroomCart 
-          onBack={() => setCurrentScreenSafe('showroom-browse')}
-          cartItems={showroomCart}
-          onUpdateQuantity={handleShowroomUpdateQuantity}
-          onRemoveItem={handleShowroomRemoveItem}
-          onCheckout={handleShowroomCheckout}
-        />
-        </Suspense>
-      )}
 
-      {currentScreen === 'showroom-orders' && (
-        <Suspense fallback={<LoadingFallback />}>
-        <ShowroomOrdersScreen 
-          onBack={() => setCurrentScreenSafe('showroom-dashboard')}
-          orders={showroomOrders}
-          onViewOrder={(order) => {
-            setSelectedShowroomOrder(order);
-            setCurrentScreenSafe('purchase-order-details');
-          }}
-        />
-        </Suspense>
-      )}
 
-      {currentScreen === 'purchase-order-details' && selectedShowroomOrder && (
-        <PurchaseOrderDetailsScreen 
-          order={selectedShowroomOrder}
-          onBack={() => setCurrentScreenSafe('showroom-orders')}
-          userRole={currentUserRole === 'Partner' ? 'partner' : 'buyer'}
-        />
-      )}
-
-      {currentScreen === 'line-sheet-creation' && (
-        <LineSheetCreationScreen 
-          onBack={() => {
-            setSelectedLineSheet(null);
-            setShowroomActiveTab('linesheets');
-            setCurrentScreenSafe('showroom-dashboard');
-          }}
-          onCreate={(lineSheet) => {
-            const newLineSheet = {
-              ...lineSheet,
-              id: `ls-${Date.now()}`,
-              createdAt: new Date().toISOString()
-            };
-            setLineSheets(prev => [...prev, newLineSheet]);
-            setSelectedLineSheet(null);
-            setShowroomActiveTab('linesheets');
-            setCurrentScreenSafe('showroom-dashboard');
-          }}
-          onUpdate={(lineSheetId, lineSheet) => {
-            setLineSheets(prev => prev.map(ls => 
-              ls.id === lineSheetId ? { ...lineSheet, id: lineSheetId, createdAt: ls.createdAt } : ls
-            ));
-            setSelectedLineSheet(null);
-            setShowroomActiveTab('linesheets');
-            setCurrentScreenSafe('showroom-dashboard');
-          }}
-          products={showroomProducts}
-          partnerId={currentPartnerWarehouseSelection?.partnerId || 'partner-1'}
-          editingLineSheet={selectedLineSheet}
-        />
-      )}
-
-      {currentScreen === 'line-sheets-list' && (
-        <LineSheetsListScreen 
-          lineSheets={lineSheets}
-          onBack={() => setCurrentScreenSafe('showroom-dashboard')}
-          onCreate={() => {
-            setSelectedLineSheet(null);
-            setCurrentScreenSafe('line-sheet-creation');
-          }}
-          onView={(lineSheetId) => {}}
-          onEdit={(lineSheetId) => {
-            const lineSheet = lineSheets.find(ls => ls.id === lineSheetId);
-            if (lineSheet) {
-              setSelectedLineSheet(lineSheet);
-              setCurrentScreenSafe('line-sheet-creation');
-            }
-          }}
-          onDelete={(lineSheetId) => {
-            setLineSheets(prev => prev.filter(ls => ls.id !== lineSheetId));
-          }}
-          onShare={(lineSheetId) => {}}
-        />
-      )}
-
-      {currentScreen === 'product-edit' && selectedProductForEdit && (
-        <ProductEditScreen 
-          product={selectedProductForEdit}
-          onBack={() => {
-            setShowroomActiveTab('products');
-            setCurrentScreenSafe('showroom-dashboard');
-          }}
-          onSave={(product) => {
-            setShowroomProducts(prev => prev.map(p => 
-              p.id === product.id ? product : p
-            ));
-            setShowroomActiveTab('products');
-            setCurrentScreenSafe('showroom-dashboard');
-          }}
-        />
-      )}
-
-      {currentScreen === 'partner-quotations' && (
-        <PartnerQuotationsScreen 
-          onBack={handleBack}
-          quotations={showroomOrders.filter(order => 
-            order.type === 'rfq' && 
-            order.partnerId === currentPartnerWarehouseSelection.partnerId
-          )}
-          messages={showroomMessages}
-          onSendMessage={handleSendQuotationMessage}
-          onViewQuotation={handleViewQuotationDetails}
-          onApproveQuote={handleApproveQuotation}
-          onRejectQuote={handleRejectQuotation}
-        />
-      )}
-
-      {/* Quotation Details Screen */}
-      {currentScreen === 'quotation-details' && selectedShowroomOrder && (
-        <QuotationDetailsScreen 
-          quotation={selectedShowroomOrder}
-          messages={showroomMessages[selectedShowroomOrder.id] || []}
-          onBack={handleBack}
-          onSendMessage={(message) => handleSendQuotationMessage(selectedShowroomOrder.id, message)}
-          onApproveQuote={handleApproveQuotation}
-          onRejectQuote={handleRejectQuotation}
-        />
-      )}
-
-      {/* Buyer Screens */}
-      {currentScreen === 'buyer-dashboard' && (
-        <Suspense fallback={<LoadingFallback />}>
-        <BuyerDashboard 
-          stats={{
-            activeOrders: buyerPurchaseOrders.filter(o => o.status === 'pending').length,
-            pendingQuotations: buyerQuotations.filter(q => q.status === 'pending').length,
-            wishlistItems: wishlistProductIds.length,
-            shipmentsInTransit: buyerShipments.filter(s => s.status === 'in-transit').length
-          }}
-          onBrowseProducts={() => setCurrentScreenSafe('showroom-browse')}
-          onViewWishlist={handleNavigateToBuyerWishlist}
-          onViewQuotations={handleNavigateToBuyerQuotations}
-          onViewShipments={handleNavigateToBuyerShipments}
-          onViewOrders={handleNavigateToBuyerOrders}
-          onAdminClick={handleOpenAdminSettings}
-          brands={mockBrands}
-          countries={mockCountries}
-          currentRetailerSelection={currentRetailerSelection}
-          onRetailerSelectionChange={setCurrentRetailerSelection}
-        />
-        </Suspense>
-      )}
-
-      {currentScreen === 'buyer-wishlist' && (
-        <BuyerWishlistScreen 
-          wishlistProducts={showroomProducts.filter(p => wishlistProductIds.includes(p.id))}
-          onBack={handleBack}
-          onProductClick={handleShowroomProductClick}
-          onRemoveFromWishlist={handleBuyerToggleWishlist}
-          onAddToCart={handleShowroomAddToCart}
-        />
-      )}
-
-      {currentScreen === 'buyer-quotations' && (
-        <BuyerQuotationsScreen 
-          quotations={buyerQuotations}
-          onBack={handleBack}
-          onViewQuotation={handleViewBuyerQuotation}
-          onSendMessage={(quotationId, message) => {
-            setBuyerQuotations(prev => prev.map(q => {
-              if (q.id === quotationId) {
-                const newMessage = {
-                  id: `msg-${Date.now()}`,
-                  author: 'Buyer User',
-                  authorRole: 'buyer' as const,
-                  body: message,
-                  createdAt: new Date().toISOString()
-                };
-                return {
-                  ...q,
-                  messages: [...(q.messages || []), newMessage]
-                };
-              }
-              return q;
-            }));
-          }}
-          onUpdateQuotation={(quotationId, updates) => {
-            setBuyerQuotations(prev => prev.map(q =>
-              q.id === quotationId ? { ...q, ...updates } : q
-            ));
-          }}
-        />
-      )}
-
-      {currentScreen === 'buyer-quotation-details' && selectedBuyerQuotationId && (
-        <BuyerQuotationDetailsScreen 
-          quotation={buyerQuotations.find(q => q.id === selectedBuyerQuotationId)!}
-          onBack={handleBack}
-          onAcceptQuotation={() => handleAcceptQuotation(selectedBuyerQuotationId)}
-          onDeclineQuotation={(reason) => handleDeclineQuotation(selectedBuyerQuotationId, reason)}
-          onSendMessage={(message) => handleSendBuyerQuotationMessage(selectedBuyerQuotationId, message)}
-        />
-      )}
-
-      {currentScreen === 'buyer-shipments' && (
-        <BuyerShipmentsScreen 
-          shipments={buyerShipments}
-          onBack={handleBack}
-          onViewShipment={handleViewShipment}
-        />
-      )}
-
-      {currentScreen === 'buyer-orders' && (
-        <BuyerPurchaseOrdersScreen 
-          orders={buyerPurchaseOrders}
-          onBack={handleBack}
-          onViewOrder={handleViewOrder}
-          onTrackShipment={handleTrackShipment}
-        />
-      )}
-
-      {currentScreen === 'buyer-order-details' && selectedBuyerOrderId && (
-        <BuyerOrderDetailsScreen 
-          order={buyerPurchaseOrders.find(o => o.id === selectedBuyerOrderId)!}
-          onBack={handleBack}
-          onUpdateOrder={handleUpdateBuyerOrder}
-          onTrackShipment={handleTrackShipment}
-        />
-      )}
 
       {/* Portal Configuration */}
       {currentScreen === 'portal-configuration' && (
@@ -4336,7 +3664,7 @@ export default function App() {
           }
           onBack={() => {
             setIsAdminSettingsSheetOpen(false);
-            setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : (appViewRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+            setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : 'home');
           }}
           partners={partners}
           warehouses={warehouses}
@@ -4356,7 +3684,7 @@ export default function App() {
           <PartnerSettingsScreen
             onBack={() => {
               setIsAdminSettingsSheetOpen(false);
-              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : (appViewRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : 'home');
             }}
             brands={mockBrands}
             partners={visibleWarehousePartners}
@@ -4374,7 +3702,7 @@ export default function App() {
           <StoreUserAccessScreen
             onBack={() => {
               setIsAdminSettingsSheetOpen(false);
-              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : (appViewRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : 'home');
             }}
             brands={mockBrands}
             countries={mockCountries}
@@ -4392,7 +3720,7 @@ export default function App() {
           <PartnerUserAccessScreen
             onBack={() => {
               setIsAdminSettingsSheetOpen(false);
-              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : (appViewRole === 'buyer' ? 'buyer-dashboard' : 'home'));
+              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : 'home');
             }}
             brands={mockBrands}
             countries={mockCountries}

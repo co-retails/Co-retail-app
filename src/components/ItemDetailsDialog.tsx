@@ -73,7 +73,7 @@ interface ItemDetailsDialogProps {
   priceOptions?: number[];
   priceCurrency?: string;
   expireTimeWeeks?: number; // Expire time setting for the store (in weeks)
-  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer'; // User role to determine if location can be edited
+  userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner'; // User role to determine if location can be edited
   /** Called when user changes status from Available to Rejected (within 24h). Parent should show reject reason sheet and then call onSave with reason. */
   onRequestRejectReason?: (item: ItemDetails) => void;
   /** Thrifted partner draft items: read-only Draft/In transit, Thrifted value lists, brand typeahead */

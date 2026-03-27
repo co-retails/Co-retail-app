@@ -10,8 +10,7 @@ import { ExtendedPartnerOrder } from '../components/PartnerDashboard';
 import { DeliveryNote } from '../components/BoxManagementScreen';
 import { SellpyOrder } from '../components/ShippingScreen';
 import { OrderItem } from '../components/OrderCreationScreen';
-import { ShowroomProduct, ShowroomOrder, CartItem, LineSheet, ShowroomMessage } from '../components/ShowroomTypes';
-import { QuotationRequest } from '../components/BuyerQuotationsScreen';
+
 import { UserRole as AppUserRole } from '../components/RoleSwitcher';
 import { UserRole, ItemStatus } from '../components/StatusUpdateScreen';
 import { StockCheckSession } from '../components/StockCheckScreen';
@@ -22,11 +21,6 @@ import {
   mockDeliveries,
   mockPartners,
   mockReturnItems,
-  mockShowroomProducts,
-  mockShowroomOrders,
-  mockLineSheets,
-  mockShowroomMessages,
-  mockBuyerQuotations,
   mockSellpyOrders,
   mockDeliveryNotes,
   mockReturnDeliveries,
@@ -64,27 +58,7 @@ export type Screen =
   | 'sellpy-order-details'
   | 'retailer-id-scan' 
   | 'order-shipment-details' 
-  | 'showroom-dashboard' 
-  | 'showroom-products' 
-  | 'showroom-import' 
   | 'price-fork-calibration'
-  | 'showroom-browse' 
-  | 'showroom-product-detail' 
-  | 'showroom-cart' 
-  | 'showroom-orders' 
-  | 'purchase-order-details' 
-  | 'line-sheet-creation' 
-  | 'line-sheets-list' 
-  | 'product-edit' 
-  | 'partner-quotations' 
-  | 'quotation-details' 
-  | 'buyer-dashboard' 
-  | 'buyer-wishlist' 
-  | 'buyer-quotations' 
-  | 'buyer-quotation-details' 
-  | 'buyer-shipments' 
-  | 'buyer-orders' 
-  | 'buyer-order-details' 
   | 'portal-configuration'
   | 'partner-settings'
   | 'store-user-access'
@@ -132,7 +106,7 @@ export function useAppState() {
     partnerId: '1' // Default to current partner
   });
   
-  // Retailer/Country selection state (for Buyer mode)
+  // Retailer/Country selection state
   const [currentRetailerSelection, setCurrentRetailerSelection] = useState<RetailerCountrySelection>({
     brandId: undefined,
     countryId: undefined
@@ -197,22 +171,6 @@ export function useAppState() {
     previousFilter?: 'packing' | 'in-transit' | 'delivered' | 'all' | 'returned' | 'approval' | 'pending' | 'registered'; // Track which filter chip was active
   } | null>(null);
   
-  // Digital Showroom state
-  const [showroomProducts, setShowroomProducts] = useState<ShowroomProduct[]>(mockShowroomProducts);
-  const [showroomOrders, setShowroomOrders] = useState<ShowroomOrder[]>(mockShowroomOrders);
-  const [showroomCart, setShowroomCart] = useState<CartItem[]>([]);
-  const [selectedShowroomProduct, setSelectedShowroomProduct] = useState<ShowroomProduct | null>(null);
-  const [selectedShowroomOrder, setSelectedShowroomOrder] = useState<ShowroomOrder | null>(null);
-  const [lineSheets, setLineSheets] = useState<LineSheet[]>(mockLineSheets);
-  const [selectedLineSheet, setSelectedLineSheet] = useState<LineSheet | null>(null);
-  const [selectedProductForEdit, setSelectedProductForEdit] = useState<ShowroomProduct | null>(null);
-  const [showroomActiveTab, setShowroomActiveTab] = useState<'products' | 'linesheets' | 'analytics'>('products');
-  const [showroomMessages, setShowroomMessages] = useState<Record<string, ShowroomMessage[]>>(mockShowroomMessages);
-  
-  // Buyer state
-  const [buyerQuotations, setBuyerQuotations] = useState<QuotationRequest[]>(mockBuyerQuotations);
-  const [selectedQuotation, setSelectedQuotation] = useState<QuotationRequest | null>(null);
-
   return {
     // Navigation
     currentScreen,
@@ -316,32 +274,5 @@ export function useAppState() {
     detailsScreenData,
     setDetailsScreenData,
     
-    // Showroom
-    showroomProducts,
-    setShowroomProducts,
-    showroomOrders,
-    setShowroomOrders,
-    showroomCart,
-    setShowroomCart,
-    selectedShowroomProduct,
-    setSelectedShowroomProduct,
-    selectedShowroomOrder,
-    setSelectedShowroomOrder,
-    lineSheets,
-    setLineSheets,
-    selectedLineSheet,
-    setSelectedLineSheet,
-    selectedProductForEdit,
-    setSelectedProductForEdit,
-    showroomActiveTab,
-    setShowroomActiveTab,
-    showroomMessages,
-    setShowroomMessages,
-    
-    // Buyer
-    buyerQuotations,
-    setBuyerQuotations,
-    selectedQuotation,
-    setSelectedQuotation
   };
 }

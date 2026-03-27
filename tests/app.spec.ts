@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('App Initialization', () => {
   test('should load the application', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle(/Digital showroom MVP/i);
+    await expect(page).toHaveTitle(/Co-retail|StoreLens|Digital/i);
     await expect(page.locator('#root')).toBeVisible();
   });
 
@@ -239,16 +239,6 @@ test.describe('Partner - Dashboard', () => {
     }
   });
 
-  test('should navigate to showroom', async ({ page }) => {
-    await page.waitForTimeout(2000);
-    const showroomButton = page.getByRole('button', { name: /Showroom/i }).first();
-    if (await showroomButton.isVisible()) {
-      await showroomButton.click();
-      await page.waitForTimeout(2000);
-      await expect(page.locator('text=/Showroom|Products|Catalog/i').first()).toBeVisible({ timeout: 10000 });
-    }
-  });
-
   test('should navigate to order creation', async ({ page }) => {
     await page.waitForTimeout(2000);
     const createOrderButton = page.getByRole('button', { name: /Create.*Order|New Order/i }).first();
@@ -256,72 +246,6 @@ test.describe('Partner - Dashboard', () => {
       await createOrderButton.click();
       await page.waitForTimeout(1000);
       await expect(page.locator('text=/Create Order|Order Creation|Add Items/i').first()).toBeVisible({ timeout: 10000 });
-    }
-  });
-});
-
-test.describe('Buyer - Dashboard and Browse', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    // Switch to buyer role
-    const roleSwitcherButton = page.locator('button[aria-label*="Switch Role"], button[aria-label*="Role"]').first();
-    if (await roleSwitcherButton.isVisible()) {
-      await roleSwitcherButton.click();
-      await page.waitForTimeout(500);
-      const buyerOption = page.getByRole('button', { name: /Buyer/i }).first();
-      if (await buyerOption.isVisible()) {
-        await buyerOption.click();
-        await page.waitForTimeout(2000);
-      }
-    }
-  });
-
-  test('should display buyer dashboard', async ({ page }) => {
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
-    
-    // Switch to buyer role
-    const roleSwitcherButton = page.locator('button[aria-label*="Switch Role"], button[aria-label*="Role"]').first();
-    if (await roleSwitcherButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await roleSwitcherButton.click();
-      await page.waitForTimeout(500);
-      const buyerOption = page.getByRole('button', { name: /Buyer/i }).first();
-      if (await buyerOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await buyerOption.click();
-        // Wait for lazy-loaded dashboard
-        await page.waitForTimeout(3000);
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(1000);
-        
-        // Check for buyer dashboard indicators - "Buyer portal" text or browse/products
-        const hasBuyerPortal = await page.getByText('Buyer portal', { exact: false }).isVisible({ timeout: 10000 }).catch(() => false);
-        const hasBrowseProducts = await page.getByText(/Browse.*Products|Explore/i).isVisible({ timeout: 5000 }).catch(() => false);
-        const hasStats = await page.locator('[class*="stats"], [class*="card"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-        
-        // At least one indicator should be visible
-        expect(hasBuyerPortal || hasBrowseProducts || hasStats).toBeTruthy();
-      }
-    }
-  });
-
-  test('should navigate to product browse', async ({ page }) => {
-    await page.waitForTimeout(2000);
-    const browseButton = page.getByRole('button', { name: /Browse.*Products|Explore|Showroom/i }).first();
-    if (await browseButton.isVisible()) {
-      await browseButton.click();
-      await page.waitForTimeout(2000);
-      await expect(page.locator('text=/Products|Browse|Showroom/i').first()).toBeVisible({ timeout: 10000 });
-    }
-  });
-
-  test('should navigate to quotations', async ({ page }) => {
-    await page.waitForTimeout(2000);
-    const quotationsButton = page.getByRole('button', { name: /Quotations/i }).first();
-    if (await quotationsButton.isVisible()) {
-      await quotationsButton.click();
-      await page.waitForTimeout(2000);
-      await expect(page.locator('text=/Quotations|RFQ/i').first()).toBeVisible({ timeout: 10000 });
     }
   });
 });

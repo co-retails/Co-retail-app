@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 
-type DeliveryDetailsUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+type DeliveryDetailsUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner';
 
 interface DeliveryDetailsScreenProps {
   delivery: Delivery;

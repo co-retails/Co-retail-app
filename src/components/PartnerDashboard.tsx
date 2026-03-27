@@ -2,11 +2,10 @@ import { useState, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Settings, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, ShoppingCart, ShoppingBag, MessageSquare, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Settings, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import type { Store, Brand } from './StoreSelector';
 import PartnerWarehouseSelector, { Partner as WarehousePartner, Warehouse, PartnerWarehouseSelection } from './PartnerWarehouseSelector';
-import { ShowroomOrder } from './ShowroomTypes';
 import type { ReturnDelivery } from './ShippingScreen';
 import type { DeliveryNote } from './BoxManagementScreen';
 
@@ -63,7 +62,6 @@ interface PartnerDashboardProps {
   onViewBoxes: () => void;
   onViewDeliveries?: () => void;
   onViewReturns: () => void;
-  onNavigateToShowroom?: () => void;
   onAdminClick?: () => void;
   stats: PartnerStats;
   recentOrders: ExtendedPartnerOrder[];
@@ -76,9 +74,6 @@ interface PartnerDashboardProps {
   currentPartnerWarehouseSelection: PartnerWarehouseSelection;
   onPartnerWarehouseSelectionChange: (selection: PartnerWarehouseSelection) => void;
   currentUserRole: 'store-staff' | 'partner';
-  showroomOrders?: ShowroomOrder[];
-  onNavigateToQuotations?: () => void;
-  onViewQuotationDetails?: (quotationId: string) => void;
   onOpenOrderDetails?: (order: ExtendedPartnerOrder) => void;
   onNavigateToReports?: () => void;
 }
@@ -91,7 +86,6 @@ export default function PartnerDashboard({
   onViewBoxes,
   onViewDeliveries,
   onViewReturns,
-  onNavigateToShowroom,
   onAdminClick,
   stats,
   recentOrders,
@@ -104,9 +98,6 @@ export default function PartnerDashboard({
   currentPartnerWarehouseSelection,
   onPartnerWarehouseSelectionChange,
   currentUserRole,
-  showroomOrders = [],
-  onNavigateToQuotations,
-  onViewQuotationDetails,
   onOpenOrderDetails,
   onNavigateToReports
 }: PartnerDashboardProps) {
@@ -229,7 +220,6 @@ export default function PartnerDashboard({
   const showReturnsAction = inTransitReturnCount > 0;
   const showDeliveriesAction = deliveriesToCompleteCount > 0;
   const showActiveShipmentsAction = activeShipmentsCount > 0;
-  const hasShowroomQuickAction = Boolean(onNavigateToShowroom && currentPartner?.productType === 'white-label');
   const thriftedHasActionableQuickActions = canShowApprovalOrdersAction || showPendingOrdersAction || showRegisteredOrdersAction || showDeliveriesAction || showReturnsAction;
   const otherPartnersHaveActionableQuickActions = canShowApprovalOrdersAction || showPendingOrdersAction || showActiveShipmentsAction || showReturnsAction || showDeliveriesAction;
   /** Thrifted/Sellpy quick-actions empty card with primary CTA (same screen as Today's orders). */
@@ -530,45 +520,7 @@ export default function PartnerDashboard({
               {/* Chinese Partner Quick Actions */}
               {isChinesePartner ? (
                 <>
-                  {/* Quotation Requests for Chinese partner */}
-                  {onNavigateToQuotations && (
-                    <button
-                      onClick={onNavigateToQuotations}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center">
-                          <ShoppingCart className="w-5 h-5 text-accent" />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">Quotation requests</p>
-                          <p className="body-small text-on-surface-variant">
-                            {showroomOrders.filter(o => o.type === 'rfq' && (o.status === 'pending' || o.status === 'negotiation')).length} pending
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
-                  )}
-
-                  {/* Showroom Products */}
-                  {onNavigateToShowroom && (
-                    <button
-                      onClick={onNavigateToShowroom}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
-                          <ShoppingBag className="w-5 h-5 text-on-primary-container" />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">Showroom</p>
-                          <p className="body-small text-on-surface-variant">Manage products</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
-                  )}
+                  {/* Chinese Partner Quick Actions - placeholder */}
                 </>
               ) : (
                 <>
@@ -682,27 +634,10 @@ export default function PartnerDashboard({
                     </button>
                   )}
 
-                  {/* Digital Showroom - Only for white-label partners */}
-                  {onNavigateToShowroom && currentPartner?.productType === 'white-label' && (
-                    <button
-                      onClick={onNavigateToShowroom}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                          <ShoppingBag className="w-5 h-5 text-on-secondary-container" />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">Showroom</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
-                  )}
                 </>
               )}
             </div>
-            {!isChinesePartner && onNavigateToReports && !otherPartnersHaveActionableQuickActions && !hasShowroomQuickAction && (
+            {!isChinesePartner && onNavigateToReports && !otherPartnersHaveActionableQuickActions && (
               <div className="mt-4 border border-dashed border-outline-variant rounded-lg bg-surface-container-high p-4 text-center flex flex-col items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <Sparkles className="w-6 h-6 text-primary" />
@@ -722,89 +657,6 @@ export default function PartnerDashboard({
               </div>
             )}
           </div>
-        )}
-
-        {/* Latest Quotation Requests - Chinese Partner Only */}
-        {isChinesePartner && (
-          <Card className="bg-transparent border border-outline-variant shadow-none">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="title-medium">Latest quotation requests</CardTitle>
-                {onNavigateToQuotations && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={onNavigateToQuotations}
-                    className="body-small"
-                  >
-                    View all
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {showroomOrders.filter(o => o.type === 'rfq').length === 0 ? (
-                <div className="text-center py-8">
-                  <MessageSquare size={48} className="mx-auto text-on-surface-variant/50 mb-4" />
-                  <p className="body-large text-on-surface-variant">No quotation requests yet</p>
-                  <p className="body-medium text-on-surface-variant">Quotation requests from buyers will appear here</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {showroomOrders
-                    .filter(o => o.type === 'rfq')
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                    .slice(0, 5)
-                    .map((quotation) => {
-                      const getQuotationStatusBadge = (status: string) => {
-                        const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-                          requested: { label: 'New request', variant: 'default' },
-                          negotiation: { label: 'In negotiation', variant: 'secondary' },
-                          quote_approved: { label: 'Approved', variant: 'secondary' },
-                          converted_to_po: { label: 'Converted to PO', variant: 'outline' },
-                          rejected: { label: 'Rejected', variant: 'destructive' }
-                        };
-                        const config = statusConfig[status] || { label: status, variant: 'outline' as const };
-                        return <Badge variant={config.variant}>{config.label}</Badge>;
-                      };
-
-                      return (
-                        <button
-                          key={quotation.id}
-                          onClick={() => onViewQuotationDetails?.(quotation.id)}
-                          className="w-full flex items-start justify-between p-3 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors text-left"
-                        >
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="title-small text-on-surface">RFQ #{quotation.id}</p>
-                              {getQuotationStatusBadge(quotation.status)}
-                            </div>
-                            <div className="flex items-center gap-2 text-on-surface-variant">
-                              <Calendar className="w-4 h-4" />
-                              <p className="body-small">
-                                {new Date(quotation.createdAt).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
-                              </p>
-                            </div>
-                            <p className="body-small text-on-surface-variant">
-                              {quotation.items.length} {quotation.items.length === 1 ? 'item' : 'items'} • {quotation.buyerName}
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 ml-3">
-                            <p className="title-small text-on-surface">$ {quotation.subtotal.toFixed(2)}</p>
-                            <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                          </div>
-                        </button>
-                      );
-                    })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         )}
 
         {/* Today's orders (incoming orders for the selected partner + warehouse) */}

@@ -52,7 +52,7 @@ export interface BaseItem {
   boxLabel?: string;
 }
 
-export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner' | 'buyer';
+export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner';
 
 export type ItemQuickAction =
   | 'mark-available'
