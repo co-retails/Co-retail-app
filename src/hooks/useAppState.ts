@@ -86,6 +86,8 @@ export function useAppState() {
   const [isAdminSettingsSheetOpen, setIsAdminSettingsSheetOpen] = useState(false);
   const [isSwitchViewSheetOpen, setIsSwitchViewSheetOpen] = useState(false);
   const [adminView, setAdminView] = useState<'store' | 'partner'>('store');
+  /** Partner portal and admin (partner view) — email sign-in; store staff use SSO separately. */
+  const [isPartnerPortalAuthenticated, setIsPartnerPortalAuthenticated] = useState(false);
   
   // Store selection state
   const [currentStoreSelection, setCurrentStoreSelection] = useState<StoreSelection>({
@@ -197,6 +199,8 @@ export function useAppState() {
     setIsSwitchViewSheetOpen,
     adminView,
     setAdminView,
+    isPartnerPortalAuthenticated,
+    setIsPartnerPortalAuthenticated,
     
     // Store/Partner selection
     currentStoreSelection,

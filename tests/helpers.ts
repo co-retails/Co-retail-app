@@ -17,6 +17,18 @@ export class AppTestHelpers {
   }
 
   /**
+   * Submit partner portal e-mail sign-in when the login card is shown (admins / partner users).
+   */
+  async completePartnerPortalLoginIfVisible() {
+    const login = this.page.getByTestId('partner-portal-login');
+    if (await login.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await this.page.locator('#partner-portal-email').fill('partner-e2e@example.com');
+      await this.page.getByRole('button', { name: /^Sign in$/i }).click();
+      await this.page.waitForTimeout(500);
+    }
+  }
+
+  /**
    * Switch to a specific user role
    */
   async switchToRole(role: 'store-staff' | 'partner') {
@@ -34,6 +46,9 @@ export class AppTestHelpers {
       const roleOption = this.page.getByRole('button', { name: roleMap[role] }).first();
       if (await roleOption.isVisible({ timeout: 5000 }).catch(() => false)) {
         await roleOption.click();
+        if (role === 'partner') {
+          await this.completePartnerPortalLoginIfVisible();
+        }
         // Wait longer for lazy-loaded components (partner dashboard)
         const waitTime = role === 'partner' ? 3000 : 1000;
         await this.page.waitForTimeout(waitTime);

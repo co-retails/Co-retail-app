@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { AppTestHelpers } from './helpers';
 
 test.describe('App Initialization', () => {
   test('should load the application', async ({ page }) => {
@@ -196,6 +197,7 @@ test.describe('Store Staff - Shipping Screen', () => {
 
 test.describe('Partner - Dashboard', () => {
   test.beforeEach(async ({ page }) => {
+    const helpers = new AppTestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     // Switch to partner role
@@ -206,12 +208,14 @@ test.describe('Partner - Dashboard', () => {
       const partnerOption = page.getByRole('button', { name: /Partner/i }).first();
       if (await partnerOption.isVisible()) {
         await partnerOption.click();
+        await helpers.completePartnerPortalLoginIfVisible();
         await page.waitForTimeout(1000);
       }
     }
   });
 
   test('should display partner dashboard', async ({ page }) => {
+    const helpers = new AppTestHelpers(page);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
     
@@ -223,6 +227,7 @@ test.describe('Partner - Dashboard', () => {
       const partnerOption = page.getByRole('button', { name: /Partner/i }).first();
       if (await partnerOption.isVisible({ timeout: 5000 }).catch(() => false)) {
         await partnerOption.click();
+        await helpers.completePartnerPortalLoginIfVisible();
         // Wait for lazy-loaded dashboard
         await page.waitForTimeout(3000);
         await page.waitForLoadState('networkidle');
@@ -252,6 +257,7 @@ test.describe('Partner - Dashboard', () => {
 
 test.describe('Navigation and Role Switching', () => {
   test('should switch between roles', async ({ page }) => {
+    const helpers = new AppTestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
@@ -265,6 +271,7 @@ test.describe('Navigation and Role Switching', () => {
       const partnerOption = page.getByRole('button', { name: /Partner/i }).first();
       if (await partnerOption.isVisible()) {
         await partnerOption.click();
+        await helpers.completePartnerPortalLoginIfVisible();
         await page.waitForTimeout(2000);
         await expect(page.locator('text=/Partner|Dashboard/i').first()).toBeVisible({ timeout: 10000 });
       }

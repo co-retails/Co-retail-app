@@ -39,6 +39,7 @@ import BoxLabelSideSheet from './components/BoxLabelSideSheet';
 import ShippingLabelScreen from './components/ShippingLabelScreen';
 import SwitchViewSheet from './components/SwitchViewSheet';
 import WhatsNewDialog from './components/WhatsNewDialog';
+import PartnerPortalLoginScreen from './components/PartnerPortalLoginScreen';
 
 // Portal Configuration Components - Lazy loaded
 const PortalConfigurationManager = React.lazy(() => import('./components/PortalConfigurationManager').then(module => ({ default: module.PortalConfigurationManager })));
@@ -139,6 +140,8 @@ export default function App() {
     setIsSwitchViewSheetOpen,
     adminView,
     setAdminView,
+    isPartnerPortalAuthenticated,
+    setIsPartnerPortalAuthenticated,
     currentStoreSelection,
     setCurrentStoreSelection,
     currentPartnerWarehouseSelection,
@@ -205,6 +208,7 @@ export default function App() {
   const appViewRole = currentUserRole === 'admin' ? (adminView === 'partner' ? 'partner' : 'store-staff') : currentUserRole;
   const currentViewLabel =
     appViewRole === 'partner' ? 'Partner portal' : 'Store app';
+  const showPartnerPortalLogin = appViewRole === 'partner' && !isPartnerPortalAuthenticated;
 
   const effectiveUserAccount: SettingsUserAccount = {
     ...mockUserAccount,
@@ -1541,6 +1545,7 @@ export default function App() {
     
     // Navigate to appropriate dashboard based on role
     if (role === 'partner') {
+      setIsPartnerPortalAuthenticated(false);
       // When opening partner portal with access to multiple partners, default to Sellpy
       const sellpyPartner = visibleWarehousePartners.find((p) => p.name === 'Sellpy Operations');
       if (sellpyPartner && visibleWarehousePartners.length > 1) {
@@ -1557,6 +1562,7 @@ export default function App() {
     } else if (role === 'admin') {
       setCurrentScreenSafe(adminView === 'partner' ? 'partner-dashboard' : 'home');
     } else {
+      setIsPartnerPortalAuthenticated(false);
       setCurrentScreenSafe('home');
     }
   };
@@ -1576,11 +1582,13 @@ export default function App() {
     setIsSwitchViewSheetOpen(false);
     setIsAdminSettingsSheetOpen(false);
     setShippingInitialTab(undefined);
+    setIsPartnerPortalAuthenticated(false);
     setCurrentScreenSafe(nextView === 'partner' ? 'partner-dashboard' : 'home');
   };
 
   const handleLogout = () => {
     setIsAdminSettingsSheetOpen(false);
+    setIsPartnerPortalAuthenticated(false);
   };
 
 
@@ -1604,6 +1612,7 @@ export default function App() {
 
   // Determine if we should show navigation
   const showMainNavigation = 
+    !showPartnerPortalLogin &&
     currentScreen !== 'status-update' &&
     currentScreen !== 'role-switcher' &&
     currentScreen !== 'portal-configuration' &&
@@ -1647,6 +1656,17 @@ export default function App() {
       partners={visibleWarehousePartners}
       warehouses={mockWarehouses}
     >
+      {showPartnerPortalLogin && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-surface p-6">
+          <PartnerPortalLoginScreen
+            onSignIn={() => {
+              setIsPartnerPortalAuthenticated(true);
+              setCurrentScreenSafe('partner-dashboard');
+            }}
+          />
+        </div>
+      )}
+
       {/* Store Staff Screens */}
       {currentScreen === 'home' && (() => {
         // Calculate in-transit deliveries and boxes for store staff
