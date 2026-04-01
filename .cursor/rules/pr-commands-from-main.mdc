@@ -7,6 +7,8 @@ alwaysApply: true
 
 Use this flow when local development always happens on `main`.
 
+**Only run these steps when the user explicitly asks you to commit, push, and/or open a PR** (they usually want to test uncommitted changes first).
+
 1. Ensure local `main` is up to date:
    - `git checkout main`
    - `git pull origin main`

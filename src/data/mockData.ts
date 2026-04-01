@@ -260,8 +260,8 @@ export const mockReturnItems: ReturnItem[] = [
 // Brands, Countries, and Stores mock data
 export const mockUserAccount: UserAccount = {
   id: 'user-123',
-  name: 'Jane Doe',
-  email: 'jane.doe@weekday.com',
+  name: 'Demo Admin',
+  email: 'admin@storelens.com',
   userId: 'AA123456',
   role: {
     id: 'admin',

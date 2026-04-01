@@ -39,6 +39,7 @@ import BoxLabelSideSheet from './components/BoxLabelSideSheet';
 import ShippingLabelScreen from './components/ShippingLabelScreen';
 import SwitchViewSheet from './components/SwitchViewSheet';
 import WhatsNewDialog from './components/WhatsNewDialog';
+import PartnerPortalLoginScreen from './components/PartnerPortalLoginScreen';
 
 // Portal Configuration Components - Lazy loaded
 const PortalConfigurationManager = React.lazy(() => import('./components/PortalConfigurationManager').then(module => ({ default: module.PortalConfigurationManager })));
@@ -139,6 +140,10 @@ export default function App() {
     setIsSwitchViewSheetOpen,
     adminView,
     setAdminView,
+    isPartnerPortalAuthenticated,
+    setIsPartnerPortalAuthenticated,
+    partnerPortalSessionEmail,
+    setPartnerPortalSessionEmail,
     currentStoreSelection,
     setCurrentStoreSelection,
     currentPartnerWarehouseSelection,
@@ -205,9 +210,16 @@ export default function App() {
   const appViewRole = currentUserRole === 'admin' ? (adminView === 'partner' ? 'partner' : 'store-staff') : currentUserRole;
   const currentViewLabel =
     appViewRole === 'partner' ? 'Partner portal' : 'Store app';
+  /** Partner-user accounts sign in here; admins previewing Partner portal skip this gate when switching Store ↔ Partner. */
+  const showPartnerPortalLogin =
+    appViewRole === 'partner' && currentUserRole === 'partner' && !isPartnerPortalAuthenticated;
 
   const effectiveUserAccount: SettingsUserAccount = {
     ...mockUserAccount,
+    email:
+      appViewRole === 'partner' && isPartnerPortalAuthenticated && partnerPortalSessionEmail
+        ? partnerPortalSessionEmail
+        : mockUserAccount.email,
     role: {
       ...mockUserAccount.role,
       name: (currentUserRole === 'admin' ? 'Admin' : currentUserRole === 'partner' ? 'Partner User' : 'Store User') as
@@ -1541,6 +1553,8 @@ export default function App() {
     
     // Navigate to appropriate dashboard based on role
     if (role === 'partner') {
+      setPartnerPortalSessionEmail(null);
+      setIsPartnerPortalAuthenticated(false);
       // When opening partner portal with access to multiple partners, default to Sellpy
       const sellpyPartner = visibleWarehousePartners.find((p) => p.name === 'Sellpy Operations');
       if (sellpyPartner && visibleWarehousePartners.length > 1) {
@@ -1557,6 +1571,8 @@ export default function App() {
     } else if (role === 'admin') {
       setCurrentScreenSafe(adminView === 'partner' ? 'partner-dashboard' : 'home');
     } else {
+      setPartnerPortalSessionEmail(null);
+      setIsPartnerPortalAuthenticated(false);
       setCurrentScreenSafe('home');
     }
   };
@@ -1581,6 +1597,11 @@ export default function App() {
 
   const handleLogout = () => {
     setIsAdminSettingsSheetOpen(false);
+    if (currentUserRole === 'partner' && appViewRole === 'partner') {
+      setPartnerPortalSessionEmail(null);
+      setIsPartnerPortalAuthenticated(false);
+      setCurrentScreenSafe('partner-dashboard');
+    }
   };
 
 
@@ -1604,6 +1625,7 @@ export default function App() {
 
   // Determine if we should show navigation
   const showMainNavigation = 
+    !showPartnerPortalLogin &&
     currentScreen !== 'status-update' &&
     currentScreen !== 'role-switcher' &&
     currentScreen !== 'portal-configuration' &&
@@ -1647,6 +1669,18 @@ export default function App() {
       partners={visibleWarehousePartners}
       warehouses={mockWarehouses}
     >
+      {showPartnerPortalLogin && (
+        <div className="fixed inset-0 z-[250] box-border flex flex-col items-center justify-center bg-surface px-4 py-10 sm:px-8 sm:py-12">
+          <PartnerPortalLoginScreen
+            onSignIn={(email) => {
+              setPartnerPortalSessionEmail(email);
+              setIsPartnerPortalAuthenticated(true);
+              setCurrentScreenSafe('partner-dashboard');
+            }}
+          />
+        </div>
+      )}
+
       {/* Store Staff Screens */}
       {currentScreen === 'home' && (() => {
         // Calculate in-transit deliveries and boxes for store staff

@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { AppTestHelpers } from './helpers';
 
 test.describe('Order Management - Partner', () => {
   test.beforeEach(async ({ page }) => {
+    const helpers = new AppTestHelpers(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     // Switch to partner role
@@ -12,6 +14,7 @@ test.describe('Order Management - Partner', () => {
       const partnerOption = page.getByRole('button', { name: /Partner/i }).first();
       if (await partnerOption.isVisible()) {
         await partnerOption.click();
+        await helpers.completePartnerPortalLoginIfVisible();
         await page.waitForTimeout(2000);
       }
     }

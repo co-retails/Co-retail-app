@@ -5,6 +5,7 @@ import { Badge } from './ui/badge';
 import { Settings, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import type { Store, Brand } from './StoreSelector';
+import { StoreLensLogo } from './StoreLensLogo';
 import PartnerWarehouseSelector, { Partner as WarehousePartner, Warehouse, PartnerWarehouseSelection } from './PartnerWarehouseSelector';
 import type { ReturnDelivery } from './ShippingScreen';
 import type { DeliveryNote } from './BoxManagementScreen';
@@ -313,11 +314,7 @@ export default function PartnerDashboard({
             
             {/* Centered Logo */}
             <div className="flex flex-col items-center">
-              <div className="h-[28px] w-[153px] mb-1">
-                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
-                  <path d={svgPaths.p2523a00} fill="#1A1A1A" />
-                </svg>
-              </div>
+              <StoreLensLogo className="mb-1" />
               <div className="label-large text-on-surface tracking-wider uppercase">
                 {currentUserRole === 'partner' ? 'Partner portal' : 'Resell'}
               </div>
@@ -350,11 +347,7 @@ export default function PartnerDashboard({
       <div className="hidden md:flex flex-col items-center px-6 py-4 bg-surface" style={{ marginTop: '4rem' }}>
         {/* Logo */}
         <div className="flex flex-col items-center mb-3">
-          <div className="h-[28px] w-[153px] mb-1">
-            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
-              <path d={svgPaths.p2523a00} fill="#1A1A1A" />
-            </svg>
-          </div>
+          <StoreLensLogo className="mb-1" />
           <div className="label-large text-on-surface tracking-wider uppercase">
             {currentUserRole === 'partner' ? 'Partner portal' : 'Resell'}
           </div>
