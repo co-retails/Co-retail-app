@@ -142,6 +142,8 @@ export default function App() {
     setAdminView,
     isPartnerPortalAuthenticated,
     setIsPartnerPortalAuthenticated,
+    partnerPortalSessionEmail,
+    setPartnerPortalSessionEmail,
     currentStoreSelection,
     setCurrentStoreSelection,
     currentPartnerWarehouseSelection,
@@ -208,10 +210,16 @@ export default function App() {
   const appViewRole = currentUserRole === 'admin' ? (adminView === 'partner' ? 'partner' : 'store-staff') : currentUserRole;
   const currentViewLabel =
     appViewRole === 'partner' ? 'Partner portal' : 'Store app';
-  const showPartnerPortalLogin = appViewRole === 'partner' && !isPartnerPortalAuthenticated;
+  /** Partner-user accounts sign in here; admins previewing Partner portal skip this gate when switching Store ↔ Partner. */
+  const showPartnerPortalLogin =
+    appViewRole === 'partner' && currentUserRole === 'partner' && !isPartnerPortalAuthenticated;
 
   const effectiveUserAccount: SettingsUserAccount = {
     ...mockUserAccount,
+    email:
+      appViewRole === 'partner' && isPartnerPortalAuthenticated && partnerPortalSessionEmail
+        ? partnerPortalSessionEmail
+        : mockUserAccount.email,
     role: {
       ...mockUserAccount.role,
       name: (currentUserRole === 'admin' ? 'Admin' : currentUserRole === 'partner' ? 'Partner User' : 'Store User') as
@@ -1545,6 +1553,7 @@ export default function App() {
     
     // Navigate to appropriate dashboard based on role
     if (role === 'partner') {
+      setPartnerPortalSessionEmail(null);
       setIsPartnerPortalAuthenticated(false);
       // When opening partner portal with access to multiple partners, default to Sellpy
       const sellpyPartner = visibleWarehousePartners.find((p) => p.name === 'Sellpy Operations');
@@ -1562,6 +1571,7 @@ export default function App() {
     } else if (role === 'admin') {
       setCurrentScreenSafe(adminView === 'partner' ? 'partner-dashboard' : 'home');
     } else {
+      setPartnerPortalSessionEmail(null);
       setIsPartnerPortalAuthenticated(false);
       setCurrentScreenSafe('home');
     }
@@ -1582,13 +1592,16 @@ export default function App() {
     setIsSwitchViewSheetOpen(false);
     setIsAdminSettingsSheetOpen(false);
     setShippingInitialTab(undefined);
-    setIsPartnerPortalAuthenticated(false);
     setCurrentScreenSafe(nextView === 'partner' ? 'partner-dashboard' : 'home');
   };
 
   const handleLogout = () => {
     setIsAdminSettingsSheetOpen(false);
-    setIsPartnerPortalAuthenticated(false);
+    if (currentUserRole === 'partner' && appViewRole === 'partner') {
+      setPartnerPortalSessionEmail(null);
+      setIsPartnerPortalAuthenticated(false);
+      setCurrentScreenSafe('partner-dashboard');
+    }
   };
 
 
@@ -1657,9 +1670,10 @@ export default function App() {
       warehouses={mockWarehouses}
     >
       {showPartnerPortalLogin && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-surface p-6">
+        <div className="fixed inset-0 z-[250] box-border flex flex-col items-center justify-center bg-surface px-4 py-10 sm:px-8 sm:py-12">
           <PartnerPortalLoginScreen
-            onSignIn={() => {
+            onSignIn={(email) => {
+              setPartnerPortalSessionEmail(email);
               setIsPartnerPortalAuthenticated(true);
               setCurrentScreenSafe('partner-dashboard');
             }}

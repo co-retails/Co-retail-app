@@ -17,18 +17,17 @@ At the start of every new conversation, before making any code changes:
 
 3. **Then proceed** with the user's request on local `main`
 
-4. **Before pushing: COMMIT YOUR CHANGES**
-   - Never push a branch without committing first. Uncommitted changes are not included in a push.
-   - Before `git push`, run `git status` – if there are modified files, run `git add` and `git commit` first.
-   - Commit after completing the work, or at logical checkpoints.
+4. **Commit and push only when the user asks**
+   - Do **not** run `git commit`, `git push`, or open a PR automatically after finishing work. The user tests locally first and will say when to publish.
+   - When the user **does** ask to commit and/or push: never push without committing first. Before `git push`, run `git status` — if there are modified files, `git add` and `git commit` first.
 
-5. **Push to a remote branch from local `main`**
+5. **Push to a remote branch from local `main`** (only when the user requests it)
    - Do not create a local branch.
    - Push current `HEAD` to a remote branch name:
      - `git push origin HEAD:refs/heads/<branch-name>`
    - Example:
      - `git push origin HEAD:refs/heads/feature/2026-03-09-short-description`
-   - Open PR from `<branch-name>` into `main`.
+   - Open PR from `<branch-name>` into `main` only if the user asked for a PR.
 
 **Optional: Local branch cleanup** – If user asks to clean up, remove non-`main` local branches only with explicit user confirmation.
 
