@@ -1,0 +1,20 @@
+name: Sync to co-retails/Co-retail-app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to co-retails/Co-retail-app
+        run: |
+          git remote add target https://x-access-token:${{ secrets.CO_RETAILS_PAT }}@github.com/co-retails/Co-retail-app.git
+          git push target main --force
