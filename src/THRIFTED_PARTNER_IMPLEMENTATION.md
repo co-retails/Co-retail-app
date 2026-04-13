@@ -3,6 +3,8 @@
 ## Overview
 Added a new partner called "Thrifted" with comprehensive bulk upload and manual order creation capabilities. The flow supports both spreadsheet-based bulk uploads and manual item entry, with robust validation against dropdown values.
 
+This remains a prototype. All import behavior is mocked client-side in the browser; there is no real upload backend, no persisted template endpoint, and no server-side validation service behind the flow.
+
 ## What Was Added
 
 ### 1. Partner Configuration
@@ -26,7 +28,11 @@ Main order creation screen with three modes:
 - Real-time validation with error filtering
 - Export current items to CSV for editing
 - Replace all items by uploading new spreadsheet
-- Validation error display and filtering (All/Errors/Valid)
+- Duplicate detection within the uploaded file and, for append previews, against the current in-memory order
+- Structured upload summary showing imported, rejected, skipped, and duplicate row counts
+- Mock chunked processing for files over 1,000 rows with one combined result and determinate progress UI
+- Validation error display and filtering (All/Errors/Valid/Duplicates)
+- Template download button gated behind a mock availability flag instead of always downloading locally
 - Mobile-responsive design following M3 guidelines
 
 #### `spreadsheetUtils.ts`
@@ -34,6 +40,9 @@ Utility functions for CSV handling:
 - `generateTemplateCSV()`: Creates downloadable template with instructions
 - `parseCSV()`: Parses uploaded CSV files
 - `convertToOrderItems()`: Converts CSV rows to OrderItems with validation
+- `processMockThriftedImport()`: Simulates chunked CSV import processing and emits progress updates
+- `convertToThriftedOrderItems()`: Converts CSV rows into Thrifted order items with duplicate-aware summaries
+- `stripCurrentOrderConflictsFromThriftedImport()`: Rebuilds a replace preview without current-order duplicate conflicts
 - `exportItemsToCSV()`: Exports current items for re-editing
 - `validateItemData()`: Validates individual items against dropdown values
 - `downloadCSV()`: Browser download utility
@@ -66,16 +75,18 @@ Utility functions for CSV handling:
 6. Create order when all items are valid
 
 #### Bulk Upload Flow
-1. Download CSV template
+1. If the mock template endpoint is marked live, download the CSV template
 2. Fill template with item data:
    - Template includes valid values as comments
    - Mandatory fields marked with *
    - Example row provided
 3. Upload completed CSV
-4. System validates all rows against dropdown values
-5. View validation errors grouped by row
-6. Fix errors directly in UI or export/re-upload CSV
-7. Create order when all items are valid
+4. Prototype detects row count and processes the file locally in 1,000-row chunks
+5. System validates all rows, checks duplicates within the file, and previews duplicate conflicts against the current order when append mode is possible
+6. View a structured upload summary with imported, rejected, skipped, and duplicate counts
+7. Review rows directly in the UI using All / Valid / Errors / Duplicates filters
+8. Fix errors directly in UI or export/re-upload CSV
+9. Choose whether to replace or append when an order already has items
 
 #### Post-Creation Flow (Different from Sellpy)
 1. Order created with either "pending" or "registered" status (user choice)
@@ -107,6 +118,9 @@ Utility functions for CSV handling:
 - Real-time validation on manual entry
 - Batch validation on CSV upload
 - Row-specific error messages for CSV imports
+- Duplicate warnings for SKU and Item ID collisions
+- Separate treatment of rejected rows (validation failures) vs. skipped rows (duplicate collisions)
+- Aggregated summary cards for imported, rejected, skipped, and duplicate row counts
 - Clear indication of which values are invalid
 - Suggestions for valid values in error messages
 
@@ -118,6 +132,12 @@ Utility functions for CSV handling:
 - Validation runs on upload
 - Confirmation dialog if replacing existing items
 
+### 6. Mock-Only Behavior
+- The upload flow is entirely client-side and does not call a real API
+- Chunking, progress, and combined results are simulated locally to match the eventual UX contract
+- Template download availability is controlled by `MOCK_THRIFTED_TEMPLATE_ENDPOINT_LIVE` in `spreadsheetUtils.ts`
+- When the mock template endpoint flag is off, the UI shows a disabled button instead of silently generating a file
+
 ## How to Test
 
 ### Test Bulk Upload
@@ -126,11 +146,11 @@ Utility functions for CSV handling:
 3. Click "Create new order"
 4. Select receiving store (e.g., Oslo Main Street)
 5. Click "Bulk Upload via Spreadsheet"
-6. Download template
+6. If needed, toggle `MOCK_THRIFTED_TEMPLATE_ENDPOINT_LIVE` to `true` before testing the template button; otherwise prepare a CSV manually
 7. Fill with sample data (use valid values from template comments)
 8. Upload CSV
-9. Observe validation results
-10. Fix any errors
+9. Observe progress, chunking, duplicate warnings, and the structured result summary
+10. Fix any errors or duplicate rows
 11. Create order
 
 ### Test Manual Entry
@@ -174,13 +194,12 @@ Utility functions for CSV handling:
 - Integration with useAppState for navigation
 
 ### Future Enhancements
-- Backend API integration for validation rules
 - Real-time collaborative editing
-- Duplicate detection
 - Barcode scanning for Item ID
 - Image upload for items
 - Price suggestion based on brand/category
 - Bulk edit mode for fixing multiple items
+- Optional transition from mocked import processing to a real backend if the prototype graduates
 
 ## Files Modified/Created
 

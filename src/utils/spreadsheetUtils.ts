@@ -31,6 +31,410 @@ export const THRIFTED_VALID_VALUES = {
   colors: ['Black', 'White', 'Gray', 'Navy', 'Blue', 'Red', 'Pink', 'Green', 'Yellow', 'Brown', 'Beige', 'Purple', 'Orange', 'Silver', 'Gold', 'Multicolor']
 };
 
+export const THRIFTED_IMPORT_CHUNK_SIZE = 1000;
+export const MOCK_THRIFTED_TEMPLATE_ENDPOINT_LIVE = false;
+
+const FIELD_ERROR_SEPARATOR = ' | ';
+const DUPLICATE_SKU_IN_FILE = 'Duplicate SKU in this upload file';
+const DUPLICATE_ITEM_ID_IN_FILE = 'Duplicate Item ID in this upload file';
+const DUPLICATE_SKU_IN_ORDER = 'Duplicate SKU already exists in the current order';
+const DUPLICATE_ITEM_ID_IN_ORDER = 'Duplicate Item ID already exists in the current order';
+
+export type ThriftedImportOutcome = 'imported' | 'rejected' | 'skipped';
+
+export interface ThriftedImportDuplicateSummary {
+  withinFileSku: number;
+  withinFileItemId: number;
+  currentOrderSku: number;
+  currentOrderItemId: number;
+  affectedRows: number;
+}
+
+export interface ThriftedImportSummary {
+  totalRows: number;
+  importedCount: number;
+  rejectedCount: number;
+  skippedCount: number;
+  duplicateRows: number;
+  chunkSize: number;
+  chunkCount: number;
+}
+
+export interface ThriftedImportProgress {
+  currentChunk: number;
+  totalChunks: number;
+  processedRows: number;
+  totalRows: number;
+  percentage: number;
+}
+
+export interface ThriftedImportResult {
+  items: OrderItem[];
+  errors: string[];
+  summary: ThriftedImportSummary;
+  duplicates: ThriftedImportDuplicateSummary;
+  progress: ThriftedImportProgress;
+  existingOrderConflictsIncluded: boolean;
+}
+
+export interface ThriftedImportOptions {
+  existingItems?: OrderItem[];
+  chunkSize?: number;
+  onProgress?: (progress: ThriftedImportProgress) => void;
+}
+
+export interface ThriftedTemplateAvailability {
+  endpointLive: boolean;
+  buttonLabel: string;
+  helperText: string;
+}
+
+interface DuplicateTrackingContext {
+  seenUploadSkus: Set<string>;
+  seenUploadItemIds: Set<string>;
+  existingSkus: Set<string>;
+  existingItemIds: Set<string>;
+}
+
+function normalizeDuplicateKey(value?: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.toLowerCase() : null;
+}
+
+function splitFieldErrorSegments(message?: string): string[] {
+  return (message ?? '')
+    .split(FIELD_ERROR_SEPARATOR)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function getFieldErrorSegments(fieldErrors?: Record<string, string>): string[] {
+  return Object.values(fieldErrors ?? {}).flatMap((message) => splitFieldErrorSegments(message));
+}
+
+function mergeFieldError(
+  fieldErrors: Record<string, string>,
+  fieldName: string,
+  message: string
+): void {
+  const messages = splitFieldErrorSegments(fieldErrors[fieldName]);
+  if (messages.includes(message)) {
+    return;
+  }
+  fieldErrors[fieldName] = [...messages, message].join(FIELD_ERROR_SEPARATOR);
+}
+
+function rebuildItemErrorsFromFieldErrors(fieldErrors?: Record<string, string>): string[] | undefined {
+  const messages = getFieldErrorSegments(fieldErrors);
+  return messages.length > 0 ? messages : undefined;
+}
+
+export function isDuplicateFieldErrorMessage(message?: string): boolean {
+  return splitFieldErrorSegments(message).some((segment) =>
+    segment.toLowerCase().startsWith('duplicate ')
+  );
+}
+
+export function isCurrentOrderDuplicateFieldErrorMessage(message?: string): boolean {
+  return splitFieldErrorSegments(message).some((segment) =>
+    segment.toLowerCase().includes('current order')
+  );
+}
+
+export function hasDuplicateFieldErrors(
+  item?: Pick<OrderItem, 'fieldErrors'> | null
+): boolean {
+  return getFieldErrorSegments(item?.fieldErrors).some((segment) =>
+    isDuplicateFieldErrorMessage(segment)
+  );
+}
+
+export function hasNonDuplicateFieldErrors(
+  item?: Pick<OrderItem, 'fieldErrors'> | null
+): boolean {
+  return getFieldErrorSegments(item?.fieldErrors).some(
+    (segment) => !isDuplicateFieldErrorMessage(segment)
+  );
+}
+
+export function getThriftedImportOutcome(
+  item?: Pick<OrderItem, 'fieldErrors'> | null
+): ThriftedImportOutcome {
+  const messages = getFieldErrorSegments(item?.fieldErrors);
+  if (messages.length === 0) {
+    return 'imported';
+  }
+  return messages.some((segment) => !isDuplicateFieldErrorMessage(segment))
+    ? 'rejected'
+    : 'skipped';
+}
+
+export function getThriftedTemplateAvailability(): ThriftedTemplateAvailability {
+  if (MOCK_THRIFTED_TEMPLATE_ENDPOINT_LIVE) {
+    return {
+      endpointLive: true,
+      buttonLabel: 'Download Template',
+      helperText: 'Using a mocked template endpoint backed by the local prototype generator.'
+    };
+  }
+
+  return {
+    endpointLive: false,
+    buttonLabel: 'Template Not Live Yet',
+    helperText: 'The prototype keeps this disabled until the mocked template endpoint is marked as live.'
+  };
+}
+
+function createDuplicateTrackingContext(existingItems: OrderItem[] = []): DuplicateTrackingContext {
+  const existingSkus = new Set<string>();
+  const existingItemIds = new Set<string>();
+
+  existingItems.forEach((item) => {
+    const skuKey = normalizeDuplicateKey(item.sku || item.partnerItemId || item.itemId);
+    const itemIdKey = normalizeDuplicateKey(item.retailerItemId);
+
+    if (skuKey) {
+      existingSkus.add(skuKey);
+    }
+    if (itemIdKey) {
+      existingItemIds.add(itemIdKey);
+    }
+  });
+
+  return {
+    seenUploadSkus: new Set<string>(),
+    seenUploadItemIds: new Set<string>(),
+    existingSkus,
+    existingItemIds,
+  };
+}
+
+function createProgressSnapshot(
+  processedRows: number,
+  totalRows: number,
+  chunkSize: number
+): ThriftedImportProgress {
+  const totalChunks = totalRows === 0 ? 0 : Math.ceil(totalRows / chunkSize);
+  const currentChunk = processedRows === 0 ? 0 : Math.ceil(processedRows / chunkSize);
+
+  return {
+    currentChunk,
+    totalChunks,
+    processedRows,
+    totalRows,
+    percentage: totalRows === 0 ? 100 : Math.round((processedRows / totalRows) * 100),
+  };
+}
+
+function summarizeThriftedImport(
+  items: OrderItem[],
+  totalRows: number,
+  chunkSize: number
+): Pick<ThriftedImportResult, 'errors' | 'summary' | 'duplicates'> {
+  const duplicates: ThriftedImportDuplicateSummary = {
+    withinFileSku: 0,
+    withinFileItemId: 0,
+    currentOrderSku: 0,
+    currentOrderItemId: 0,
+    affectedRows: 0,
+  };
+  const errors = new Set<string>();
+  let importedCount = 0;
+  let rejectedCount = 0;
+  let skippedCount = 0;
+  let duplicateRows = 0;
+
+  items.forEach((item) => {
+    const outcome = getThriftedImportOutcome(item);
+    const messages = getFieldErrorSegments(item.fieldErrors);
+    const hasDuplicate = messages.some((segment) => isDuplicateFieldErrorMessage(segment));
+
+    if (outcome === 'imported') {
+      importedCount += 1;
+    } else if (outcome === 'rejected') {
+      rejectedCount += 1;
+    } else {
+      skippedCount += 1;
+    }
+
+    if (hasDuplicate) {
+      duplicateRows += 1;
+    }
+
+    messages.forEach((message) => {
+      switch (message) {
+        case DUPLICATE_SKU_IN_FILE:
+          duplicates.withinFileSku += 1;
+          break;
+        case DUPLICATE_ITEM_ID_IN_FILE:
+          duplicates.withinFileItemId += 1;
+          break;
+        case DUPLICATE_SKU_IN_ORDER:
+          duplicates.currentOrderSku += 1;
+          break;
+        case DUPLICATE_ITEM_ID_IN_ORDER:
+          duplicates.currentOrderItemId += 1;
+          break;
+        default:
+          break;
+      }
+    });
+
+    (item.errors && item.errors.length > 0 ? item.errors : messages).forEach((message) => {
+      errors.add(message);
+    });
+  });
+
+  duplicates.affectedRows = duplicateRows;
+
+  return {
+    errors: Array.from(errors),
+    summary: {
+      totalRows,
+      importedCount,
+      rejectedCount,
+      skippedCount,
+      duplicateRows,
+      chunkSize,
+      chunkCount: totalRows === 0 ? 0 : Math.ceil(totalRows / chunkSize),
+    },
+    duplicates,
+  };
+}
+
+function stripFieldErrorSegments(
+  fieldErrors: Record<string, string> | undefined,
+  predicate: (message: string) => boolean
+): Record<string, string> | undefined {
+  if (!fieldErrors) {
+    return undefined;
+  }
+
+  const nextFieldErrors = Object.entries(fieldErrors).reduce<Record<string, string>>((acc, [key, value]) => {
+    const remainingMessages = splitFieldErrorSegments(value).filter((message) => !predicate(message));
+    if (remainingMessages.length > 0) {
+      acc[key] = remainingMessages.join(FIELD_ERROR_SEPARATOR);
+    }
+    return acc;
+  }, {});
+
+  return Object.keys(nextFieldErrors).length > 0 ? nextFieldErrors : undefined;
+}
+
+export function stripCurrentOrderConflictsFromThriftedImport(
+  result: ThriftedImportResult
+): ThriftedImportResult {
+  const items = result.items.map((item) => {
+    const fieldErrors = stripFieldErrorSegments(
+      item.fieldErrors,
+      (message) => isCurrentOrderDuplicateFieldErrorMessage(message)
+    );
+
+    return {
+      ...item,
+      fieldErrors,
+      errors: rebuildItemErrorsFromFieldErrors(fieldErrors),
+    };
+  });
+
+  const snapshot = summarizeThriftedImport(items, result.summary.totalRows, result.summary.chunkSize);
+
+  return {
+    ...result,
+    items,
+    errors: snapshot.errors,
+    summary: snapshot.summary,
+    duplicates: snapshot.duplicates,
+    existingOrderConflictsIncluded: false,
+  };
+}
+
+function buildBaseThriftedOrderItem(
+  row: Record<string, string>,
+  rowNumber: number
+): OrderItem {
+  const validation = validateThriftedItemData(row, rowNumber);
+  const subcategory = row['Subcategory*']?.trim() || row['Subcategory']?.trim() || '';
+  const category = mapSubcategoryToCategory(subcategory) || '';
+
+  return {
+    id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    itemId: row['SKU']?.trim() || '',
+    sku: row['SKU']?.trim() || '',
+    retailerItemId: (row['Retailer ID*']?.trim() || row['Retailer ID']?.trim()) || '',
+    brand: (row['Brand*']?.trim() || row['Brand']?.trim() || row['Item brand*']?.trim() || row['Item brand']?.trim()) || '',
+    category,
+    subcategory,
+    size: (row['Size*']?.trim() || row['Size']?.trim()) || '',
+    color: (row['Color*']?.trim() || row['Color']?.trim()) || '',
+    gender: (row['Gender*']?.trim() || row['Gender']?.trim()) || '',
+    price: parseFloat(row['Price (SEK)*'] || row['Price (SEK)'] || '0') || 0,
+    status: 'draft',
+    errors: validation.errors,
+    fieldErrors: validation.fieldErrors,
+    source: 'excel'
+  };
+}
+
+function addDuplicateErrorsToThriftedOrderItem(
+  item: OrderItem,
+  rowNumber: number,
+  tracking: DuplicateTrackingContext
+): OrderItem {
+  const fieldErrors = { ...(item.fieldErrors || {}) };
+  const errors = [...(item.errors || [])];
+
+  const skuKey = normalizeDuplicateKey(item.sku || item.itemId);
+  const itemIdKey = normalizeDuplicateKey(item.retailerItemId);
+
+  if (skuKey) {
+    if (tracking.seenUploadSkus.has(skuKey)) {
+      mergeFieldError(fieldErrors, 'sku', DUPLICATE_SKU_IN_FILE);
+      errors.push(`Row ${rowNumber}: ${DUPLICATE_SKU_IN_FILE}`);
+    } else {
+      tracking.seenUploadSkus.add(skuKey);
+    }
+
+    if (tracking.existingSkus.has(skuKey)) {
+      mergeFieldError(fieldErrors, 'sku', DUPLICATE_SKU_IN_ORDER);
+      errors.push(`Row ${rowNumber}: ${DUPLICATE_SKU_IN_ORDER}`);
+    }
+  }
+
+  if (itemIdKey) {
+    if (tracking.seenUploadItemIds.has(itemIdKey)) {
+      mergeFieldError(fieldErrors, 'retailerItemId', DUPLICATE_ITEM_ID_IN_FILE);
+      errors.push(`Row ${rowNumber}: ${DUPLICATE_ITEM_ID_IN_FILE}`);
+    } else {
+      tracking.seenUploadItemIds.add(itemIdKey);
+    }
+
+    if (tracking.existingItemIds.has(itemIdKey)) {
+      mergeFieldError(fieldErrors, 'retailerItemId', DUPLICATE_ITEM_ID_IN_ORDER);
+      errors.push(`Row ${rowNumber}: ${DUPLICATE_ITEM_ID_IN_ORDER}`);
+    }
+  }
+
+  return {
+    ...item,
+    fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+    errors: errors.length > 0 ? Array.from(new Set(errors)) : undefined,
+  };
+}
+
+function buildThriftedImportItems(
+  csvRows: Array<Record<string, string>>,
+  existingItems: OrderItem[] = []
+): OrderItem[] {
+  const tracking = createDuplicateTrackingContext(existingItems);
+
+  return csvRows.map((row, index) => {
+    const rowNumber = index + 2;
+    const baseItem = buildBaseThriftedOrderItem(row, rowNumber);
+    return addDuplicateErrorsToThriftedOrderItem(baseItem, rowNumber, tracking);
+  });
+}
+
 /** Case-insensitive A–Z sort for category / subcategory / color dropdowns */
 export function sortOptionsAlpha(values: readonly string[]): string[] {
   return [...values].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
@@ -502,43 +906,67 @@ export function validateThriftedItemData(item: Record<string, string>, rowNumber
  * Convert CSV rows to Thrifted OrderItems with validation
  * Auto-maps subcategory to category
  */
-export function convertToThriftedOrderItems(csvRows: Array<Record<string, string>>): { items: OrderItem[]; errors: string[] } {
+export function convertToThriftedOrderItems(
+  csvRows: Array<Record<string, string>>,
+  options: Pick<ThriftedImportOptions, 'existingItems' | 'chunkSize'> = {}
+): Pick<ThriftedImportResult, 'items' | 'errors' | 'summary' | 'duplicates'> {
+  const chunkSize = options.chunkSize ?? THRIFTED_IMPORT_CHUNK_SIZE;
+  const items = buildThriftedImportItems(csvRows, options.existingItems ?? []);
+  const snapshot = summarizeThriftedImport(items, csvRows.length, chunkSize);
+
+  return {
+    items,
+    errors: snapshot.errors,
+    summary: snapshot.summary,
+    duplicates: snapshot.duplicates,
+  };
+}
+
+/**
+ * Mock the eventual backend import behavior while keeping all processing client-side.
+ * Splits rows into 1,000-row chunks, emits determinate progress, and returns one
+ * combined result object for the UI.
+ */
+export async function processMockThriftedImport(
+  csvRows: Array<Record<string, string>>,
+  options: ThriftedImportOptions = {}
+): Promise<ThriftedImportResult> {
+  const chunkSize = options.chunkSize ?? THRIFTED_IMPORT_CHUNK_SIZE;
+  const existingItems = options.existingItems ?? [];
+  const tracking = createDuplicateTrackingContext(existingItems);
   const items: OrderItem[] = [];
-  const allErrors: string[] = [];
-  
-  csvRows.forEach((row, index) => {
-    const rowNumber = index + 2; // +2 because row 1 is headers and we're 0-indexed
-    const validation = validateThriftedItemData(row, rowNumber);
-    
-    // Get subcategory and auto-map to category
-    const subcategory = row['Subcategory*']?.trim() || row['Subcategory']?.trim() || '';
-    const category = mapSubcategoryToCategory(subcategory) || '';
-    
-    const item: OrderItem = {
-      id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      itemId: row['SKU']?.trim() || '',
-      sku: row['SKU']?.trim() || '',
-      retailerItemId: (row['Retailer ID*']?.trim() || row['Retailer ID']?.trim()) || '',
-      brand: (row['Brand*']?.trim() || row['Brand']?.trim() || row['Item brand*']?.trim() || row['Item brand']?.trim()) || '',
-      category: category, // Auto-mapped from subcategory
-      subcategory: subcategory, // Partner fills this
-      size: (row['Size*']?.trim() || row['Size']?.trim()) || '',
-      color: (row['Color*']?.trim() || row['Color']?.trim()) || '',
-      gender: (row['Gender*']?.trim() || row['Gender']?.trim()) || '',
-      price: parseFloat(row['Price (SEK)*'] || row['Price (SEK)'] || '0') || 0,
-      status: 'draft',
-      errors: validation.errors,
-      fieldErrors: validation.fieldErrors,
-      source: 'excel'
-    };
-    
-    items.push(item);
-    if (!validation.valid) {
-      allErrors.push(...validation.errors);
+
+  options.onProgress?.(createProgressSnapshot(0, csvRows.length, chunkSize));
+
+  for (let start = 0; start < csvRows.length; start += chunkSize) {
+    const chunk = csvRows.slice(start, start + chunkSize);
+
+    chunk.forEach((row, index) => {
+      const rowNumber = start + index + 2;
+      const baseItem = buildBaseThriftedOrderItem(row, rowNumber);
+      items.push(addDuplicateErrorsToThriftedOrderItem(baseItem, rowNumber, tracking));
+    });
+
+    const processedRows = Math.min(start + chunk.length, csvRows.length);
+    options.onProgress?.(createProgressSnapshot(processedRows, csvRows.length, chunkSize));
+
+    if (processedRows < csvRows.length) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
     }
-  });
-  
-  return { items, errors: allErrors };
+  }
+
+  const snapshot = summarizeThriftedImport(items, csvRows.length, chunkSize);
+
+  return {
+    items,
+    errors: snapshot.errors,
+    summary: snapshot.summary,
+    duplicates: snapshot.duplicates,
+    progress: createProgressSnapshot(csvRows.length, csvRows.length, chunkSize),
+    existingOrderConflictsIncluded: existingItems.length > 0,
+  };
 }
 
 /**

@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Label } from './ui/label';
+import { Progress } from './ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
@@ -34,18 +35,24 @@ import {
   generateThriftedTemplateCSV, 
   downloadCSV, 
   parseCSV, 
-  convertToThriftedOrderItems, 
   exportThriftedItemsToCSV,
   mapSubcategoryToCategory,
   getAllThriftedSubcategories,
   THRIFTED_VALID_VALUES,
+  THRIFTED_IMPORT_CHUNK_SIZE,
+  getThriftedTemplateAvailability,
+  hasDuplicateFieldErrors,
+  processMockThriftedImport,
+  stripCurrentOrderConflictsFromThriftedImport,
   sortByNameAlpha,
   sortStoresByCode,
+  type ThriftedImportProgress,
+  type ThriftedImportResult,
 } from '../utils/spreadsheetUtils';
 
 type CreationStep = 'setup' | 'items';
 type CreationMethod = 'manual' | 'bulk';
-type ValidationFilter = 'all' | 'errors' | 'valid';
+type ValidationFilter = 'all' | 'errors' | 'valid' | 'duplicates';
 
 interface ThriftedOrderCreationScreenProps {
   onBack: () => void;
@@ -93,13 +100,18 @@ export default function ThriftedOrderCreationScreen({
   const [validationFilter, setValidationFilter] = useState<ValidationFilter>('all');
   const [uploadError, setUploadError] = useState<string>('');
   const [showReplaceDialog, setShowReplaceDialog] = useState(false);
-  const [pendingUploadItems, setPendingUploadItems] = useState<OrderItem[]>([]);
+  const [pendingAppendImport, setPendingAppendImport] = useState<ThriftedImportResult | null>(null);
+  const [pendingReplaceImport, setPendingReplaceImport] = useState<ThriftedImportResult | null>(null);
+  const [lastImportResult, setLastImportResult] = useState<ThriftedImportResult | null>(null);
+  const [isProcessingUpload, setIsProcessingUpload] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<ThriftedImportProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isThriftedTableCompact = useMediaQuery('(max-width: 1023px)');
   const [requestOpenMobileItemId, setRequestOpenMobileItemId] = useState<string | null>(null);
   const [requestScrollToItemId, setRequestScrollToItemId] = useState<string | null>(null);
   const clearOpenMobileRequest = useCallback(() => setRequestOpenMobileItemId(null), []);
   const clearScrollRequest = useCallback(() => setRequestScrollToItemId(null), []);
+  const templateAvailability = useMemo(() => getThriftedTemplateAvailability(), []);
 
   const isEditing = !!existingOrderId;
   const canEditItems = !isEditing || orderStatus === 'pending' || orderStatus === 'draft';
@@ -159,12 +171,14 @@ export default function ThriftedOrderCreationScreen({
     !!item.fieldErrors && Object.keys(item.fieldErrors).length > 0;
   const itemsWithErrors = orderItems.filter(itemHasFieldErrors).length;
   const validItems = orderItems.filter((item) => !itemHasFieldErrors(item)).length;
+  const itemsWithDuplicateWarnings = orderItems.filter((item) => hasDuplicateFieldErrors(item)).length;
 
   // Filter items based on validation filter (only for bulk upload); memoized so ItemDetailsTable
   // does not get a new `items` reference on every render (avoids killing add-row effects).
   const filteredItems = useMemo(() => {
     if (creationMethod !== 'bulk') return orderItems;
     return orderItems.filter((item) => {
+      if (validationFilter === 'duplicates') return hasDuplicateFieldErrors(item);
       if (validationFilter === 'errors') return itemHasFieldErrors(item);
       if (validationFilter === 'valid') return !itemHasFieldErrors(item);
       return true;
@@ -194,63 +208,202 @@ export default function ThriftedOrderCreationScreen({
     return Array.from(suggestionSet).sort((a, b) => a.localeCompare(b));
   }, [brands, orderItems]);
 
+  const getSuggestedValidationFilter = (result: ThriftedImportResult): ValidationFilter => {
+    if (result.duplicates.affectedRows > 0) {
+      return 'duplicates';
+    }
+    if (result.summary.rejectedCount > 0 || result.summary.skippedCount > 0) {
+      return 'errors';
+    }
+    return 'all';
+  };
+
+  const clearPendingImports = () => {
+    setPendingAppendImport(null);
+    setPendingReplaceImport(null);
+  };
+
+  const readFileAsText = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => resolve((event.target?.result as string) || '');
+      reader.onerror = () => reject(new Error('Error reading file. Please ensure it is a valid CSV.'));
+      reader.readAsText(file);
+    });
+
+  const applyImportResult = (result: ThriftedImportResult, mode: 'replace' | 'append') => {
+    if (mode === 'replace') {
+      setOrderItems(result.items);
+    } else {
+      setOrderItems((prev) => [...prev, ...result.items]);
+    }
+
+    setLastImportResult(result);
+    setUploadProgress(result.progress);
+    setUploadError('');
+    setValidationFilter(getSuggestedValidationFilter(result));
+    setStep('items');
+    setShowStoreEdit(false);
+    setShowReplaceDialog(false);
+    clearPendingImports();
+  };
+
+  const renderImportSummary = (
+    result: ThriftedImportResult,
+    title: string,
+    description: string
+  ) => (
+    <div className="rounded-xl border border-outline bg-surface-container p-4 space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <p className="label-large text-on-surface">{title}</p>
+          <p className="body-small text-on-surface-variant mt-1">{description}</p>
+        </div>
+        <Badge variant="outline" className="label-medium">
+          {result.summary.totalRows} rows
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-lg bg-tertiary-container/60 px-3 py-2">
+          <p className="label-small text-on-tertiary-container">Imported</p>
+          <p className="title-medium text-on-tertiary-container">{result.summary.importedCount}</p>
+        </div>
+        <div className="rounded-lg bg-error-container/60 px-3 py-2">
+          <p className="label-small text-on-error-container">Rejected</p>
+          <p className="title-medium text-on-error-container">{result.summary.rejectedCount}</p>
+        </div>
+        <div className="rounded-lg bg-secondary-container/60 px-3 py-2">
+          <p className="label-small text-on-secondary-container">Skipped</p>
+          <p className="title-medium text-on-secondary-container">{result.summary.skippedCount}</p>
+        </div>
+        <div className="rounded-lg bg-surface-container-high px-3 py-2">
+          <p className="label-small text-on-surface-variant">Duplicate rows</p>
+          <p className="title-medium text-on-surface">{result.summary.duplicateRows}</p>
+        </div>
+      </div>
+
+      <div className="rounded-lg bg-surface px-3 py-2">
+        <p className="body-small text-on-surface-variant">
+          Processed locally in {result.summary.chunkCount || 0} chunk{result.summary.chunkCount === 1 ? '' : 's'} of up to {result.summary.chunkSize.toLocaleString()} rows.
+        </p>
+      </div>
+
+      {result.duplicates.affectedRows > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 body-small text-on-surface-variant">
+          <div className="rounded-lg bg-surface px-3 py-2">
+            Within file: {result.duplicates.withinFileItemId} duplicate Item ID{result.duplicates.withinFileItemId === 1 ? '' : 's'}, {result.duplicates.withinFileSku} duplicate SKU{result.duplicates.withinFileSku === 1 ? '' : 's'}.
+          </div>
+          <div className="rounded-lg bg-surface px-3 py-2">
+            Current order: {result.duplicates.currentOrderItemId} Item ID conflict{result.duplicates.currentOrderItemId === 1 ? '' : 's'}, {result.duplicates.currentOrderSku} SKU conflict{result.duplicates.currentOrderSku === 1 ? '' : 's'}.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderUploadStatus = () => (
+    <>
+      {isProcessingUpload && uploadProgress && (
+        <div className="rounded-xl border border-outline bg-surface-container p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="label-large text-on-surface">Processing upload</p>
+              <p className="body-small text-on-surface-variant">
+                Splitting the file locally into chunks of {THRIFTED_IMPORT_CHUNK_SIZE.toLocaleString()} rows.
+              </p>
+            </div>
+            <Badge variant="outline" className="label-medium">
+              {uploadProgress.percentage}%
+            </Badge>
+          </div>
+          <Progress value={uploadProgress.percentage} />
+          <p className="body-small text-on-surface-variant">
+            Chunk {Math.max(uploadProgress.currentChunk, 1)} of {Math.max(uploadProgress.totalChunks, 1)}. {uploadProgress.processedRows.toLocaleString()} of {uploadProgress.totalRows.toLocaleString()} rows processed.
+          </p>
+        </div>
+      )}
+
+      {lastImportResult &&
+        renderImportSummary(
+          lastImportResult,
+          'Last upload result',
+          lastImportResult.existingOrderConflictsIncluded
+            ? 'This summary includes duplicate checks against the current order for append mode.'
+            : 'This summary reflects the rows currently staged from the last upload.'
+        )}
+    </>
+  );
+
   const handleDownloadTemplate = () => {
+    if (!templateAvailability.endpointLive) {
+      return;
+    }
+
     const template = generateThriftedTemplateCSV();
     downloadCSV(template, 'thrifted-order-template.csv');
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const csvRows = parseCSV(content);
-        const { items } = convertToThriftedOrderItems(csvRows);
-        
-        if (items.length === 0) {
-          setUploadError('No valid items found in the file');
-          return;
-        }
+    setIsProcessingUpload(true);
+    setUploadError('');
+    setUploadProgress(null);
+    clearPendingImports();
 
-        setPendingUploadItems(items);
-        
-        if (orderItems.length > 0) {
-          // Show replace dialog if items already exist
-          setShowReplaceDialog(true);
-        } else {
-          // Directly add items and move to items step
-          setOrderItems(items);
-          setUploadError('');
-          setStep('items');
-        }
-        
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      } catch (error) {
-        setUploadError('Error reading file. Please ensure it\'s a valid CSV.');
+    try {
+      const content = await readFileAsText(file);
+      const csvRows = parseCSV(content);
+      const appendPreview = await processMockThriftedImport(csvRows, {
+        existingItems: orderItems,
+        chunkSize: THRIFTED_IMPORT_CHUNK_SIZE,
+        onProgress: setUploadProgress,
+      });
+      const replacePreview = stripCurrentOrderConflictsFromThriftedImport(appendPreview);
+
+      if (appendPreview.summary.totalRows === 0) {
+        setUploadError('No rows were found in the file.');
+        return;
       }
-    };
-    reader.readAsText(file);
+
+      if (orderItems.length > 0) {
+        setPendingAppendImport(appendPreview);
+        setPendingReplaceImport(replacePreview);
+        setShowReplaceDialog(true);
+      } else {
+        applyImportResult(replacePreview, 'replace');
+      }
+    } catch (error) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : 'Error reading file. Please ensure it is a valid CSV.'
+      );
+      setUploadProgress(null);
+    } finally {
+      setIsProcessingUpload(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleReplaceItems = () => {
-    setOrderItems(pendingUploadItems);
-    setPendingUploadItems([]);
-    setShowReplaceDialog(false);
-    setUploadError('');
-    setStep('items');
+    if (!pendingReplaceImport) {
+      return;
+    }
+
+    applyImportResult(pendingReplaceImport, 'replace');
   };
 
   const handleAppendItems = () => {
-    setOrderItems(prev => [...prev, ...pendingUploadItems]);
-    setPendingUploadItems([]);
-    setShowReplaceDialog(false);
-    setUploadError('');
-    setStep('items');
+    if (!pendingAppendImport) {
+      return;
+    }
+
+    applyImportResult(pendingAppendImport, 'append');
   };
 
   const handleAddItem = () => {
@@ -443,7 +596,7 @@ export default function ThriftedOrderCreationScreen({
   };
 
   // Allow creating order even with validation errors (user can fix them later)
-  const canCreateOrder = storeSelection && orderItems.length > 0;
+  const canCreateOrder = storeSelection && orderItems.length > 0 && !isProcessingUpload;
 
   // Step navigation
   const handleContinueToItems = () => {
@@ -700,9 +853,10 @@ export default function ThriftedOrderCreationScreen({
                 onClick={handleDownloadTemplate}
                 variant="outline"
                 size="lg"
+                disabled={!templateAvailability.endpointLive || isProcessingUpload}
               >
                 <DownloadIcon size={20} className="mr-2" />
-                <span className="label-large">Download Template</span>
+                <span className="label-large">{templateAvailability.buttonLabel}</span>
               </Button>
 
               <div className="relative">
@@ -711,18 +865,24 @@ export default function ThriftedOrderCreationScreen({
                   type="file"
                   accept=".csv"
                   onChange={handleFileSelect}
+                  disabled={isProcessingUpload}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 <Button
                   variant="default"
                   className="w-full bg-primary text-on-primary"
                   size="lg"
+                  disabled={isProcessingUpload}
                 >
                   <UploadIcon size={20} className="mr-2" />
-                  <span className="label-large">Upload CSV File</span>
+                  <span className="label-large">
+                    {isProcessingUpload ? 'Processing CSV...' : 'Upload CSV File'}
+                  </span>
                 </Button>
               </div>
             </div>
+
+            <p className="body-small text-on-surface-variant">{templateAvailability.helperText}</p>
 
             {uploadError && (
               <Alert variant="destructive">
@@ -730,6 +890,8 @@ export default function ThriftedOrderCreationScreen({
                 <AlertDescription className="body-small">{uploadError}</AlertDescription>
               </Alert>
             )}
+
+            {renderUploadStatus()}
 
             <div className="p-3 bg-surface-container rounded-lg">
               <p className="label-small text-on-surface-variant mb-2">CSV Format Requirements:</p>
@@ -740,6 +902,8 @@ export default function ThriftedOrderCreationScreen({
                 <li>• Category is automatically mapped from Subcategory</li>
                 <li>• Gender options: Women, Men, Kids, Unisex</li>
                 <li>• Price must be one of the valid SEK price ladder values</li>
+                <li>• Duplicate checks run within the file and, when appending, against the current order</li>
+                <li>• Files larger than {THRIFTED_IMPORT_CHUNK_SIZE.toLocaleString()} rows are processed locally in chunks and merged into one result</li>
                 <li>• Use the template to ensure correct format</li>
               </ul>
             </div>
@@ -751,7 +915,7 @@ export default function ThriftedOrderCreationScreen({
       <div className="flex justify-end">
         <Button
           onClick={handleContinueToItems}
-          disabled={!storeSelection || (creationMethod === 'bulk' && orderItems.length === 0)}
+          disabled={!storeSelection || (creationMethod === 'bulk' && orderItems.length === 0) || isProcessingUpload}
           size="lg"
           className="bg-primary text-on-primary gap-2"
         >
@@ -784,9 +948,10 @@ export default function ThriftedOrderCreationScreen({
                 variant="outline"
                 size="lg"
                 className="gap-2"
+                disabled={!templateAvailability.endpointLive || isProcessingUpload}
               >
                 <DownloadIcon size={20} />
-                <span className="label-large">Download Template</span>
+                <span className="label-large">{templateAvailability.buttonLabel}</span>
               </Button>
 
               <div className="relative">
@@ -795,18 +960,24 @@ export default function ThriftedOrderCreationScreen({
                   type="file"
                   accept=".csv"
                   onChange={handleFileSelect}
+                  disabled={isProcessingUpload}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 <Button
                   variant="default"
                   className="w-full bg-secondary text-on-secondary gap-2"
                   size="lg"
+                  disabled={isProcessingUpload}
                 >
                   <UploadIcon size={20} />
-                  <span className="label-large">{orderItems.length > 0 ? 'Re-import' : 'Upload'} CSV</span>
+                  <span className="label-large">
+                    {isProcessingUpload ? 'Processing CSV...' : `${orderItems.length > 0 ? 'Re-import' : 'Upload'} CSV`}
+                  </span>
                 </Button>
               </div>
             </div>
+
+            <p className="body-small text-on-surface-variant">{templateAvailability.helperText}</p>
 
             {uploadError && (
               <Alert variant="destructive">
@@ -814,6 +985,8 @@ export default function ThriftedOrderCreationScreen({
                 <AlertDescription className="body-small">{uploadError}</AlertDescription>
               </Alert>
             )}
+
+            {renderUploadStatus()}
 
             <div className="p-3 bg-surface-container rounded-lg">
               <p className="label-small text-on-surface-variant mb-2">CSV Format Requirements:</p>
@@ -824,6 +997,8 @@ export default function ThriftedOrderCreationScreen({
                 <li>• Category is automatically mapped from Subcategory</li>
                 <li>• Gender options: Women, Men, Kids, Unisex</li>
                 <li>• Price must be one of the valid SEK price ladder values</li>
+                <li>• Duplicate checks run within the file and, when appending, against the current order</li>
+                <li>• Files larger than {THRIFTED_IMPORT_CHUNK_SIZE.toLocaleString()} rows are processed locally in chunks and merged into one result</li>
                 <li>• Use the template to ensure correct format</li>
               </ul>
             </div>
@@ -851,6 +1026,11 @@ export default function ThriftedOrderCreationScreen({
               {itemsWithErrors > 0 && (
                 <Badge variant="destructive" className="label-medium">
                   {itemsWithErrors} errors
+                </Badge>
+              )}
+              {itemsWithDuplicateWarnings > 0 && (
+                <Badge variant="outline" className="label-medium border-warning text-warning">
+                  {itemsWithDuplicateWarnings} duplicates
                 </Badge>
               )}
               {validItems > 0 && (
@@ -894,6 +1074,16 @@ export default function ThriftedOrderCreationScreen({
                   >
                     Valid ({validItems})
                   </Button>
+                  {itemsWithDuplicateWarnings > 0 && (
+                    <Button
+                      variant={validationFilter === 'duplicates' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setValidationFilter('duplicates')}
+                      className="label-large"
+                    >
+                      Duplicates ({itemsWithDuplicateWarnings})
+                    </Button>
+                  )}
                   {itemsWithErrors > 0 && (
                     <Button
                       variant={validationFilter === 'errors' ? 'default' : 'outline'}
@@ -912,7 +1102,16 @@ export default function ThriftedOrderCreationScreen({
                 <Alert variant="destructive" className="mb-4">
                   <AlertTriangleIcon className="h-4 w-4" />
                   <AlertDescription className="body-small">
-                    {itemsWithErrors} item{itemsWithErrors > 1 ? 's have' : ' has'} validation errors. Please fix the errors before creating the order.
+                    {itemsWithErrors} item{itemsWithErrors > 1 ? 's have' : ' has'} row issues. Rejected rows have validation problems; skipped rows are duplicate collisions.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {creationMethod === 'bulk' && itemsWithDuplicateWarnings > 0 && validationFilter === 'duplicates' && (
+                <Alert className="mb-4 border-warning bg-warning-container/30">
+                  <AlertTriangleIcon className="h-4 w-4 text-warning" />
+                  <AlertDescription className="body-small text-on-warning-container">
+                    {itemsWithDuplicateWarnings} item{itemsWithDuplicateWarnings > 1 ? 's are' : ' is'} flagged as duplicates. Use this filter to review collisions within the file or against the current order.
                   </AlertDescription>
                 </Alert>
               )}
@@ -962,7 +1161,7 @@ export default function ThriftedOrderCreationScreen({
                     className="gap-2"
                   >
                     <TrashIcon size={16} />
-                    <span className="label-large">Delete {validationFilter === 'all' ? 'All' : validationFilter === 'errors' ? 'Error' : 'Valid'} Items</span>
+                    <span className="label-large">Delete {validationFilter === 'all' ? 'All' : validationFilter === 'errors' ? 'Error' : validationFilter === 'duplicates' ? 'Duplicate' : 'Valid'} Items</span>
                   </Button>
                 </div>
               )}
@@ -1055,6 +1254,11 @@ export default function ThriftedOrderCreationScreen({
                 ) : (
                   <div className="flex items-center gap-2 text-on-surface-variant">
                     <span className="body-small">{validItems} of {totalItems} items valid</span>
+                    {itemsWithDuplicateWarnings > 0 && (
+                      <Badge variant="outline" className="border-warning text-warning">
+                        {itemsWithDuplicateWarnings} duplicate{itemsWithDuplicateWarnings === 1 ? '' : 's'}
+                      </Badge>
+                    )}
                     {itemsWithErrors > 0 && (
                       <Badge variant="destructive" className="bg-error-container text-on-error-container">
                         {itemsWithErrors} {itemsWithErrors === 1 ? 'error' : 'errors'}
@@ -1139,14 +1343,37 @@ export default function ThriftedOrderCreationScreen({
       )}
 
       {/* Replace Items Dialog */}
-      <Dialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
+      <Dialog
+        open={showReplaceDialog}
+        onOpenChange={(open) => {
+          setShowReplaceDialog(open);
+          if (!open) {
+            clearPendingImports();
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="title-large">Replace or Append Items?</DialogTitle>
             <DialogDescription className="body-medium">
-              You have {orderItems.length} existing items. The uploaded file contains {pendingUploadItems.length} items.
+              You have {orderItems.length} existing items. Review the mocked import outcomes before deciding whether to replace or append.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-3 py-2 md:grid-cols-2">
+            {pendingReplaceImport &&
+              renderImportSummary(
+                pendingReplaceImport,
+                'Replace preview',
+                'Current-order duplicate checks are ignored because the existing rows would be replaced.'
+              )}
+            {pendingAppendImport &&
+              renderImportSummary(
+                pendingAppendImport,
+                'Append preview',
+                'Current-order duplicate checks stay active, so conflicting rows will be marked as skipped.'
+              )}
+          </div>
 
           <div className="flex flex-col gap-3 py-4">
             <Button
@@ -1154,6 +1381,7 @@ export default function ThriftedOrderCreationScreen({
               variant="destructive"
               size="lg"
               className="w-full"
+              disabled={!pendingReplaceImport}
             >
               <XIcon size={20} className="mr-2" />
               <span className="label-large">Replace All Items</span>
@@ -1164,6 +1392,7 @@ export default function ThriftedOrderCreationScreen({
               variant="default"
               size="lg"
               className="w-full bg-primary text-on-primary"
+              disabled={!pendingAppendImport}
             >
               <PlusIcon size={20} className="mr-2" />
               <span className="label-large">Add to Existing Items</span>
@@ -1175,7 +1404,7 @@ export default function ThriftedOrderCreationScreen({
               variant="outline"
               onClick={() => {
                 setShowReplaceDialog(false);
-                setPendingUploadItems([]);
+                clearPendingImports();
               }}
             >
               <span className="label-large">Cancel</span>

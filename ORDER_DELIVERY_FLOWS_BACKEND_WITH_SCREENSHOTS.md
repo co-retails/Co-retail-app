@@ -609,10 +609,12 @@ POST /api/orders/thrifted
 }
 ```
 
-**CSV Upload Endpoint:**
+**Prototype CSV Upload Contract (Conceptual Only):**
 ```
 POST /api/orders/thrifted/upload-csv
 ```
+
+This endpoint is not live in the prototype. The current UI mocks this behavior entirely in the browser: it parses the CSV locally, processes rows in 1,000-row chunks, detects duplicates, and renders one combined result without making a network request.
 
 **Request:**
 - Content-Type: `multipart/form-data`

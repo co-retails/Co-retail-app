@@ -27,7 +27,12 @@ import { AlertCircleIcon, Package, Trash2Icon, Check, ChevronDown } from 'lucide
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { OrderItem } from './OrderCreationScreen';
 import { getPriceOptionsForCurrency } from '../data/partnerPricing';
-import { THRIFTED_VALID_VALUES, filterBrandsByQuery, sortOptionsAlpha } from '../utils/spreadsheetUtils';
+import {
+  THRIFTED_VALID_VALUES,
+  filterBrandsByQuery,
+  getThriftedImportOutcome,
+  sortOptionsAlpha,
+} from '../utils/spreadsheetUtils';
 
 /**
  * Desktop table: control always uses the full column when valid (hint track is 0px).
@@ -693,6 +698,11 @@ export function ItemDetailsTable({
         <tbody className="bg-surface">
           {items.map((item, index) => {
             const hasError = !thriftedPartnerTable && item.status === 'error';
+            const thriftedOutcome = thriftedPartnerTable
+              ? getThriftedImportOutcome(item)
+              : 'imported';
+            const thriftedRejected = thriftedOutcome === 'rejected';
+            const thriftedDuplicateOnly = thriftedOutcome === 'skipped';
             const thriftedNeedsFields =
               thriftedPartnerTable &&
               item.fieldErrors &&
@@ -704,8 +714,12 @@ export function ItemDetailsTable({
               className={`${index !== items.length - 1 ? 'border-b border-outline-variant' : ''} ${
                 hasError
                   ? 'bg-error-container/10'
-                  : thriftedNeedsFields
-                    ? 'bg-surface-container/80 border-l-2 border-l-outline-variant'
+                  : thriftedRejected
+                    ? 'bg-error-container/10 border-l-2 border-l-error'
+                    : thriftedDuplicateOnly
+                      ? 'bg-warning-container/25 border-l-2 border-l-warning'
+                      : thriftedNeedsFields
+                        ? 'bg-surface-container/80 border-l-2 border-l-outline-variant'
                     : 'hover:bg-surface-container/50'
               } transition-colors`}
             >
