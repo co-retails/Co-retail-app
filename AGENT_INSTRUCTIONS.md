@@ -4,6 +4,15 @@ This document serves as a guide for AI agents and developers to understand the p
 
 ---
 
+## Git Remote Note For Agents
+
+- `main` tracks `origin/main` in this repo.
+- `.github/workflows/sync-to-co-retails.yml` mirrors pushes on `origin/main` to `co-retails/Co-retail-app` `main` via GitHub Actions.
+- If a user says "push to main," push `origin/main` unless they explicitly name another remote.
+- Do not push directly to the `co-retails` remote unless the user explicitly asks for that remote or the sync workflow needs manual intervention.
+
+---
+
 ## ⚠️ MANDATORY DESIGN RULES - READ FIRST
 
 **These rules are NON-NEGOTIABLE. Violating them will result in rejected code.**
