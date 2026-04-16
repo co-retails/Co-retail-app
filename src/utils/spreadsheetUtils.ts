@@ -1,4 +1,5 @@
 import { OrderItem } from '../components/OrderCreationScreen';
+import { MASTER_VALUES_DEMO } from '../data/masterValuesDemo';
 
 // Valid dropdown values for validation
 export const VALID_VALUES = {
@@ -16,20 +17,64 @@ export const VALID_VALUES = {
 };
 
 // Thrifted-specific valid values
-export const THRIFTED_VALID_VALUES = {
-  categories: ['Clothing', 'Shoes', 'Accessories', 'Other'],
-  subcategories: {
-    'Clothing': ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Activewear', 'Swimwear'],
-    'Shoes': ['Sneakers', 'Boots', 'Sandals', 'Formal', 'Flats'],
-    'Accessories': ['Bags', 'Jewelry', 'Belts', 'Hats', 'Scarves', 'Sunglasses'],
-    'Other': [] as string[] // Can be extended if needed
-  },
-  genders: ['Women', 'Men', 'Kids', 'Unisex'],
-  /** Aligned with store size dropdowns; includes letter, numeric EU bands, and one-size */
-  sizes: [...VALID_VALUES.sizes, 'One size'],
-  prices: [50, 75, 100, 120, 150, 200, 250, 300, 400, 500, 600, 750, 1000, 1200, 1500, 2000],
-  colors: ['Black', 'White', 'Gray', 'Navy', 'Blue', 'Red', 'Pink', 'Green', 'Yellow', 'Brown', 'Beige', 'Purple', 'Orange', 'Silver', 'Gold', 'Multicolor']
-};
+function getMasterCategoryBrandKey(brandId?: string | null): keyof typeof MASTER_VALUES_DEMO.categoriesByBrand {
+  const normalized = (brandId ?? '').trim().toLowerCase();
+  if (normalized === 'hm' || normalized === 'h&m') return 'H&M';
+  if (normalized === 'cos') return 'COS';
+  if (normalized === 'arket') return 'ARKET';
+  return 'WEEKDAY';
+}
+
+function getMasterSizesBrandKey(brandId?: string | null): keyof typeof MASTER_VALUES_DEMO.sizesByBrand {
+  const normalized = (brandId ?? '').trim().toLowerCase();
+  if (normalized === 'hm' || normalized === 'h&m') return 'H&M';
+  if (normalized === 'cos') return 'COS';
+  if (normalized === 'arket') return 'ARKET';
+  return 'WEEKDAY/MONKI';
+}
+
+function getMasterGendersBrandKey(brandId?: string | null): keyof typeof MASTER_VALUES_DEMO.gendersByBrand {
+  const normalized = (brandId ?? '').trim().toLowerCase();
+  if (normalized === 'hm' || normalized === 'h&m') return 'H&M';
+  if (normalized === 'cos') return 'COS';
+  if (normalized === 'arket') return 'ARKET';
+  return 'WEEKDAY/MONKI';
+}
+
+function getMasterSekPricesBrandKey(
+  brandId?: string | null
+): keyof typeof MASTER_VALUES_DEMO.sekPricesByBrand {
+  const normalized = (brandId ?? '').trim().toLowerCase();
+  if (normalized === 'hm' || normalized === 'h&m') return 'hm';
+  if (normalized === 'monki') return 'Monki';
+  return 'weekday';
+}
+
+export function getThriftedValidValues(brandId?: string | null) {
+  const categoriesKey = getMasterCategoryBrandKey(brandId);
+  const sizesKey = getMasterSizesBrandKey(brandId);
+  const gendersKey = getMasterGendersBrandKey(brandId);
+  const pricesKey = getMasterSekPricesBrandKey(brandId);
+
+  const subcategoriesByCategory = Object.fromEntries(
+    Object.entries(MASTER_VALUES_DEMO.categoriesByBrand[categoriesKey]).map(([category, subcategories]) => [
+      category,
+      [...subcategories].sort((a, b) => a.localeCompare(b))
+    ])
+  ) as Record<string, string[]>;
+
+  return {
+    categories: Object.keys(subcategoriesByCategory).sort((a, b) => a.localeCompare(b)),
+    subcategories: subcategoriesByCategory,
+    genders: [...MASTER_VALUES_DEMO.gendersByBrand[gendersKey]].sort((a, b) => a.localeCompare(b)),
+    sizes: [...MASTER_VALUES_DEMO.sizesByBrand[sizesKey]],
+    prices: [...MASTER_VALUES_DEMO.sekPricesByBrand[pricesKey]],
+    colors: [...MASTER_VALUES_DEMO.colors].sort((a, b) => a.localeCompare(b))
+  };
+}
+
+// Keep existing constant for backwards compatibility (defaults to Weekday-ish set)
+export const THRIFTED_VALID_VALUES = getThriftedValidValues('weekday');
 
 export const THRIFTED_IMPORT_CHUNK_SIZE = 1000;
 export const MOCK_THRIFTED_TEMPLATE_ENDPOINT_LIVE = false;
@@ -577,6 +622,22 @@ export function mapSubcategoryToCategory(subcategory: string): string | null {
  */
 export function getAllThriftedSubcategories(): string[] {
   return Object.values(THRIFTED_VALID_VALUES.subcategories).flat();
+}
+
+export function mapThriftedSubcategoryToCategory(
+  subcategory: string,
+  options: Pick<ReturnType<typeof getThriftedValidValues>, 'subcategories'>
+): string | null {
+  for (const [category, subcategories] of Object.entries(options.subcategories)) {
+    if (subcategories.includes(subcategory)) {
+      return category;
+    }
+  }
+  return null;
+}
+
+export function getAllThriftedSubcategoriesForBrand(brandId?: string | null): string[] {
+  return Object.values(getThriftedValidValues(brandId).subcategories).flat();
 }
 
 // Column definitions with mandatory flags

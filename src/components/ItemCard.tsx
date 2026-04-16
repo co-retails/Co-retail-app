@@ -92,6 +92,8 @@ interface ItemCardProps {
   onMoreActions?: (item: BaseItem, action: ItemQuickAction) => void;
   onEdit?: (item: BaseItem) => void;
   onClick?: (item: BaseItem) => void;
+  /** Optional separate handler for clicking the thumbnail image (e.g. attach photo). */
+  onThumbnailClick?: (item: BaseItem) => void;
   variant?: 'items-list' | 'order-details';
   showActions?: boolean;
   showSelection?: boolean;
@@ -221,6 +223,7 @@ export const ItemCard = memo(function ItemCard({
   onMoreActions, 
   onEdit,
   onClick,
+  onThumbnailClick,
   variant = 'items-list',
   showActions = true,
   showSelection = true,
@@ -437,13 +440,41 @@ export const ItemCard = memo(function ItemCard({
 
           
           {/* Thumbnail */}
-          <div className="flex-shrink-0 w-14 h-14 bg-surface-container rounded-xl overflow-hidden">
+          <div
+            role={onThumbnailClick ? 'button' : undefined}
+            tabIndex={onThumbnailClick ? 0 : undefined}
+            className={`relative flex-shrink-0 w-14 h-14 bg-surface-container rounded-xl overflow-hidden ${
+              onThumbnailClick ? 'cursor-pointer' : 'cursor-default'
+            }`}
+            onClick={(e) => {
+              if (!onThumbnailClick) return;
+              e.preventDefault();
+              e.stopPropagation();
+              onThumbnailClick(item);
+            }}
+            onKeyDown={(e) => {
+              if (!onThumbnailClick) return;
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                onThumbnailClick(item);
+              }
+            }}
+            aria-label={onThumbnailClick ? 'Add image' : 'Item image'}
+          >
             <ImageWithFallback 
               src={thumbnailSrc}
               alt={item.title || item.brand}
               className="w-full h-full object-cover"
               fallback={renderThumbnailFallback('card')}
             />
+            {onThumbnailClick && (
+              <div className="absolute bottom-0 right-0 p-0.5">
+                <div className="h-6 w-6 rounded-full bg-black/35 flex items-center justify-center">
+                  <span className="text-white text-lg leading-none select-none">+</span>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Main Content */}

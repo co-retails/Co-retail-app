@@ -302,18 +302,17 @@ export default function PartnerItemStatusReport({
     }
 
     const headers = [
+      'Date',
       'Item ID',
       'External Item ID',
-      'Title',
-      'Brand',
+      'Item Brand',
       'Category',
       'Size',
       'Color',
-      'Price (SEK)',
-      'Status',
-      'Date',
       'Order Number',
       'Box Label',
+      'Price (SEK)',
+      'Status',
       'Store'
     ];
 
@@ -348,18 +347,17 @@ export default function PartnerItemStatusReport({
         }
       }
       return [
+        item.date || '',
         item.itemId || '',
         item.partnerItemId || '',
-        item.title || '',
         item.brand || '',
         item.category || '',
         item.size || '',
         item.color || '',
-        item.price?.toString() || '',
-        mappedStatus,
-        item.date || '',
         item.orderNumber || '',
         item.boxLabel || '',
+        item.price?.toString() || '',
+        mappedStatus,
         storeDisplay
       ];
     });
@@ -480,7 +478,7 @@ export default function PartnerItemStatusReport({
 
       {/* Items Table */}
       {filteredItems.length > 0 ? (
-        <Card className="bg-surface-container border border-outline-variant rounded-lg">
+        <Card className="bg-surface border border-outline-variant rounded-lg">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -490,16 +488,16 @@ export default function PartnerItemStatusReport({
                       Image
                     </th>
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
+                      Date
+                    </th>
+                    <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       Item ID
                     </th>
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       External Item ID
                     </th>
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
-                      Title
-                    </th>
-                    <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
-                      Brand
+                      Item Brand
                     </th>
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       Category
@@ -510,15 +508,6 @@ export default function PartnerItemStatusReport({
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       Color
                     </th>
-                    <th className="text-right py-3 px-4 label-medium text-on-surface-variant">
-                      Price (SEK)
-                    </th>
-                    <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
-                      Status
-                    </th>
-                    <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
-                      Date
-                    </th>
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       Order Number
                     </th>
@@ -528,6 +517,12 @@ export default function PartnerItemStatusReport({
                     <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
                       Store
                     </th>
+                    <th className="text-right py-3 px-4 label-medium text-on-surface-variant">
+                      Price (SEK)
+                    </th>
+                    <th className="text-left py-3 px-4 label-medium text-on-surface-variant">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -536,9 +531,9 @@ export default function PartnerItemStatusReport({
                     return (
                       <tr
                         key={item.id}
-                        className="border-b border-outline-variant hover:bg-surface-container-high transition-colors bg-white"
+                        className="border-b border-outline-variant hover:bg-surface-container-high transition-colors"
                       >
-                        <td className="py-3 px-4 sticky left-0 bg-white" style={{ zIndex: 1 }}>
+                        <td className="py-3 px-4 sticky left-0 bg-surface" style={{ zIndex: 1 }}>
                           <div className="w-16 h-16 bg-surface-container-high rounded overflow-hidden flex-shrink-0">
                             <ImageWithFallback
                               src={item.thumbnail || item.image}
@@ -547,14 +542,14 @@ export default function PartnerItemStatusReport({
                             />
                           </div>
                         </td>
+                        <td className="py-3 px-4 body-small text-on-surface-variant">
+                          {item.date ? new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
+                        </td>
                         <td className="py-3 px-4 body-medium text-on-surface font-medium">
                           {item.itemId}
                         </td>
                         <td className="py-3 px-4 body-medium text-on-surface">
                           {item.partnerItemId || '-'}
-                        </td>
-                        <td className="py-3 px-4 body-medium text-on-surface">
-                          {item.title || '-'}
                         </td>
                         <td className="py-3 px-4 body-medium text-on-surface">
                           {item.brand}
@@ -567,23 +562,6 @@ export default function PartnerItemStatusReport({
                         </td>
                         <td className="py-3 px-4 body-medium text-on-surface">
                           {item.color || '-'}
-                        </td>
-                        <td className="py-3 px-4 body-medium text-on-surface text-right">
-                          {item.price}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                            displayStatus === 'Sold' ? 'bg-chart-2 text-on-chart-2' :
-                            displayStatus === 'Available' ? 'bg-chart-1 text-on-chart-1' :
-                            displayStatus === 'Returned' ? 'bg-chart-3 text-on-chart-3' :
-                            displayStatus === 'In transit' || displayStatus === 'In transit return' ? 'bg-chart-4 text-on-chart-4' :
-                            'bg-surface-container-high text-on-surface'
-                          }`}>
-                            {displayStatus}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 body-medium text-on-surface">
-                          {item.date ? new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                         </td>
                         <td className="py-3 px-4 body-medium text-on-surface">
                           {item.orderNumber || '-'}
@@ -625,6 +603,20 @@ export default function PartnerItemStatusReport({
                             // If no delivery found, show "-"
                             return '-';
                           })()}
+                        </td>
+                        <td className="py-3 px-4 body-medium text-on-surface text-right">
+                          {item.price}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                            displayStatus === 'Sold' ? 'bg-chart-2 text-on-chart-2' :
+                            displayStatus === 'Available' ? 'bg-chart-1 text-on-chart-1' :
+                            displayStatus === 'Returned' ? 'bg-chart-3 text-on-chart-3' :
+                            displayStatus === 'In transit' || displayStatus === 'In transit return' ? 'bg-chart-4 text-on-chart-4' :
+                            'bg-surface-container-high text-on-surface'
+                          }`}>
+                            {displayStatus}
+                          </span>
                         </td>
                       </tr>
                     );

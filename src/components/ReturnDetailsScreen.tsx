@@ -3,10 +3,11 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User } from 'lucide-react';
+import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User, Download } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import { ItemCard, BaseItem } from './ItemCard';
+import { downloadCSV } from '../utils/spreadsheetUtils';
 
 export interface ReturnOrderDetails {
   id: string;
@@ -418,6 +419,65 @@ export default function ReturnDetailsScreen({
   const [unscannedFilter, setUnscannedFilter] = useState<UnscannedFilter>('all');
   const hasScannedItems = returnOrder.scannedItems.length > 0;
 
+  const escapeCSVValue = (value: unknown): string => {
+    if (value === null || value === undefined) return '';
+    const s = String(value);
+    // Escape quotes by doubling them, and wrap values that contain separators/newlines.
+    const needsQuotes = /[",\n\r]/.test(s);
+    const escaped = s.replace(/"/g, '""');
+    return needsQuotes ? `"${escaped}"` : escaped;
+  };
+
+  const exportReturnItemsToCsv = (items: Array<ReturnItemDetail & Record<string, unknown>>) => {
+    if (!items.length) {
+      return;
+    }
+
+    const preferredHeaderOrder = [
+      'id',
+      'itemId',
+      'title',
+      'partnerItemRef',
+      'scanned',
+      'brand',
+      'category',
+      'size',
+      'color',
+      'price',
+      'date',
+      'status',
+      'isExpired',
+    ];
+
+    const keySet = new Set<string>();
+    items.forEach((item) => {
+      Object.keys(item).forEach((k) => keySet.add(k));
+    });
+
+    const allKeys = Array.from(keySet);
+    const headers = [
+      ...preferredHeaderOrder.filter((k) => keySet.has(k)),
+      ...allKeys
+        .filter((k) => !preferredHeaderOrder.includes(k))
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })),
+    ];
+
+    const lines: string[] = [];
+    lines.push(headers.map(escapeCSVValue).join(','));
+
+    items.forEach((item) => {
+      lines.push(
+        headers
+          .map((key) => escapeCSVValue((item as Record<string, unknown>)[key]))
+          .join(',')
+      );
+    });
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `return-order-${returnOrder.orderNumber}-${dateStr}.csv`;
+    downloadCSV(lines.join('\n'), filename);
+  };
+
   const handleToggleSelect = (id: string) => {
     // Toggle selection logic would go here
   };
@@ -529,10 +589,26 @@ export default function ReturnDetailsScreen({
         {/* Content Area */}
         <div className="pt-4 md:pt-6">
           {/* Item count */}
-          <div className="px-4 md:px-6 mb-4">
+          <div className="px-4 md:px-6 mb-4 flex items-center justify-between gap-3">
             <span className="body-medium text-on-surface-variant">
               {currentItems.length} items
             </span>
+            {userRole === 'partner' && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const allItems = [
+                    ...enhancedScannedItems.map((x) => ({ ...x, scanned: true })),
+                    ...enhancedUnscannedItems.map((x) => ({ ...x, scanned: false })),
+                  ];
+                  exportReturnItemsToCsv(allItems);
+                }}
+                className="gap-2 border-outline text-on-surface hover:bg-surface-container-high"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </Button>
+            )}
           </div>
           
           {/* Items or Empty State */}

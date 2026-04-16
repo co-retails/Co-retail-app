@@ -28,7 +28,6 @@ import {
   TableHeader,
   TableRow
 } from './ui/table';
-import { Switch } from './ui/switch';
 import {
   ArrowLeft,
   Plus,
@@ -37,8 +36,7 @@ import {
   Upload,
   Download,
   GripVertical,
-  MoreVertical,
-  Sparkles
+  MoreVertical
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -47,6 +45,7 @@ import {
   DropdownMenuTrigger
 } from './ui/dropdown-menu';
 import { DropdownValue, Attribute, Brand } from './PortalConfigTypes';
+import { MASTER_VALUES_DEMO } from '../data/masterValuesDemo';
 import { toast } from 'sonner';
 
 interface DropdownValuesScreenProps {
@@ -59,128 +58,61 @@ type ExtendedDropdownValue = DropdownValue & {
   parentCode?: string;
 };
 
-export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScreenProps) {
-  // Mock brands data
-  const brands: Brand[] = [
-    { id: 'weekday', name: 'Weekday', code: 'WD' },
-    { id: 'monki', name: 'Monki', code: 'MK' }
-  ];
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-');
+}
 
-  // Mock attributes (only dropdown/chips types) - memoized to prevent infinite loops
-  const attributes: Attribute[] = useMemo(() => [
-    {
-      id: 'category',
-      key: 'category',
-      label: 'Category',
-      type: 'list',
-      inputType: 'dropdown',
-      mandatory: true,
-      brandId: 'weekday',
-      status: 'active',
-      usedByCategories: 12,
-      lastEdited: '2025-01-05',
-      lastEditedBy: 'Admin',
-      createdAt: '2024-02-01'
-    },
-    {
-      id: 'subcategory',
-      key: 'subcategory',
-      label: 'Sub-category',
-      type: 'list',
-      inputType: 'dropdown',
-      mandatory: true,
-      brandId: 'weekday',
-      status: 'active',
-      usedByCategories: 28,
-      lastEdited: '2025-01-08',
-      lastEditedBy: 'Admin',
-      createdAt: '2024-02-08'
-    },
-    {
-      id: 'color',
-      key: 'color',
-      label: 'Color',
-      type: 'list',
-      inputType: 'dropdown',
-      mandatory: true,
-      brandId: 'weekday',
-      status: 'active',
-      usedByCategories: 45,
-      lastEdited: '2025-01-15',
-      lastEditedBy: 'Admin',
-      createdAt: '2024-06-01'
-    },
-    {
-      id: 'size',
-      key: 'size',
-      label: 'Size',
-      type: 'list',
-      inputType: 'dropdown',
-      mandatory: true,
-      brandId: 'weekday',
-      status: 'active',
-      usedByCategories: 52,
-      lastEdited: '2025-01-10',
-      lastEditedBy: 'Admin',
-      createdAt: '2024-06-01'
-    },
-    {
-      id: 'material',
-      key: 'material',
-      label: 'Material',
-      type: 'multi-select',
-      inputType: 'chips',
-      mandatory: false,
-      brandId: 'weekday',
-      status: 'active',
-      usedByCategories: 38,
-      lastEdited: '2024-12-20',
-      lastEditedBy: 'Admin',
-      createdAt: '2024-06-01'
-    },
-    {
-      id: 'category-monki',
-      key: 'category',
-      label: 'Category',
-      type: 'list',
-      inputType: 'dropdown',
-      mandatory: true,
-      brandId: 'monki',
-      status: 'active',
-      usedByCategories: 18,
-      lastEdited: '2025-01-12',
-      lastEditedBy: 'Admin',
-      createdAt: '2024-03-15'
-    },
-    {
-      id: 'subcategory-monki',
-      key: 'subcategory',
-      label: 'Sub-category',
-      type: 'list',
-      inputType: 'dropdown',
-      mandatory: true,
-      brandId: 'monki',
-      status: 'active',
-      usedByCategories: 32,
-      lastEdited: '2025-01-12',
-      lastEditedBy: 'Admin',
-      createdAt: '2024-03-20'
-    },
-    {
-      id: 'pattern-monki',
-      key: 'pattern',
-      label: 'Pattern',
-      type: 'multi-select',
-      inputType: 'chips',
-      mandatory: false,
-      brandId: 'monki',
-      status: 'active',
-      usedByCategories: 15,
-      lastEdited: '2024-12-12',
-      lastEditedBy: 'Admin',
-      createdAt: '2024-05-10'
-    }
-  ], []);
+export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScreenProps) {
+  const brands: Brand[] = useMemo(
+    () => [
+      { id: 'weekday', name: 'Weekday', code: 'WD' },
+      { id: 'monki', name: 'Monki', code: 'MK' },
+      { id: 'hm', name: 'H&M', code: 'HM' },
+      { id: 'cos', name: 'COS', code: 'COS' },
+      { id: 'arket', name: 'Arket', code: 'ARK' }
+    ],
+    []
+  );
+
+  const baseAttributes = useMemo(
+    () =>
+      [
+        { key: 'category', label: 'Category', type: 'list', inputType: 'dropdown', mandatory: true },
+        { key: 'subcategory', label: 'Sub-category', type: 'list', inputType: 'dropdown', mandatory: true },
+        { key: 'color', label: 'Color', type: 'list', inputType: 'dropdown', mandatory: true },
+        { key: 'size', label: 'Size', type: 'list', inputType: 'dropdown', mandatory: true },
+        { key: 'gender', label: 'Gender', type: 'list', inputType: 'dropdown', mandatory: true },
+        { key: 'material', label: 'Material', type: 'multi-select', inputType: 'chips', mandatory: false },
+        { key: 'condition', label: 'Condition', type: 'list', inputType: 'dropdown', mandatory: true }
+      ] as const,
+    []
+  );
+
+  const attributes: Attribute[] = useMemo(
+    () =>
+      brands.flatMap((brand) =>
+        baseAttributes.map((attr) => ({
+          id: `${attr.key}-${brand.id}`,
+          key: attr.key,
+          label: attr.label,
+          type: attr.type,
+          inputType: attr.inputType,
+          mandatory: attr.mandatory,
+          brandId: brand.id,
+          status: 'active',
+          usedByCategories: 0,
+          lastEdited: '2026-01-01',
+          lastEditedBy: 'Demo',
+          createdAt: '2026-01-01'
+        }))
+      ),
+    [brands, baseAttributes]
+  );
 
   const [selectedBrand, setSelectedBrand] = useState<string>(() => brands[0].id);
   const [selectedAttribute, setSelectedAttribute] = useState<string>(() => {
@@ -195,41 +127,144 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingValue, setEditingValue] = useState<ExtendedDropdownValue | null>(null);
 
-  // Mock values data
-  const [values, setValues] = useState<ExtendedDropdownValue[]>([
-    { id: '1', code: 'black', label: 'Black', sort: 1, active: true, attributeId: 'color', brandId: 'weekday' },
-    { id: '2', code: 'white', label: 'White', sort: 2, active: true, attributeId: 'color', brandId: 'weekday' },
-    { id: '3', code: 'red', label: 'Red', sort: 3, active: true, attributeId: 'color', brandId: 'weekday' },
-    { id: '4', code: 'blue', label: 'Blue', sort: 4, active: true, attributeId: 'color', brandId: 'weekday' },
-    { id: '5', code: 'green', label: 'Green', sort: 5, active: false, attributeId: 'color', brandId: 'weekday' },
-    { id: 'cat-1', code: 'tops', label: 'Tops', sort: 1, active: true, attributeId: 'category', brandId: 'weekday' },
-    { id: 'cat-2', code: 'bottoms', label: 'Bottoms', sort: 2, active: true, attributeId: 'category', brandId: 'weekday' },
-    { id: 'cat-3', code: 'outerwear', label: 'Outerwear', sort: 3, active: true, attributeId: 'category', brandId: 'weekday' },
-    { id: 'sub-1', code: 'tshirts', label: 'T-shirts', sort: 1, active: true, attributeId: 'subcategory', brandId: 'weekday', parentCode: 'tops' },
-    { id: 'sub-2', code: 'shirts', label: 'Shirts & blouses', sort: 2, active: true, attributeId: 'subcategory', brandId: 'weekday', parentCode: 'tops' },
-    { id: 'sub-3', code: 'jeans', label: 'Jeans', sort: 1, active: true, attributeId: 'subcategory', brandId: 'weekday', parentCode: 'bottoms' },
-    { id: 'sub-4', code: 'tailored', label: 'Tailored trousers', sort: 2, active: true, attributeId: 'subcategory', brandId: 'weekday', parentCode: 'bottoms' },
-    { id: 'sub-5', code: 'puffer', label: 'Puffer jackets', sort: 1, active: true, attributeId: 'subcategory', brandId: 'weekday', parentCode: 'outerwear' },
-    { id: 'sub-6', code: 'coats', label: 'Wool coats', sort: 2, active: true, attributeId: 'subcategory', brandId: 'weekday', parentCode: 'outerwear' },
-    { id: 'mk-cat-1', code: 'dresses', label: 'Dresses', sort: 1, active: true, attributeId: 'category-monki', brandId: 'monki' },
-    { id: 'mk-cat-2', code: 'knitwear', label: 'Knitwear', sort: 2, active: true, attributeId: 'category-monki', brandId: 'monki' },
-    { id: 'mk-sub-1', code: 'party-dresses', label: 'Party dresses', sort: 1, active: true, attributeId: 'subcategory-monki', brandId: 'monki', parentCode: 'dresses' },
-    { id: 'mk-sub-2', code: 'casual-dresses', label: 'Casual dresses', sort: 2, active: true, attributeId: 'subcategory-monki', brandId: 'monki', parentCode: 'dresses' },
-    { id: 'mk-sub-3', code: 'chunky-knit', label: 'Chunky knit', sort: 1, active: true, attributeId: 'subcategory-monki', brandId: 'monki', parentCode: 'knitwear' },
-    { id: 'mk-sub-4', code: 'fine-knit', label: 'Fine knit', sort: 2, active: true, attributeId: 'subcategory-monki', brandId: 'monki', parentCode: 'knitwear' },
-    { id: 'pattern-1', code: 'floral', label: 'Floral', sort: 1, active: true, attributeId: 'pattern-monki', brandId: 'monki' },
-    { id: 'pattern-2', code: 'polka', label: 'Polka dots', sort: 2, active: true, attributeId: 'pattern-monki', brandId: 'monki' }
-  ]);
+  const getMasterCategoryKey = (brandId: string) => {
+    if (brandId === 'hm') return 'H&M' as const;
+    if (brandId === 'cos') return 'COS' as const;
+    if (brandId === 'arket') return 'ARKET' as const;
+    return 'WEEKDAY' as const;
+  };
+
+  const getMasterSizesKey = (brandId: string) => {
+    if (brandId === 'hm') return 'H&M' as const;
+    if (brandId === 'cos') return 'COS' as const;
+    if (brandId === 'arket') return 'ARKET' as const;
+    return 'WEEKDAY/MONKI' as const;
+  };
+
+  const getMasterGendersKey = (brandId: string) => {
+    if (brandId === 'hm') return 'H&M' as const;
+    if (brandId === 'cos') return 'COS' as const;
+    if (brandId === 'arket') return 'ARKET' as const;
+    return 'WEEKDAY/MONKI' as const;
+  };
+
+  const buildDemoValues = (): ExtendedDropdownValue[] => {
+    const all: ExtendedDropdownValue[] = [];
+
+    brands.forEach((brand) => {
+      const categoryKey = getMasterCategoryKey(brand.id);
+      const sizesKey = getMasterSizesKey(brand.id);
+      const gendersKey = getMasterGendersKey(brand.id);
+
+      const categoryAttrId = `category-${brand.id}`;
+      const subcategoryAttrId = `subcategory-${brand.id}`;
+      const colorAttrId = `color-${brand.id}`;
+      const sizeAttrId = `size-${brand.id}`;
+      const genderAttrId = `gender-${brand.id}`;
+      const materialAttrId = `material-${brand.id}`;
+      const conditionAttrId = `condition-${brand.id}`;
+
+      // Category + subcategory
+      Object.entries(MASTER_VALUES_DEMO.categoriesByBrand[categoryKey]).forEach(
+        ([categoryLabel, subcategories], categoryIndex) => {
+          const categoryCode = slugify(categoryLabel);
+
+          all.push({
+            id: `${brand.id}-category-${categoryCode}`,
+            code: categoryCode,
+            label: categoryLabel,
+            sort: categoryIndex + 1,
+            active: true,
+            attributeId: categoryAttrId,
+            brandId: brand.id
+          });
+
+          subcategories.forEach((subLabel, subIndex) => {
+            all.push({
+              id: `${brand.id}-subcategory-${categoryCode}-${slugify(subLabel)}`,
+              code: slugify(subLabel),
+              label: subLabel,
+              sort: subIndex + 1,
+              active: true,
+              attributeId: subcategoryAttrId,
+              brandId: brand.id,
+              parentCode: categoryCode
+            });
+          });
+        }
+      );
+
+      MASTER_VALUES_DEMO.colors.forEach((label, index) => {
+        all.push({
+          id: `${brand.id}-color-${slugify(label)}`,
+          code: slugify(label),
+          label,
+          sort: index + 1,
+          active: true,
+          attributeId: colorAttrId,
+          brandId: brand.id
+        });
+      });
+
+      MASTER_VALUES_DEMO.sizesByBrand[sizesKey].forEach((label, index) => {
+        all.push({
+          id: `${brand.id}-size-${slugify(label)}`,
+          code: slugify(label),
+          label,
+          sort: index + 1,
+          active: true,
+          attributeId: sizeAttrId,
+          brandId: brand.id
+        });
+      });
+
+      MASTER_VALUES_DEMO.gendersByBrand[gendersKey].forEach((label, index) => {
+        all.push({
+          id: `${brand.id}-gender-${slugify(label)}`,
+          code: slugify(label),
+          label,
+          sort: index + 1,
+          active: true,
+          attributeId: genderAttrId,
+          brandId: brand.id
+        });
+      });
+
+      MASTER_VALUES_DEMO.materials.forEach((label, index) => {
+        all.push({
+          id: `${brand.id}-material-${slugify(label)}`,
+          code: slugify(label),
+          label,
+          sort: index + 1,
+          active: true,
+          attributeId: materialAttrId,
+          brandId: brand.id
+        });
+      });
+
+      MASTER_VALUES_DEMO.conditions.forEach((label, index) => {
+        all.push({
+          id: `${brand.id}-condition-${slugify(label)}`,
+          code: slugify(label),
+          label,
+          sort: index + 1,
+          active: true,
+          attributeId: conditionAttrId,
+          brandId: brand.id
+        });
+      });
+    });
+
+    return all;
+  };
+
+  const [values, setValues] = useState<ExtendedDropdownValue[]>(() => buildDemoValues());
 
   // Form state
   const [formData, setFormData] = useState({
-    code: '',
     label: '',
-    sort: 1,
-    active: true,
     parentCode: ''
   });
-  const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
 
   const currentAttribute = attributes.find((a) => a.id === selectedAttribute);
 
@@ -241,16 +276,13 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
         (attr.inputType === 'dropdown' || attr.inputType === 'chips')
     );
 
-    if (brandSpecificAttributes.length > 0) {
-      setSelectedAttribute((currentAttribute) => {
-        const isValidAttribute = brandSpecificAttributes.some((attr) => attr.id === currentAttribute);
-        if (!isValidAttribute) {
-          return brandSpecificAttributes[0].id;
-        }
-        return currentAttribute; // Keep current if valid
-      });
-    }
-  }, [selectedBrand, attributes]); // attributes is now memoized so it won't cause infinite loops
+    if (brandSpecificAttributes.length === 0) return;
+
+    setSelectedAttribute((current) => {
+      const isValid = brandSpecificAttributes.some((attr) => attr.id === current);
+      return isValid ? current : brandSpecificAttributes[0].id;
+    });
+  }, [selectedBrand, attributes]);
 
   const brandAttributes = useMemo(
     () =>
@@ -288,7 +320,7 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
         (val.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
           val.code.toLowerCase().includes(searchQuery.toLowerCase()))
     )
-    .sort((a, b) => a.sort - b.sort);
+    .sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label));
 
   useEffect(() => {
     if (currentAttribute?.key === 'subcategory') {
@@ -304,15 +336,6 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
     }
   }, [currentAttribute, categoryValues]);
 
-
-  const slugify = (value: string) =>
-    value
-      .toLowerCase()
-      .trim()
-      .replace(/[\s_]+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/-+/g, '-');
-
   const handleAddValue = () => {
     if (!selectedAttribute) {
       toast.error('Select an attribute to add values');
@@ -324,11 +347,7 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
       return;
     }
 
-    const normalizedCode = formData.code.trim();
-    if (!normalizedCode) {
-      toast.error('Code cannot be empty');
-      return;
-    }
+    const normalizedCode = slugify(formData.label);
 
     const normalizedLabel = formData.label.trim().toLowerCase();
 
@@ -348,9 +367,15 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
 
     const newValue: DropdownValue = {
       id: Date.now().toString(),
-      ...formData,
       code: normalizedCode,
       label: trimmedLabel,
+      sort: Math.max(
+        ...values
+          .filter((v) => v.attributeId === selectedAttribute && v.brandId === selectedBrand)
+          .map((v) => v.sort),
+        0
+      ) + 1,
+      active: true,
       attributeId: selectedAttribute
     };
 
@@ -375,13 +400,8 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
       return;
     }
 
-    const normalizedCode = formData.code.trim();
+    const normalizedCode = slugify(formData.label);
     const normalizedLabel = formData.label.trim().toLowerCase();
-
-    if (!normalizedCode) {
-      toast.error('Code cannot be empty');
-      return;
-    }
 
     const conflict = values.some(
       (val) =>
@@ -404,8 +424,6 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
               ...val,
               code: normalizedCode,
               label: formData.label.trim(),
-              sort: formData.sort,
-              active: formData.active,
               parentCode:
                 currentAttribute?.key === 'subcategory' ? formData.parentCode : val.parentCode
             }
@@ -417,44 +435,25 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
     toast.success('Value updated successfully');
   };
 
-  const handleToggleActive = (id: string) => {
-    setValues(
-      values.map((val) => (val.id === id ? { ...val, active: !val.active } : val))
-    );
-    toast.success('Status updated');
-  };
-
   const handleDeleteValue = (id: string) => {
     setValues(values.filter((val) => val.id !== id));
     toast.success('Value deleted');
   };
 
   const resetForm = () => {
-    const relevantValues = values.filter(
-      (v) => v.attributeId === selectedAttribute && v.brandId === selectedBrand
-    );
-    const maxSort = Math.max(...relevantValues.map((v) => v.sort), 0);
     setFormData({
-      code: '',
       label: '',
-      sort: maxSort + 1,
-      active: true,
       parentCode:
         currentAttribute?.key === 'subcategory' ? categoryValues[0]?.code ?? '' : ''
     });
-    setIsCodeManuallyEdited(false);
   };
 
   const openEditDialog = (value: ExtendedDropdownValue) => {
     setFormData({
-      code: value.code,
       label: value.label,
-      sort: value.sort,
-      active: value.active,
       parentCode: value.parentCode || ''
     });
     setEditingValue(value);
-    setIsCodeManuallyEdited(true);
   };
 
   return (
@@ -471,23 +470,13 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
           </button>
 
           <div className="flex-1">
-            <h1 className="title-large text-on-surface">Dropdown values</h1>
+            <h1 className="title-large text-on-surface">Attribute values</h1>
             <p className="body-small text-on-surface-variant">
               Manage attribute value options
             </p>
           </div>
 
           <div className="flex gap-2">
-            {onNavigate && (
-              <Button
-                variant="outline"
-                className="border-primary text-primary hover:bg-primary-container"
-                onClick={() => onNavigate('attribute-mappings')}
-              >
-                <Sparkles className="w-5 h-5 mr-2" />
-                View AI Mappings
-              </Button>
-            )}
             <Button
               variant="outline"
               className="border-outline hover:bg-surface-container-high"
@@ -604,15 +593,12 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
                   <TableHeader>
                     <TableRow className="border-outline-variant bg-surface-container">
                       <TableHead className="w-[40px]"></TableHead>
-                      <TableHead className="body-medium text-on-surface-variant">Code</TableHead>
                       <TableHead className="body-medium text-on-surface-variant">Label</TableHead>
                       {showParentColumn && (
                         <TableHead className="body-medium text-on-surface-variant">
                           Category
                         </TableHead>
                       )}
-                      <TableHead className="body-medium text-on-surface-variant">Sort</TableHead>
-                      <TableHead className="body-medium text-on-surface-variant">Active</TableHead>
                       <TableHead className="body-medium text-on-surface-variant w-[100px]">
                         Actions
                       </TableHead>
@@ -622,7 +608,7 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
                     {filteredValues.length === 0 ? (
                       <TableRow className="bg-surface">
                         <TableCell
-                          colSpan={showParentColumn ? 7 : 6}
+                          colSpan={showParentColumn ? 4 : 3}
                           className="h-32 text-center body-medium text-on-surface-variant"
                         >
                           No values found. Add values to populate the dropdown options.
@@ -638,11 +624,6 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
                             <GripVertical className="w-5 h-5 text-on-surface-variant" />
                           </TableCell>
                           <TableCell>
-                            <code className="label-medium text-on-surface bg-surface-container-high px-2 py-1 rounded">
-                              {value.code}
-                            </code>
-                          </TableCell>
-                          <TableCell>
                             <span className="body-medium text-on-surface">{value.label}</span>
                           </TableCell>
                           {showParentColumn && (
@@ -655,15 +636,6 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
                               </span>
                             </TableCell>
                           )}
-                          <TableCell>
-                            <span className="body-medium text-on-surface-variant">{value.sort}</span>
-                          </TableCell>
-                          <TableCell>
-                            <Switch
-                              checked={value.active}
-                              onCheckedChange={() => handleToggleActive(value.id)}
-                            />
-                          </TableCell>
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -746,67 +718,10 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
               <Input
                 id="label"
                 value={formData.label}
-                onChange={(e) => {
-                  const newLabel = e.target.value;
-                  setFormData((prev) => {
-                    const next = { ...prev, label: newLabel };
-                    if (!isCodeManuallyEdited) {
-                      next.code = newLabel ? slugify(newLabel) : '';
-                    }
-                    return next;
-                  });
-                }}
+                onChange={(e) => setFormData((prev) => ({ ...prev, label: e.target.value }))}
                 placeholder="e.g., Black, Extra Small"
                 className="bg-surface-container border-outline"
               />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="code" className="label-medium text-on-surface">
-                  Generated code
-                </Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-primary"
-                  onClick={() => {
-                    setIsCodeManuallyEdited((prev) => {
-                      const next = !prev;
-                      if (!next) {
-                        setFormData((prevForm) => ({
-                          ...prevForm,
-                          code: prevForm.label ? slugify(prevForm.label) : ''
-                        }));
-                      }
-                      return next;
-                    });
-                  }}
-                >
-                  {isCodeManuallyEdited ? 'Use auto-code' : 'Override'}
-                </Button>
-              </div>
-              <Input
-                id="code"
-                value={formData.code}
-                readOnly={!isCodeManuallyEdited}
-                onChange={(e) => {
-                  setFormData({ ...formData, code: e.target.value });
-                  if (!isCodeManuallyEdited) {
-                    setIsCodeManuallyEdited(true);
-                  }
-                }}
-                placeholder="Auto-generated from label"
-                className={`bg-surface-container border-outline ${
-                  !isCodeManuallyEdited ? 'text-on-surface-variant' : ''
-                }`}
-              />
-              <p className="body-small text-on-surface-variant">
-                {isCodeManuallyEdited
-                  ? 'Code is manually overridden. Choose “Use auto-code” to reset.'
-                  : 'Code auto-generates from the label and is used for integrations.'}
-              </p>
             </div>
 
             {currentAttribute?.key === 'subcategory' && (
@@ -849,29 +764,6 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="sort" className="label-medium text-on-surface">
-                Sort order
-              </Label>
-              <Input
-                id="sort"
-                type="number"
-                value={formData.sort}
-                onChange={(e) => setFormData({ ...formData, sort: parseInt(e.target.value) || 1 })}
-                className="bg-surface-container border-outline"
-              />
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Switch
-                id="active"
-                checked={formData.active}
-                onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
-              />
-              <Label htmlFor="active" className="body-medium text-on-surface cursor-pointer">
-                Active
-              </Label>
-            </div>
           </div>
 
           <DialogFooter>
@@ -888,7 +780,7 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
             </Button>
             <Button
               onClick={editingValue ? handleEditValue : handleAddValue}
-              disabled={!formData.code || !formData.label}
+              disabled={!formData.label}
               className="bg-primary text-on-primary"
             >
               {editingValue ? 'Save changes' : 'Add value'}

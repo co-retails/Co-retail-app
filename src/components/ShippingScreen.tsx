@@ -408,6 +408,7 @@ function PartnerDeliveryNoteItem({
   orders, 
   onClick,
   isAdmin,
+  canDeleteDraftOrPacking,
   onDelete,
   showSenderReceiver = false,
   stores,
@@ -419,6 +420,7 @@ function PartnerDeliveryNoteItem({
   orders: ShippingPartnerOrder[];
   onClick?: () => void;
   isAdmin?: boolean;
+  canDeleteDraftOrPacking?: boolean;
   onDelete?: (deliveryNoteId: string) => void;
   showSenderReceiver?: boolean;
   stores?: StoreRecord[];
@@ -437,7 +439,10 @@ function PartnerDeliveryNoteItem({
     warehouses
   );
 
-  const hasActions = isAdmin && (deliveryStatus === 'draft' || deliveryStatus === 'packing') && onDelete;
+  const hasActions =
+    (isAdmin || canDeleteDraftOrPacking) &&
+    (deliveryStatus === 'draft' || deliveryStatus === 'packing') &&
+    onDelete;
   
   return (
     <div 
@@ -762,6 +767,7 @@ function PartnerOrderItem({
   isClickable = false,
   isSellpyPending = false,
   isAdmin,
+  canDeleteDraft,
   onDelete,
   onCreateDeliveryNote,
   showSenderReceiver = false,
@@ -774,6 +780,7 @@ function PartnerOrderItem({
   isClickable?: boolean;
   isSellpyPending?: boolean;
   isAdmin?: boolean;
+  canDeleteDraft?: boolean;
   onDelete?: (orderId: string) => void;
   onCreateDeliveryNote?: (orderId: string) => void;
   showSenderReceiver?: boolean;
@@ -818,6 +825,13 @@ function PartnerOrderItem({
       default: return 'bg-surface-container-high text-on-surface-variant';
     }
   };
+
+  const canDeleteOrder =
+    !!onDelete &&
+    (
+      (isAdmin && (order.status === 'pending' || order.status === 'draft')) ||
+      (canDeleteDraft && order.status === 'draft')
+    );
 
   return (
     <div 
@@ -909,7 +923,7 @@ function PartnerOrderItem({
           </div>
           
           {/* Action Menu */}
-          {(order.status === 'registered' && onCreateDeliveryNote) || (isAdmin && order.status === 'pending' && onDelete) ? (
+          {(order.status === 'registered' && onCreateDeliveryNote) || canDeleteOrder ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -933,7 +947,7 @@ function PartnerOrderItem({
                     <span className="label-large">Create delivery note</span>
                   </DropdownMenuItem>
                 )}
-                {isAdmin && (order.status === 'pending' || order.status === 'draft') && onDelete && (
+                {canDeleteOrder && (
                   <DropdownMenuItem
                     onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                       e.stopPropagation();
@@ -1168,7 +1182,7 @@ type ReturnSortField = 'date' | 'id' | 'senderReceiver' | 'items' | 'status';
   
   // Thrifted: Draft only (no Pending). Sellpy: Pending only (no Draft).
   const isThriftedPartnerForFilter = currentPartnerId === '2'; // Thrifted
-  const canShowApprovalOrderFilter = role !== 'partner';
+  const canShowApprovalOrderFilter = !!isAdmin;
   const orderStatusFilterOptions: Array<{ id: OrderStatusFilter; label: string }> = isThriftedPartnerForFilter
     ? [
         { id: 'all' as OrderStatusFilter, label: 'All' },
@@ -1935,6 +1949,9 @@ useEffect(() => {
   // Determine what to show based on the tab and partner type
   const isChinesePartner = currentPartnerId === '6'; // Shenzhen Fashion Manufacturing
   const isThriftedPartner = currentPartnerId === '2'; // Thrifted
+  const canPartnerDeleteDraftOrders = role === 'partner' && currentPartnerId === '2'; // Thrifted partner
+  const canPartnerDeleteDraftOrPackingDeliveryNotes =
+    role === 'partner' && (currentPartnerId === '1' || currentPartnerId === '2'); // Sellpy + Thrifted partners
   const canShowSalesMarginColumn = !isThriftedPartner && role !== 'partner';
   const showCreateOrderButton = role === 'partner' && isThriftedPartner && !!onCreateOrder;
   const showDeliveryNotes = role === 'partner' && !isChinesePartner && activeTab === 'in-transit';
@@ -2725,6 +2742,7 @@ useEffect(() => {
                           orders={partnerOrdersList}
                           onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                           isAdmin={isAdmin}
+                          canDeleteDraftOrPacking={canPartnerDeleteDraftOrPackingDeliveryNotes}
                           onDelete={onDeleteDeliveryNote}
                           showSenderReceiver={true}
                           stores={stores}
@@ -2836,7 +2854,7 @@ useEffect(() => {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {isAdmin && (noteStatus === 'draft' || noteStatus === 'packing') && onDeleteDeliveryNote ? (
+                              {(isAdmin || canPartnerDeleteDraftOrPackingDeliveryNotes) && (noteStatus === 'draft' || noteStatus === 'packing') && onDeleteDeliveryNote ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button 
@@ -2895,6 +2913,7 @@ useEffect(() => {
                         isClickable={true}
                         isSellpyPending={order.status === 'pending' && order.partnerName === 'Sellpy Operations'}
                         isAdmin={isAdmin}
+                        canDeleteDraft={canPartnerDeleteDraftOrders}
                         onDelete={onDeletePartnerOrder}
                         onCreateDeliveryNote={onCreateDeliveryNoteForOrder}
                         showSenderReceiver={true}
@@ -3089,7 +3108,14 @@ useEffect(() => {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {(isAdmin && (order.status === 'pending' || order.status === 'draft') && onDeletePartnerOrder) || (order.status === 'registered' && onCreateDeliveryNoteForOrder) ? (
+                              {(
+                                (onDeletePartnerOrder &&
+                                  (
+                                    (isAdmin && (order.status === 'pending' || order.status === 'draft')) ||
+                                    (canPartnerDeleteDraftOrders && order.status === 'draft')
+                                  )) ||
+                                (order.status === 'registered' && onCreateDeliveryNoteForOrder)
+                              ) ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button 
@@ -3112,7 +3138,11 @@ useEffect(() => {
                                         <span className="label-large">Create delivery note</span>
                                       </DropdownMenuItem>
                                     )}
-                                    {isAdmin && (order.status === 'pending' || order.status === 'draft') && onDeletePartnerOrder && (
+                                    {(onDeletePartnerOrder &&
+                                      (
+                                        (isAdmin && (order.status === 'pending' || order.status === 'draft')) ||
+                                        (canPartnerDeleteDraftOrders && order.status === 'draft')
+                                      )) && (
                                       <DropdownMenuItem
                                         onClick={(e: ReactMouseEvent<HTMLDivElement>) => {
                                           e.stopPropagation();

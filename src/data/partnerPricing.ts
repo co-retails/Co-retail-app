@@ -21,7 +21,10 @@ export interface PricingBrand {
 
 export const pricingBrands: PricingBrand[] = [
   { id: 'weekday', name: 'Weekday' },
-  { id: 'monki', name: 'Monki' }
+  { id: 'monki', name: 'Monki' },
+  { id: 'hm', name: 'H&M' },
+  { id: 'cos', name: 'COS' },
+  { id: 'arket', name: 'Arket' }
 ];
 
 const brandIdByName: Record<string, string> = pricingBrands.reduce(
@@ -40,7 +43,12 @@ export const partnerPriceBooks: PartnerPriceBook[] = [
     brandId: 'weekday',
     brandName: 'Weekday',
     prices: {
-      SEK: [95, 125, 150, 199, 249, 299, 349, 399],
+      // Demo ladder from Excel (SEK, SE, weekday)
+      SEK: [
+        50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500, 550,
+        600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1200, 1300,
+        1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500
+      ],
       EUR: [9, 12, 15, 18, 22, 25, 30],
       USD: [9.5, 12.5, 15.5, 19, 23, 28, 34]
     }
@@ -52,7 +60,12 @@ export const partnerPriceBooks: PartnerPriceBook[] = [
     brandId: 'weekday',
     brandName: 'Weekday',
     prices: {
-      SEK: [60, 90, 120, 150, 180, 210],
+      // Demo ladder from Excel (SEK, SE, weekday)
+      SEK: [
+        50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500, 550,
+        600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1200, 1300,
+        1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500
+      ],
       NOK: [70, 95, 130, 160, 195, 225],
       EUR: [6, 9, 12, 15, 18, 21]
     }
@@ -76,7 +89,13 @@ export const partnerPriceBooks: PartnerPriceBook[] = [
     brandId: 'monki',
     brandName: 'Monki',
     prices: {
-      SEK: [80, 110, 145, 175, 210, 260],
+      // Demo ladder from Excel (SEK, SE, Monki)
+      SEK: [
+        50, 60, 80, 100, 120, 150, 180, 200, 220, 240, 250, 280, 300, 320, 350,
+        380, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000,
+        1050, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000,
+        2100, 2200, 2300, 2400, 2500
+      ],
       GBP: [7, 12, 15, 20, 25],
       EUR: [8, 13, 17, 22, 27]
     }
@@ -88,8 +107,104 @@ export const partnerPriceBooks: PartnerPriceBook[] = [
     brandId: 'monki',
     brandName: 'Monki',
     prices: {
-      SEK: [55, 85, 115, 145, 175, 205],
+      // Demo ladder from Excel (SEK, SE, Monki)
+      SEK: [
+        50, 60, 80, 100, 120, 150, 180, 200, 220, 240, 250, 280, 300, 320, 350,
+        380, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000,
+        1050, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000,
+        2100, 2200, 2300, 2400, 2500
+      ],
       EUR: [5, 8, 11, 14, 17, 20]
+    }
+  },
+  {
+    id: 'pp-hm-1',
+    partnerId: '1',
+    partnerName: 'Sellpy Operations',
+    brandId: 'hm',
+    brandName: 'H&M',
+    prices: {
+      // Demo ladder from Excel (SEK, SE, hm)
+      SEK: [
+        49, 60, 69, 79, 90, 99, 149, 199, 249, 299, 349, 399, 449, 499, 549,
+        599, 649, 699, 749, 799, 849, 899, 999, 1099, 1199, 1299, 1399, 1499,
+        1599, 1699, 1799, 1899, 1999, 2499, 2999, 3499, 3999, 4999
+      ],
+      EUR: [5, 7, 9, 12, 15, 18, 22]
+    }
+  },
+  {
+    id: 'pp-hm-2',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    brandId: 'hm',
+    brandName: 'H&M',
+    prices: {
+      // Demo ladder from Excel (SEK, SE, hm)
+      SEK: [
+        49, 60, 69, 79, 90, 99, 149, 199, 249, 299, 349, 399, 449, 499, 549,
+        599, 649, 699, 749, 799, 849, 899, 999, 1099, 1199, 1299, 1399, 1499,
+        1599, 1699, 1799, 1899, 1999, 2499, 2999, 3499, 3999, 4999
+      ],
+      EUR: [5, 7, 9, 12, 15, 18, 22]
+    }
+  },
+  {
+    id: 'pp-cos-1',
+    partnerId: '1',
+    partnerName: 'Sellpy Operations',
+    brandId: 'cos',
+    brandName: 'COS',
+    prices: {
+      // No COS SEK ladder present in the shared Excel; reuse Weekday ladder for demo consistency.
+      SEK: [
+        50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500, 550,
+        600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1200, 1300,
+        1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500
+      ]
+    }
+  },
+  {
+    id: 'pp-cos-2',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    brandId: 'cos',
+    brandName: 'COS',
+    prices: {
+      SEK: [
+        50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500, 550,
+        600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1200, 1300,
+        1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500
+      ]
+    }
+  },
+  {
+    id: 'pp-arket-1',
+    partnerId: '1',
+    partnerName: 'Sellpy Operations',
+    brandId: 'arket',
+    brandName: 'Arket',
+    prices: {
+      // No Arket SEK ladder present in the shared Excel; reuse Weekday ladder for demo consistency.
+      SEK: [
+        50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500, 550,
+        600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1200, 1300,
+        1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500
+      ]
+    }
+  },
+  {
+    id: 'pp-arket-2',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    brandId: 'arket',
+    brandName: 'Arket',
+    prices: {
+      SEK: [
+        50, 60, 80, 100, 120, 150, 180, 200, 250, 300, 350, 400, 450, 500, 550,
+        600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1200, 1300,
+        1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500
+      ]
     }
   }
 ];

@@ -12,6 +12,7 @@ import { Brand, Country } from './StoreSelector';
 import { Partner } from './PartnerWarehouseSelector';
 import { useMediaQuery } from './ui/use-mobile';
 import { toast } from 'sonner';
+import { PORTAL_CONFIG_ATTRIBUTE_DEFS } from '../data/portalConfigAttributeDefs';
 
 export interface PartnerPolicy {
   // Store app rules
@@ -43,7 +44,8 @@ export interface PartnerPolicy {
   notReceivedReturnOrders: {
     autoCloseAfterWeeks?: number;
   };
-  mandatoryFields: string[]; // Item ID/Ext SKU, Brand, Category, Trend, Price
+  /** Attribute keys required during item intake (from Dropdown values config). */
+  mandatoryFields: string[];
   
   // Metadata
   scope: 'brand-partner' | 'brand-partner-country';
@@ -96,7 +98,8 @@ export default function PartnerSettingsScreen({
     notReceivedReturnOrders: {
       autoCloseAfterWeeks: 4
     },
-    mandatoryFields: [],
+    // Item ID and Price are always mandatory (not editable)
+    mandatoryFields: ['itemId', 'price'],
     scope: 'brand-partner',
     status: 'draft'
   });
@@ -106,7 +109,13 @@ export default function PartnerSettingsScreen({
   
   // Update policy helper
   const updatePolicy = (updates: Partial<PartnerPolicy>) => {
-    setPolicy(prev => ({ ...prev, ...updates }));
+    setPolicy(prev => {
+      const next = { ...prev, ...updates };
+      // Enforce always-mandatory fields
+      const required = new Set(['itemId', 'price']);
+      next.mandatoryFields = Array.from(new Set([...(next.mandatoryFields ?? []), ...required]));
+      return next;
+    });
     setIsDirty(true);
     setHasUnsavedChanges(true);
   };
@@ -395,19 +404,31 @@ export default function PartnerSettingsScreen({
               </p>
               
               <div className="space-y-2 pl-2 p-3 bg-surface-container-high rounded-md border border-outline-variant">
-                {['Item ID/Ext SKU', 'Brand', 'Category', 'Trend', 'Price'].map(field => (
-                  <div key={field} className="flex items-center gap-3 p-2 hover:bg-surface-container-high rounded-md">
+                {[
+                  { key: 'itemId', label: 'Item ID' },
+                  { key: 'price', label: 'Price' }
+                ].map((field) => (
+                  <div key={field.key} className="flex items-center gap-3 p-2 rounded-md opacity-80">
+                    <Checkbox checked disabled />
+                    <div className="flex items-center gap-2">
+                      <Label className="body-medium text-on-surface cursor-default">{field.label}</Label>
+                      <Lock className="w-4 h-4 text-on-surface-variant" />
+                    </div>
+                  </div>
+                ))}
+                {PORTAL_CONFIG_ATTRIBUTE_DEFS.map((field) => (
+                  <div key={field.key} className="flex items-center gap-3 p-2 hover:bg-surface-container-high rounded-md">
                     <Checkbox
-                      checked={policy.mandatoryFields.includes(field)}
+                      checked={policy.mandatoryFields.includes(field.key)}
                       onCheckedChange={(checked) => {
                         const newFields = checked
-                          ? [...policy.mandatoryFields, field]
-                          : policy.mandatoryFields.filter(f => f !== field);
+                          ? [...policy.mandatoryFields, field.key]
+                          : policy.mandatoryFields.filter((f) => f !== field.key);
                         updatePolicy({ mandatoryFields: newFields });
                       }}
                       disabled={isReadOnly}
                     />
-                    <Label className="body-medium text-on-surface cursor-pointer">{field}</Label>
+                    <Label className="body-medium text-on-surface cursor-pointer">{field.label}</Label>
                   </div>
                 ))}
               </div>

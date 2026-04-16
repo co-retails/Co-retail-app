@@ -34,29 +34,13 @@ export function PortalConfigurationLanding({
 
   const attributeSections = [
     {
-      id: 'dictionary',
-      title: 'Dictionary',
-      description: 'Manage brand master attributes',
-      icon: Database,
-      disabled: !isAdmin,
-      screen: 'attribute-dictionary'
-    },
-    {
       id: 'values',
-      title: 'Dropdown values',
+      title: 'Attribute values',
       description: 'Configure attribute value options',
       icon: Filter,
       disabled: !isAdmin,
       screen: 'dropdown-values'
     },
-    {
-      id: 'mappings',
-      title: 'AI Attribute Mappings',
-      description: 'View AI mappings between partner API values and brand dropdown values',
-      icon: Sparkles,
-      disabled: !isAdmin,
-      screen: 'attribute-mappings'
-    }
   ];
 
   const pricingSections = [

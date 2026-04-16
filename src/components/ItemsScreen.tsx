@@ -30,7 +30,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { X, FilterIcon } from "lucide-react";
+import { X, FilterIcon, Package as PackageIcon, ArrowUp, ArrowDown } from "lucide-react";
 import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { ItemCard, BaseItem, ItemQuickAction, getItemListQuickActions, quickActionIcon } from './ItemCard';
@@ -42,6 +42,8 @@ import { UserRole } from './ItemCard';
 import { toast } from 'sonner';
 import { getSekPriceOptions } from '../data/partnerPricing';
 import type { Store as StoreRecord, Country as CountryRecord, Brand as BrandRecord } from './StoreSelector';
+import { useMediaQuery } from './ui/use-mobile';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 
 export interface Item extends BaseItem {
   id: string;
@@ -73,6 +75,32 @@ export interface Item extends BaseItem {
   expiredPostponeWeeks?: number;
   isArchived?: boolean;
   archivedAt?: string;
+}
+
+function getDaysInStore(item: Item): number | null {
+  const parse = (value?: string) => {
+    if (!value) return null;
+    const ts = Date.parse(value);
+    return Number.isNaN(ts) ? null : ts;
+  };
+
+  const fromLastInStore = parse(item.lastInStoreAt);
+  const fromHistory = (() => {
+    const hist = item.statusHistory || [];
+    for (let i = hist.length - 1; i >= 0; i--) {
+      const entry = hist[i];
+      const status = entry?.status?.toLowerCase?.() ?? '';
+      if (status === 'in store' || status === 'available') {
+        return parse(entry.timestamp);
+      }
+    }
+    return null;
+  })();
+
+  const from = fromLastInStore ?? fromHistory;
+  if (from == null) return null;
+  const days = Math.floor((Date.now() - from) / (1000 * 60 * 60 * 24));
+  return days >= 0 ? days : 0;
 }
 
 const STORE_HIDDEN_STATUSES: ReadonlyArray<Item['status']> = [
@@ -1918,6 +1946,72 @@ export default function ItemsScreen({
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<Item | null>(null);
   const [bulkUnflagItemIds, setBulkUnflagItemIds] = useState<string[] | null>(null);
   const [bulkRejectItemIds, setBulkRejectItemIds] = useState<string[] | null>(null);
+  const isDesktop = useMediaQuery('(min-width: 1024px)'); // Tailwind lg
+
+  // Desktop table sorting (store app Items screen)
+  type SortDirection = 'asc' | 'desc' | null;
+  type ItemsSortField =
+    | 'date'
+    | 'itemId'
+    | 'brand'
+    | 'category'
+    | 'size'
+    | 'color'
+    | 'delivery'
+    | 'boxLabel'
+    | 'partner'
+    | 'daysInStore'
+    | 'price'
+    | 'status';
+
+  const [itemsSort, setItemsSort] = useState<{ field: ItemsSortField; direction: SortDirection }>({
+    field: 'date',
+    direction: null,
+  });
+
+  const handleItemsSort = (field: ItemsSortField) => {
+    setItemsSort((prev) => ({
+      field,
+      direction:
+        prev.field === field
+          ? (prev.direction === 'asc' ? 'desc' : prev.direction === 'desc' ? null : 'asc')
+          : 'asc',
+    }));
+  };
+
+  const SortableHeader = ({
+    field,
+    label,
+    align = 'left',
+  }: {
+    field: ItemsSortField;
+    label: string;
+    align?: 'left' | 'right';
+  }) => {
+    const isActive = itemsSort.field === field;
+    const direction = isActive ? itemsSort.direction : null;
+    return (
+      <th
+        className={`px-3 py-3 ${align === 'right' ? 'text-right' : 'text-left'} title-small text-on-surface cursor-pointer hover:bg-surface-container transition-colors`}
+        onClick={() => handleItemsSort(field)}
+      >
+        <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
+          <span>{label}</span>
+          <div className="flex flex-col">
+            <ArrowUp
+              size={12}
+              className={direction === 'asc' ? 'text-primary' : 'text-on-surface-variant opacity-30'}
+            />
+            <ArrowDown
+              size={12}
+              className={direction === 'desc' ? 'text-primary' : 'text-on-surface-variant opacity-30'}
+              style={{ marginTop: '-4px' }}
+            />
+          </div>
+        </div>
+      </th>
+    );
+  };
   
   // Pagination state for performance with large item lists
   const [loadedItemsCount, setLoadedItemsCount] = useState(50);
@@ -2198,11 +2292,65 @@ export default function ItemsScreen({
     });
   }, [items, quickSearchTerm, quickFilter, itemFilters, isPartnerPortal, currentPartnerName, viewFilter, brands]);
 
+  const sortedItemsForDisplay = useMemo(() => {
+    // Keep existing ordering on mobile/tablet; enable column sorting on desktop.
+    if (!isDesktop || !itemsSort.direction) return filteredItems;
+
+    const dir = itemsSort.direction === 'asc' ? 1 : -1;
+    const normalize = (v: unknown): string => (v == null ? '' : String(v)).toLowerCase();
+
+    return [...filteredItems].sort((a, b) => {
+      const aDays = getDaysInStore(a);
+      const bDays = getDaysInStore(b);
+
+      const aVal = (() => {
+        switch (itemsSort.field) {
+          case 'date': return new Date(a.date).getTime();
+          case 'itemId': return normalize(a.itemId);
+          case 'brand': return normalize(a.brand);
+          case 'category': return normalize(a.category);
+          case 'size': return normalize(a.size);
+          case 'color': return normalize(a.color);
+          case 'delivery': return normalize(a.deliveryId);
+          case 'boxLabel': return normalize(a.boxLabel);
+          case 'partner': return normalize(a.sellerName);
+          case 'daysInStore': return aDays ?? Number.NEGATIVE_INFINITY;
+          case 'price': return a.price ?? 0;
+          case 'status': return normalize(a.status);
+          default: return 0;
+        }
+      })();
+
+      const bVal = (() => {
+        switch (itemsSort.field) {
+          case 'date': return new Date(b.date).getTime();
+          case 'itemId': return normalize(b.itemId);
+          case 'brand': return normalize(b.brand);
+          case 'category': return normalize(b.category);
+          case 'size': return normalize(b.size);
+          case 'color': return normalize(b.color);
+          case 'delivery': return normalize(b.deliveryId);
+          case 'boxLabel': return normalize(b.boxLabel);
+          case 'partner': return normalize(b.sellerName);
+          case 'daysInStore': return bDays ?? Number.NEGATIVE_INFINITY;
+          case 'price': return b.price ?? 0;
+          case 'status': return normalize(b.status);
+          default: return 0;
+        }
+      })();
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return dir * aVal.localeCompare(bVal);
+      }
+      return dir * ((aVal as number) - (bVal as number));
+    });
+  }, [filteredItems, isDesktop, itemsSort.field, itemsSort.direction]);
+
   // Paginated items - only paginate when showing "All" filter with many items
   const paginatedItems = useMemo(() => {
-    const shouldPaginate = quickFilter === 'all' && filteredItems.length > ITEMS_PER_PAGE;
-    return shouldPaginate ? filteredItems.slice(0, loadedItemsCount) : filteredItems;
-  }, [filteredItems, quickFilter, loadedItemsCount]);
+    const shouldPaginate = quickFilter === 'all' && sortedItemsForDisplay.length > ITEMS_PER_PAGE;
+    return shouldPaginate ? sortedItemsForDisplay.slice(0, loadedItemsCount) : sortedItemsForDisplay;
+  }, [sortedItemsForDisplay, quickFilter, loadedItemsCount]);
 
   // Reset loaded items count when filters change
   useEffect(() => {
@@ -2930,21 +3078,146 @@ export default function ItemsScreen({
             />
           ) : (
             <>
-              <div className="flex flex-col gap-2">
-                {paginatedItems.map((item) => (
-                  <div key={item.id} className="bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
-                    <ItemCard
-                      item={item}
-                      onToggleSelect={handleToggleSelect}
-                      onMoreActions={(baseItem, action) => handleMoreActions(baseItem as Item, action)}
-                      onClick={(baseItem) => handleItemClick(baseItem as Item)}
-                      showActions={true}
-                      showSelection={quickFilter !== 'all'}
-                      userRole={userRole ?? 'store-staff'}
-                    />
+              {isDesktop ? (
+                <div className="hidden lg:block w-full" data-desktop-table>
+                  <div className="overflow-x-auto rounded-lg border border-outline-variant bg-surface">
+                    <table className="w-full min-w-[1400px] table-fixed border-collapse">
+                      <colgroup>
+                        {quickFilter !== 'all' && <col style={{ width: '3.25rem' }} />}
+                        <col style={{ width: '4.5rem' }} /> {/* Image */}
+                        <col style={{ width: '7.5rem' }} /> {/* Date */}
+                        <col style={{ width: '9rem' }} /> {/* Item ID */}
+                        <col style={{ width: '10rem' }} /> {/* Brand */}
+                        <col style={{ width: '8.5rem' }} /> {/* Category */}
+                        <col style={{ width: '5.5rem' }} /> {/* Size */}
+                        <col style={{ width: '6.5rem' }} /> {/* Color */}
+                        <col style={{ width: '8.5rem' }} /> {/* Delivery */}
+                        <col style={{ width: '8.5rem' }} /> {/* Box label */}
+                        <col style={{ width: '9rem' }} /> {/* Partner */}
+                        <col style={{ width: '6.5rem' }} /> {/* Days in store */}
+                        <col style={{ width: '7.5rem' }} /> {/* Price */}
+                        <col style={{ width: '7.5rem' }} /> {/* Status */}
+                      </colgroup>
+                      <thead className="bg-surface-container">
+                        <tr className="border-b border-outline-variant">
+                          {quickFilter !== 'all' && (
+                            <th className="px-3 py-3 text-left">
+                              <span className="label-medium text-on-surface"> </span>
+                            </th>
+                          )}
+                          <th className="px-3 py-3 text-left title-small text-on-surface">
+                            <span>Image</span>
+                          </th>
+                          <SortableHeader field="date" label="Date" />
+                          <SortableHeader field="itemId" label="Item ID" />
+                          <SortableHeader field="brand" label="Item brand" />
+                          <SortableHeader field="category" label="Category" />
+                          <SortableHeader field="size" label="Size" />
+                          <SortableHeader field="color" label="Color" />
+                          <SortableHeader field="delivery" label="Delivery" />
+                          <SortableHeader field="boxLabel" label="Box label" />
+                          <SortableHeader field="partner" label="Partner" />
+                          <SortableHeader field="daysInStore" label="Days in store" align="right" />
+                          <SortableHeader field="price" label="Price" align="right" />
+                          <SortableHeader field="status" label="Status" />
+                        </tr>
+                      </thead>
+                      <tbody className="bg-surface">
+                        {paginatedItems.map((item, index) => {
+                          const daysInStore = getDaysInStore(item);
+                          return (
+                            <tr
+                              key={item.id}
+                              className={`${index !== paginatedItems.length - 1 ? 'border-b border-outline-variant' : ''} hover:bg-surface-container/50 transition-colors`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => handleItemClick(item)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleItemClick(item);
+                                }
+                              }}
+                            >
+                              {quickFilter !== 'all' && (
+                                <td className="px-3 py-3 align-middle">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!item.selected}
+                                    onChange={() => handleToggleSelect(item.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="h-4 w-4 accent-primary"
+                                    aria-label={item.selected ? 'Deselect item' : 'Select item'}
+                                  />
+                                </td>
+                              )}
+                              <td className="px-3 py-3 align-middle">
+                                <div className="w-12 h-12 rounded overflow-hidden bg-surface-container flex items-center justify-center mx-auto">
+                                  <ImageWithFallback
+                                    src={item.thumbnail || item.image}
+                                    alt={item.title || item.brand}
+                                    className="w-full h-full object-cover"
+                                    fallback={<PackageIcon className="w-5 h-5 text-on-surface-variant/60" />}
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 body-small text-on-surface-variant align-middle">{item.date || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.itemId || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.brand || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.category || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.size || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.color || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.deliveryId || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.boxLabel || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.sellerName || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface text-right align-middle">
+                                {daysInStore == null ? '—' : daysInStore}
+                              </td>
+                              <td className="px-3 py-3 body-medium text-on-surface text-right align-middle">
+                                €{(item.price ?? 0).toFixed(2)}
+                              </td>
+                              <td className="px-3 py-3 align-middle">
+                                {(() => {
+                                  const status = (item.status || '').toLowerCase();
+                                  const chipClass =
+                                    status === 'sold' ? 'bg-chart-2 text-on-chart-2' :
+                                    status === 'available' ? 'bg-chart-1 text-on-chart-1' :
+                                    status === 'returned' ? 'bg-chart-3 text-on-chart-3' :
+                                    status === 'in transit' ? 'bg-chart-4 text-on-chart-4' :
+                                    status === 'rejected' || status === 'broken' || status === 'missing'
+                                      ? 'bg-error-container text-on-error-container'
+                                      : 'bg-surface-container-high text-on-surface';
+                                  return (
+                                    <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${chipClass}`}>
+                                      {item.status || '—'}
+                                    </span>
+                                  );
+                                })()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {paginatedItems.map((item) => (
+                    <div key={item.id} className="bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
+                      <ItemCard
+                        item={item}
+                        onToggleSelect={handleToggleSelect}
+                        onMoreActions={(baseItem, action) => handleMoreActions(baseItem as Item, action)}
+                        onClick={(baseItem) => handleItemClick(baseItem as Item)}
+                        showActions={true}
+                        showSelection={quickFilter !== 'all'}
+                        userRole={userRole ?? 'store-staff'}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
               {quickFilter === 'all' && filteredItems.length > ITEMS_PER_PAGE && loadedItemsCount < filteredItems.length && (
                 <div className="text-center py-4">
                   <p className="body-small text-on-surface-variant">
