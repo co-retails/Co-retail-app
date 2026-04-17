@@ -38,7 +38,8 @@ import {
 } from './ui/table';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
-import { ArrowLeft, Brain, DownloadCloud, FileText, Info, Loader2, RefreshCw, Sparkles, UploadCloud, Wand2, XCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { ArrowLeft, Brain, DownloadCloud, FileText, Info, Loader2, RefreshCw, Sparkles, UploadCloud, Wand2, XCircle, Search, X } from 'lucide-react';
 
 interface PriceForkCalibrationScreenProps {
   partnerId: string;
@@ -84,10 +85,9 @@ const snapToNearestPricePoint = (value: number, pricePoints: number[]): number =
 };
 
 const formatWeightLabel = (weight: number) => {
-  const percentage = (weight - 1) * 100;
-  const rounded = Math.round(percentage);
-  if (rounded === 0) return '±0%';
-  return `${rounded > 0 ? '+' : ''}${rounded}%`;
+  // Display as a multiplier, e.g. x1.20
+  const rounded = Math.round(weight * 100) / 100;
+  return `x${rounded.toFixed(2)}`;
 };
 
 export default function PriceForkCalibrationScreen({
@@ -104,6 +104,7 @@ export default function PriceForkCalibrationScreen({
   ];
 
   const [selectedBrandId, setSelectedBrandId] = useState<string>(brands[0]?.id || '1');
+  const [activeTab, setActiveTab] = useState<'calibration' | 'brand-groups' | 'price-matrix' | 'fallback-rule'>('calibration');
   
   // Store calibration state per brand
   const [calibrationStates, setCalibrationStates] = useState<Record<string, PriceForkCalibrationState>>({
@@ -116,6 +117,104 @@ export default function PriceForkCalibrationScreen({
   // Get current brand's calibration state
   const calibrationState = calibrationStates[selectedBrandId] || { ...priceForkDefaultState };
   const lastSavedState = lastSavedStates[selectedBrandId] || { ...priceForkDefaultState };
+  const selectedBrandName = brands.find((b) => b.id === selectedBrandId)?.name ?? brands[0]?.name ?? '';
+
+  const PRICE_GROUPS: Array<PriceForkTestItem['brandTier']> = [
+    'Haute couture',
+    'Premium',
+    'High',
+    'Mid',
+    'Low',
+    'Strategic low',
+  ];
+
+  // Brand → group (AI mapping) UI state (mocked)
+  const [brandGroupOverrides, setBrandGroupOverrides] = useState<Record<string, PriceForkTestItem['brandTier']>>({});
+  const [brandGroupFilter, setBrandGroupFilter] = useState<PriceForkTestItem['brandTier'] | 'all'>('all');
+  const [brandGroupSearch, setBrandGroupSearch] = useState('');
+
+  const brandGroupRows = useMemo(() => {
+    const rows = mockBrandSegments.flatMap((segment) =>
+      segment.brands.map((b) => ({
+        itemBrand: b.name,
+        aiGroup: segment.tier as PriceForkTestItem['brandTier'],
+      }))
+    );
+    const uniq = new Map<string, { itemBrand: string; aiGroup: PriceForkTestItem['brandTier'] }>();
+    rows.forEach((r) => {
+      if (!uniq.has(r.itemBrand)) uniq.set(r.itemBrand, r);
+    });
+    const list = Array.from(uniq.values()).map((r) => ({
+      ...r,
+      group: brandGroupOverrides[r.itemBrand] ?? r.aiGroup,
+    }));
+    return list
+      .filter((r) => (brandGroupFilter === 'all' ? true : r.group === brandGroupFilter))
+      .filter((r) => (brandGroupSearch.trim()
+        ? r.itemBrand.toLowerCase().includes(brandGroupSearch.trim().toLowerCase())
+        : true))
+      .sort((a, b) => a.itemBrand.localeCompare(b.itemBrand));
+  }, [brandGroupOverrides, brandGroupFilter, brandGroupSearch]);
+
+  // Price matrix UI state (mocked)
+  type PriceMatrixRow = {
+    key: string;
+    category: string;
+    subcategory: string;
+    isFallback: boolean;
+    /** Base price = Strategic low group price */
+    basePrice: number | null;
+  };
+
+  const sekPricePoints = useMemo(() => {
+    const pts = getSekPriceOptions(partnerId, selectedBrandName);
+    return pts.length ? pts : getSekPriceOptions(partnerId);
+  }, [partnerId, selectedBrandName]);
+
+  const seedMatrixRows = useMemo<PriceMatrixRow[]>(() => {
+    const uniq = new Map<string, { category: string; subcategory: string }>();
+    mockPriceForkTestItems.forEach((it) => {
+      const category = it.category || it.partnerCategory || 'Other';
+      const subcategory = it.subcategory || it.partnerCategory || 'Other';
+      const key = `${category}::${subcategory}`;
+      if (!uniq.has(key)) uniq.set(key, { category, subcategory });
+    });
+    return Array.from(uniq.entries()).map(([key, v]) => ({
+      key,
+      category: v.category,
+      subcategory: v.subcategory,
+      isFallback: false,
+      basePrice: null,
+    }));
+  }, []);
+
+  const [priceMatrixRows, setPriceMatrixRows] = useState<PriceMatrixRow[]>(seedMatrixRows);
+  const [priceMatrixSearch, setPriceMatrixSearch] = useState('');
+
+  // Fallback candidates = low-confidence category mappings (mocked)
+  const fallbackCandidates = useMemo(() => {
+    return mockCategoryMappings
+      .filter((m) => m.confidence < 0.7)
+      .map((m) => ({
+        key: `${m.partnerCategory}::${m.retailerCategory}`,
+        category: m.retailerCategory,
+        sourceLabel: m.partnerCategory,
+        confidence: m.confidence,
+      }));
+  }, []);
+
+  const [fallbackSourceLabelDraft, setFallbackSourceLabelDraft] = useState<Record<string, string>>({});
+
+  const filteredPriceMatrixRows = useMemo(() => {
+    const q = priceMatrixSearch.trim().toLowerCase();
+    return priceMatrixRows
+      .filter((r) =>
+        q ? `${r.category} ${r.subcategory}`.toLowerCase().includes(q) : true
+      );
+  }, [priceMatrixRows, priceMatrixSearch]);
+
+  // Fallback rule UI state
+  const [fallbackMultiplier, setFallbackMultiplier] = useState<number>(2.5);
 
   // Handle brand change
   const handleBrandChange = (brandId: string) => {
@@ -289,11 +388,9 @@ export default function PriceForkCalibrationScreen({
       setTestItems((prev) =>
         prev.map((item) => {
           const tierWeight = getTierWeight(item.brandTier);
-          const marginFloorItem = Number(calibrationState.marginFloorItem ?? priceForkDefaultState.marginFloorItem);
           const materialWeight = getMaterialWeight(item.material);
 
-          const base = Math.max(item.aiSuggestedPrice, item.purchasePrice * (1 + marginFloorItem / 100));
-          const candidatePrice = base * tierWeight * materialWeight;
+          const candidatePrice = item.aiSuggestedPrice * tierWeight * materialWeight;
           const pricePoints = getPricePointsForItem(item);
           const snappedPrice = snapToNearestPricePoint(candidatePrice, pricePoints);
 
@@ -546,7 +643,57 @@ export default function PriceForkCalibrationScreen({
           </Select>
         </div>
 
-        <section className="space-y-6">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
+          {/* Tab styling aligned with other portal tab rows (see side sheets using Tabs) */}
+          <TabsList className="grid w-full grid-cols-4 gap-2 bg-transparent p-0 h-auto border-b border-outline-variant">
+            <TabsTrigger
+              value="calibration"
+              className={`relative rounded-lg px-4 py-3 transition-colors ${
+                activeTab === 'calibration'
+                  ? 'bg-primary-container text-on-primary-container'
+                  : 'text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              <span className="title-small">Calibration</span>
+              {activeTab === 'calibration' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+            </TabsTrigger>
+            <TabsTrigger
+              value="brand-groups"
+              className={`relative rounded-lg px-4 py-3 transition-colors ${
+                activeTab === 'brand-groups'
+                  ? 'bg-primary-container text-on-primary-container'
+                  : 'text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              <span className="title-small">Brand groups</span>
+              {activeTab === 'brand-groups' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+            </TabsTrigger>
+            <TabsTrigger
+              value="price-matrix"
+              className={`relative rounded-lg px-4 py-3 transition-colors ${
+                activeTab === 'price-matrix'
+                  ? 'bg-primary-container text-on-primary-container'
+                  : 'text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              <span className="title-small">Price matrix</span>
+              {activeTab === 'price-matrix' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+            </TabsTrigger>
+            <TabsTrigger
+              value="fallback-rule"
+              className={`relative rounded-lg px-4 py-3 transition-colors ${
+                activeTab === 'fallback-rule'
+                  ? 'bg-primary-container text-on-primary-container'
+                  : 'text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              <span className="title-small">Fallback rule</span>
+              {activeTab === 'fallback-rule' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calibration" className="space-y-8">
+            <section className="space-y-6">
           <Card className="bg-surface-container-high border border-outline-variant">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -560,7 +707,9 @@ export default function PriceForkCalibrationScreen({
               </Badge>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">
-              {calibrationParameters.map((parameter) => {
+              {calibrationParameters
+                .filter((parameter) => !parameter.id.toLowerCase().includes('marginfloor'))
+                .map((parameter) => {
                 const value = calibrationState[parameter.id] ?? priceForkDefaultState[parameter.id as keyof PriceForkCalibrationState];
                 const formattedValue = parameter.format ? parameter.format(value as number) : value;
                 return (
@@ -623,7 +772,7 @@ export default function PriceForkCalibrationScreen({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {brandTierWeights.map((tier) => {
                     const value = calibrationState[tier.id] ?? priceForkDefaultState[tier.id as keyof PriceForkCalibrationState];
-                    const formattedValue = tier.format ? tier.format(value as number) : value;
+                    const formattedValue = formatWeightLabel(Number(value));
                     return (
                       <div key={tier.id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -634,14 +783,14 @@ export default function PriceForkCalibrationScreen({
                         </div>
                         <Slider
                           value={[Number(value)]}
-                          min={tier.min}
-                          max={tier.max}
-                          step={tier.step}
+                          min={1}
+                          max={5}
+                          step={0.1}
                           onValueChange={(vals: number[]) => handleParameterChange(tier.id, Number(vals[0]))}
                         />
                         <div className="flex justify-between text-label-small text-on-surface-variant">
-                          <span>{tier.min}</span>
-                          <span>{tier.max}</span>
+                          <span>x1.0</span>
+                          <span>x5.0</span>
                         </div>
                       </div>
                     );
@@ -654,7 +803,7 @@ export default function PriceForkCalibrationScreen({
                   <div>
                     <div className="title-small text-on-surface">Material weights</div>
                     <p className="body-small text-on-surface-variant mt-1">
-                      Adjust how strongly material influences the suggested price.
+                      Adjust how strongly each material scales the suggested sales price.
                     </p>
                   </div>
                 </div>
@@ -673,9 +822,9 @@ export default function PriceForkCalibrationScreen({
                       </div>
                       <Slider
                         value={[material.value]}
-                        min={0.8}
-                        max={1.4}
-                        step={0.02}
+                        min={1}
+                        max={5}
+                        step={0.1}
                         onValueChange={(vals: number[]) => handleParameterChange(material.id, Number(vals[0]))}
                       />
                     </div>
@@ -720,9 +869,9 @@ export default function PriceForkCalibrationScreen({
               </Button>
             </CardContent>
           </Card>
-        </section>
+            </section>
 
-        <section className="space-y-4">
+            <section className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h2 className="title-large text-on-surface mb-1">Test items</h2>
@@ -881,47 +1030,357 @@ export default function PriceForkCalibrationScreen({
               </Table>
             </ScrollArea>
           </Card>
-        </section>
+            </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1fr,1.1fr]">
-          <Card className="bg-surface-container-high border border-outline-variant">
-            <CardHeader className="space-y-3">
-              <CardTitle className="title-medium text-on-surface">AI insight prompts</CardTitle>
-              <CardDescription className="body-small text-on-surface-variant">
-                Trigger pre-defined prompts to inspect how the AI interprets brand segments, mappings, and logic.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {priceForkPromptDefinitions.map((prompt) => (
-                  <Button
-                    key={prompt.id}
-                    variant={activePrompt === prompt.id ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActivePrompt(prompt.id)}
-                    className={cn(
-                      'rounded-lg',
-                      activePrompt === prompt.id && 'bg-primary text-on-primary shadow-sm'
+          </TabsContent>
+
+          <TabsContent value="brand-groups" className="space-y-6">
+            <Card className="bg-surface border border-outline-variant">
+              <CardHeader>
+                <CardTitle className="title-medium text-on-surface">Item brand → Brand group mapping</CardTitle>
+                <CardDescription className="body-small text-on-surface-variant">
+                  Review and override the AI classification for item brands. This affects which price group is used.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Search + filter aligned with portal search bars / table filters */}
+                <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                  <div className="relative w-full md:max-w-2xl">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                      <Search className="w-5 h-5" />
+                    </div>
+                    <Input
+                      value={brandGroupSearch}
+                      onChange={(e) => setBrandGroupSearch(e.target.value)}
+                      placeholder="Search item brand"
+                      className="w-full h-12 pl-10 pr-12 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
+                    />
+                    {brandGroupSearch.trim().length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setBrandGroupSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity"
+                        aria-label="Clear search"
+                      >
+                        <X className="w-5 h-5 text-on-surface-variant" />
+                      </button>
                     )}
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    {prompt.label}
-                  </Button>
-                ))}
-              </div>
-              <Separator className="bg-outline-variant/60" />
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-primary" />
-                  <span className="label-medium text-on-surface">
-                    {priceForkPromptDefinitions.find((prompt) => prompt.id === activePrompt)?.description}
-                  </span>
+                  </div>
+                  <div className="w-full md:w-48">
+                    <Select value={brandGroupFilter} onValueChange={(v) => setBrandGroupFilter(v as any)}>
+                      <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large">
+                        <SelectValue placeholder="Brand group" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all" className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All</SelectItem>
+                        {PRICE_GROUPS.map((g) => (
+                          <SelectItem key={g} value={g} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
+                            {g}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-4">{activeInsight}</div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+
+                <div className="overflow-x-auto rounded-lg border border-outline-variant">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-surface-container border-b border-outline-variant">
+                        <TableHead className="px-3 py-3 text-left title-small text-on-surface">Item brand</TableHead>
+                        <TableHead className="px-3 py-3 text-left title-small text-on-surface">AI brand group</TableHead>
+                        <TableHead className="px-3 py-3 text-left title-small text-on-surface">Override</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {brandGroupRows.map((row) => (
+                        <TableRow key={row.itemBrand} className="border-outline-variant/40">
+                          <TableCell className="body-medium text-on-surface">{row.itemBrand}</TableCell>
+                          <TableCell className="body-medium text-on-surface-variant">{row.aiGroup}</TableCell>
+                          <TableCell className="w-[320px]">
+                            <Select
+                              value={row.group}
+                              onValueChange={(v) =>
+                                setBrandGroupOverrides((prev) => ({ ...prev, [row.itemBrand]: v as any }))
+                              }
+                            >
+                              <SelectTrigger
+                                className="w-[300px] min-w-[300px] max-w-[300px] shrink-0 bg-surface-container-high border-outline rounded-lg h-[44px] whitespace-nowrap overflow-hidden"
+                                style={{ width: 300, minWidth: 300, maxWidth: 300 }}
+                              >
+                                <SelectValue className="block w-full whitespace-nowrap overflow-hidden text-ellipsis" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PRICE_GROUPS.map((g) => (
+                                  <SelectItem key={`${row.itemBrand}-${g}`} value={g}>{g}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {brandGroupRows.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="body-medium text-on-surface-variant py-6">
+                            No brands found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="price-matrix" className="space-y-6">
+            <Card className="bg-surface border border-outline-variant">
+              <CardHeader>
+                <CardTitle className="title-medium text-on-surface">Prices per category & price group</CardTitle>
+                <CardDescription className="body-small text-on-surface-variant">
+                  Define one SEK ladder price per price group for each category/sub-category pair for {selectedBrandName || 'this brand'}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                  <div className="relative w-full md:max-w-2xl">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                      <Search className="w-5 h-5" />
+                    </div>
+                    <Input
+                      value={priceMatrixSearch}
+                      onChange={(e) => setPriceMatrixSearch(e.target.value)}
+                      placeholder="Search category / sub-category"
+                      className="w-full h-12 pl-10 pr-12 bg-surface-container rounded-lg border border-outline-variant focus:border-primary focus:outline-none text-on-surface body-large"
+                    />
+                    {priceMatrixSearch.trim().length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPriceMatrixSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity"
+                        aria-label="Clear search"
+                      >
+                        <X className="w-5 h-5 text-on-surface-variant" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Fixed-layout table to keep columns aligned with other portal tables */}
+                <div className="overflow-x-auto rounded-lg border border-outline-variant bg-surface">
+                  <table className="w-full min-w-[1500px] table-fixed border-collapse">
+                    <colgroup>
+                      <col style={{ width: '18rem' }} />
+                      <col style={{ width: '18rem' }} />
+                      <col style={{ width: '12rem' }} /> {/* Base */}
+                      <col style={{ width: '10.5rem' }} />
+                      <col style={{ width: '10.5rem' }} />
+                      <col style={{ width: '10.5rem' }} />
+                      <col style={{ width: '10.5rem' }} />
+                      <col style={{ width: '10.5rem' }} />
+                    </colgroup>
+                    <thead className="bg-surface-container border-b border-outline-variant">
+                      <tr>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Category</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Sub-category</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Base price</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Low</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Mid</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">High</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Premium</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Haute couture</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredPriceMatrixRows.map((row) => (
+                        <tr key={row.key} className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container/50 transition-colors">
+                          <td className="px-3 py-3 body-medium text-on-surface align-middle">
+                            <div className="flex items-center gap-2">
+                              {row.category}
+                              {row.isFallback && (
+                                <Badge variant="outline" className="rounded-lg text-on-surface-variant">Fallback</Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 body-medium text-on-surface align-middle">{row.subcategory}</td>
+                          <td className="px-3 py-3 align-middle">
+                            <Select
+                              value={row.basePrice != null ? String(row.basePrice) : ''}
+                              onValueChange={(v) => {
+                                const parsed = Number(v);
+                                setPriceMatrixRows((prev) =>
+                                  prev.map((r) =>
+                                    r.key !== row.key
+                                      ? r
+                                      : { ...r, basePrice: Number.isNaN(parsed) ? null : parsed }
+                                  )
+                                );
+                              }}
+                            >
+                              <SelectTrigger className="w-[200px] min-w-[200px] max-w-[200px] shrink-0 bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large whitespace-nowrap overflow-hidden">
+                                <SelectValue placeholder="—" className="block w-full whitespace-nowrap overflow-hidden text-ellipsis" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {sekPricePoints.map((p) => (
+                                  <SelectItem key={`${row.key}-base-${p}`} value={String(p)} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
+                                    {p} SEK
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          {(['Low', 'Mid', 'High', 'Premium', 'Haute couture'] as const).map((label) => {
+                            const tier = (label === 'Low'
+                              ? 'Low'
+                              : label === 'Mid'
+                                ? 'Mid'
+                                : label === 'High'
+                                  ? 'High'
+                                  : label === 'Premium'
+                                    ? 'Premium'
+                                    : 'Haute couture') as PriceForkTestItem['brandTier'];
+                            const multiplier = getTierWeight(tier);
+                            const computed = row.basePrice == null
+                              ? null
+                              : snapToNearestPricePoint(row.basePrice * multiplier, sekPricePoints.length ? sekPricePoints : [row.basePrice]);
+                            return (
+                              <td key={`${row.key}-${tier}`} className="px-3 py-3 align-middle">
+                                <div className="body-medium text-on-surface">
+                                  {computed == null ? '—' : `${computed} SEK`}
+                                </div>
+                                <div className="body-small text-on-surface-variant">
+                                  {formatWeightLabel(multiplier)}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                      {filteredPriceMatrixRows.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-3 py-6 body-medium text-on-surface-variant">
+                            No categories found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <Separator className="bg-outline-variant/60" />
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="title-small text-on-surface">Fallback-mapped categories</div>
+                      <p className="body-small text-on-surface-variant">
+                        Categories currently relying on a fallback rule (mocked via low-confidence mappings). Add them to the table to define group prices.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto rounded-lg border border-outline-variant">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-surface-container border-outline-variant/60">
+                          <TableHead className="text-on-surface-variant">Mapped category</TableHead>
+                          <TableHead className="text-on-surface-variant">Source label</TableHead>
+                          <TableHead className="text-on-surface-variant">Confidence</TableHead>
+                          <TableHead className="text-on-surface-variant text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {fallbackCandidates.map((c) => (
+                          <TableRow key={c.key} className="border-outline-variant/40">
+                            <TableCell className="body-medium text-on-surface">{c.category}</TableCell>
+                            <TableCell className="body-medium text-on-surface-variant">
+                              <Input
+                                value={fallbackSourceLabelDraft[c.key] ?? c.sourceLabel}
+                                onChange={(e) =>
+                                  setFallbackSourceLabelDraft((prev) => ({ ...prev, [c.key]: e.target.value }))
+                                }
+                                className="bg-surface-container-high border-outline rounded-lg h-[44px] w-[260px]"
+                              />
+                            </TableCell>
+                            <TableCell className="body-medium text-on-surface-variant">
+                              {(c.confidence * 100).toFixed(0)}%
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-lg"
+                                onClick={() => {
+                                  setPriceMatrixRows((prev) => {
+                                    const source = (fallbackSourceLabelDraft[c.key] ?? c.sourceLabel).trim() || c.sourceLabel;
+                                    const key = `${c.category}::${source}`;
+                                    if (prev.some((r) => r.key === key)) return prev;
+                                    return [
+                                      { key, category: c.category, subcategory: source, isFallback: true, basePrice: null },
+                                      ...prev,
+                                    ];
+                                  });
+                                }}
+                              >
+                                Add
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {fallbackCandidates.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="body-medium text-on-surface-variant py-6">
+                              No fallback candidates found.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="fallback-rule" className="space-y-6">
+            <Card className="bg-surface border border-outline-variant">
+              <CardHeader>
+                <CardTitle className="title-medium text-on-surface">Fallback pricing rule</CardTitle>
+                <CardDescription className="body-small text-on-surface-variant">
+                  When a category/sub-category price is missing, suggest price as a multiplier of the Sellpy EUR purchase price.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="label-medium text-on-surface">Multiplier</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={10}
+                      step={0.1}
+                      value={fallbackMultiplier}
+                      onChange={(e) => setFallbackMultiplier(Number(e.target.value))}
+                      className="bg-surface-container-high border-outline rounded-lg h-[44px]"
+                    />
+                    <p className="body-small text-on-surface-variant">
+                      Suggested price = purchasePriceEUR × {fallbackMultiplier.toFixed(1)} (then mapped to nearest SEK ladder point in the order UI).
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-outline-variant/60 bg-surface p-4">
+                    <div className="title-small text-on-surface mb-2">Example</div>
+                    <div className="space-y-1 body-medium text-on-surface-variant">
+                      <div>Purchase price: €18.00</div>
+                      <div>Rule: × {fallbackMultiplier.toFixed(1)}</div>
+                      <div className="text-on-surface">
+                        Candidate: €{(18 * fallbackMultiplier).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

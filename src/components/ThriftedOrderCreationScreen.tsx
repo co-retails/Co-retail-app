@@ -37,8 +37,8 @@ import {
   parseCSV, 
   exportThriftedItemsToCSV,
   mapSubcategoryToCategory,
-  getAllThriftedSubcategories,
-  THRIFTED_VALID_VALUES,
+  getAllThriftedSubcategoriesForBrand,
+  getThriftedValidValues,
   THRIFTED_IMPORT_CHUNK_SIZE,
   getThriftedTemplateAvailability,
   hasDuplicateFieldErrors,
@@ -164,6 +164,10 @@ export default function ThriftedOrderCreationScreen({
   const selectedCountryRecord = selectedCountryId ? countries.find(c => c.id === selectedCountryId) : undefined;
   const selectedCurrency = selectedCountryRecord ? getCurrencyFromCountry(selectedCountryRecord.name) : undefined;
   const partnerIdForPricing = currentPartner?.id || '2';
+  const thriftedValidValues = useMemo(
+    () => getThriftedValidValues(selectedBrandId),
+    [selectedBrandId]
+  );
 
   // Validation stats
   const totalItems = orderItems.length;
@@ -232,10 +236,25 @@ export default function ThriftedOrderCreationScreen({
     });
 
   const applyImportResult = (result: ThriftedImportResult, mode: 'replace' | 'append') => {
+    const nextItems =
+      mode === 'replace' ? result.items : [...orderItems, ...result.items];
+
+    // New order flow: after uploading CSV, skip the staging/validation step and go
+    // straight into Order Details (where validation errors are corrected).
+    if (!isEditing && storeSelection) {
+      setLastImportResult(result);
+      setUploadProgress(result.progress);
+      setUploadError('');
+      clearPendingImports();
+      setShowReplaceDialog(false);
+      onCreateOrder(nextItems, storeSelection, false);
+      return;
+    }
+
     if (mode === 'replace') {
-      setOrderItems(result.items);
+      setOrderItems(nextItems);
     } else {
-      setOrderItems((prev) => [...prev, ...result.items]);
+      setOrderItems(nextItems);
     }
 
     setLastImportResult(result);
@@ -483,8 +502,8 @@ export default function ThriftedOrderCreationScreen({
       // When category changes, clear subcategory if it's not valid for the new category
       if (field === 'category') {
         const trimmedCategory = value && value.toString ? value.toString().trim() : '';
-        if (trimmedCategory && THRIFTED_VALID_VALUES.categories.includes(trimmedCategory)) {
-          const validSubcategories = THRIFTED_VALID_VALUES.subcategories[trimmedCategory as keyof typeof THRIFTED_VALID_VALUES.subcategories] || [];
+        if (trimmedCategory && thriftedValidValues.categories.includes(trimmedCategory)) {
+          const validSubcategories = thriftedValidValues.subcategories[trimmedCategory] || [];
           if (updatedItem.subcategory && !validSubcategories.includes(updatedItem.subcategory)) {
             updatedItem.subcategory = '';
           }
@@ -525,9 +544,9 @@ export default function ThriftedOrderCreationScreen({
       if (field === 'category') {
         const trimmedCategory = actualValue && actualValue.toString ? actualValue.toString().trim() : '';
         if (trimmedCategory) {
-          if (THRIFTED_VALID_VALUES.categories.includes(trimmedCategory)) {
+          if (thriftedValidValues.categories.includes(trimmedCategory)) {
             delete fieldErrors.category;
-            const validSubcategories = THRIFTED_VALID_VALUES.subcategories[trimmedCategory as keyof typeof THRIFTED_VALID_VALUES.subcategories] || [];
+            const validSubcategories = thriftedValidValues.subcategories[trimmedCategory] || [];
             if (updatedItem.subcategory && !validSubcategories.includes(updatedItem.subcategory)) {
               updatedItem.subcategory = '';
               fieldErrors.subcategory = 'Select subcategory for this category';
@@ -569,7 +588,7 @@ export default function ThriftedOrderCreationScreen({
       // Price is mandatory - mark clearly
       if (actualField === 'price') {
         const numValue = typeof actualValue === 'string' ? parseFloat(actualValue) : actualValue;
-        if (numValue && numValue > 0 && PRICE_OPTIONS_SEK.includes(numValue)) {
+        if (numValue && numValue > 0 && thriftedValidValues.prices.includes(numValue)) {
           delete fieldErrors.price;
         } else if (!numValue || numValue <= 0) {
           fieldErrors.price = 'Required (Mandatory)';
@@ -588,7 +607,7 @@ export default function ThriftedOrderCreationScreen({
   };
 
   // Price options for validation
-  const PRICE_OPTIONS_SEK = [50, 75, 100, 120, 150, 200, 250, 300, 400, 500, 600, 750, 1000, 1200, 1500, 2000];
+  const PRICE_OPTIONS_SEK = thriftedValidValues.prices;
 
   const handleExportItems = () => {
     const csv = exportThriftedItemsToCSV(orderItems);
@@ -605,9 +624,13 @@ export default function ThriftedOrderCreationScreen({
       if (creationMethod === 'manual') {
         onCreateOrder([], storeSelection, false);
       } else {
-        // For bulk upload, go to items step to review/validate uploaded items
-        setStep('items');
-        setShowStoreEdit(false);
+        // Bulk upload flow creates the order directly after CSV upload.
+        // Keep Continue as a fallback in case items are already staged.
+        if (orderItems.length > 0) {
+          onCreateOrder(orderItems, storeSelection, false);
+          return;
+        }
+        toast.error('Upload a CSV file to create the order');
       }
     }
   };
@@ -898,9 +921,9 @@ export default function ThriftedOrderCreationScreen({
               <ul className="space-y-1 body-small text-on-surface-variant">
                 <li>• Required columns: SKU, Retailer ID*, Item brand, Subcategory, Size, Color, Gender, Price (SEK)*</li>
                 <li>• <strong>Retailer ID*</strong> and <strong>Price (SEK)*</strong> are mandatory</li>
-                <li>• Subcategory options: {getAllThriftedSubcategories().join(', ')}</li>
+                <li>• Subcategory options: {getAllThriftedSubcategoriesForBrand(selectedBrandId).join(', ')}</li>
                 <li>• Category is automatically mapped from Subcategory</li>
-                <li>• Gender options: Women, Men, Kids, Unisex</li>
+                <li>• Gender options: {thriftedValidValues.genders.join(', ')}</li>
                 <li>• Price must be one of the valid SEK price ladder values</li>
                 <li>• Duplicate checks run within the file and, when appending, against the current order</li>
                 <li>• Files larger than {THRIFTED_IMPORT_CHUNK_SIZE.toLocaleString()} rows are processed locally in chunks and merged into one result</li>
@@ -993,9 +1016,9 @@ export default function ThriftedOrderCreationScreen({
               <ul className="space-y-1 body-small text-on-surface-variant">
                 <li>• Required columns: SKU, Retailer ID*, Item brand, Subcategory, Size, Color, Gender, Price (SEK)*</li>
                 <li>• <strong>Retailer ID*</strong> and <strong>Price (SEK)*</strong> are mandatory</li>
-                <li>• Subcategory options: {getAllThriftedSubcategories().join(', ')}</li>
+                <li>• Subcategory options: {getAllThriftedSubcategoriesForBrand(selectedBrandId).join(', ')}</li>
                 <li>• Category is automatically mapped from Subcategory</li>
-                <li>• Gender options: Women, Men, Kids, Unisex</li>
+                <li>• Gender options: {thriftedValidValues.genders.join(', ')}</li>
                 <li>• Price must be one of the valid SEK price ladder values</li>
                 <li>• Duplicate checks run within the file and, when appending, against the current order</li>
                 <li>• Files larger than {THRIFTED_IMPORT_CHUNK_SIZE.toLocaleString()} rows are processed locally in chunks and merged into one result</li>
@@ -1130,12 +1153,12 @@ export default function ThriftedOrderCreationScreen({
                 isEditable={canEditItems}
                 onUpdateItem={handleUpdateItem}
                 onDeleteItem={canEditItems ? handleDeleteItem : undefined}
-                subcategoryOptions={getAllThriftedSubcategories()}
+                subcategoryOptions={getAllThriftedSubcategoriesForBrand(selectedBrandId)}
                 subcategoryLabel="Subcategory"
                 brandAsInput={true}
-                categoryOptions={THRIFTED_VALID_VALUES.categories} // Show category dropdown (auto-mapped from subcategory)
+                categoryOptions={thriftedValidValues.categories} // Show category dropdown (auto-mapped from subcategory)
                 hideCategoryForThrifted={false} // Show category column for cascading dropdown
-                subcategoriesByCategory={THRIFTED_VALID_VALUES.subcategories} // Provide category-to-subcategory mapping
+                subcategoriesByCategory={thriftedValidValues.subcategories} // Provide category-to-subcategory mapping
                 requireCategoryBeforeSubcategory={false}
                 partnerId={partnerIdForPricing}
                 countryName={selectedCountryRecord?.name}

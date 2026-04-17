@@ -62,7 +62,9 @@ import {
   exportReturnItemsToCSV,
   THRIFTED_VALID_VALUES,
   mapSubcategoryToCategory,
-  getAllThriftedSubcategories
+  getAllThriftedSubcategories,
+  getAllThriftedSubcategoriesForBrand,
+  getThriftedValidValues
 } from '../utils/spreadsheetUtils';
 import { getCurrencyFromCountry, getPriceOptionsForCurrency } from '../data/partnerPricing';
 import PartnerWarehouseSelector, {
@@ -517,6 +519,10 @@ export default function OrderShipmentDetailsScreen({
   
   // Check if this is a Thrifted order
   const isThriftedOrder = partnerName === 'Thrifted';
+  const thriftedValidValues = useMemo(
+    () => getThriftedValidValues(receivingStore?.brandId),
+    [receivingStore?.brandId]
+  );
   
   // Check if Thrifted order is editable (pending status) - for item editing, CSV, etc.
   const isThriftedEditable = isThriftedOrder && isPendingOrder;
@@ -1784,12 +1790,12 @@ export default function OrderShipmentDetailsScreen({
                     isEditable={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin)} // Allow editing for Thrifted pending orders or pending/approval orders (Admins only)
                     onUpdateItem={handleUpdateItemAttribute}
                     onDeleteItem={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin) ? handleDeleteItem : undefined}
-                    subcategoryOptions={isThriftedOrder ? getAllThriftedSubcategories() : undefined}
+                    subcategoryOptions={isThriftedOrder ? getAllThriftedSubcategoriesForBrand(receivingStore?.brandId) : undefined}
                     subcategoryLabel={isThriftedOrder ? "Subcategory" : undefined}
                     brandAsInput={isThriftedOrder}
-                    categoryOptions={isThriftedOrder ? THRIFTED_VALID_VALUES.categories : undefined} // Show category dropdown for Thrifted (auto-mapped)
+                    categoryOptions={isThriftedOrder ? thriftedValidValues.categories : undefined} // Show category dropdown for Thrifted (auto-mapped)
                     hideCategoryForThrifted={false} // Show category column for cascading dropdown
-                    subcategoriesByCategory={isThriftedOrder ? THRIFTED_VALID_VALUES.subcategories : undefined} // Provide category-to-subcategory mapping
+                    subcategoriesByCategory={isThriftedOrder ? thriftedValidValues.subcategories : undefined} // Provide category-to-subcategory mapping
                     requireCategoryBeforeSubcategory={!isThriftedOrder}
                     partnerId={partnerId}
                     countryName={countryName}

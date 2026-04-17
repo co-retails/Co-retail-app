@@ -23,10 +23,12 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useOverlayPortalContainer } from './ui/overlay-portal-context';
-import { AlertCircleIcon, Package, Trash2Icon, Check, ChevronDown } from 'lucide-react';
+import { AlertCircleIcon, Package, Trash2Icon, Check, ChevronDown, Plus, Camera, Image as ImageIcon, Trash2, ChevronRight } from 'lucide-react';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { OrderItem } from './OrderCreationScreen';
 import { getPriceOptionsForCurrency } from '../data/partnerPricing';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
+import { useMediaQuery } from './ui/use-mobile';
 import {
   THRIFTED_VALID_VALUES,
   filterBrandsByQuery,
@@ -331,6 +333,62 @@ export function ItemDetailsTable({
 
   const [mobileDetailsItem, setMobileDetailsItem] = useState<ItemDetailsTableItem | null>(null);
   const [openBrandPopovers, setOpenBrandPopovers] = useState<Record<string, boolean>>({});
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isLargeScreen = useMediaQuery('(min-width: 768px)');
+  const canEditImage = thriftedPartnerTable && isEditable && !!onUpdateItem;
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const [imagePickerItemId, setImagePickerItemId] = useState<string | null>(null);
+  const imagePickerCurrentUrl = useMemo(() => {
+    if (!imagePickerItemId) return undefined;
+    return items.find((it) => it.id === imagePickerItemId)?.imageUrl;
+  }, [items, imagePickerItemId]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const objectUrlsRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrlsRef.current.clear();
+    };
+  }, []);
+
+  const openImagePicker = useCallback((itemId: string) => {
+    if (!canEditImage) return;
+    setImagePickerItemId(itemId);
+    setImagePickerOpen(true);
+  }, [canEditImage]);
+
+  const commitImageFile = useCallback((itemId: string, file: File) => {
+    if (!canEditImage) return;
+    const nextUrl = URL.createObjectURL(file);
+    const prev = objectUrlsRef.current.get(itemId);
+    if (prev) URL.revokeObjectURL(prev);
+    objectUrlsRef.current.set(itemId, nextUrl);
+    onUpdateItem?.(itemId, 'imageUrl', nextUrl);
+  }, [canEditImage, onUpdateItem]);
+
+  const handleImageInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const itemId = imagePickerItemId;
+    const file = e.target.files?.[0];
+    if (!itemId || !file) return;
+    commitImageFile(itemId, file);
+    setImagePickerOpen(false);
+    // Allow selecting the same file again.
+    e.target.value = '';
+  }, [imagePickerItemId, commitImageFile]);
+
+  const handleRemoveImage = useCallback(() => {
+    const itemId = imagePickerItemId;
+    if (!itemId || !canEditImage) return;
+    const prev = objectUrlsRef.current.get(itemId);
+    if (prev) {
+      URL.revokeObjectURL(prev);
+      objectUrlsRef.current.delete(itemId);
+    }
+    onUpdateItem?.(itemId, 'imageUrl', undefined);
+    setImagePickerOpen(false);
+  }, [imagePickerItemId, canEditImage, onUpdateItem]);
   const detailFieldMap: Partial<Record<keyof ItemDetails, keyof ItemDetailsTableItem>> = {
     brand: 'brand',
     category: 'category',
@@ -591,6 +649,11 @@ export function ItemDetailsTable({
               item={baseItem}
               variant="order-details"
               onClick={() => setMobileDetailsItem(item)}
+              onThumbnailClick={
+                canEditImage
+                  ? () => openImagePicker(item.id)
+                  : undefined
+              }
               showActions={false}
               showSelection={false}
               orderDetailsConfig={{
@@ -725,14 +788,33 @@ export function ItemDetailsTable({
             >
               {/* Image */}
               <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
-                <div className="w-12 h-12 rounded overflow-hidden bg-surface-container flex items-center justify-center mx-auto">
+                <button
+                  type="button"
+                  className={`relative w-12 h-12 rounded overflow-hidden bg-surface-container flex items-center justify-center mx-auto ${
+                    canEditImage ? 'cursor-pointer hover:opacity-90' : 'cursor-default'
+                  }`}
+                  onClick={(e) => {
+                    if (!canEditImage) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openImagePicker(item.id);
+                  }}
+                  aria-label={canEditImage ? 'Add image' : 'Item image'}
+                >
                   <ImageWithFallback
                     src={item.imageUrl}
                     alt={`${item.brand} ${item.category}`}
                     className="w-full h-full object-cover"
                     fallback={<Package className="w-5 h-5 text-on-surface-variant/60" />}
                   />
-                </div>
+                  {canEditImage && (
+                    <div className="absolute bottom-0 right-0 p-0.5">
+                      <div className="h-6 w-6 rounded-full bg-black/35 flex items-center justify-center">
+                        <Plus className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                  )}
+                </button>
               </td>
 
               {/* Retailer ID */}
@@ -1176,6 +1258,117 @@ export function ItemDetailsTable({
         brandAutocompleteOptions={mergedBrandSuggestions}
         partnerMobileActions={partnerMobileActions}
       />
+
+      {/* Image picker sheet (Thrifted partner draft/pending only) */}
+      {canEditImage && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageInputChange}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleImageInputChange}
+          />
+
+          <Sheet open={imagePickerOpen} onOpenChange={setImagePickerOpen}>
+            <SheetContent
+              side={isMobile ? 'bottom' : 'right'}
+              containerZIndex={12000}
+              className={`
+                bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
+                ${isLargeScreen ? 'h-full w-full max-w-md' : 'rounded-t-3xl max-h-[90vh]'}
+              `}
+            >
+              {/* Drag Handle - Only on mobile */}
+              {!isLargeScreen && (
+                <div className="flex justify-center pt-3 pb-2">
+                  <div className="w-8 h-1 bg-outline-variant rounded-full" />
+                </div>
+              )}
+
+              <SheetHeader className={`relative flex-shrink-0 ${isLargeScreen ? 'px-6 pt-6 pb-4' : 'px-6 pb-4'}`}>
+                <SheetTitle className="text-on-surface text-left flex-1 title-large">
+                  Add image
+                </SheetTitle>
+              </SheetHeader>
+
+              <div className="flex-1 overflow-y-auto px-6 pb-6">
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="
+                      w-full flex items-center justify-between p-4 bg-surface-container
+                      hover:bg-surface-container-high active:bg-surface-container-highest
+                    "
+                  >
+                    <div className="flex items-center gap-3 text-left">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-high">
+                        <ImageIcon className="h-5 w-5 text-on-surface-variant" />
+                      </span>
+                      <div>
+                        <div className="body-large text-on-surface">Select image</div>
+                        <div className="body-small text-on-surface-variant">Choose from your device</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-on-surface-variant" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="
+                      w-full flex items-center justify-between p-4 bg-surface-container
+                      hover:bg-surface-container-high active:bg-surface-container-highest
+                    "
+                  >
+                    <div className="flex items-center gap-3 text-left">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-high">
+                        <Camera className="h-5 w-5 text-on-surface-variant" />
+                      </span>
+                      <div>
+                        <div className="body-large text-on-surface">Take photo</div>
+                        <div className="body-small text-on-surface-variant">Use your camera</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-on-surface-variant" />
+                  </button>
+
+                  {imagePickerCurrentUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="
+                        w-full flex items-center justify-between p-4 bg-surface-container
+                        hover:bg-error-container/10 active:bg-error-container/20
+                      "
+                    >
+                      <div className="flex items-center gap-3 text-left">
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-error-container/20">
+                          <Trash2 className="h-5 w-5 text-error" />
+                        </span>
+                        <div>
+                          <div className="body-large text-error">Remove image</div>
+                          <div className="body-small text-on-surface-variant">Clear the current thumbnail</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-on-surface-variant" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
     </>
   );
 }
