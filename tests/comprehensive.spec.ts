@@ -137,6 +137,9 @@ test.describe('Comprehensive App Testing', () => {
     });
   });
 
+  // Legacy coverage note: buyer/showroom flows below are not part of the
+  // currently mounted runtime. Keep them archived unless buyer/showroom work
+  // is explicitly brought back into scope.
   test.describe('Buyer - Complete Workflow', () => {
     test('should complete product browsing workflow', async ({ page }) => {
       await helpers.switchToRole('buyer');

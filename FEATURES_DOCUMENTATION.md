@@ -406,6 +406,9 @@ The Sellpy Order Flow is a specialized order processing workflow designed for or
 
 ## 3. Buyer Portal
 
+> Scope note (April 2026): this section is retained as historical design documentation.
+> Buyer portal and showroom flows are not part of the currently mounted app runtime in this repo, and there are no corresponding buyer/showroom component files in the active source tree.
+
 The Buyer Portal is a dedicated interface for retail buyers to browse partner showrooms, request quotations, manage purchase orders, and track shipments. It provides a streamlined experience for buyers to discover and order products from verified partners.
 
 ### 3.1 Overview

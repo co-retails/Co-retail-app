@@ -321,6 +321,13 @@ src/
 
 ## 3. User Roles & Views
 
+> Current runtime scope override (April 2026)
+>
+> - The active app runtime only exposes `store-staff`, `partner`, and admin preview flows.
+> - Buyer portal and showroom flows referenced in older docs and tests are legacy or planned surfaces and are currently out of scope for this repo unless a user explicitly asks to revive them.
+> - There are no buyer/showroom component files or mounted routes in the current app shell. Treat `src/App.tsx`, `src/utils/navigationConfig.ts`, and `src/components/SwitchViewSheet.tsx` as the runtime source of truth.
+> - Do not infer current support for buyer/showroom from `FEATURES_DOCUMENTATION.md` or the legacy buyer/showroom Playwright scenarios.
+
 **CRITICAL**: This application supports **three distinct user roles** with different interfaces, navigation, and data access.
 
 ### The Three Roles
@@ -339,13 +346,17 @@ src/
 #### 2. **Partner** (`'partner'`)
 - **Purpose**: Partner companies (suppliers/manufacturers) managing orders and shipments to stores
 - **Home Screen**: `PartnerDashboard` (partner-dashboard)
-- **Navigation**: Dashboard, Shipping (or Showroom for certain partners)
+- **Navigation**: Dashboard, Shipping
 - **Key Features**:
   - Create orders for stores
   - Manage delivery notes and boxes
   - Track shipments to stores
-  - Digital showroom (for manufacturing partners)
-  - Quotation management
+  - Reports and partner-facing operational flows
+
+#### Legacy / Out-of-Scope Buyer + Showroom Notes
+- Buyer portal and showroom references below are historical design notes, not active runtime scope.
+- `currentUserRole` in the live app does not expose a buyer path today.
+- If a task touches buyer/showroom screens, confirm with the user before adding or reviving them.
 
 #### 3. **Buyer** (`'buyer'`)
 - **Purpose**: Retail buyers browsing and ordering from partner showrooms
@@ -363,7 +374,7 @@ The current role is stored in `currentUserRole` from `useAppState`:
 
 ```tsx
 const { currentUserRole, setCurrentUserRole } = useAppState();
-// currentUserRole: 'store-staff' | 'partner' | 'buyer'
+// Current runtime roles: 'store-staff' | 'partner' | 'admin'
 ```
 
 ### Role-Specific Navigation
@@ -374,12 +385,10 @@ Navigation destinations change based on `currentUserRole`. See `src/utils/naviga
 // Store Staff Navigation
 ['Home', 'Items', 'Scan', 'Shipping']
 
-// Partner Navigation (varies by partner type)
-['Dashboard', 'Shipping'] // For Sellpy and most partners
-['Dashboard', 'Showroom', 'Quotations'] // For manufacturing partners
+// Partner Navigation
+['Dashboard', 'Shipping']
 
-// Buyer Navigation
-['Dashboard', 'Browse', 'Quotations']
+// Buyer / Showroom navigation references in older docs are not active in the current runtime.
 ```
 
 ### Role-Specific Screens

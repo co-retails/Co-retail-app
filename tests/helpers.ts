@@ -29,7 +29,10 @@ export class AppTestHelpers {
   }
 
   /**
-   * Switch to a specific user role
+    * Switch to a specific user role.
+    * Current runtime scope only supports store-staff and partner here.
+    * Buyer/showroom flows referenced in older tests are legacy expectations,
+    * not active runtime behavior.
    */
   async switchToRole(role: 'store-staff' | 'partner') {
     const roleSwitcherButton = this.page.locator('button[aria-label*="Switch view"], button[aria-label*="Switch View"], button[aria-label*="Role"], button:has([class*="UserIcon"])').first();
