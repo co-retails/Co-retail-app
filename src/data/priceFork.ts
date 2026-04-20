@@ -26,7 +26,7 @@ export interface PriceForkTestItem {
   category: string;
   partnerCategory: string;
   condition: 'Pristine' | 'Excellent' | 'Good' | 'Fair';
-  material: 'leather' | 'silk' | 'suede' | 'other';
+  material: 'leather' | 'silk' | 'suede' | 'cashmere' | 'other';
   purchasePrice: number;
   aiSuggestedPrice: number;
   aiConfidence: number;
@@ -77,7 +77,7 @@ export const calibrationParameters: CalibrationParameterDefinition[] = [
     min: 15,
     max: 60,
     step: 1,
-    defaultValue: 32,
+    defaultValue: 20,
     format: (value) => `${value}%`
   },
   {
@@ -99,9 +99,9 @@ export const brandTierWeights: CalibrationParameterDefinition[] = [
     label: 'Haute couture',
     description: 'Weight adjustment for haute couture brands.',
     type: 'slider',
-    min: 0.5,
-    max: 2.0,
-    step: 0.05,
+    min: 1.0,
+    max: 30.0,
+    step: 0.1,
     defaultValue: 1.5,
     format: (value) => `${((value as number) - 1) * 100 >= 0 ? '+' : ''}${Math.round(((value as number) - 1) * 100)}%`
   },
@@ -110,9 +110,9 @@ export const brandTierWeights: CalibrationParameterDefinition[] = [
     label: 'Premium',
     description: 'Weight adjustment for premium brands.',
     type: 'slider',
-    min: 0.5,
-    max: 2.0,
-    step: 0.05,
+    min: 1.0,
+    max: 30.0,
+    step: 0.1,
     defaultValue: 1.35,
     format: (value) => `${((value as number) - 1) * 100 >= 0 ? '+' : ''}${Math.round(((value as number) - 1) * 100)}%`
   },
@@ -121,9 +121,9 @@ export const brandTierWeights: CalibrationParameterDefinition[] = [
     label: 'High',
     description: 'Weight adjustment for high-tier brands.',
     type: 'slider',
-    min: 0.5,
-    max: 2.0,
-    step: 0.05,
+    min: 1.0,
+    max: 30.0,
+    step: 0.1,
     defaultValue: 1.15,
     format: (value) => `${((value as number) - 1) * 100 >= 0 ? '+' : ''}${Math.round(((value as number) - 1) * 100)}%`
   },
@@ -132,9 +132,9 @@ export const brandTierWeights: CalibrationParameterDefinition[] = [
     label: 'Mid',
     description: 'Weight adjustment for mid-tier brands.',
     type: 'slider',
-    min: 0.5,
-    max: 2.0,
-    step: 0.05,
+    min: 1.0,
+    max: 30.0,
+    step: 0.1,
     defaultValue: 1.0,
     format: (value) => `${((value as number) - 1) * 100 >= 0 ? '+' : ''}${Math.round(((value as number) - 1) * 100)}%`
   },
@@ -143,10 +143,10 @@ export const brandTierWeights: CalibrationParameterDefinition[] = [
     label: 'Low',
     description: 'Weight adjustment for low-tier brands.',
     type: 'slider',
-    min: 0.5,
-    max: 2.0,
-    step: 0.05,
-    defaultValue: 0.85,
+    min: 1.0,
+    max: 30.0,
+    step: 0.1,
+    defaultValue: 1.0,
     format: (value) => `${((value as number) - 1) * 100 >= 0 ? '+' : ''}${Math.round(((value as number) - 1) * 100)}%`
   },
   {
@@ -154,26 +154,27 @@ export const brandTierWeights: CalibrationParameterDefinition[] = [
     label: 'Strategic low',
     description: 'Weight adjustment for strategic low-tier brands.',
     type: 'slider',
-    min: 0.5,
-    max: 2.0,
-    step: 0.05,
-    defaultValue: 0.75,
+    min: 1.0,
+    max: 30.0,
+    step: 0.1,
+    defaultValue: 1.0,
     format: (value) => `${((value as number) - 1) * 100 >= 0 ? '+' : ''}${Math.round(((value as number) - 1) * 100)}%`
   }
 ];
 
 export const priceForkDefaultState: PriceForkCalibrationState = {
-  marginFloorItem: calibrationParameters.find((param) => param.id === 'marginFloorItem')?.defaultValue ?? 32,
+  marginFloorItem: calibrationParameters.find((param) => param.id === 'marginFloorItem')?.defaultValue ?? 20,
   marginFloorOrder: calibrationParameters.find((param) => param.id === 'marginFloorOrder')?.defaultValue ?? 30,
   tierHauteCoutureWeight: brandTierWeights.find((param) => param.id === 'tierHauteCoutureWeight')?.defaultValue ?? 1.5,
   tierPremiumWeight: brandTierWeights.find((param) => param.id === 'tierPremiumWeight')?.defaultValue ?? 1.35,
   tierHighWeight: brandTierWeights.find((param) => param.id === 'tierHighWeight')?.defaultValue ?? 1.15,
   tierMidWeight: brandTierWeights.find((param) => param.id === 'tierMidWeight')?.defaultValue ?? 1.0,
-  tierLowWeight: brandTierWeights.find((param) => param.id === 'tierLowWeight')?.defaultValue ?? 0.85,
-  tierStrategicLowWeight: brandTierWeights.find((param) => param.id === 'tierStrategicLowWeight')?.defaultValue ?? 0.75,
+  tierLowWeight: brandTierWeights.find((param) => param.id === 'tierLowWeight')?.defaultValue ?? 1.0,
+  tierStrategicLowWeight: brandTierWeights.find((param) => param.id === 'tierStrategicLowWeight')?.defaultValue ?? 1.0,
   materialLeatherWeight: 1.1,
   materialSilkWeight: 1.08,
-  materialSuedeWeight: 1.05
+  materialSuedeWeight: 1.05,
+  materialCashmereWeight: 1.2
 };
 
 export const mockPriceForkTestItems: PriceForkTestItem[] = [

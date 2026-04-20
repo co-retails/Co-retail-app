@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   brandTierWeights,
   calibrationParameters,
@@ -12,6 +12,7 @@ import {
   pricingLogicNarrative,
   priceForkPromptDefinitions
 } from '../data/priceFork';
+import { MASTER_VALUES_DEMO } from '../data/masterValuesDemo';
 import { getSekPriceOptions } from '../data/partnerPricing';
 import { Brand } from './PortalConfigTypes';
 import { cn } from './ui/utils';
@@ -39,7 +40,7 @@ import {
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { ArrowLeft, Brain, DownloadCloud, FileText, Info, Loader2, RefreshCw, Sparkles, UploadCloud, Wand2, XCircle, Search, X } from 'lucide-react';
+import { ArrowLeft, Brain, DownloadCloud, Info, Loader2, RefreshCw, Sparkles, Search, Wand2, X } from 'lucide-react';
 
 interface PriceForkCalibrationScreenProps {
   partnerId: string;
@@ -88,6 +89,27 @@ const formatWeightLabel = (weight: number) => {
   // Display as a multiplier, e.g. x1.20
   const rounded = Math.round(weight * 100) / 100;
   return `x${rounded.toFixed(2)}`;
+};
+
+const pickRandomSubset = <T,>(items: T[], count: number): T[] => {
+  if (count <= 0) return [];
+  if (items.length <= count) return [...items];
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j]!, copy[i]!];
+  }
+  return copy.slice(0, count);
+};
+
+const getMasterCategoryKeyFromBrandName = (
+  brandName: string
+): keyof typeof MASTER_VALUES_DEMO.categoriesByBrand => {
+  const normalized = brandName.trim().toLowerCase();
+  if (normalized === 'h&m' || normalized === 'hm') return 'H&M';
+  if (normalized === 'cos') return 'COS';
+  if (normalized === 'arket') return 'ARKET';
+  return 'WEEKDAY';
 };
 
 export default function PriceForkCalibrationScreen({
@@ -164,6 +186,8 @@ export default function PriceForkCalibrationScreen({
     isFallback: boolean;
     /** Base price = Strategic low group price */
     basePrice: number | null;
+    /** Optional manual overrides for computed tier prices (demo) */
+    tierPriceOverrides?: Partial<Record<PriceForkTestItem['brandTier'], number>>;
   };
 
   const sekPricePoints = useMemo(() => {
@@ -172,24 +196,50 @@ export default function PriceForkCalibrationScreen({
   }, [partnerId, selectedBrandName]);
 
   const seedMatrixRows = useMemo<PriceMatrixRow[]>(() => {
-    const uniq = new Map<string, { category: string; subcategory: string }>();
-    mockPriceForkTestItems.forEach((it) => {
-      const category = it.category || it.partnerCategory || 'Other';
-      const subcategory = it.subcategory || it.partnerCategory || 'Other';
-      const key = `${category}::${subcategory}`;
-      if (!uniq.has(key)) uniq.set(key, { category, subcategory });
+    const categoryKey = getMasterCategoryKeyFromBrandName(selectedBrandName);
+    const byCategory = MASTER_VALUES_DEMO.categoriesByBrand[categoryKey];
+
+    const rows: PriceMatrixRow[] = [];
+    Object.entries(byCategory).forEach(([category, subcategories]) => {
+      subcategories.forEach((subcategory) => {
+        const key = `${category}::${subcategory}`;
+        rows.push({
+          key,
+          category,
+          subcategory,
+          isFallback: false,
+          basePrice: null
+        });
+      });
     });
-    return Array.from(uniq.entries()).map(([key, v]) => ({
-      key,
-      category: v.category,
-      subcategory: v.subcategory,
-      isFallback: false,
-      basePrice: null,
-    }));
-  }, []);
+
+    // Safety fallback (shouldn't happen in demo, but avoids empty matrix if data changes)
+    if (rows.length === 0) {
+      const uniq = new Map<string, { category: string; subcategory: string }>();
+      mockPriceForkTestItems.forEach((it) => {
+        const category = it.category || it.partnerCategory || 'Other';
+        const subcategory = (it as any).subcategory || it.partnerCategory || 'Other';
+        const key = `${category}::${subcategory}`;
+        if (!uniq.has(key)) uniq.set(key, { category, subcategory });
+      });
+      return Array.from(uniq.entries()).map(([key, v]) => ({
+        key,
+        category: v.category,
+        subcategory: v.subcategory,
+        isFallback: false,
+        basePrice: null
+      }));
+    }
+
+    return rows;
+  }, [selectedBrandName]);
 
   const [priceMatrixRows, setPriceMatrixRows] = useState<PriceMatrixRow[]>(seedMatrixRows);
   const [priceMatrixSearch, setPriceMatrixSearch] = useState('');
+
+  useEffect(() => {
+    setPriceMatrixRows(seedMatrixRows);
+  }, [seedMatrixRows]);
 
   // Fallback candidates = low-confidence category mappings (mocked)
   const fallbackCandidates = useMemo(() => {
@@ -204,6 +254,17 @@ export default function PriceForkCalibrationScreen({
   }, []);
 
   const [fallbackSourceLabelDraft, setFallbackSourceLabelDraft] = useState<Record<string, string>>({});
+
+  const validSubcategoryOptions = useMemo(() => {
+    const values = new Set<string>();
+    seedMatrixRows.forEach((r) => {
+      if (r.subcategory?.trim()) values.add(r.subcategory.trim());
+    });
+    fallbackCandidates.forEach((c) => {
+      if (c.sourceLabel?.trim()) values.add(c.sourceLabel.trim());
+    });
+    return Array.from(values.values()).sort((a, b) => a.localeCompare(b));
+  }, [fallbackCandidates, seedMatrixRows]);
 
   const filteredPriceMatrixRows = useMemo(() => {
     const q = priceMatrixSearch.trim().toLowerCase();
@@ -261,43 +322,46 @@ export default function PriceForkCalibrationScreen({
     }));
   };
 
-  const getMaterialWeight = useCallback(
-    (material: PriceForkTestItem['material']) => {
+  const getMaterialWeightFromState = useCallback(
+    (state: PriceForkCalibrationState, material: PriceForkTestItem['material']) => {
+      const clampMultiplier = (n: number) => Math.min(30, Math.max(1, n));
       if (material === 'leather') {
-        return Number(calibrationState.materialLeatherWeight ?? priceForkDefaultState.materialLeatherWeight);
+        return clampMultiplier(Number(state.materialLeatherWeight ?? priceForkDefaultState.materialLeatherWeight));
       }
       if (material === 'silk') {
-        return Number(calibrationState.materialSilkWeight ?? priceForkDefaultState.materialSilkWeight);
+        return clampMultiplier(Number(state.materialSilkWeight ?? priceForkDefaultState.materialSilkWeight));
       }
       if (material === 'suede') {
-        return Number(calibrationState.materialSuedeWeight ?? priceForkDefaultState.materialSuedeWeight);
+        return clampMultiplier(Number(state.materialSuedeWeight ?? priceForkDefaultState.materialSuedeWeight));
+      }
+      if (material === 'cashmere') {
+        return clampMultiplier(Number(state.materialCashmereWeight ?? priceForkDefaultState.materialCashmereWeight ?? 1));
       }
       return 1;
     },
-    [calibrationState]
+    []
   );
 
-  const getTierWeight = useCallback(
-    (tier: PriceForkTestItem['brandTier']) => {
-      switch (tier) {
-        case 'Haute couture':
-          return Number(calibrationState.tierHauteCoutureWeight ?? priceForkDefaultState.tierHauteCoutureWeight);
-        case 'Premium':
-          return Number(calibrationState.tierPremiumWeight ?? priceForkDefaultState.tierPremiumWeight);
-        case 'High':
-          return Number(calibrationState.tierHighWeight ?? priceForkDefaultState.tierHighWeight);
-        case 'Mid':
-          return Number(calibrationState.tierMidWeight ?? priceForkDefaultState.tierMidWeight);
-        case 'Low':
-          return Number(calibrationState.tierLowWeight ?? priceForkDefaultState.tierLowWeight);
-        case 'Strategic low':
-          return Number(calibrationState.tierStrategicLowWeight ?? priceForkDefaultState.tierStrategicLowWeight);
-        default:
-          return 1.0;
-      }
-    },
-    [calibrationState]
-  );
+  const getTierWeightFromState = useCallback((state: PriceForkCalibrationState, tier: PriceForkTestItem['brandTier']) => {
+    const clampMultiplier = (n: number) => Math.min(30, Math.max(1, n));
+    switch (tier) {
+      case 'Haute couture':
+        return clampMultiplier(Number(state.tierHauteCoutureWeight ?? priceForkDefaultState.tierHauteCoutureWeight));
+      case 'Premium':
+        return clampMultiplier(Number(state.tierPremiumWeight ?? priceForkDefaultState.tierPremiumWeight));
+      case 'High':
+        return clampMultiplier(Number(state.tierHighWeight ?? priceForkDefaultState.tierHighWeight));
+      case 'Mid':
+        return clampMultiplier(Number(state.tierMidWeight ?? priceForkDefaultState.tierMidWeight));
+      case 'Low':
+        return clampMultiplier(Number(state.tierLowWeight ?? priceForkDefaultState.tierLowWeight));
+      case 'Strategic low':
+        // Strategic low is always the base price in the matrix.
+        return 1;
+      default:
+        return 1.0;
+    }
+  }, []);
 
   const getPricePointsForItem = useCallback(
     (item: PriceForkTestItem) => {
@@ -340,65 +404,34 @@ export default function PriceForkCalibrationScreen({
     onSaveCalibration?.(selectedBrandId, calibrationState);
   };
 
-  const handleAcceptItem = (id: string) => {
-    setTestItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status: 'accepted',
-              manualOverridePrice: item.aiSuggestedPrice
-            }
-          : item
-      )
-    );
-  };
-
-  const handleRejectItem = (id: string) => {
-    setTestItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status: 'rejected'
-            }
-          : item
-      )
-    );
-  };
-
-  const handleOverridePrice = (id: string, value: number | undefined) => {
-    setTestItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              manualOverridePrice: value,
-              status: 'pending'
-            }
-          : item
-      )
-    );
-  };
-
   const handleRunSimulation = () => {
     setIsTesting(true);
+    const selected = pickRandomSubset(mockPriceForkTestItems, 5).map((item) => {
+      const pricePoints = getSekPriceOptions(partnerId, item.brand);
+      const snapped = snapToNearestPricePoint(
+        item.aiSuggestedPrice,
+        pricePoints.length > 0 ? pricePoints : [item.aiSuggestedPrice]
+      );
+      return {
+        ...item,
+        aiSuggestedPrice: snapped,
+        manualOverridePrice: undefined,
+        status: 'pending'
+      };
+    });
     // Simulate latency for the UX; in production hook up to API
     window.setTimeout(() => {
-      setTestItems((prev) =>
-        prev.map((item) => {
-          const tierWeight = getTierWeight(item.brandTier);
-          const materialWeight = getMaterialWeight(item.material);
-
+      setTestItems(
+        selected.map((item) => {
+          const tierWeight = getTierWeightFromState(calibrationState, item.brandTier);
+          const materialWeight = getMaterialWeightFromState(calibrationState, item.material);
           const candidatePrice = item.aiSuggestedPrice * tierWeight * materialWeight;
           const pricePoints = getPricePointsForItem(item);
           const snappedPrice = snapToNearestPricePoint(candidatePrice, pricePoints);
-
           return {
             ...item,
             aiSuggestedPrice: snappedPrice,
-            manualOverridePrice: item.status === 'accepted' ? snappedPrice : item.manualOverridePrice,
-            aiConfidence: item.aiConfidence,
+            manualOverridePrice: undefined,
             status: 'pending'
           };
         })
@@ -623,7 +656,7 @@ export default function PriceForkCalibrationScreen({
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-8">
+      <div className="w-full max-w-none px-4 md:px-6 py-6 space-y-8">
         {/* Brand Selector */}
         <div className="flex items-center gap-4">
           <Label htmlFor="brand-select" className="label-medium text-on-surface">
@@ -708,7 +741,8 @@ export default function PriceForkCalibrationScreen({
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">
               {calibrationParameters
-                .filter((parameter) => !parameter.id.toLowerCase().includes('marginfloor'))
+                // Keep item-level margin floor, hide order-level for now.
+                .filter((parameter) => parameter.id !== 'marginFloorOrder')
                 .map((parameter) => {
                 const value = calibrationState[parameter.id] ?? priceForkDefaultState[parameter.id as keyof PriceForkCalibrationState];
                 const formattedValue = parameter.format ? parameter.format(value as number) : value;
@@ -771,7 +805,8 @@ export default function PriceForkCalibrationScreen({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {brandTierWeights.map((tier) => {
-                    const value = calibrationState[tier.id] ?? priceForkDefaultState[tier.id as keyof PriceForkCalibrationState];
+                    const isStrategicLow = tier.id === 'tierStrategicLowWeight';
+                    const value = isStrategicLow ? 1 : (calibrationState[tier.id] ?? priceForkDefaultState[tier.id as keyof PriceForkCalibrationState]);
                     const formattedValue = formatWeightLabel(Number(value));
                     return (
                       <div key={tier.id} className="space-y-2">
@@ -781,17 +816,27 @@ export default function PriceForkCalibrationScreen({
                             {formattedValue as string}
                           </Badge>
                         </div>
-                        <Slider
-                          value={[Number(value)]}
-                          min={1}
-                          max={5}
-                          step={0.1}
-                          onValueChange={(vals: number[]) => handleParameterChange(tier.id, Number(vals[0]))}
-                        />
-                        <div className="flex justify-between text-label-small text-on-surface-variant">
-                          <span>x1.0</span>
-                          <span>x5.0</span>
-                        </div>
+                        {isStrategicLow && (
+                          <p className="body-small text-on-surface-variant -mt-1">
+                            Fixed at <span className="font-medium text-on-surface">x1.00</span> because Strategic low equals the{' '}
+                            <span className="font-medium text-on-surface">Base price</span> in the Price matrix.
+                          </p>
+                        )}
+                        {!isStrategicLow && (
+                          <>
+                            <Slider
+                              value={[Number(value)]}
+                              min={1}
+                              max={30}
+                              step={0.1}
+                              onValueChange={(vals: number[]) => handleParameterChange(tier.id, Number(vals[0]))}
+                            />
+                            <div className="flex justify-between text-label-small text-on-surface-variant">
+                              <span>x1.0</span>
+                              <span>x30.0</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })}
@@ -807,11 +852,12 @@ export default function PriceForkCalibrationScreen({
                     </p>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
                     { id: 'materialLeatherWeight', label: 'Leather', value: Number(calibrationState.materialLeatherWeight ?? priceForkDefaultState.materialLeatherWeight) },
                     { id: 'materialSilkWeight', label: 'Silk', value: Number(calibrationState.materialSilkWeight ?? priceForkDefaultState.materialSilkWeight) },
-                    { id: 'materialSuedeWeight', label: 'Suede', value: Number(calibrationState.materialSuedeWeight ?? priceForkDefaultState.materialSuedeWeight) }
+                    { id: 'materialSuedeWeight', label: 'Suede', value: Number(calibrationState.materialSuedeWeight ?? priceForkDefaultState.materialSuedeWeight) },
+                    { id: 'materialCashmereWeight', label: 'Cashmere', value: Number(calibrationState.materialCashmereWeight ?? priceForkDefaultState.materialCashmereWeight ?? 1) }
                   ].map((material) => (
                     <div key={material.id} className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -823,10 +869,14 @@ export default function PriceForkCalibrationScreen({
                       <Slider
                         value={[material.value]}
                         min={1}
-                        max={5}
+                        max={30}
                         step={0.1}
                         onValueChange={(vals: number[]) => handleParameterChange(material.id, Number(vals[0]))}
                       />
+                      <div className="flex justify-between text-label-small text-on-surface-variant">
+                        <span>x1.0</span>
+                        <span>x30.0</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -845,7 +895,7 @@ export default function PriceForkCalibrationScreen({
               <Button
                 onClick={handleRunSimulation}
                 disabled={isTesting}
-                className="rounded-lg"
+                className="rounded-lg w-full md:max-w-md"
               >
                 {isTesting ? (
                   <>
@@ -858,10 +908,6 @@ export default function PriceForkCalibrationScreen({
                     Run calibration on sample items
                   </>
                 )}
-              </Button>
-              <Button variant="outline" className="rounded-lg">
-                <UploadCloud className="w-4 h-4 mr-2" />
-                Upload sample set (.csv)
               </Button>
               <Button variant="ghost" className="rounded-lg justify-start">
                 <DownloadCloud className="w-4 h-4 mr-2" />
@@ -880,14 +926,6 @@ export default function PriceForkCalibrationScreen({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="rounded-lg">
-                <FileText className="w-4 h-4 mr-2" />
-                View acceptance log
-              </Button>
-              <Button variant="ghost" size="sm" className="rounded-lg">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh data
-              </Button>
             </div>
           </div>
           <Card className="bg-surface border border-outline-variant overflow-hidden">
@@ -899,17 +937,11 @@ export default function PriceForkCalibrationScreen({
                     <TableHead className="text-on-surface-variant">Purchase</TableHead>
                     <TableHead className="text-on-surface-variant">Suggested price</TableHead>
                     <TableHead className="text-on-surface-variant">Margin</TableHead>
-                    <TableHead className="text-on-surface-variant">Confidence</TableHead>
-                    <TableHead className="text-on-surface-variant">Select price point</TableHead>
-                    <TableHead className="text-on-surface-variant text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {testItems.map((item) => {
-                    const pricePoints = getPricePointsForItem(item);
-                    const finalPrice = item.manualOverridePrice ?? item.aiSuggestedPrice;
-                    const margin = calcMargin(item.purchasePrice, finalPrice);
-                    const { badgeClass } = getConfidenceStyles(item.aiConfidence);
+                    const margin = calcMargin(item.purchasePrice, item.aiSuggestedPrice);
                     return (
                       <TableRow key={item.id} className="border-outline-variant/40">
                         <TableCell>
@@ -950,78 +982,6 @@ export default function PriceForkCalibrationScreen({
                         <TableCell className={cn('body-medium', margin >= 0 ? 'text-primary' : 'text-error')}>
                           {margin >= 0 ? '+' : ''}
                           {(margin * 100).toFixed(0)}%
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn('rounded-lg px-3 py-1 body-small font-medium', badgeClass)}>
-                            {(item.aiConfidence * 100).toFixed(0)}%
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={finalPrice.toString()}
-                            onValueChange={(selected: string) => {
-                              const parsed = Number(selected);
-                              handleOverridePrice(item.id, Number.isNaN(parsed) ? undefined : parsed);
-                            }}
-                          >
-                            <SelectTrigger className="w-40 bg-surface border-outline rounded-lg h-[44px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {pricePoints.map((price) => (
-                                <SelectItem key={`${item.id}-${price}`} value={price.toString()}>
-                                  {price.toLocaleString('en-US', { style: 'currency', currency: 'EUR' })}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col items-end gap-2">
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className={cn(
-                                  'rounded-lg',
-                                  item.status === 'accepted' && 'bg-primary-container text-on-primary-container border-none'
-                                )}
-                                onClick={() => handleAcceptItem(item.id)}
-                              >
-                                <Sparkles className="w-4 h-4 mr-1" />
-                                Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className={cn(
-                                  'rounded-lg',
-                                  item.status === 'rejected' && 'bg-error-container/90 text-on-error-container'
-                                )}
-                                onClick={() => handleRejectItem(item.id)}
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'rounded-lg px-3',
-                            item.status === 'accepted'
-                              ? 'border-primary text-primary'
-                              : item.status === 'rejected'
-                              ? 'border-error text-error'
-                              : 'border-outline text-on-surface-variant'
-                          )}
-                        >
-                          {item.status === 'accepted'
-                            ? 'Accepted'
-                            : item.status === 'rejected'
-                            ? 'Rejected'
-                            : 'Pending'}
-                        </Badge>
-                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -1168,7 +1128,7 @@ export default function PriceForkCalibrationScreen({
 
                 {/* Fixed-layout table to keep columns aligned with other portal tables */}
                 <div className="overflow-x-auto rounded-lg border border-outline-variant bg-surface">
-                  <table className="w-full min-w-[1500px] table-fixed border-collapse">
+                  <table className="w-full min-w-[1700px] table-fixed border-collapse">
                     <colgroup>
                       <col style={{ width: '18rem' }} />
                       <col style={{ width: '18rem' }} />
@@ -1178,6 +1138,7 @@ export default function PriceForkCalibrationScreen({
                       <col style={{ width: '10.5rem' }} />
                       <col style={{ width: '10.5rem' }} />
                       <col style={{ width: '10.5rem' }} />
+                      <col style={{ width: '10rem' }} /> {/* Reset */}
                     </colgroup>
                     <thead className="bg-surface-container border-b border-outline-variant">
                       <tr>
@@ -1189,21 +1150,32 @@ export default function PriceForkCalibrationScreen({
                         <th className="px-3 py-3 text-left title-small text-on-surface">High</th>
                         <th className="px-3 py-3 text-left title-small text-on-surface">Premium</th>
                         <th className="px-3 py-3 text-left title-small text-on-surface">Haute couture</th>
+                        <th className="px-3 py-3 text-right title-small text-on-surface">Reset</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredPriceMatrixRows.map((row) => (
                         <tr key={row.key} className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container/50 transition-colors">
-                          <td className="px-3 py-3 body-medium text-on-surface align-middle">
+                          <td className="px-3 pt-0 pb-0 body-medium text-on-surface align-top">
                             <div className="flex items-center gap-2">
                               {row.category}
                               {row.isFallback && (
                                 <Badge variant="outline" className="rounded-lg text-on-surface-variant">Fallback</Badge>
                               )}
                             </div>
+                            {/* Spacer to match tier cell helper stack height */}
+                            <div className="mt-1 h-4" aria-hidden />
+                            <div className="mt-1 h-4" aria-hidden />
+                            <div className="mt-1 h-4" aria-hidden />
                           </td>
-                          <td className="px-3 py-3 body-medium text-on-surface align-middle">{row.subcategory}</td>
-                          <td className="px-3 py-3 align-middle">
+                          <td className="px-3 pt-0 pb-0 body-medium text-on-surface align-top">
+                            <div>{row.subcategory}</div>
+                            {/* Spacer to match tier cell helper stack height */}
+                            <div className="mt-1 h-4" aria-hidden />
+                            <div className="mt-1 h-4" aria-hidden />
+                            <div className="mt-1 h-4" aria-hidden />
+                          </td>
+                          <td className="px-3 py-3 align-top">
                             <Select
                               value={row.basePrice != null ? String(row.basePrice) : ''}
                               onValueChange={(v) => {
@@ -1217,7 +1189,7 @@ export default function PriceForkCalibrationScreen({
                                 );
                               }}
                             >
-                              <SelectTrigger className="w-[200px] min-w-[200px] max-w-[200px] shrink-0 bg-surface-container-high border border-outline rounded-lg min-h-[48px] body-large whitespace-nowrap overflow-hidden">
+                              <SelectTrigger className="w-[200px] min-w-[200px] max-w-[200px] shrink-0 bg-surface-container-high border border-outline rounded-lg h-12 body-large whitespace-nowrap overflow-hidden">
                                 <SelectValue placeholder="—" className="block w-full whitespace-nowrap overflow-hidden text-ellipsis" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1228,6 +1200,10 @@ export default function PriceForkCalibrationScreen({
                                 ))}
                               </SelectContent>
                             </Select>
+                            {/* Spacer to align dropdown top with tier cells (which have helper rows) */}
+                            <div className="mt-1 h-4" aria-hidden />
+                            <div className="mt-1 h-4" aria-hidden />
+                            <div className="mt-1 h-4" aria-hidden />
                           </td>
                           {(['Low', 'Mid', 'High', 'Premium', 'Haute couture'] as const).map((label) => {
                             const tier = (label === 'Low'
@@ -1239,26 +1215,95 @@ export default function PriceForkCalibrationScreen({
                                   : label === 'Premium'
                                     ? 'Premium'
                                     : 'Haute couture') as PriceForkTestItem['brandTier'];
-                            const multiplier = getTierWeight(tier);
-                            const computed = row.basePrice == null
+                            const globalMultiplier = getTierWeightFromState(lastSavedState, tier);
+                            const suggested = row.basePrice == null
                               ? null
-                              : snapToNearestPricePoint(row.basePrice * multiplier, sekPricePoints.length ? sekPricePoints : [row.basePrice]);
+                              : snapToNearestPricePoint(row.basePrice * globalMultiplier, sekPricePoints.length ? sekPricePoints : [row.basePrice]);
+                            const currentOverridePrice = row.tierPriceOverrides?.[tier];
+                            const effectivePrice = currentOverridePrice ?? suggested;
+                            const impliedMultiplier =
+                              row.basePrice != null && row.basePrice > 0 && effectivePrice != null
+                                ? Math.min(30, Math.max(1, effectivePrice / row.basePrice))
+                                : null;
                             return (
-                              <td key={`${row.key}-${tier}`} className="px-3 py-3 align-middle">
-                                <div className="body-medium text-on-surface">
-                                  {computed == null ? '—' : `${computed} SEK`}
-                                </div>
+                              <td key={`${row.key}-${tier}`} className="px-3 py-3 align-top">
                                 <div className="body-small text-on-surface-variant">
-                                  {formatWeightLabel(multiplier)}
+                                  <Select
+                                    value={
+                                      suggested == null
+                                        ? ''
+                                        : (currentOverridePrice == null ? '__suggested__' : String(currentOverridePrice))
+                                    }
+                                    onValueChange={(v) => {
+                                      setPriceMatrixRows((prev) =>
+                                        prev.map((r) => {
+                                          if (r.key !== row.key) return r;
+                                          if (v === '__suggested__') {
+                                            const { [tier]: _, ...rest } = r.tierPriceOverrides ?? {};
+                                            const next = Object.keys(rest).length ? rest : undefined;
+                                            return { ...r, tierPriceOverrides: next };
+                                          }
+                                          const parsed = Number(v);
+                                          return {
+                                            ...r,
+                                            tierPriceOverrides: {
+                                              ...(r.tierPriceOverrides ?? {}),
+                                              [tier]: Number.isNaN(parsed) ? (suggested ?? parsed) : parsed
+                                            }
+                                          };
+                                        })
+                                      );
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-[120px] bg-surface border-outline rounded-lg h-12">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {suggested != null && (
+                                        <SelectItem value="__suggested__">
+                                          {suggested} SEK
+                                        </SelectItem>
+                                      )}
+                                      {sekPricePoints.map((p) => (
+                                        <SelectItem key={`${row.key}-${tier}-p-${p}`} value={String(p)}>
+                                          {p} SEK
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="body-small text-on-surface-variant mt-1">
+                                  {currentOverridePrice == null ? 'Suggested' : 'Manual'}
+                                </div>
+                                <div className="body-small text-on-surface-variant mt-1">
+                                  Global: {formatWeightLabel(globalMultiplier)}
+                                </div>
+                                <div className="body-small text-on-surface-variant mt-1">
+                                  {currentOverridePrice == null ? '—' : (impliedMultiplier == null ? '—' : formatWeightLabel(impliedMultiplier))}
                                 </div>
                               </td>
                             );
                           })}
+                          <td className="px-3 py-3 align-top text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-lg px-2"
+                              disabled={!row.tierPriceOverrides || Object.keys(row.tierPriceOverrides).length === 0}
+                              onClick={() => {
+                                setPriceMatrixRows((prev) =>
+                                  prev.map((r) => (r.key === row.key ? { ...r, tierPriceOverrides: undefined } : r))
+                                );
+                              }}
+                            >
+                              Reset prices
+                            </Button>
+                          </td>
                         </tr>
                       ))}
                       {filteredPriceMatrixRows.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="px-3 py-6 body-medium text-on-surface-variant">
+                          <td colSpan={9} className="px-3 py-6 body-medium text-on-surface-variant">
                             No categories found.
                           </td>
                         </tr>
@@ -1293,13 +1338,23 @@ export default function PriceForkCalibrationScreen({
                           <TableRow key={c.key} className="border-outline-variant/40">
                             <TableCell className="body-medium text-on-surface">{c.category}</TableCell>
                             <TableCell className="body-medium text-on-surface-variant">
-                              <Input
-                                value={fallbackSourceLabelDraft[c.key] ?? c.sourceLabel}
-                                onChange={(e) =>
-                                  setFallbackSourceLabelDraft((prev) => ({ ...prev, [c.key]: e.target.value }))
+                              <Select
+                                value={(fallbackSourceLabelDraft[c.key] ?? c.sourceLabel).trim()}
+                                onValueChange={(v) =>
+                                  setFallbackSourceLabelDraft((prev) => ({ ...prev, [c.key]: v }))
                                 }
-                                className="bg-surface-container-high border-outline rounded-lg h-[44px] w-[260px]"
-                              />
+                              >
+                                <SelectTrigger className="bg-surface-container-high border-outline rounded-lg h-[44px] w-[260px]">
+                                  <SelectValue placeholder="Select sub-category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {validSubcategoryOptions.map((opt) => (
+                                    <SelectItem key={`${c.key}-${opt}`} value={opt}>
+                                      {opt}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell className="body-medium text-on-surface-variant">
                               {(c.confidence * 100).toFixed(0)}%
