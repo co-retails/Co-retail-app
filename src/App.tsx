@@ -41,17 +41,35 @@ import SwitchViewSheet from './components/SwitchViewSheet';
 import WhatsNewDialog from './components/WhatsNewDialog';
 import PartnerPortalLoginScreen from './components/PartnerPortalLoginScreen';
 
+// Retry wrapper for lazy imports — handles chunk load failures after new deployments
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>,
+  retries = 2
+): React.LazyExoticComponent<T> {
+  return React.lazy(() =>
+    factory().catch((error: Error) => {
+      if (retries > 0 && error.message.includes('Failed to fetch dynamically imported module')) {
+        // Force a full page reload to get the new HTML with updated chunk references
+        window.location.reload();
+        // Return a never-resolving promise to avoid rendering stale content before reload
+        return new Promise<{ default: T }>(() => {});
+      }
+      throw error;
+    })
+  );
+}
+
 // Portal Configuration Components - Lazy loaded
-const PortalConfigurationManager = React.lazy(() => import('./components/PortalConfigurationManager').then(module => ({ default: module.PortalConfigurationManager })));
-const PartnerSettingsScreen = React.lazy(() => import('./components/PartnerSettingsScreen').then(module => ({ default: module.default })));
+const PortalConfigurationManager = lazyWithRetry(() => import('./components/PortalConfigurationManager').then(module => ({ default: module.PortalConfigurationManager as any })));
+const PartnerSettingsScreen = lazyWithRetry(() => import('./components/PartnerSettingsScreen').then(module => ({ default: module.default })));
 
 // User Access Management Components - Lazy loaded
-const StoreUserAccessScreen = React.lazy(() => import('./components/StoreUserAccessScreen').then(module => ({ default: module.default })));
-const PartnerUserAccessScreen = React.lazy(() => import('./components/PartnerUserAccessScreen').then(module => ({ default: module.default })));
+const StoreUserAccessScreen = lazyWithRetry(() => import('./components/StoreUserAccessScreen').then(module => ({ default: module.default })));
+const PartnerUserAccessScreen = lazyWithRetry(() => import('./components/PartnerUserAccessScreen').then(module => ({ default: module.default })));
 
 // Reports Components - Lazy loaded
-const PartnerReportsScreen = React.lazy(() => import('./components/PartnerReportsScreen'));
-const ShippingReportScreen = React.lazy(() => import('./components/ShippingReportScreen'));
+const PartnerReportsScreen = lazyWithRetry(() => import('./components/PartnerReportsScreen'));
+const ShippingReportScreen = lazyWithRetry(() => import('./components/ShippingReportScreen'));
 
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
