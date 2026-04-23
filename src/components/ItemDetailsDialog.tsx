@@ -1190,18 +1190,7 @@ export default function ItemDetailsDialog({
                 alt={item.title || item.brand}
                 className="w-full h-full object-cover"
               />
-              {/* Edit image overlay button */}
-              <div className="absolute bottom-4 right-4 flex gap-2">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleTakePhoto}
-                  className="min-h-[48px] bg-surface-container-highest text-on-surface hover:bg-surface-container-high shadow-md touch-manipulation"
-                >
-                  <Camera size={18} className="mr-2" />
-                  Take photo
-                </Button>
-              </div>
+              {/* Edit image overlay button — "Take photo" hidden, not confirmed for scope */}
             </div>
           ) : (
             /* No image - back arrow in top left */
@@ -1246,21 +1235,10 @@ export default function ItemDetailsDialog({
                     <Package className="w-10 h-10 text-on-surface-variant opacity-30" />
                   </div>
                   
-                  {/* Add image options */}
+                  {/* Add image options — "Take photo" hidden, not confirmed for scope */}
                   <div className="flex-1">
                     <p className="body-medium text-on-surface mb-2">No image</p>
-                    <p className="body-small text-on-surface-variant mb-3">Add an image to help identify this item</p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleTakePhoto}
-                        className="flex-1 min-h-[48px] touch-manipulation"
-                      >
-                        <Camera size={18} className="mr-2" />
-                        Take photo
-                      </Button>
-                    </div>
+                    <p className="body-small text-on-surface-variant">Add an image to help identify this item</p>
                   </div>
                 </div>
               </div>

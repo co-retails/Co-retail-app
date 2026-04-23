@@ -1,8 +1,9 @@
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { ArrowLeft, QrCode, Package, Truck, MoreVertical, CheckCircle2, XCircle, Check } from 'lucide-react';
+import { ArrowLeft, QrCode, Truck, MoreVertical, CheckCircle2, XCircle, Check, Package } from 'lucide-react';
 import { Delivery } from './ShippingScreen';
 import { Box } from './ReceiveDeliveryScreen';
+import BoxCard from './BoxCard';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -198,14 +199,13 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
   );
 }
 
-function BoxCard({
+function BoxCardRow({
   box,
   onSelect,
   onMarkDelivered,
   onMarkRejected,
   canScan,
   isAdmin = false,
-  isPartnerPortal = false
 }: {
   box: Box;
   onSelect: () => void;
@@ -219,96 +219,56 @@ function BoxCard({
   const showMarkRejected = isAdmin && canScan && box.status === 'In transit' && onMarkRejected;
   const showMenu = showMarkDelivered || showMarkRejected;
 
-  return (
-    <div
-      onClick={onSelect}
-      className="flex items-center gap-3 px-4 py-3 bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-    >
-
-
-      {/* Leading Element - Box Icon */}
-      <div className="flex-shrink-0 w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center">
-        <Package className="w-5 h-5 text-on-surface-variant" />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 min-w-0">
-        {/* Created date and Box status */}
-        <div className="label-small text-on-surface-variant mb-1">
-          {box.date} • <span className={box.status === 'Delivered' ? 'text-tertiary' : ''}>{box.status}</span>
-        </div>
-        {/* Box Label */}
-        <div className="body-medium text-on-surface mb-1">
-          <span className="label-small text-on-surface-variant">Box Label: </span>
-          {box.boxId}
-        </div>
-        {/* Box ID */}
-        <div className="label-small text-on-surface-variant mb-1">
-          <span className="label-small text-on-surface-variant">Box ID: </span>
-          {box.id}
-        </div>
-        {/* Order nr */}
-        <div className="body-small text-on-surface-variant">
-          <span className="label-small text-on-surface-variant">Order nr: </span>
-          {box.orderNumber}
-        </div>
-      </div>
-
-      {/* Trailing Element - Items count or More menu */}
-      <div className="flex-shrink-0 flex items-center gap-2">
-        <div className="body-small text-on-surface-variant">
-          {box.items} {box.items === 1 ? 'item' : 'items'}
-        </div>
-        {showMenu && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation();
-                }}
-                aria-label="More actions"
-              >
-                <MoreVertical className="w-4 h-4 text-on-surface-variant" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
-              {showMarkDelivered && (
-                <DropdownMenuItem
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    onMarkDelivered?.();
-                  }}
-                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-                >
-                  <span className="body-medium text-on-surface">Mark as delivered</span>
-                </DropdownMenuItem>
-              )}
-              {showMarkRejected && (
-                <DropdownMenuItem
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    onMarkRejected?.();
-                  }}
-                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  <span className="body-medium">Mark as Rejected</span>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+  const menuSlot = showMenu ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          aria-label="More actions"
+        >
+          <MoreVertical className="w-4 h-4 text-on-surface-variant" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
+        {showMarkDelivered && (
+          <DropdownMenuItem
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onMarkDelivered?.();
+            }}
+            className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+          >
+            <span className="body-medium text-on-surface">Mark as delivered</span>
+          </DropdownMenuItem>
         )}
-      </div>
-    </div>
+        {showMarkRejected && (
+          <DropdownMenuItem
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onMarkRejected?.();
+            }}
+            className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            <span className="body-medium">Mark as Rejected</span>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
+  return (
+    <BoxCard
+      date={box.date}
+      status={box.status}
+      boxLabel={box.boxId}
+      boxId={box.id}
+      orderNumber={box.orderNumber}
+      itemCount={box.items}
+      onSelect={onSelect}
+      menuSlot={menuSlot}
+    />
   );
 }
 
@@ -348,7 +308,7 @@ function BoxesList({
       <CardContent className="p-0">
         <div className="divide-y divide-outline-variant">
           {boxes.map((box) => (
-            <BoxCard
+            <BoxCardRow
               key={box.id}
               box={box}
               onSelect={() => onSelectBox(box)}
@@ -447,7 +407,7 @@ export default function DeliveryDetailsScreen({
                 className="w-full bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg h-[56px] flex items-center justify-center label-large"
               >
                 <QrCode className="w-4 h-4 mr-2" />
-                Scan to receive
+                Receive boxes
               </Button>
             </div>
           </div>

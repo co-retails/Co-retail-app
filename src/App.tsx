@@ -34,7 +34,7 @@ import type { StoreSelection } from './components/StoreSelector';
 import DeliveryNoteBoxDetailsScreen from './components/DeliveryNoteBoxDetailsScreen';
 import { FullScreenDialog, FullScreenDialogContent } from './components/ui/full-screen-dialog';
 import { Sheet, SheetContent } from './components/ui/sheet';
-import { useIsMobile } from './components/ui/use-mobile';
+import { useMediaQuery } from './components/ui/use-mobile';
 import BoxLabelSideSheet from './components/BoxLabelSideSheet';
 import ShippingLabelScreen from './components/ShippingLabelScreen';
 import SwitchViewSheet from './components/SwitchViewSheet';
@@ -214,6 +214,8 @@ export default function App() {
     setSelectedBox,
     deliveryBoxes,
     setDeliveryBoxes,
+    boxDetailsPreviousScreen,
+    setBoxDetailsPreviousScreen,
     userRole,
     monthlyGoal,
     setMonthlyGoal,
@@ -224,7 +226,9 @@ export default function App() {
     setOrderCreationReturnScreen
   } = state;
 
-  const isMobile = useIsMobile();
+  // Gates side-sheet vs full-screen rendering for screens that should appear
+  // full-screen on both mobile and tablet (e.g. box details, add box scanner).
+  const isBelowDesktop = useMediaQuery('(max-width: 1023px)');
   const appViewRole = currentUserRole === 'admin' ? (adminView === 'partner' ? 'partner' : 'store-staff') : currentUserRole;
   const currentViewLabel =
     appViewRole === 'partner' ? 'Partner portal' : 'Store app';
@@ -403,6 +407,9 @@ export default function App() {
           selected: false,
           canExtend: false,
           scanned: false,
+          deliveryId: 'DEL-0931',
+          boxLabel: 'Box A-02',
+          lastInStoreAt: new Date(Date.now() - 4 * 86400000).toISOString(),
           image: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080',
           thumbnail: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080'
         },
@@ -418,6 +425,8 @@ export default function App() {
           selected: false,
           canExtend: false,
           scanned: false,
+          deliveryId: 'DEL-1130',
+          boxLabel: 'Box C-07',
           image: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080',
           thumbnail: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080'
         },
@@ -433,6 +442,8 @@ export default function App() {
           selected: false,
           canExtend: false,
           scanned: false,
+          deliveryId: 'DEL-0950',
+          boxLabel: 'Box B-04',
           image: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080',
           thumbnail: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080'
         },
@@ -448,6 +459,8 @@ export default function App() {
           selected: false,
           canExtend: false,
           scanned: false,
+          deliveryId: 'DEL-1001',
+          boxLabel: 'Box A-15',
           image: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080',
           thumbnail: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080'
         }
@@ -612,7 +625,10 @@ export default function App() {
       image: item.thumbnail,
       selected: true, // Pre-selected
       scanned: true, // Pre-scanned
-      canExtend: false
+      canExtend: false,
+      deliveryId: (item as any).deliveryId,
+      boxLabel: (item as any).boxLabel,
+      lastInStoreAt: (item as any).lastInStoreAt
     }));
 
     // Set up the return items and partner for ReturnManagementScreen
@@ -1663,7 +1679,8 @@ export default function App() {
     currentScreen !== 'retailer-id-scan' &&
     currentScreen !== 'order-shipment-details' &&
     currentScreen !== 'delivery-note-box-details' &&
-    currentScreen !== 'receive';
+    currentScreen !== 'receive' &&
+    currentScreen !== 'scan';
 
   // === Render ===
   return (
@@ -2047,8 +2064,9 @@ export default function App() {
         />
       )}
 
-      {/* Delivery details: show when on delivery-details, or as background when box-details is open on desktop */}
-      {(currentScreen === 'delivery-details' || (currentScreen === 'box-details' && !isMobile)) && selectedDelivery && (
+      {/* Delivery details: show when on delivery-details, or as background when box-details
+          is open on desktop AND was opened from delivery-details (not from receive). */}
+      {(currentScreen === 'delivery-details' || (currentScreen === 'box-details' && !isBelowDesktop && boxDetailsPreviousScreen === 'delivery-details')) && selectedDelivery && (
         <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
           if (!open && currentScreen === 'delivery-details') {
             setCurrentScreenSafe('shipping');
@@ -2066,6 +2084,7 @@ export default function App() {
           }}
           onSelectBox={(box) => {
             setSelectedBox(box);
+            setBoxDetailsPreviousScreen('delivery-details');
             setCurrentScreenSafe('box-details');
           }}
           onMarkBoxScanned={(boxId) => {
@@ -2109,30 +2128,30 @@ export default function App() {
       )}
 
       {currentScreen === 'box-details' && selectedBox && (
-        isMobile ? (
+        isBelowDesktop ? (
           <FullScreenDialog open={true} onOpenChange={(open: boolean) => {
             if (!open) {
-              setCurrentScreenSafe('delivery-details');
+              setCurrentScreenSafe(boxDetailsPreviousScreen);
             }
           }}>
-            <FullScreenDialogContent className="flex flex-col p-0 bg-surface">
+            <FullScreenDialogContent className="flex flex-col p-0 bg-surface" mobileBreakpoint={1024}>
               <BoxDetailsScreen
                 box={selectedBox}
                 items={[
                   { id: '1', itemId: '34780001', title: 'Sample Item 1', brand: 'H&M', category: 'Clothing', size: 'M', color: 'Black', price: 29.99, status: 'In transit', date: selectedBox.date, orderNumber: selectedBox.orderNumber },
                   { id: '2', itemId: '34780002', title: 'Sample Item 2', brand: 'Weekday', category: 'Clothing', size: 'L', color: 'White', price: 39.99, status: 'In transit', date: selectedBox.date, orderNumber: selectedBox.orderNumber }
                 ]}
-                onBack={() => setCurrentScreenSafe('delivery-details')}
+                onBack={() => setCurrentScreenSafe(boxDetailsPreviousScreen)}
                 onMarkDelivered={() => {
                   setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Delivered' } : b));
                   setSelectedBox(null);
-                  setCurrentScreenSafe('delivery-details');
+                  setCurrentScreenSafe(boxDetailsPreviousScreen);
                   toast.success('Box marked as delivered');
                 }}
                 onMarkRejected={() => {
                   setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b));
                   setSelectedBox(null);
-                  setCurrentScreenSafe('delivery-details');
+                  setCurrentScreenSafe(boxDetailsPreviousScreen);
                   toast.success('Box marked as rejected');
                 }}
                 userRole={currentUserRole}
@@ -2141,7 +2160,7 @@ export default function App() {
             </FullScreenDialogContent>
           </FullScreenDialog>
         ) : (
-          <Sheet open={true} onOpenChange={(open) => !open && setCurrentScreenSafe('delivery-details')}>
+          <Sheet open={true} onOpenChange={(open) => !open && setCurrentScreenSafe(boxDetailsPreviousScreen)}>
             <SheetContent side="right" containerZIndex={10000} className="p-0 flex flex-col w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl bg-surface min-h-full max-h-full overflow-hidden">
               <BoxDetailsScreen
                 box={selectedBox}
@@ -2149,17 +2168,17 @@ export default function App() {
                   { id: '1', itemId: '34780001', title: 'Sample Item 1', brand: 'H&M', category: 'Clothing', size: 'M', color: 'Black', price: 29.99, status: 'In transit', date: selectedBox.date, orderNumber: selectedBox.orderNumber },
                   { id: '2', itemId: '34780002', title: 'Sample Item 2', brand: 'Weekday', category: 'Clothing', size: 'L', color: 'White', price: 39.99, status: 'In transit', date: selectedBox.date, orderNumber: selectedBox.orderNumber }
                 ]}
-                onBack={() => setCurrentScreenSafe('delivery-details')}
+                onBack={() => setCurrentScreenSafe(boxDetailsPreviousScreen)}
                 onMarkDelivered={() => {
                   setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Delivered' } : b));
                   setSelectedBox(null);
-                  setCurrentScreenSafe('delivery-details');
+                  setCurrentScreenSafe(boxDetailsPreviousScreen);
                   toast.success('Box marked as delivered');
                 }}
                 onMarkRejected={() => {
                   setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b));
                   setSelectedBox(null);
-                  setCurrentScreenSafe('delivery-details');
+                  setCurrentScreenSafe(boxDetailsPreviousScreen);
                   toast.success('Box marked as rejected');
                 }}
                 userRole={currentUserRole}
@@ -2170,7 +2189,7 @@ export default function App() {
         )
       )}
 
-      {currentScreen === 'receive' && selectedDelivery && (
+      {(currentScreen === 'receive' || (currentScreen === 'box-details' && !isBelowDesktop && boxDetailsPreviousScreen === 'receive')) && selectedDelivery && (
         <ReceiveDeliveryScreen
           delivery={selectedDelivery}
           boxes={deliveryBoxes}
@@ -2178,6 +2197,11 @@ export default function App() {
           onBoxesChange={setDeliveryBoxes}
           allDeliveries={deliveries}
           currentStoreSelection={currentStoreSelection}
+          onSelectBox={(box) => {
+            setSelectedBox(box);
+            setBoxDetailsPreviousScreen('receive');
+            setCurrentScreenSafe('box-details');
+          }}
           onUpdateDeliveryStatus={(deliveryId, status, reason) => {
             setDeliveries(prevDeliveries =>
               prevDeliveries.map(delivery =>
@@ -2385,8 +2409,8 @@ export default function App() {
       )}
 
       {currentScreen === 'items' && (
-        <ItemsScreen 
-          onBack={handleBack} 
+        <ItemsScreen
+          onBack={handleBack}
           userRole={currentUserRole === 'store-staff' ? 'Store Manager' : 'Store User'}
           currentPartnerWarehouseSelection={currentPartnerWarehouseSelection}
           partners={visibleWarehousePartners}
@@ -2396,6 +2420,7 @@ export default function App() {
           countries={mockCountries}
           stores={mockStores}
           onCreateReturn={handleCreateReturnFromItems}
+          onNavigateToScan={handleNavigateToScan}
         />
       )}
 
@@ -3297,7 +3322,7 @@ export default function App() {
               setCurrentScreenSafe(previousScreen);
             }
           }}>
-            <FullScreenDialogContent className="flex flex-col p-0 bg-surface">
+            <FullScreenDialogContent className="flex flex-col p-0 bg-surface" mobileBreakpoint={1024}>
               <DeliveryNoteBoxDetailsScreen
                 box={selectedDeliveryNoteBox.box}
                 orderItems={selectedDeliveryNoteBox.orderItems}

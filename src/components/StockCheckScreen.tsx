@@ -23,6 +23,8 @@ export interface StockItem {
   expiredFlaggedAt?: string;
   expiredPostponeWeeks?: number;
   boxLabel?: string;
+  deliveryId?: string;
+  lastInStoreAt?: string;
 }
 
 export interface StockCheckSession {
@@ -161,7 +163,10 @@ function StockItemCard({
               status: item.status,
               date: item.date,
               thumbnail: item.thumbnail,
-              selected: isSelected
+              selected: isSelected,
+              deliveryId: item.deliveryId,
+              boxLabel: item.boxLabel,
+              lastInStoreAt: item.lastInStoreAt
             } as BaseItem}
             variant="items-list"
             showActions={false}
@@ -288,6 +293,8 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       const sizes = ['XS', 'S', 'M', 'L', 'XL'];
       
       const boxLabels = ['BOX-123456', 'BOX-789012', 'BOX-987654', 'BOX-456789', 'BOX-234567'];
+      const deliveryIds = ['DEL-0931', 'DEL-1130', 'DEL-0950', 'DEL-1001', 'DEL-1045'];
+      const daysInStoreAgo = Math.floor(Math.random() * 30);
       mockItems.push({
         id: `item-${i}`,
         itemId,
@@ -301,7 +308,9 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         date: getToday(),
         isScanned: isAlreadyScanned,
         isSelected: false,
-        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)]
+        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)],
+        deliveryId: deliveryIds[Math.floor(Math.random() * deliveryIds.length)],
+        lastInStoreAt: new Date(Date.now() - daysInStoreAgo * 86400000).toISOString()
       });
     }
     
@@ -365,6 +374,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       // For unexpected items, they could be Missing items that were found
       // Use 'Missing' as default status for unexpected items (they were not in the list)
       const boxLabels = ['BOX-123456', 'BOX-789012', 'BOX-987654', 'BOX-456789', 'BOX-234567'];
+      const deliveryIds = ['DEL-0931', 'DEL-1130', 'DEL-0950', 'DEL-1001', 'DEL-1045'];
       const newItem: StockItem = {
         id: `unexpected-item-${Date.now()}`,
         itemId: `${34780000 + Math.floor(Math.random() * 10000)}`,
@@ -379,7 +389,9 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         isScanned: true,
         isSelected: false,
         category: 'Clothing',
-        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)]
+        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)],
+        deliveryId: deliveryIds[Math.floor(Math.random() * deliveryIds.length)],
+        lastInStoreAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 86400000).toISOString()
       };
       
       // Add this new item to the stock check

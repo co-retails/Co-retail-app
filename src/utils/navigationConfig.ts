@@ -60,12 +60,6 @@ export function getNavigationDestinations({
       onClick: handlers.handleNavigateToItems
     },
     {
-      id: 'scan',
-      label: 'Scan',
-      icon: 'p34fc5000',
-      onClick: handlers.handleNavigateToScan
-    },
-    {
       id: 'shipping',
       label: 'Shipping',
       icon: 'p20e0b980',

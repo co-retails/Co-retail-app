@@ -5,7 +5,8 @@ import svgPaths from "../imports/svg-8iuolkmxl8";
 import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
 import SalesDataDashboard from './SalesDataDashboard';
 import MonthlyGoalTracker, { GoalEditDialog } from './MonthlyGoalTracker';
-import { ChevronDown, Settings, Target, UserIcon, ChevronRight, RotateCcw, ClipboardCheck, QrCode } from 'lucide-react';
+import { ChevronDown, Settings, Target, UserIcon, RotateCcw, ClipboardCheck, QrCode } from 'lucide-react';
+import { QuickActionButton } from './ui/quick-action-button';
 import weekdayLogo from '../assets/weekday-logo.svg';
 import hmLogo from '../assets/hm-logo.svg';
 import cosLogo from '../assets/cos-logo.svg';
@@ -307,67 +308,50 @@ export default function DeliveryHomeScreen({
         {/* Main Content */}
         <div className="px-4 md:px-6 pt-6 pb-8 space-y-8 max-w-5xl mx-auto w-full">
           
-          {/* Quick Actions */}
+          {/* Actions */}
           <div>
-            <h2 className="title-medium text-on-surface mb-4">Quick actions</h2>
+            <h2 className="title-medium text-on-surface mb-4">Actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <button
+              <QuickActionButton
                 onClick={onScanToReceive || onNavigateToShipping}
-                className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary-container">
-                    <QrCode className="w-5 h-5 text-on-primary-container" />
-                  </div>
-                  <div>
-                    <p className="title-small text-on-surface">Scan to receive</p>
-                    <p className="body-small text-on-surface-variant">
-                      {inTransitDeliveriesCount} {inTransitDeliveriesCount === 1 ? 'In transit delivery' : 'In transit deliveries'}, {inTransitBoxesCount} {inTransitBoxesCount === 1 ? 'box' : 'boxes'}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-              </button>
+                iconWrapperClassName="bg-primary-container"
+                icon={<QrCode className="w-5 h-5 text-on-primary-container" />}
+                title="Receive boxes"
+                description={
+                  <>
+                    {inTransitDeliveriesCount} {inTransitDeliveriesCount === 1 ? 'In transit delivery' : 'In transit deliveries'}, {inTransitBoxesCount} {inTransitBoxesCount === 1 ? 'box' : 'boxes'}
+                  </>
+                }
+              />
 
-              <button
+              <QuickActionButton
                 onClick={onNavigateToReturns}
-                className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-tertiary-container">
-                    <RotateCcw className="w-5 h-5 text-on-tertiary-container" />
-                  </div>
-                  <div>
-                    <p className="title-small text-on-surface">Create a return</p>
-                    <p className="body-small text-on-surface-variant">
-                      {expiredItemsCount} item{expiredItemsCount === 1 ? '' : 's'} expired
-                      {inTransitReturnsCount > 0 && ` • ${inTransitReturnsCount} ${inTransitReturnsCount === 1 ? 'return' : 'returns'} in transit`}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-              </button>
+                iconWrapperClassName="bg-tertiary-container"
+                icon={<RotateCcw className="w-5 h-5 text-on-tertiary-container" />}
+                title="Create a return"
+                description={
+                  <>
+                    {expiredItemsCount} item{expiredItemsCount === 1 ? '' : 's'} expired
+                    {inTransitReturnsCount > 0 && ` • ${inTransitReturnsCount} ${inTransitReturnsCount === 1 ? 'return' : 'returns'} in transit`}
+                  </>
+                }
+              />
 
-              <button
+              <QuickActionButton
                 onClick={onNavigateToStockCheck}
-                className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#dbeafe' }}>
-                    <ClipboardCheck className="w-5 h-5 text-on-surface" />
-                  </div>
-                  <div>
-                    <p className="title-small text-on-surface">Stock check</p>
-                    <p className="body-small text-on-surface-variant">
-                      {inStoreItemsCount} {inStoreItemsCount === 1 ? 'item' : 'items'} in store
-                      {lastStockCheckDate && (
-                        ` • Last check ${new Date(lastStockCheckDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}`
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-              </button>
+                iconWrapperStyle={{ backgroundColor: '#dbeafe' }}
+                iconWrapperClassName=""
+                icon={<ClipboardCheck className="w-5 h-5 text-on-surface" />}
+                title="Stock check"
+                description={
+                  <>
+                    {inStoreItemsCount} {inStoreItemsCount === 1 ? 'item' : 'items'} in store
+                    {lastStockCheckDate && (
+                      ` • Last check ${new Date(lastStockCheckDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}`
+                    )}
+                  </>
+                }
+              />
             </div>
           </div>
           

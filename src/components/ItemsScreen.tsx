@@ -30,7 +30,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { X, FilterIcon, Package as PackageIcon, ArrowUp, ArrowDown } from "lucide-react";
+import { X, FilterIcon, Package as PackageIcon, ArrowUp, ArrowDown, QrCode } from "lucide-react";
 import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { ItemCard, BaseItem, ItemQuickAction, getItemListQuickActions, quickActionIcon } from './ItemCard';
@@ -180,12 +180,10 @@ function SearchBar({ searchTerm, onSearchChange, onFilterClick, placeholder = 'S
           {onFilterClick && (
             <button
               onClick={onFilterClick}
-              className="w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity touch-manipulation"
+              className="w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity touch-manipulation text-on-surface-variant"
               aria-label="Advanced search"
             >
-              <svg className="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                <path d={svgPaths.pe90e900} fill="var(--on-surface-variant)" />
-              </svg>
+              <FilterIcon size={20} />
             </button>
           )}
         </div>
@@ -1927,9 +1925,9 @@ function MultiSelectActions({
   );
 }
 
-export default function ItemsScreen({ 
-  userRole = 'store-staff', 
-  currentPartnerWarehouseSelection, 
+export default function ItemsScreen({
+  userRole = 'store-staff',
+  currentPartnerWarehouseSelection,
   partners,
   viewFilter: externalViewFilter,
   onViewFilterChange: externalOnViewFilterChange,
@@ -1937,7 +1935,8 @@ export default function ItemsScreen({
   countries = [] as CountryRecord[],
   stores = [] as StoreRecord[],
   onCreateReturn,
-  expireTimeWeeks
+  expireTimeWeeks,
+  onNavigateToScan
 }: ItemsScreenProps) {
   const [quickFilter, setQuickFilter] = useState('all');
   const [quickSearchTerm, setQuickSearchTerm] = useState('');
@@ -2875,13 +2874,23 @@ export default function ItemsScreen({
         <div className="mb-4">
           <div className="flex gap-3 items-start">
             <div className={isPartnerPortal ? 'flex-1' : 'flex-1 md:max-w-2xl'}>
-              <SearchBar 
-                searchTerm={quickSearchTerm} 
+              <SearchBar
+                searchTerm={quickSearchTerm}
                 onSearchChange={setQuickSearchTerm}
                 onFilterClick={() => setShowFilterSheet(true)}
                 placeholder={isPartnerPortal ? 'Search by name or ID' : 'Search'}
               />
             </div>
+
+            {!isPartnerPortal && onNavigateToScan && (
+              <button
+                onClick={onNavigateToScan}
+                aria-label="Scan"
+                className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+              >
+                <QrCode className="w-5 h-5 text-on-surface-variant" />
+              </button>
+            )}
 
             {isPartnerPortal && (
               <StoreFilterBottomSheet

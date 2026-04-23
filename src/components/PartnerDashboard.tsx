@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
+import { QuickActionButton } from './ui/quick-action-button';
+import { useIsListRowBumped } from './ui/list-row-card';
 import { Settings, ChevronRight, ChevronDown as ChevronDownIcon, RotateCcw, Calendar, X, ClipboardList, ClipboardCheck, Truck, Package, Plus, BarChart3, Sparkles, CheckCircle2 } from 'lucide-react';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import type { Store, Brand } from './StoreSelector';
@@ -103,6 +105,7 @@ export default function PartnerDashboard({
   onNavigateToReports
 }: PartnerDashboardProps) {
   const [isPartnerWarehouseSelectorOpen, setIsPartnerWarehouseSelectorOpen] = useState(false);
+  const isListRowBumped = useIsListRowBumped();
 
   // Get current partner/warehouse display name
   const getCurrentPartnerWarehouseDisplay = () => {
@@ -373,95 +376,58 @@ export default function PartnerDashboard({
             <h2 className="title-medium text-on-surface mb-4">Quick actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {canShowApprovalOrdersAction && (
-                <button
+                <QuickActionButton
                   onClick={onViewApprovalOrders}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ffebee' }}>
-                      <CheckCircle2 className="w-5 h-5" style={{ color: '#c62828' }} />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">Orders to approve</p>
-                      <p className="body-small text-on-surface-variant">{approvalOrdersLabel}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
+                  iconWrapperClassName=""
+                  iconWrapperStyle={{ backgroundColor: '#ffebee' }}
+                  icon={<CheckCircle2 className="w-5 h-5" style={{ color: '#c62828' }} />}
+                  title="Orders to approve"
+                  description={approvalOrdersLabel}
+                />
               )}
 
               {showPendingOrdersAction && (
-                <button
+                <QuickActionButton
                   onClick={onViewOrders}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
-                      <ClipboardList className="w-5 h-5 text-on-primary-container" />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">Orders to process</p>
-                      <p className="body-small text-on-surface-variant">{pendingOrdersLabel}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
+                  iconWrapperClassName="bg-primary-container"
+                  icon={<ClipboardList className="w-5 h-5 text-on-primary-container" />}
+                  title="Orders to process"
+                  description={pendingOrdersLabel}
+                />
               )}
 
               {showRegisteredOrdersAction && (
-                <button
+                <QuickActionButton
                   onClick={onViewRegisteredOrders ?? onViewOrders}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center">
-                      <Package className="w-5 h-5 text-on-surface-variant" />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">Orders to pack</p>
-                      <p className="body-small text-on-surface-variant">
-                        {registeredOrdersCount} ready for packaging {registeredOrdersCount === 1 ? 'order' : 'orders'}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
+                  iconWrapperClassName="bg-surface-container-highest"
+                  icon={<Package className="w-5 h-5 text-on-surface-variant" />}
+                  title="Orders to pack"
+                  description={
+                    <>
+                      {registeredOrdersCount} ready for packaging {registeredOrdersCount === 1 ? 'order' : 'orders'}
+                    </>
+                  }
+                />
               )}
 
               {showDeliveriesAction && (
-                <button
+                <QuickActionButton
                   onClick={onViewDeliveries ?? onViewBoxes}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                      <ClipboardCheck className="w-5 h-5 text-on-secondary-container" />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">Deliveries to complete</p>
-                      <p className="body-small text-on-surface-variant">{deliveriesToCompleteLabel}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
+                  iconWrapperClassName="bg-secondary-container"
+                  icon={<ClipboardCheck className="w-5 h-5 text-on-secondary-container" />}
+                  title="Deliveries to complete"
+                  description={deliveriesToCompleteLabel}
+                />
               )}
 
               {showReturnsAction && (
-                <button
+                <QuickActionButton
                   onClick={onViewReturns}
-                  className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-tertiary-container rounded-full flex items-center justify-center">
-                      <RotateCcw className="w-5 h-5 text-on-tertiary-container" />
-                    </div>
-                    <div>
-                      <p className="title-small text-on-surface">Mark as returned</p>
-                      <p className="body-small text-on-surface-variant">{inTransitReturnsLabel}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                </button>
+                  iconWrapperClassName="bg-tertiary-container"
+                  icon={<RotateCcw className="w-5 h-5 text-on-tertiary-container" />}
+                  title="Mark as returned"
+                  description={inTransitReturnsLabel}
+                />
               )}
 
             </div>
@@ -489,21 +455,15 @@ export default function PartnerDashboard({
             )}
 
             {onNavigateToReports && (
-              <button
+              <QuickActionButton
                 onClick={onNavigateToReports}
-                className="mt-4 flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left w-full"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#dbeafe' }}>
-                    <BarChart3 className="w-5 h-5 text-on-surface" />
-                  </div>
-                  <div>
-                    <p className="title-small text-on-surface">View reports</p>
-                    <p className="body-small text-on-surface-variant">Sales & Stock analytics</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-              </button>
+                iconWrapperClassName=""
+                iconWrapperStyle={{ backgroundColor: '#dbeafe' }}
+                icon={<BarChart3 className="w-5 h-5 text-on-surface" />}
+                title="View reports"
+                description="Sales & Stock analytics"
+                className="mt-4 w-full"
+              />
             )}
           </div>
         ) : (
@@ -519,112 +479,66 @@ export default function PartnerDashboard({
                 <>
                   {/* Regular Partner Quick Actions */}
                   {canShowApprovalOrdersAction && (
-                    <button
+                    <QuickActionButton
                       onClick={onViewApprovalOrders}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ffebee' }}>
-                          <CheckCircle2 className="w-5 h-5" style={{ color: '#c62828' }} />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">Orders to approve</p>
-                          <p className="body-small text-on-surface-variant">{approvalOrdersLabel}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
+                      iconWrapperClassName=""
+                      iconWrapperStyle={{ backgroundColor: '#ffebee' }}
+                      icon={<CheckCircle2 className="w-5 h-5" style={{ color: '#c62828' }} />}
+                      title="Orders to approve"
+                      description={approvalOrdersLabel}
+                    />
                   )}
 
                   {showPendingOrdersAction && (
-                    <button
+                    <QuickActionButton
                       onClick={onViewOrders}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary-container rounded-full flex items-center justify-center">
-                          <ClipboardList className="w-5 h-5 text-on-primary-container" />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">Orders to process</p>
-                          <p className="body-small text-on-surface-variant">{pendingOrdersLabel}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
+                      iconWrapperClassName="bg-primary-container"
+                      icon={<ClipboardList className="w-5 h-5 text-on-primary-container" />}
+                      title="Orders to process"
+                      description={pendingOrdersLabel}
+                    />
                   )}
 
                   {showActiveShipmentsAction && (
-                    <button
+                    <QuickActionButton
                       onClick={onViewBoxes}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                          <Truck className="w-5 h-5 text-on-secondary-container" />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">Active shipments</p>
-                          <p className="body-small text-on-surface-variant">{activeShipmentsLabel}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
+                      iconWrapperClassName="bg-secondary-container"
+                      icon={<Truck className="w-5 h-5 text-on-secondary-container" />}
+                      title="Active shipments"
+                      description={activeShipmentsLabel}
+                    />
                   )}
 
                   {showDeliveriesAction && (
-                    <button
+                    <QuickActionButton
                       onClick={onViewDeliveries ?? onViewBoxes}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-secondary-container rounded-full flex items-center justify-center">
-                          <ClipboardCheck className="w-5 h-5 text-on-secondary-container" />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">Deliveries to complete</p>
-                          <p className="body-small text-on-surface-variant">{deliveriesToCompleteLabel}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
+                      iconWrapperClassName="bg-secondary-container"
+                      icon={<ClipboardCheck className="w-5 h-5 text-on-secondary-container" />}
+                      title="Deliveries to complete"
+                      description={deliveriesToCompleteLabel}
+                    />
                   )}
 
                   {showReturnsAction && (
-                    <button
+                    <QuickActionButton
                       onClick={onViewReturns}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-tertiary-container rounded-full flex items-center justify-center">
-                          <RotateCcw className="w-5 h-5 text-on-tertiary-container" />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">Return deliveries</p>
-                          <p className="body-small text-on-surface-variant">{inTransitReturnsLabel}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
+                      iconWrapperClassName="bg-tertiary-container"
+                      icon={<RotateCcw className="w-5 h-5 text-on-tertiary-container" />}
+                      title="Return deliveries"
+                      description={inTransitReturnsLabel}
+                    />
                   )}
 
                   {/* Reports */}
                   {onNavigateToReports && (
-                    <button
+                    <QuickActionButton
                       onClick={onNavigateToReports}
-                      className="flex items-center justify-between p-4 bg-surface-container border border-outline-variant rounded-lg hover:bg-surface-container-high transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#dbeafe' }}>
-                          <BarChart3 className="w-5 h-5 text-on-surface" />
-                        </div>
-                        <div>
-                          <p className="title-small text-on-surface">View reports</p>
-                          <p className="body-small text-on-surface-variant">Sales & Stock analytics</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
-                    </button>
+                      iconWrapperClassName=""
+                      iconWrapperStyle={{ backgroundColor: '#dbeafe' }}
+                      icon={<BarChart3 className="w-5 h-5 text-on-surface" />}
+                      title="View reports"
+                      description="Sales & Stock analytics"
+                    />
                   )}
 
                 </>
@@ -687,7 +601,7 @@ export default function PartnerDashboard({
               ) : (
                 <div className="space-y-3">
                   {todaysOrdersForList.map(order => (
-                    <Card 
+                    <Card
                       key={order.id}
                       role="button"
                       tabIndex={0}
@@ -698,13 +612,14 @@ export default function PartnerDashboard({
                           onOpenOrderDetails?.(order);
                         }
                       }}
+                      style={isListRowBumped ? { minHeight: '112px' } : undefined}
                       className="p-4 border-outline-variant bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className="title-small text-on-surface mb-1">{order.id}</div>
-                          <div className="body-small text-on-surface-variant">{order.itemCount} items • {order.boxCount} boxes</div>
-                          <div className="body-small text-on-surface-variant">Created {order.createdDate}</div>
+                          <div className={`${isListRowBumped ? 'title-medium' : 'title-small'} text-on-surface mb-1`}>{order.id}</div>
+                          <div className={`${isListRowBumped ? 'body-medium' : 'body-small'} text-on-surface-variant`}>{order.itemCount} items • {order.boxCount} boxes</div>
+                          <div className={`${isListRowBumped ? 'body-medium' : 'body-small'} text-on-surface-variant`}>Created {order.createdDate}</div>
                           {(() => {
                             const receivingStore = stores.find(store => store.id === order.receivingStoreId);
                             const brandName = receivingStore
@@ -719,7 +634,7 @@ export default function PartnerDashboard({
                               return null;
                             }
                             return (
-                              <div className="body-small text-on-surface-variant">
+                              <div className={`${isListRowBumped ? 'body-medium' : 'body-small'} text-on-surface-variant`}>
                                 To: {brandName && <span className="font-medium text-on-surface">{brandName}</span>}
                                 {brandName && (name || code) ? ' • ' : ''}
                                 {name || 'Unknown store'}

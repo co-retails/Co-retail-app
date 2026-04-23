@@ -49,20 +49,27 @@ const FullScreenDialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     fullWidth?: boolean;
+    /**
+     * Below this viewport width (in px), the dialog renders as a full-screen
+     * sheet sliding up from the bottom. At or above it, the dialog renders as
+     * a side-panel sliding in from the right. Defaults to 768 (full-screen on
+     * mobile only). Pass 1024 to also get full-screen treatment on tablets.
+     */
+    mobileBreakpoint?: number;
   }
->(({ className, children, fullWidth, ...props }, ref) => {
-  // Detect if we're on desktop
+>(({ className, children, fullWidth, mobileBreakpoint = 768, ...props }, ref) => {
+  // Detect if we're on desktop (at or above the mobileBreakpoint)
   const [isDesktop, setIsDesktop] = React.useState(false);
   const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
-  
+
   React.useEffect(() => {
     const checkDesktop = () => {
-      setIsDesktop(window.innerWidth >= 768);
+      setIsDesktop(window.innerWidth >= mobileBreakpoint);
     };
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
     return () => window.removeEventListener('resize', checkDesktop);
-  }, []);
+  }, [mobileBreakpoint]);
   const hasDescription = React.Children.toArray(children).some(
     (child: any) => {
       // Check for direct DialogDescription component

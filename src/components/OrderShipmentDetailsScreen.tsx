@@ -52,6 +52,7 @@ import { DeliveryNote, Box } from './BoxManagementScreen';
 import { ReturnDelivery } from './ShippingScreen';
 import ActiveScanner from './ActiveScanner';
 import BoxLabelSideSheet from './BoxLabelSideSheet';
+import BoxCard from './BoxCard';
 import ShippingLabelScreen from './ShippingLabelScreen';
 import { 
   generateThriftedTemplateCSV, 
@@ -869,53 +870,22 @@ export default function OrderShipmentDetailsScreen({
     }
 
     if (type === 'return' && returnDelivery) {
-      const senderPrimaryLabel =
-        receiverLabel ||
-        [returnDelivery.storeName, returnDelivery.storeCode].filter(Boolean).join(' ') ||
-        storeName ||
-        '—';
-      const senderSecondaryLabel =
-        returnDelivery.storeName && senderPrimaryLabel !== returnDelivery.storeName
-          ? returnDelivery.storeName
-          : undefined;
-      const senderCodeLabel =
-        returnDelivery.storeCode &&
-        !senderPrimaryLabel.includes(returnDelivery.storeCode)
-          ? returnDelivery.storeCode
-          : undefined;
       const receiverPrimaryLabel = returnDelivery.partnerName || partnerName || '—';
       const receiverSecondaryLabel = returnDelivery.warehouseName || warehouseName;
 
       return (
         <CardContent className="pt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-on-surface-variant">
-                <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <StoreIcon size={16} />
-                </span>
-                <span className="body-small">Sender (Store)</span>
-              </div>
-              <p className="body-medium text-on-surface">{senderPrimaryLabel}</p>
-              {senderSecondaryLabel && (
-                <p className="body-small text-on-surface-variant">{senderSecondaryLabel}</p>
-              )}
-              {senderCodeLabel && (
-                <p className="body-small text-on-surface-variant">{senderCodeLabel}</p>
-              )}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-on-surface-variant">
+              <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
+                <MapPinIcon size={16} />
+              </span>
+              <span className="body-small">Receiver (Partner)</span>
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-on-surface-variant">
-                <span className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
-                  <MapPinIcon size={16} />
-                </span>
-                <span className="body-small">Receiver (Partner)</span>
-              </div>
-              <p className="body-medium text-on-surface">{receiverPrimaryLabel}</p>
-              {receiverSecondaryLabel && (
-                <p className="body-small text-on-surface-variant">{receiverSecondaryLabel}</p>
-              )}
-            </div>
+            <p className="body-medium text-on-surface">{receiverPrimaryLabel}</p>
+            {receiverSecondaryLabel && (
+              <p className="body-small text-on-surface-variant">{receiverSecondaryLabel}</p>
+            )}
           </div>
         </CardContent>
       );
@@ -1450,116 +1420,76 @@ export default function OrderShipmentDetailsScreen({
                           const showEditLabel = !isInTransit && box.status === 'registered';
                           const showMenu = showUnregister || showDelete || showEditLabel;
 
+                          const menuSlot = showMenu ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                  }}
+                                  aria-label="More actions"
+                                >
+                                  <MoreVertical className="w-4 h-4 text-on-surface-variant" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64 z-[10000]"
+                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              >
+                                {showUnregister && (
+                                  <DropdownMenuItem
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      onUnregisterBox!(box.id);
+                                    }}
+                                    className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                                  >
+                                    <RotateCcwIcon className="w-4 h-4 mr-2" />
+                                    <span className="body-medium text-on-surface">Unregister</span>
+                                  </DropdownMenuItem>
+                                )}
+                                {showDelete && (
+                                  <DropdownMenuItem
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      onDeleteBox!(box.id);
+                                    }}
+                                    className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+                                  >
+                                    <Trash2Icon className="w-4 h-4 mr-2" />
+                                    <span className="body-medium">Delete</span>
+                                  </DropdownMenuItem>
+                                )}
+                                {showEditLabel && (
+                                  <DropdownMenuItem
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      setBoxBeingEdited(box);
+                                    }}
+                                    className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                                  >
+                                    <PencilIcon className="w-4 h-4 mr-2" />
+                                    <span className="body-medium text-on-surface">Edit box label</span>
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : undefined;
+
                           return (
-                            <div
+                            <BoxCard
                               key={box.id}
-                              onClick={() => handleBoxClick(box)}
-                              className="flex items-center gap-3 px-4 py-3 bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer"
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  handleBoxClick(box);
-                                }
-                              }}
-                            >
-                              {/* Leading Element - Box Icon */}
-                              <div className="flex-shrink-0 w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center">
-                                <Package className="w-5 h-5 text-on-surface-variant" />
-                              </div>
-
-                              {/* Main Content */}
-                              <div className="flex-1 min-w-0">
-                                {/* Created date and Box status */}
-                                <div className="label-small text-on-surface-variant mb-1">
-                                  {boxDate} • <span className={statusDisplay === 'Delivered' ? 'text-tertiary' : ''}>{statusDisplay}</span>
-                                </div>
-                                {/* Box Label */}
-                                {box.qrLabel && (
-                                  <div className="body-medium text-on-surface mb-1">
-                                    <span className="label-small text-on-surface-variant">Box Label: </span>
-                                    {box.qrLabel}
-                                  </div>
-                                )}
-                                {/* Box ID */}
-                                <div className="label-small text-on-surface-variant mb-1">
-                                  <span className="label-small text-on-surface-variant">Box ID: </span>
-                                  {box.id}
-                                </div>
-                                {/* Order nr */}
-                                {orderNumber && (
-                                  <div className="body-small text-on-surface-variant">
-                                    <span className="label-small text-on-surface-variant">Order nr: </span>
-                                    {orderNumber}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Trailing Element - Items count or More menu */}
-                              <div className="flex-shrink-0 flex items-center gap-2">
-                                <div className="body-small text-on-surface-variant">
-                                  {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
-                                </div>
-                                {showMenu && (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <button
-                                        className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-                                        onClick={(e: React.MouseEvent) => {
-                                          e.stopPropagation();
-                                        }}
-                                        aria-label="More actions"
-                                      >
-                                        <MoreVertical className="w-4 h-4 text-on-surface-variant" />
-                                      </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent 
-                                      align="end" 
-                                      className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64 z-[10000]"
-                                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                                    >
-                                      {showUnregister && (
-                                        <DropdownMenuItem
-                                          onClick={(e: React.MouseEvent) => {
-                                            e.stopPropagation();
-                                            onUnregisterBox!(box.id);
-                                          }}
-                                          className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-                                        >
-                                          <RotateCcwIcon className="w-4 h-4 mr-2" />
-                                          <span className="body-medium text-on-surface">Unregister</span>
-                                        </DropdownMenuItem>
-                                      )}
-                                      {showDelete && (
-                                        <DropdownMenuItem
-                                          onClick={(e: React.MouseEvent) => {
-                                            e.stopPropagation();
-                                            onDeleteBox!(box.id);
-                                          }}
-                                          className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-                                        >
-                                          <Trash2Icon className="w-4 h-4 mr-2" />
-                                          <span className="body-medium">Delete</span>
-                                        </DropdownMenuItem>
-                                      )}
-                                      {showEditLabel && (
-                                        <DropdownMenuItem
-                                          onClick={(e: React.MouseEvent) => {
-                                            e.stopPropagation();
-                                            setBoxBeingEdited(box);
-                                          }}
-                                          className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-                                        >
-                                          <PencilIcon className="w-4 h-4 mr-2" />
-                                          <span className="body-medium text-on-surface">Edit box label</span>
-                                        </DropdownMenuItem>
-                                      )}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                )}
-                              </div>
-                            </div>
+                              date={boxDate}
+                              status={statusDisplay}
+                              boxLabel={box.qrLabel}
+                              boxId={box.id}
+                              orderNumber={orderNumber}
+                              itemCount={box.items.length}
+                              onSelect={() => handleBoxClick(box)}
+                              menuSlot={menuSlot}
+                            />
                           );
                         })}
                       </div>

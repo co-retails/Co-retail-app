@@ -10,8 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Edit3, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw, Flag, MapPin } from "lucide-react";
+import { Edit3, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw, MapPin } from "lucide-react";
 import type { StatusHistoryEntry } from './ItemDetailsDialog';
+import { useIsListRowBumped } from './ui/list-row-card';
 
 // Base item interface that works for both Item and OrderItem
 export interface BaseItem {
@@ -234,6 +235,7 @@ export const ItemCard = memo(function ItemCard({
   showBothIds = false,
   hideMissingAction = false
 }: ItemCardProps) {
+  const bumped = useIsListRowBumped();
   const thumbnailSrc = (item.image as string | undefined) || item.thumbnail || undefined;
   const renderThumbnailFallback = (variant: 'card' | 'list') => (
     <Package
@@ -279,22 +281,7 @@ export const ItemCard = memo(function ItemCard({
     return diffDays >= 0 ? diffDays : null;
   };
 
-  // Calculate days expired from expiredFlaggedAt
-  const calculateDaysExpired = (): number | null => {
-    if (!item.expiredFlaggedAt) return null;
-    try {
-      const expiredDate = new Date(item.expiredFlaggedAt);
-      const now = new Date();
-      const diffTime = now.getTime() - expiredDate.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays >= 0 ? diffDays : null;
-    } catch {
-      return null;
-    }
-  };
-
   const daysInStore = calculateDaysInStore();
-  const daysExpired = item.isExpired ? calculateDaysExpired() : null;
 
   const getAvailableActions = () => {
     if (!onMoreActions || !item.status) return [];
@@ -660,11 +647,11 @@ export const ItemCard = memo(function ItemCard({
     <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
       {/* M3 List Item - Based on Figma Design */}
       <div className="flex items-center px-1 py-3 gap-3">
-        
+
         {/* Leading Element - Checkbox for selection */}
         {showSelection && (
           <div className="flex items-center justify-center flex-shrink-0">
-            <button 
+            <button
               className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
               onClick={() => onToggleSelect?.(item.id)}
               aria-label={item.selected ? "Deselect item" : "Select item"}
@@ -683,47 +670,60 @@ export const ItemCard = memo(function ItemCard({
             </button>
           </div>
         )}
-        
+
         {/* Thumbnail */}
-        <div className={`flex-shrink-0 w-12 h-[68px] bg-[rgba(0,0,0,0.08)] rounded flex items-center justify-center overflow-hidden ${!showSelection ? 'ml-3' : ''}`}>
-          <ImageWithFallback 
+        <div className={`flex-shrink-0 ${bumped ? 'w-16 h-24' : 'w-12 h-[68px]'} bg-[rgba(0,0,0,0.08)] rounded flex items-center justify-center overflow-hidden ${!showSelection ? 'ml-3' : ''}`}>
+          <ImageWithFallback
             src={thumbnailSrc}
             alt={item.title || item.brand}
             className="w-full h-full object-cover"
             fallback={renderThumbnailFallback('list')}
           />
         </div>
-        
+
         {/* Main Content */}
-        <button 
+        <button
           className="flex-1 min-w-0 text-left cursor-pointer hover:opacity-80 transition-opacity pl-3 pr-2 overflow-hidden"
           onClick={() => handlePrimaryAction?.(item)}
         >
-          {/* Line 1: Date • Status */}
-          <div className="flex items-center gap-1 mb-0.5 min-w-0">
-            <div className="label-small text-on-surface whitespace-nowrap flex-shrink-0">
+          {/* Line 1: Date • Status • Days (Available only) */}
+          <div className="flex items-center gap-1 mb-0.5 flex-nowrap whitespace-nowrap">
+            <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface whitespace-nowrap flex-shrink-0`}>
               {item.date || '2022-06-09'}
             </div>
             <div className="w-1 h-1 rounded-full bg-outline-variant flex-shrink-0"></div>
-            <div className={`label-small whitespace-nowrap ${getStatusColor(item.status)}`}>
+            <div className={`${bumped ? 'label-medium' : 'label-small'} whitespace-nowrap flex-shrink-0 ${getStatusColor(item.status)}`}>
               {item.status || 'Pending'}
             </div>
+            {item.status?.toLowerCase() === 'available' && daysInStore !== null && (
+              <>
+                <div className="w-1 h-1 rounded-full bg-outline-variant flex-shrink-0"></div>
+                <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface whitespace-nowrap flex-shrink-0`}>
+                  {daysInStore} {daysInStore === 1 ? 'day' : 'days'}
+                </div>
+              </>
+            )}
           </div>
-          
+
           {/* Line 2: Brand */}
-          <div className="title-small text-on-surface mb-0.5 truncate">
+          <div className={`${bumped ? 'title-medium break-words' : 'title-small truncate'} text-on-surface mb-0.5`}>
             {item.brand}
           </div>
-          
-          {/* Line 3: Category • Size • Color */}
-          <div className="body-small text-on-surface mb-0.5 truncate">
-            {item.category}
-            {item.size ? ` • ${item.size}` : ''}
-            {item.color ? ` • ${item.color}` : ''}
+
+          {/* Line 3: Category • Size • Color + Price (trailing) */}
+          <div className="flex items-start justify-between gap-3 mb-0.5">
+            <div className={`${bumped ? 'body-medium break-words' : 'body-small truncate'} text-on-surface min-w-0 flex-1`}>
+              {item.category}
+              {item.size ? ` • ${item.size}` : ''}
+              {item.color ? ` • ${item.color}` : ''}
+            </div>
+            <div className={`${bumped ? 'title-medium' : 'title-small'} text-on-surface whitespace-nowrap flex-shrink-0`}>
+              €{item.price.toFixed(2)}
+            </div>
           </div>
-          
+
           {/* Line 4: ID and Delivery */}
-          <div className="label-small text-on-surface opacity-90 mb-0.5">
+          <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface opacity-90 mb-0.5`}>
             <div className="line-clamp-2 break-words">
               {showBothIds && item.retailerItemId && item.partnerItemId ? (
                 <>
@@ -749,19 +749,19 @@ export const ItemCard = memo(function ItemCard({
           
           {/* Line 4.5: Box Label */}
           {item.boxLabel && (
-            <div className="label-small text-on-surface-variant mb-0.5 truncate">
+            <div className={`${bumped ? 'label-medium break-words' : 'label-small truncate'} text-on-surface-variant mb-0.5`}>
               Box label: {item.boxLabel}
             </div>
           )}
-          
+
           {/* Line 5: Seller */}
           {!hideSellerName && (
-            <div className="body-small text-on-surface truncate">
+            <div className={`${bumped ? 'body-medium break-words' : 'body-small truncate'} text-on-surface`}>
               {item.sellerName || 'Sellpy'}
             </div>
           )}
           {item.status?.toLowerCase() === 'rejected' && item.rejectReason && (
-            <div className="label-small text-error truncate mt-1">
+            <div className={`${bumped ? 'label-medium break-words' : 'label-small truncate'} text-error mt-1`}>
               Reason: {item.rejectReason}
             </div>
           )}
@@ -769,34 +769,6 @@ export const ItemCard = memo(function ItemCard({
         
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-0 h-full ml-auto">
-          {/* Price and Days */}
-          <div className={`flex flex-col items-end justify-end h-full px-0 text-right min-w-[80px] ${!(showActions && onMoreActions && availableActions.length > 0) ? 'pr-12' : ''}`}>
-            <div className="title-small text-on-surface whitespace-nowrap">
-              €{item.price.toFixed(2)}
-            </div>
-            {item.isExpired ? (
-              // For expired items, show days in store
-              daysInStore !== null && (
-                <div className="label-small text-on-surface whitespace-nowrap">
-                  {daysInStore} {daysInStore === 1 ? 'day' : 'days'} in store
-                </div>
-              )
-            ) : (
-              // For non-expired items, show days remaining if available
-              item.daysRemaining !== undefined && (
-                <div className="label-small text-on-surface whitespace-nowrap">
-                  {item.daysRemaining} {item.daysRemaining === 1 ? 'day' : 'days'}
-                </div>
-              )
-            )}
-            {daysExpired !== null && (
-              <div className="label-small text-warning whitespace-nowrap flex items-center gap-1 mt-0.5">
-                <Flag className="w-3 h-3" />
-                {daysExpired} {daysExpired === 1 ? 'day' : 'days'} Expired
-              </div>
-            )}
-          </div>
-          
           {/* More Actions */}
           {showActions && onMoreActions && availableActions.length > 0 && (
             <div className="flex items-center justify-center h-full">

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import { ItemCard } from './ItemCard';
+import { useListRowFonts } from './ui/list-row-card';
 import svgPaths from "../imports/svg-8iuolkmxl8";
 import CameraScanner from './CameraScanner';
 
@@ -74,6 +75,7 @@ export default function BoxManagementScreen({
   deliveryNotes = [],
   onViewDetails
 }: BoxManagementScreenProps) {
+  const fonts = useListRowFonts();
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [currentBox, setCurrentBox] = useState<Box | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -479,8 +481,8 @@ export default function BoxManagementScreen({
                             <PackageIcon size={16} />
                           </div>
                           <div>
-                            <p className="title-small text-on-surface">{box.qrLabel}</p>
-                            <p className="body-small text-on-surface-variant">
+                            <p className={`${fonts.title} text-on-surface break-words`}>{box.qrLabel}</p>
+                            <p className={`${fonts.body} text-on-surface-variant`}>
                               {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
                             </p>
                           </div>

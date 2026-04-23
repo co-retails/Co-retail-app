@@ -18,6 +18,9 @@ export interface ReturnItem {
   selected: boolean;
   canExtend?: boolean;
   scanned?: boolean;
+  deliveryId?: string;
+  boxLabel?: string;
+  lastInStoreAt?: string;
 }
 
 interface ReturnBuilderScreenProps {
@@ -161,7 +164,10 @@ function ReturnItemComponent({ item, onUpdateItem }: { item: ReturnItem; onUpdat
                     thumbnail: item.thumbnail,
                     selected: item.selected,
                     canExtend: item.canExtend,
-                    partnerItemRef: item.partnerItemRef
+                    partnerItemRef: item.partnerItemRef,
+                    deliveryId: item.deliveryId,
+                    boxLabel: item.boxLabel,
+                    lastInStoreAt: item.lastInStoreAt
                   } as BaseItem}
                   variant="items-list"
                   showActions={false}

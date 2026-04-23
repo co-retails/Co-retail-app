@@ -36,6 +36,9 @@ export interface ReturnItemDetail {
   selected?: boolean;
   status?: 'Rejected' | 'Available' | 'Broken' | 'In transit';
   isExpired?: boolean;
+  deliveryId?: string;
+  boxLabel?: string;
+  lastInStoreAt?: string;
 }
 
 interface ReturnDetailsScreenProps {
@@ -143,7 +146,10 @@ function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions, userRo
     status: isScanned ? 'Ready to return' : 'Pending scan',
     selected: isScanned,
     thumbnail: undefined,
-    daysRemaining: isScanned ? undefined : Math.floor(Math.random() * 10) + 1
+    daysRemaining: isScanned ? undefined : Math.floor(Math.random() * 10) + 1,
+    deliveryId: item.deliveryId || 'DEL-0931',
+    boxLabel: item.boxLabel || 'Box A-12',
+    lastInStoreAt: item.lastInStoreAt
   };
 
   return (
@@ -199,7 +205,10 @@ function ReturnItemCard({ item, isScanned, onToggleSelect, onMoreActions, userRo
                 date: extendedItem.date,
                 thumbnail: extendedItem.thumbnail,
                 selected: extendedItem.selected,
-                partnerItemRef: item.partnerItemRef
+                partnerItemRef: item.partnerItemRef,
+                deliveryId: extendedItem.deliveryId,
+                boxLabel: extendedItem.boxLabel,
+                lastInStoreAt: extendedItem.lastInStoreAt
               } as BaseItem}
               variant="items-list"
               showActions={false}

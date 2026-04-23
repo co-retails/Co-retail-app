@@ -37,6 +37,7 @@ import {
 import { OrderItem } from './OrderCreationScreen';
 import ActiveScanner from './ActiveScanner';
 import BoxLabelSideSheet from './BoxLabelSideSheet';
+import BoxCard from './BoxCard';
 import { ImageWithFallback, DEFAULT_IMAGE_PLACEHOLDER } from './figma/ImageWithFallback';
 
 export interface Box {
@@ -535,98 +536,74 @@ export default function DeliveryNoteCreationScreen({
           <div className="space-y-2">
             {boxes.map((box) => {
               const boxDate = new Date(box.createdDate).toISOString().split('T')[0];
+              const statusDisplay = box.status === 'registered' ? 'Registered' : box.status === 'pending' ? 'Packing' : box.status === 'in-transit' ? 'In Transit' : box.status === 'delivered' ? 'Delivered' : box.status === 'rejected' ? 'Rejected' : box.status === 'cancelled' ? 'Cancelled' : box.status;
+              const showEditLabel = box.status === 'registered';
+              const showUnregister = box.status === 'registered';
+              const showDelete = box.status === 'pending';
+              const showMenu = showEditLabel || showUnregister || showDelete;
+
+              const menuSlot = showMenu ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    >
+                      <MoreVertical size={16} className="text-on-surface-variant" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {showEditLabel && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBoxBeingEdited(box);
+                        }}
+                      >
+                        <EditIcon className="mr-2 h-4 w-4" />
+                        Edit box label
+                      </DropdownMenuItem>
+                    )}
+                    {showUnregister && (
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleUnregisterBox(box.id);
+                      }}>
+                        <RotateCcwIcon className="mr-2 h-4 w-4" />
+                        Unregister
+                      </DropdownMenuItem>
+                    )}
+                    {showDelete && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBox(box.id);
+                        }}
+                        className="text-error focus:text-error"
+                      >
+                        <Trash2Icon className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : undefined;
 
               return (
-                <Card
+                <BoxCard
                   key={box.id}
-                  className="border-outline cursor-pointer hover:bg-primary-container/80 transition-colors bg-primary-container"
-                  onClick={() => {
-                    if (onOpenBoxDetails) {
-                      onOpenBoxDetails(box);
-                    }
-                  }}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className="p-2 bg-primary-container rounded-lg flex-shrink-0">
-                          <BoxIcon className="w-5 h-5 text-on-primary-container" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          {/* Date and Status */}
-                          <div className="label-small text-on-surface-variant mb-1">
-                            {boxDate} • {box.status === 'registered' ? 'Registered' : box.status === 'pending' ? 'Packing' : box.status === 'in-transit' ? 'In Transit' : box.status === 'delivered' ? 'Delivered' : box.status === 'rejected' ? 'Rejected' : box.status === 'cancelled' ? 'Cancelled' : box.status}
-                          </div>
-                          {/* Box Label */}
-                          {box.status !== 'pending' && (
-                            <div className="body-medium text-on-surface mb-1">
-                              <span className="label-small text-on-surface-variant">Box Label: </span>
-                              {box.qrLabel}
-                            </div>
-                          )}
-                          {/* Box ID */}
-                          <div className="label-small text-on-surface-variant">
-                            <span className="label-small text-on-surface-variant">Box ID: </span>
-                            {box.id}
-                          </div>
-                          {/* Items count */}
-                          <div className="flex items-center gap-2 flex-wrap mt-1">
-                            <span className="body-small text-on-surface-variant">
-                              {box.items.length} {box.items.length === 1 ? 'item' : 'items'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                            }}
-                          >
-                            <MoreVertical size={16} className="text-on-surface-variant" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {box.status === 'registered' && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setBoxBeingEdited(box);
-                              }}
-                            >
-                              <EditIcon className="mr-2 h-4 w-4" />
-                              Edit box label
-                            </DropdownMenuItem>
-                          )}
-                          {box.status === 'registered' && (
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              handleUnregisterBox(box.id);
-                            }}>
-                              <RotateCcwIcon className="mr-2 h-4 w-4" />
-                              Unregister
-                            </DropdownMenuItem>
-                          )}
-                          {box.status === 'pending' && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteBox(box.id);
-                              }}
-                              className="text-error focus:text-error"
-                            >
-                              <Trash2Icon className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardContent>
-                </Card>
+                  date={boxDate}
+                  status={statusDisplay}
+                  boxLabel={box.status !== 'pending' ? box.qrLabel : undefined}
+                  boxId={box.id}
+                  orderNumber={orderId}
+                  itemCount={box.items.length}
+                  onSelect={onOpenBoxDetails ? () => onOpenBoxDetails(box) : undefined}
+                  menuSlot={menuSlot}
+                />
               );
             })}
           </div>

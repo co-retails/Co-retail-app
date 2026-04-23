@@ -152,6 +152,10 @@ export function useAppState() {
   // Delivery and Box state
   const [selectedBox, setSelectedBox] = useState<any>(null);
   const [deliveryBoxes, setDeliveryBoxes] = useState<any[]>([]);
+  // Tracks which screen to return to when backing out of box-details
+  // ('delivery-details' when opened from DeliveryDetailsScreen, 'receive' when
+  // opened from ReceiveDeliveryScreen). Defaults to 'delivery-details'.
+  const [boxDetailsPreviousScreen, setBoxDetailsPreviousScreen] = useState<'delivery-details' | 'receive'>('delivery-details');
   
   // Status update state
   const [userRole] = useState<UserRole>('Store Manager');
@@ -269,6 +273,8 @@ export function useAppState() {
     setSelectedBox,
     deliveryBoxes,
     setDeliveryBoxes,
+    boxDetailsPreviousScreen,
+    setBoxDetailsPreviousScreen,
     
     // Status update
     userRole,

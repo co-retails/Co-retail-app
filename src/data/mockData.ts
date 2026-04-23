@@ -145,6 +145,8 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: true,
     scanned: false,
+    deliveryId: 'DEL-0931',
+    boxLabel: 'Box A-12',
     image: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080'
   },
   {
@@ -158,6 +160,8 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: false,
     scanned: false,
+    deliveryId: 'DEL-1130',
+    boxLabel: 'Box B-03',
     image: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080'
   },
   {
@@ -171,6 +175,8 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: true,
     scanned: false,
+    deliveryId: 'DEL-0950',
+    boxLabel: 'Box A-08',
     image: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080'
   },
   {
@@ -183,6 +189,8 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: false,
     scanned: false,
+    deliveryId: 'DEL-1001',
+    boxLabel: 'Box C-05',
     image: 'https://images.unsplash.com/photo-1633903422938-8291a4606408?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaWxrJTIwc2NhcmYlMjBhY2Nlc3Nvcnl8ZW58MXx8fHwxNzYxMDIyODExfDA&ixlib=rb-4.1.0&q=80&w=1080'
   },
   {
@@ -196,6 +204,8 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: true,
     scanned: false,
+    deliveryId: 'DEL-1045',
+    boxLabel: 'Box B-11',
     image: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080'
   },
   // Demo items for Kinda Kinks partner - Weekday Sweden Drottninggatan
@@ -210,6 +220,9 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: false,
     scanned: false,
+    deliveryId: 'DEL-0931',
+    boxLabel: 'Box A-02',
+    lastInStoreAt: new Date(Date.now() - 4 * 86400000).toISOString(),
     image: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080',
     thumbnail: 'https://images.unsplash.com/photo-1563339387-0ba9892a3f84?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldCUyMHZpbnRhZ2V8ZW58MXx8fHwxNzYxMDcyNjk2fDA&ixlib=rb-4.1.0&q=80&w=1080'
   },
@@ -224,6 +237,8 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: false,
     scanned: false,
+    deliveryId: 'DEL-1130',
+    boxLabel: 'Box C-07',
     image: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080',
     thumbnail: 'https://images.unsplash.com/photo-1652474590303-b4d72bf9f61a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYm9vdHMlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTExODkzM3ww&ixlib=rb-4.1.0&q=80&w=1080'
   },
@@ -238,6 +253,8 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: false,
     scanned: false,
+    deliveryId: 'DEL-0950',
+    boxLabel: 'Box B-04',
     image: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080',
     thumbnail: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080'
   },
@@ -252,6 +269,8 @@ export const mockReturnItems: ReturnItem[] = [
     selected: false,
     canExtend: false,
     scanned: false,
+    deliveryId: 'DEL-1001',
+    boxLabel: 'Box A-15',
     image: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080',
     thumbnail: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080'
   }

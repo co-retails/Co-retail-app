@@ -30,6 +30,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
 import { Archive, Edit3, Check, MoreVertical } from "lucide-react";
+import { SharedHeader } from './ui/shared-header';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { StatusUpdateDialog, ItemStatus as StatusUpdateItemStatus } from './StatusUpdateDialog';
 import { UserRole } from './ItemCard';
@@ -60,6 +61,7 @@ export interface ScannedItem extends BaseItem {
 }
 
 interface ScanScreenProps {
+  onBack?: () => void;
   onNavigateToHome?: () => void;
   onNavigateToItems?: () => void;
   onNavigateToSellers?: () => void;
@@ -460,6 +462,7 @@ function ScannedItemsSection({ items, onClearItems, onToggleSelect, onMoreAction
 }
 
 export default function ScanScreen({
+  onBack,
   userRole = 'store-staff',
   currentPartnerWarehouseSelection,
   onNavigateToReturns
@@ -824,8 +827,8 @@ export default function ScanScreen({
 
   return (
     <div className="bg-surface min-h-screen flex flex-col">
-      {/* Spacer for top nav on desktop */}
-      <div className="hidden md:block h-16"></div>
+      {/* Full-screen header with back button (replaces the bottom nav on this screen) */}
+      <SharedHeader title="Scan" onBack={onBack} />
       <ScanViewer onScan={handleScan} />
       
       {/* Empty state - main scan screen */}
@@ -849,6 +852,8 @@ export default function ScanScreen({
           setSelectedItemForDetails(null);
           // Clear scanned items when closing dialog to return to clean scan screen
           setScannedItems([]);
+          // Navigate back to the previous screen (Items) when user backs out of item details
+          onBack?.();
         }}
         onSave={handleSaveItemDetails}
         statusHistory={selectedItemForDetails?.statusHistory}

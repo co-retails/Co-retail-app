@@ -382,7 +382,9 @@ function ReviewItemCard({
               date: item.date,
               thumbnail: item.thumbnail,
               orderNumber: item.orderNumber,
-              boxLabel: item.boxLabel
+              boxLabel: item.boxLabel,
+              deliveryId: item.deliveryId,
+              lastInStoreAt: item.lastInStoreAt
             } as BaseItem}
             variant="items-list"
             showActions={false}
@@ -862,7 +864,8 @@ export default function StockCheckReviewScreen({
     const brands = ['H&M', 'Weekday', 'COS', 'Monki'];
     const statuses: Array<StockItem['status']> = ['Available', 'Missing', 'Broken'];
     const boxLabels = ['BOX-123456', 'BOX-789012', 'BOX-987654', 'BOX-456789', 'BOX-234567'];
-    
+    const deliveryIds = ['DEL-0931', 'DEL-1130', 'DEL-0950', 'DEL-1001', 'DEL-1045'];
+
     for (let i = 1; i <= 20; i++) {
       mockItems.push({
         id: `review-item-${i}`,
@@ -877,7 +880,9 @@ export default function StockCheckReviewScreen({
         date: '2024-12-09',
         isScanned: Math.random() > 0.5,
         isSelected: false,
-        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)]
+        boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)],
+        deliveryId: deliveryIds[Math.floor(Math.random() * deliveryIds.length)],
+        lastInStoreAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 86400000).toISOString()
       });
     }
     return mockItems;

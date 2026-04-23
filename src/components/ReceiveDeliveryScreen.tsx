@@ -5,6 +5,7 @@ import { ArrowLeft, MoreVertical, Package, XCircle, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Delivery } from './ShippingScreen';
 import ActiveScanner from './ActiveScanner';
+import SharedBoxCard from './BoxCard';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +44,8 @@ interface ReceiveDeliveryScreenProps {
   onUpdateDeliveryStatus?: (deliveryId: string, status: Delivery['status'], reason?: string) => void;
   allDeliveries?: Delivery[]; // All deliveries for matching scanned boxes
   currentStoreSelection?: { storeId: string; storeCode?: string }; // Current store for filtering deliveries
+  /** Optional: click handler for opening a box's details screen */
+  onSelectBox?: (box: Box) => void;
 }
 
 function TopAppBarWithDeliveryInfo({ 
@@ -151,6 +154,7 @@ function BoxCard({
   onMarkUnscanned,
   onMarkCancelled,
   onMarkRejected,
+  onSelect,
   deliveryStatus,
   isAdmin = false
 }: {
@@ -159,6 +163,7 @@ function BoxCard({
   onMarkUnscanned?: () => void;
   onMarkCancelled?: () => void;
   onMarkRejected?: () => void;
+  onSelect?: () => void;
   deliveryStatus: Delivery['status'];
   isAdmin?: boolean;
 }) {
@@ -169,128 +174,69 @@ function BoxCard({
   const showMarkUnscanned = canScan && box.isScanned && box.status !== 'Cancelled';
   const showMenu = showMarkScanned || showMarkUnscanned || canCancelBox || canRejectBox;
 
-  let statusLabel = 'In transit';
-  let statusClass = 'bg-surface-container-high text-on-surface-variant';
-
-  if (box.status === 'Cancelled') {
-    statusLabel = `Cancelled${box.cancellationReason ? ` • ${box.cancellationReason}` : ''}`;
-    statusClass = 'bg-error-container text-error';
-  } else if (box.status === 'Rejected') {
-    statusLabel = 'Rejected';
-    statusClass = 'bg-error-container text-error';
-  } else if (deliveryStatus === 'Delivered' || box.status === 'Delivered') {
-    statusLabel = 'Delivered';
-    statusClass = 'bg-secondary-container text-on-secondary-container';
-  } else if (box.isScanned) {
-    statusLabel = 'Scanned';
-    statusClass = 'bg-primary-container text-primary';
-  }
+  const menuSlot = showMenu ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
+          aria-label="More actions"
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          <MoreVertical className="w-4 h-4 text-on-surface-variant" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
+        {showMarkScanned && (
+          <DropdownMenuItem
+            onClick={onMarkScanned}
+            className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+          >
+            <span className="body-medium text-on-surface">Mark as scanned</span>
+          </DropdownMenuItem>
+        )}
+        {showMarkUnscanned && (
+          <DropdownMenuItem
+            onClick={onMarkUnscanned}
+            className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+          >
+            <span className="body-medium text-on-surface">Mark as not scanned</span>
+          </DropdownMenuItem>
+        )}
+        {canRejectBox && (
+          <DropdownMenuItem
+            onClick={onMarkRejected}
+            className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            <span className="body-medium">Reject box</span>
+          </DropdownMenuItem>
+        )}
+        {canCancelBox && (
+          <DropdownMenuItem
+            onClick={onMarkCancelled}
+            className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            <span className="body-medium">Mark as cancelled (Missing box)</span>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-surface-container hover:bg-surface-container-high transition-colors">
-      {/* Leading Element - Box Icon */}
-      <div className="flex-shrink-0 w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center">
-        <Package className="w-5 h-5 text-on-surface-variant" />
-      </div>
-      
-      {/* Main Content */}
-      <div className="flex-1 min-w-0">
-        {/* Top Line - Created date and Box status */}
-        <div className="label-small text-on-surface-variant mb-1">
-          {box.date} • <span className={(deliveryStatus === 'Delivered' || box.status === 'Delivered') ? 'text-tertiary' : ''}>{box.status}</span>
-        </div>
-        
-        {/* Second Line - Box Label */}
-        <div className="body-medium text-on-surface mb-1">
-          <span className="label-small text-on-surface-variant">Box Label: </span>
-          {box.boxId}
-        </div>
-        
-        {/* Third Line - Box ID */}
-        <div className="label-small text-on-surface-variant mb-1">
-          <span className="label-small text-on-surface-variant">Box ID: </span>
-          {box.id}
-        </div>
-        
-        {/* Fourth Line - Order nr */}
-        <div className="body-small text-on-surface-variant mb-1">
-          <span className="label-small text-on-surface-variant">Order nr: </span>
-          {box.orderNumber}
-        </div>
-        
-        {/* Fifth Line - Sender/Partner and Delivery (if available) */}
-        {(box.partnerName || box.deliveryLabel) && (
-          <div className="body-small text-on-surface-variant">
-            {box.partnerName && (
-              <span className="label-small text-on-surface-variant">Sender: </span>
-            )}
-            {box.partnerName || ''}
-            {box.partnerName && box.deliveryLabel && ' • '}
-            {box.deliveryLabel && (
-              <>
-                <span className="label-small text-on-surface-variant">Delivery: </span>
-                {box.deliveryLabel}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-      
-      {/* Trailing Element - Items count or More menu */}
-      <div className="flex-shrink-0 flex items-center gap-2">
-        <div className="body-small text-on-surface-variant">
-          {box.items} {box.items === 1 ? 'item' : 'items'}
-        </div>
-        {showMenu && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button 
-                className="w-12 h-12 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest focus:bg-surface-container-highest active:bg-surface transition-colors touch-manipulation min-w-[48px] min-h-[48px] md:min-w-0 md:min-h-0"
-                aria-label="More actions"
-              >
-                <MoreVertical className="w-4 h-4 text-on-surface-variant" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
-              {showMarkScanned && (
-                <DropdownMenuItem 
-                  onClick={onMarkScanned}
-                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-                >
-                  <span className="body-medium text-on-surface">Mark as scanned</span>
-                </DropdownMenuItem>
-              )}
-              {showMarkUnscanned && (
-                <DropdownMenuItem
-                  onClick={onMarkUnscanned}
-                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
-                >
-                  <span className="body-medium text-on-surface">Mark as not scanned</span>
-                </DropdownMenuItem>
-              )}
-              {canRejectBox && (
-                <DropdownMenuItem
-                  onClick={onMarkRejected}
-                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  <span className="body-medium">Reject box</span>
-                </DropdownMenuItem>
-              )}
-              {canCancelBox && (
-                <DropdownMenuItem
-                  onClick={onMarkCancelled}
-                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  <span className="body-medium">Mark as cancelled (Missing box)</span>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-    </div>
+    <SharedBoxCard
+      date={box.date}
+      status={box.status}
+      boxLabel={box.boxId}
+      boxId={box.id}
+      orderNumber={box.orderNumber}
+      sender={box.partnerName}
+      deliveryLabel={box.deliveryLabel}
+      itemCount={box.items}
+      onSelect={onSelect}
+      menuSlot={menuSlot}
+    />
   );
 }
 
@@ -301,6 +247,7 @@ function BoxesList({
   onMarkUnscanned,
   onMarkCancelled,
   onMarkRejected,
+  onSelectBox,
   isAdmin = false,
   activeTab
 }: {
@@ -310,6 +257,7 @@ function BoxesList({
   onMarkUnscanned?: (boxId: string) => void;
   onMarkCancelled?: (boxId: string) => void;
   onMarkRejected?: (boxId: string) => void;
+  onSelectBox?: (box: Box) => void;
   isAdmin?: boolean;
   activeTab?: 'scanned' | 'not-scanned';
 }) {
@@ -362,13 +310,14 @@ function BoxesList({
               <div className="h-4 bg-surface" aria-hidden="true" />
             )}
             {group.boxes.map((box) => (
-              <BoxCard 
+              <BoxCard
                 key={box.id}
-                box={box} 
+                box={box}
                 onMarkScanned={() => onMarkScanned(box.id)}
                 onMarkUnscanned={onMarkUnscanned ? () => onMarkUnscanned(box.id) : undefined}
                 onMarkCancelled={onMarkCancelled ? () => onMarkCancelled(box.id) : undefined}
                 onMarkRejected={onMarkRejected ? () => onMarkRejected(box.id) : undefined}
+                onSelect={onSelectBox ? () => onSelectBox(box) : undefined}
                 deliveryStatus={deliveryStatus}
                 isAdmin={isAdmin}
               />
@@ -408,16 +357,17 @@ function BottomActions({
   );
 }
 
-export default function ReceiveDeliveryScreen({ 
-  delivery, 
-  onBack, 
+export default function ReceiveDeliveryScreen({
+  delivery,
+  onBack,
   onRegister,
   boxes: initialBoxes,
   userRole,
   onBoxesChange,
   onUpdateDeliveryStatus,
   allDeliveries = [],
-  currentStoreSelection
+  currentStoreSelection,
+  onSelectBox
 }: ReceiveDeliveryScreenProps) {
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
   const [isScanning, setIsScanning] = useState(false);
@@ -833,13 +783,14 @@ export default function ReceiveDeliveryScreen({
 
           
           {/* Boxes List */}
-          <BoxesList 
+          <BoxesList
             boxes={currentBoxes}
             deliveryStatus={delivery.status}
             onMarkScanned={handleMarkScanned}
             onMarkUnscanned={handleMarkUnscanned}
             onMarkCancelled={handleMarkBoxCancelled}
             onMarkRejected={handleMarkBoxRejected}
+            onSelectBox={onSelectBox}
             isAdmin={isAdmin}
             activeTab={activeTab}
           />

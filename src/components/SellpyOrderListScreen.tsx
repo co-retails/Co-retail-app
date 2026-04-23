@@ -12,6 +12,7 @@ import {
   AlertTriangleIcon
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
+import { useIsListRowBumped } from './ui/list-row-card';
 
 export interface SellpyOrder {
   id: string;
@@ -39,6 +40,7 @@ export default function SellpyOrderListScreen({
   orders
 }: SellpyOrderListScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const isListRowBumped = useIsListRowBumped();
 
   const filteredOrders = orders.filter(order => 
     order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -210,6 +212,7 @@ export default function SellpyOrderListScreen({
                     <button
                       key={order.id}
                       onClick={() => onSelectOrder(order)}
+                      style={isListRowBumped ? { minHeight: '112px' } : undefined}
                       className="w-full p-4 rounded-lg border border-outline-variant hover:border-primary hover:bg-primary-container/10 transition-colors text-left"
                     >
                       <div className="flex items-center justify-between">
@@ -217,19 +220,19 @@ export default function SellpyOrderListScreen({
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               {getStatusIcon(order.status)}
-                              <p className="title-small text-on-surface">{order.id}</p>
+                              <p className={`${isListRowBumped ? 'title-medium' : 'title-small'} text-on-surface`}>{order.id}</p>
                             </div>
-                            <p className="body-small text-on-surface-variant">{order.createdDate}</p>
+                            <p className={`${isListRowBumped ? 'body-medium' : 'body-small'} text-on-surface-variant`}>{order.createdDate}</p>
                           </div>
-                          
+
                           <div>
-                            <p className="body-small text-on-surface-variant">Receiving Store</p>
-                            <p className="title-small text-on-surface">{order.receivingStore}</p>
+                            <p className={`${isListRowBumped ? 'body-medium' : 'body-small'} text-on-surface-variant`}>Receiving Store</p>
+                            <p className={`${isListRowBumped ? 'title-medium' : 'title-small'} text-on-surface`}>{order.receivingStore}</p>
                           </div>
-                          
+
                           <div>
-                            <p className="body-small text-on-surface-variant">Items Progress</p>
-                            <p className="title-small text-on-surface">
+                            <p className={`${isListRowBumped ? 'body-medium' : 'body-small'} text-on-surface-variant`}>Items Progress</p>
+                            <p className={`${isListRowBumped ? 'title-medium' : 'title-small'} text-on-surface`}>
                               {order.itemsWithRetailerIds} / {order.totalItems} items
                             </p>
                             <div className="w-full bg-surface-variant rounded-full h-1.5 mt-1">

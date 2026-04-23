@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, QrCode, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
+import { Package, Truck, Search, ChevronRight, RotateCcw, CheckIcon, ClockIcon, Trash2, FilterIcon, MoreVertical, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
 import { UserRole } from './RoleSwitcher';
 import type { ExtendedPartnerOrder } from './PartnerDashboard';
 import { DeliveryNote } from './BoxManagementScreen';
@@ -8,6 +8,7 @@ import { OrderItem } from './OrderCreationScreen';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { Button } from './ui/button';
 import { useMediaQuery } from './ui/use-mobile';
+import { ListRowCard, useListRowFonts } from './ui/list-row-card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -332,14 +333,13 @@ function Tabs({ activeTab, onTabChange, userRole }: {
 }
 
 function DeliveryItem({ delivery, onSelect }: { delivery: Delivery; onSelect: () => void }) {
+  const fonts = useListRowFonts();
   const getStatusBadgeClass = (status: Delivery['status']) => {
     if (status === 'Delivered') {
       return 'bg-success-container text-on-success-container';
     }
-    return '';
+    return 'bg-surface-container-high text-on-surface';
   };
-
-  const isDelivered = delivery.status === 'Delivered';
 
   return (
     <button
@@ -347,58 +347,54 @@ function DeliveryItem({ delivery, onSelect }: { delivery: Delivery; onSelect: ()
       onClick={onSelect}
     >
       {/* M3 Three-line List Item - matching other screens pattern */}
-      <div className="flex items-center gap-4 px-4 py-3">
-        
+      <ListRowCard>
+
         {/* Leading Element - Delivery Icon */}
         <div className="flex-shrink-0 w-10 h-10 bg-surface-container rounded-full flex items-center justify-center">
           <Package className="w-5 h-5 text-on-surface-variant" />
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Top Line - Date and Status in smallest font (consistent with other screens) */}
-          <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-wrap">
+          <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-nowrap whitespace-nowrap`}>
             <span>{delivery.date},</span>
-            {isDelivered ? (
-              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${getStatusBadgeClass(delivery.status)}`}>
-                {delivery.status}
-              </span>
-            ) : (
-              <span>{delivery.status}</span>
-            )}
+            <span className={`${fonts.tinyText} font-semibold px-2 py-0.5 rounded-full ${getStatusBadgeClass(delivery.status)}`}>
+              {delivery.status}
+            </span>
           </div>
-          
+
           {/* Primary Line - Delivery ID (prominent) */}
-          <div className="text-sm font-normal text-on-surface leading-tight mb-0.5 tracking-[0.25px]">
-            <span className="block truncate">Delivery ID: {delivery.deliveryId}</span>
+          <div className={`${fonts.baseText} font-normal text-on-surface leading-tight mb-0.5 tracking-[0.25px]`}>
+            <span className="block break-all">Delivery: {delivery.deliveryId}</span>
           </div>
-          
-          {/* Secondary Line - Orders and Items */}
-          <div className="text-xs font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]">
-            Orders: {delivery.orders}, Items: {delivery.items}
+
+          {/* Secondary Line - Items */}
+          <div className={`${fonts.tinyText} font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]`}>
+            Items: {delivery.items}
           </div>
-          
+
           {/* Metadata Line - Sender */}
-          <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90">
+          <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90`}>
             <div className="truncate">Sender: {delivery.sender}</div>
           </div>
         </div>
-        
+
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-2">
           {/* Boxes Count */}
           <div className="text-right">
-            <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px]">
+            <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px]`}>
               Boxes: {delivery.boxes}
             </div>
           </div>
-          
+
           {/* Navigation Arrow */}
           <div className="w-5 h-5 flex items-center justify-center">
             <ChevronRight className="w-5 h-5 text-on-surface-variant" />
           </div>
         </div>
-      </div>
+      </ListRowCard>
     </button>
   );
 }
@@ -428,7 +424,7 @@ function PartnerDeliveryNoteItem({
   warehouses?: Warehouse[];
   inTransitOver10Days?: boolean;
 }) {
-  const { relatedOrdersForParties: relatedOrders, orderCount, itemCount: totalItems } =
+  const { relatedOrdersForParties: relatedOrders, itemCount: totalItems } =
     getDeliveryNoteShipmentCounts(deliveryNote, orders);
   const deliveryStatus = deliveryNote.status as DeliveryNoteStatus;
   const { sender, warehouse, receiver, storeNameDisplay } = resolveDeliveryNoteParties(
@@ -443,47 +439,48 @@ function PartnerDeliveryNoteItem({
     (isAdmin || canDeleteDraftOrPacking) &&
     (deliveryStatus === 'draft' || deliveryStatus === 'packing') &&
     onDelete;
-  
+  const fonts = useListRowFonts();
+
   return (
-    <div 
+    <div
       className={`w-full bg-surface-container border-b border-outline-variant ${
         onClick ? 'hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200' : ''
       }`}
     >
       {/* M3 Three-line List Item - matching DeliveryItem pattern for mobile */}
-      <div className="flex items-center gap-4 px-4 py-3">
-        
+      <ListRowCard>
+
         {/* Leading Element - Truck Icon */}
         <div className="flex-shrink-0 w-10 h-10 bg-surface-container rounded-full flex items-center justify-center">
           <Truck className="w-5 h-5 text-on-surface-variant" />
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1 min-w-0" onClick={onClick}>
           {/* Top Line - Date and Status in smallest font (consistent with DeliveryItem) */}
-          <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-wrap">
+          <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-wrap`}>
             <span>{deliveryNote.createdDate},</span>
-            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${getDeliveryNoteStatusBadgeColor(deliveryStatus)}`}>
+            <span className={`${fonts.tinyText} font-medium px-2 py-0.5 rounded-full ${getDeliveryNoteStatusBadgeColor(deliveryStatus)}`}>
               {getDeliveryNoteStatusDisplay(deliveryStatus)}
             </span>
             {inTransitOver10Days && (
-              <span className="text-[11px] font-medium text-error">more than 10 days</span>
+              <span className={`${fonts.tinyText} font-medium text-error`}>more than 10 days</span>
             )}
           </div>
-          
+
           {/* Primary Line - Delivery Note ID (prominent) */}
-          <div className="text-sm font-normal text-on-surface leading-tight mb-0.5 tracking-[0.25px]">
-            <span className="block truncate">Delivery: {deliveryNote.id}</span>
+          <div className={`${fonts.baseText} font-normal text-on-surface leading-tight mb-0.5 tracking-[0.25px]`}>
+            <span className="block break-all">Delivery: {deliveryNote.id}</span>
           </div>
-          
-          {/* Secondary Line - Orders and Items */}
-          <div className="text-xs font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]">
-            {orderCount} order{orderCount !== 1 ? 's' : ''} • {totalItems} items
+
+          {/* Secondary Line - Items */}
+          <div className={`${fonts.tinyText} font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]`}>
+            {totalItems} items
           </div>
-          
+
           {/* Metadata Line - Sender/Receiver (only if requested) */}
           {showSenderReceiver && (warehouse || sender || receiver) && (
-            <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90 space-y-0.5">
+            <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90 space-y-0.5`}>
               {warehouse ? (
                 <div className="truncate">From: {warehouse}</div>
               ) : (
@@ -496,12 +493,12 @@ function PartnerDeliveryNoteItem({
             </div>
           )}
         </div>
-        
+
         {/* Trailing Elements - Boxes count, More menu, Arrow */}
         <div className="flex-shrink-0 flex items-center gap-2">
           {/* Boxes Count - on mobile, matches DeliveryItem pattern */}
           <div className="text-right">
-            <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px]">
+            <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px]`}>
               Boxes: {deliveryNote.boxes.length}
             </div>
           </div>
@@ -544,14 +541,14 @@ function PartnerDeliveryNoteItem({
             </div>
           )}
         </div>
-      </div>
+      </ListRowCard>
     </div>
   );
 }
 
 
 
-function ReturnDeliveryComponent({ 
+function ReturnDeliveryComponent({
   returnDelivery, 
   onUpdateStatus,
   onCancel,
@@ -570,6 +567,7 @@ function ReturnDeliveryComponent({
   warehouses?: Warehouse[];
   userRole?: ShippingUserRole;
 }) {
+  const fonts = useListRowFonts();
   const getStatusDisplay = (status: ReturnDelivery['status']) => {
     switch (status) {
       case 'Pending': return 'Pending';
@@ -646,48 +644,48 @@ function ReturnDeliveryComponent({
       tabIndex={onClick && hasActionButton ? 0 : undefined}
       style={onClick && hasActionButton ? { WebkitTapHighlightColor: 'transparent' } : undefined}
     >
-      <div 
-        className="flex items-center gap-4 px-4 py-3 return-delivery-content"
+      <ListRowCard
+        className="return-delivery-content"
         onClick={hasActionButton && onClick ? handleContentClick : undefined}
         onTouchStart={hasActionButton && onClick ? handleTouchStart : undefined}
         onTouchEnd={hasActionButton && onClick ? handleContentClick : undefined}
         style={hasActionButton && onClick ? { WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' } : undefined}
       >
-        
+
         {/* Leading Element - Return Icon */}
         <div className="flex-shrink-0 w-10 h-10 bg-surface-container rounded-full flex items-center justify-center">
           <RotateCcw className="w-5 h-5 text-on-surface-variant" />
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Top Line - Date and Status */}
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="label-small text-on-surface-variant">
+            <span className={`${fonts.tinyText} font-medium text-on-surface-variant`}>
               {returnDelivery.date},
             </span>
-            <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeColor(returnDelivery.status)}`}>
+            <span className={`${fonts.tinyText} font-medium px-2 py-0.5 rounded-full ${getStatusBadgeColor(returnDelivery.status)}`}>
               {getStatusDisplay(returnDelivery.status)}
             </span>
           </div>
-          
+
           {/* Primary Line - Delivery ID */}
-          <div className="body-medium text-on-surface mb-0.5">
-            <span className="block truncate">Delivery: {returnDelivery.deliveryId}</span>
+          <div className={`${fonts.bodyMd} text-on-surface mb-0.5`}>
+            <span className="block break-all">Delivery: {returnDelivery.deliveryId}</span>
           </div>
-          
+
           {/* Secondary Line - Sender (Brand + Store Code) */}
-          <div className="body-small text-on-surface-variant mb-0.5">
+          <div className={`${fonts.body} text-on-surface-variant mb-0.5`}>
             <span className="block truncate">From: {sender}</span>
           </div>
-          
+
           {/* Secondary Line - Receiver (Partner + Warehouse) */}
-          <div className="body-small text-on-surface-variant mb-0.5">
+          <div className={`${fonts.body} text-on-surface-variant mb-0.5`}>
             <span className="block truncate">To: {receiver}</span>
           </div>
-          
+
           {/* Metadata Line - Items */}
-          <div className="label-small text-on-surface-variant opacity-90">
+          <div className={`${fonts.label} text-on-surface-variant opacity-90`}>
             <div className="truncate">
               {returnDelivery.items} {returnDelivery.items === 1 ? 'item' : 'items'}
             </div>
@@ -756,12 +754,12 @@ function ReturnDeliveryComponent({
             </div>
           )}
         </div>
-      </div>
+      </ListRowCard>
     </ComponentWrapper>
   );
 }
 
-function PartnerOrderItem({ 
+function PartnerOrderItem({
   order, 
   onClick, 
   isClickable = false,
@@ -832,18 +830,18 @@ function PartnerOrderItem({
       (isAdmin && (order.status === 'pending' || order.status === 'draft')) ||
       (canDeleteDraft && order.status === 'draft')
     );
+  const fonts = useListRowFonts();
 
   return (
-    <div 
+    <div
       className={`w-full bg-surface-container border-b border-outline-variant ${
-        isClickable 
-          ? 'hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200' 
+        isClickable
+          ? 'hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200'
           : ''
       }`}
     >
       {/* M3 Three-line List Item */}
-      <div 
-        className="flex items-center gap-4 px-4 py-3"
+      <ListRowCard
         onClick={isClickable ? onClick : undefined}
         role={isClickable ? 'button' : undefined}
         tabIndex={isClickable ? 0 : undefined}
@@ -854,37 +852,37 @@ function PartnerOrderItem({
           }
         } : undefined}
       >
-        
+
         {/* Leading Element - Package Icon */}
         <div className="flex-shrink-0 w-10 h-10 bg-surface-container rounded-full flex items-center justify-center">
           <Package className="w-5 h-5 text-on-surface-variant" />
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Top Line - Date and Status */}
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="label-small text-on-surface-variant">
+            <span className={`${fonts.tinyText} font-medium text-on-surface-variant`}>
               {order.createdDate},
             </span>
-            <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeColor(order.status)}`}>
+            <span className={`${fonts.tinyText} font-medium px-2 py-0.5 rounded-full ${getStatusBadgeColor(order.status)}`}>
               {getStatusDisplay(order.status)}
             </span>
           </div>
-          
+
           {/* Primary Line - Order ID */}
-          <div className="body-medium text-on-surface mb-0.5">
-            <span className="block truncate">Order: {order.id}</span>
+          <div className={`${fonts.bodyMd} text-on-surface mb-0.5`}>
+            <span className="block break-all">Order: {order.id}</span>
           </div>
-          
+
           {/* Secondary Line - Items and Boxes */}
-          <div className="body-small text-on-surface-variant mb-0.5">
+          <div className={`${fonts.body} text-on-surface-variant mb-0.5`}>
             {order.itemCount} items • {order.boxCount} boxes
           </div>
-          
+
           {/* Sender/Receiver Line - Only show if requested */}
           {showSenderReceiver && (warehouseDisplay || order.partnerName || receiverDisplay) && (
-            <div className="label-small text-on-surface-variant opacity-90 space-y-0.5">
+            <div className={`${fonts.label} text-on-surface-variant opacity-90 space-y-0.5`}>
               {warehouseDisplay && (
                 <div className="truncate">From: {warehouseDisplay}</div>
               )}
@@ -899,22 +897,22 @@ function PartnerOrderItem({
               )}
             </div>
           )}
-          
+
           {/* Metadata Line - Delivery Note if exists */}
           {order.deliveryNote && (
-            <div className="label-small text-on-surface-variant opacity-90">
+            <div className={`${fonts.label} text-on-surface-variant opacity-90`}>
               <div className="truncate">Shipped via: {order.deliveryNote}</div>
             </div>
           )}
-          
+
           {/* Add Item IDs Hint for Sellpy Pending Orders Only */}
           {isClickable && isSellpyPending && (
-            <div className="label-small text-primary mt-1">
+            <div className={`${fonts.label} text-primary mt-1`}>
               Tap to add item IDs
             </div>
           )}
         </div>
-        
+
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
           {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
@@ -972,12 +970,12 @@ function PartnerOrderItem({
             </div>
           )}
         </div>
-      </div>
+      </ListRowCard>
     </div>
   );
 }
 
-function SellpyOrderItem({ 
+function SellpyOrderItem({
   order, 
   onClick 
 }: { 
@@ -1025,56 +1023,57 @@ function SellpyOrderItem({
   };
 
   const StatusIcon = getStatusIcon(order.status);
+  const fonts = useListRowFonts();
 
   return (
-    <button 
+    <button
       className="w-full bg-surface-container border-b border-outline-variant hover:bg-surface-container-high active:bg-surface-container cursor-pointer transition-colors duration-200 text-left"
       onClick={onClick}
     >
       {/* M3 Three-line List Item */}
-      <div className="flex items-center gap-4 px-4 py-3">
-        
+      <ListRowCard>
+
         {/* Leading Element - Status Icon */}
         <div className="flex-shrink-0 w-10 h-10 bg-surface-container rounded-full flex items-center justify-center">
           <StatusIcon className="w-5 h-5 text-on-surface-variant" />
         </div>
-        
+
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Top Line - Order ID and Status */}
-          <div className={`text-[11px] font-medium leading-tight tracking-[0.5px] mb-0.5 ${getStatusColor(order.status)}`}>
+          <div className={`${fonts.tinyText} font-medium leading-tight tracking-[0.5px] mb-0.5 ${getStatusColor(order.status)}`}>
             {order.id}, {getStatusDisplay(order.status)}
           </div>
-          
+
           {/* Primary Line - Date */}
-          <div className="text-sm font-normal text-on-surface leading-tight mb-0.5 tracking-[0.25px]">
+          <div className={`${fonts.baseText} font-normal text-on-surface leading-tight mb-0.5 tracking-[0.25px]`}>
             <span className="block truncate">Received: {order.createdDate}</span>
           </div>
-          
+
           {/* Secondary Line - Items Progress */}
-          <div className="text-xs font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]">
+          <div className={`${fonts.tinyText} font-normal text-on-surface-variant leading-tight mb-0.5 tracking-[0.4px]`}>
             {order.itemsWithRetailerIds} / {order.totalItems} items processed
           </div>
-          
+
           {/* Metadata Line - Receiving Store */}
-          <div className="text-[11px] font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90">
+          <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px] opacity-90`}>
             <div className="truncate">Store: {order.receivingStore}</div>
           </div>
         </div>
-        
+
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
           {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
           <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(order.status)}`}>
             {getStatusDisplay(order.status)}
           </div>
-          
+
           {/* Arrow */}
           <div className="w-5 h-5 flex items-center justify-center">
             <ChevronRight className="w-5 h-5 text-on-surface-variant" />
           </div>
         </div>
-      </div>
+      </ListRowCard>
     </button>
   );
 }
@@ -1113,14 +1112,6 @@ export default function ShippingScreen({
 }: ShippingScreenProps) {
   const role: ShippingUserRole = currentUserRole ?? 'store-staff';
   const showPartnerStoreFilterLabel = useMediaQuery('(min-width: 640px)');
-
-  const handleScanClick = () => {
-    if (onScanBox) {
-      onScanBox();
-    } else if (onNavigateToScan) {
-      onNavigateToScan();
-    }
-  };
 
   // Adjust initial tab based on user role
   const getInitialTab = (): ShippingTab => {
@@ -2130,19 +2121,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Action Button - Role-specific */}
-        {(role === 'store-staff' || role === 'admin') && (onScanBox || onNavigateToScan) && hasInTransitDelivery && (
-          <div className="flex justify-end mb-4">
-            <Button
-              onClick={handleScanClick}
-              className="bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 text-on-primary transition-colors px-6 py-3 rounded-lg min-h-[48px] flex items-center justify-center gap-2"
-            >
-              <QrCode className="w-5 h-5" />
-              <span className="label-large">Scan to receive</span>
-            </Button>
-          </div>
-        )}
-
         {/* Tabs */}
         <Tabs
           activeTab={activeTab}
@@ -2769,7 +2747,6 @@ useEffect(() => {
                             <SortableHeader field="date" label="Date" currentSort={shipmentSort} onSort={handleShipmentSort} />
                             <SortableHeader field="id" label="Delivery ID" currentSort={shipmentSort} onSort={handleShipmentSort} />
                             <SortableHeader field="senderReceiver" label="Sender / Receiver" currentSort={shipmentSort} onSort={handleShipmentSort} />
-                            <SortableHeader field="orders" label="Orders" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
                             <SortableHeader field="items" label="Items" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
                             <SortableHeader field="boxes" label="Boxes" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
                             <SortableHeader field="status" label="Status" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
@@ -2779,7 +2756,6 @@ useEffect(() => {
                             <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
                             <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
                             <th className="px-4 py-3 text-left title-small text-on-surface">Sender / Receiver</th>
-                            <th className="px-4 py-3 text-right title-small text-on-surface">Orders</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
@@ -2791,7 +2767,7 @@ useEffect(() => {
                     <tbody>
                       {paginatedDeliveryNotes.map((deliveryNote) => {
                         const noteStatus = deliveryNote.status as DeliveryNoteStatus;
-                        const { relatedOrdersForParties: relatedOrders, orderCount, itemCount: totalItems } =
+                        const { relatedOrdersForParties: relatedOrders, itemCount: totalItems } =
                           getDeliveryNoteShipmentCounts(deliveryNote, partnerOrdersList);
                         const { sender, warehouse, receiver, storeNameDisplay } = resolveDeliveryNoteParties(
                           deliveryNote,
@@ -2828,11 +2804,7 @@ useEffect(() => {
                                 )}
                               </div>
                             </td>
-                            <td 
-                              className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
-                              onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
-                            >{orderCount}</td>
-                            <td 
+                            <td
                               className="px-4 py-3 body-medium text-on-surface text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >{totalItems}</td>
@@ -3237,7 +3209,6 @@ useEffect(() => {
                         <th className="px-4 py-3 text-left title-small text-on-surface">Date</th>
                         <th className="px-4 py-3 text-left title-small text-on-surface">Delivery ID</th>
                         <th className="px-4 py-3 text-left title-small text-on-surface">Sender</th>
-                        <th className="px-4 py-3 text-right title-small text-on-surface">Orders</th>
                         <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
                         <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
                         <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
@@ -3267,7 +3238,6 @@ useEffect(() => {
                             <td className="px-4 py-3 body-medium text-on-surface-variant">{delivery.date}</td>
                             <td className="px-4 py-3 body-medium text-on-surface">{delivery.deliveryId}</td>
                             <td className="px-4 py-3 body-medium text-on-surface">{delivery.sender}</td>
-                            <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.orders}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.items}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.boxes}</td>
                             <td className="px-4 py-3 text-right">
@@ -3321,7 +3291,6 @@ useEffect(() => {
                             <td className="px-4 py-3 body-medium text-on-surface-variant">{returnDelivery.date}</td>
                             <td className="px-4 py-3 body-medium text-on-surface">{returnDelivery.deliveryId}</td>
                             <td className="px-4 py-3 body-medium text-on-surface">{receiverDisplay}</td>
-                            <td className="px-4 py-3 body-medium text-on-surface text-right">—</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.items}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">—</td>
                             <td className="px-4 py-3 text-right">

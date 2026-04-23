@@ -24,6 +24,8 @@ export interface ReturnItem {
   daysInStore?: number;
   lastInStoreAt?: string;
   isExpired?: boolean;
+  deliveryId?: string;
+  boxLabel?: string;
 }
 
 // Helper function to normalize return item statuses
@@ -216,18 +218,20 @@ function TabBar({
   );
 }
 
-function ReturnItemCard({ 
-  item, 
-  isScanned, 
-  onToggleSelect, 
+function ReturnItemCard({
+  item,
+  isScanned,
+  onToggleSelect,
   onScanStatusChange,
-  daysInStore
-}: { 
-  item: ReturnItem; 
+  daysInStore,
+  partnerName
+}: {
+  item: ReturnItem;
   isScanned: boolean;
   onToggleSelect: (id: string) => void;
   onScanStatusChange: (id: string, markAsScanned: boolean) => void;
   daysInStore: number;
+  partnerName?: string;
 }) {
   const handleScanToggle = (markAsScanned: boolean) => {
     onScanStatusChange(item.id, markAsScanned);
@@ -282,7 +286,11 @@ function ReturnItemCard({
                 selected: item.selected,
                 canExtend: item.canExtend,
                 partnerItemRef: item.partnerItemRef,
-                daysRemaining: daysInStore
+                daysRemaining: daysInStore,
+                deliveryId: item.deliveryId,
+                boxLabel: item.boxLabel,
+                lastInStoreAt: item.lastInStoreAt,
+                sellerName: partnerName
               } as BaseItem}
               variant="items-list"
               showActions={false}
@@ -371,16 +379,18 @@ function EmptyState({
   );
 }
 
-function ItemsList({ 
-  items, 
-  isScanned, 
-  onToggleSelect, 
-  onScanStatusChange 
+function ItemsList({
+  items,
+  isScanned,
+  onToggleSelect,
+  onScanStatusChange,
+  partnerName
 }: {
   items: ReturnItem[];
   isScanned: boolean;
   onToggleSelect: (id: string) => void;
   onScanStatusChange: (id: string, markAsScanned: boolean) => void;
+  partnerName?: string;
 }) {
   if (items.length === 0) return null;
 
@@ -388,12 +398,13 @@ function ItemsList({
     <div className="flex flex-col gap-2">
       {items.map((item) => (
         <div key={item.id}>
-          <ReturnItemCard 
-            item={item} 
+          <ReturnItemCard
+            item={item}
             isScanned={isScanned}
             onToggleSelect={onToggleSelect}
             onScanStatusChange={onScanStatusChange}
             daysInStore={getDaysInStoreForItem(item)}
+            partnerName={partnerName}
           />
         </div>
       ))}
@@ -651,11 +662,12 @@ export default function ReturnManagementScreen({
           {/* Items or Empty State */}
           {currentItems.length > 0 ? (
             <div className="px-4 md:px-6 pb-4">
-              <ItemsList 
+              <ItemsList
                 items={currentItems}
                 isScanned={activeTab === 'scanned'}
                 onToggleSelect={handleToggleSelect}
                 onScanStatusChange={handleScanStatusChange}
+                partnerName={partner.name}
               />
             </div>
           ) : (

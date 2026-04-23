@@ -1322,25 +1322,7 @@ export function ItemDetailsTable({
                     <ChevronRight className="h-5 w-5 text-on-surface-variant" />
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="
-                      w-full flex items-center justify-between p-4 bg-surface-container
-                      hover:bg-surface-container-high active:bg-surface-container-highest
-                    "
-                  >
-                    <div className="flex items-center gap-3 text-left">
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface-container-high">
-                        <Camera className="h-5 w-5 text-on-surface-variant" />
-                      </span>
-                      <div>
-                        <div className="body-large text-on-surface">Take photo</div>
-                        <div className="body-small text-on-surface-variant">Use your camera</div>
-                      </div>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-on-surface-variant" />
-                  </button>
+                  {/* "Take photo" option hidden — not confirmed for scope */}
 
                   {imagePickerCurrentUrl && (
                     <button
