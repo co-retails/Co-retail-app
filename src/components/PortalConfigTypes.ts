@@ -31,43 +31,7 @@ export interface DropdownValue {
   attributeId: string;
 }
 
-export interface CountryOverride {
-  id: string;
-  brandId: string;
-  countryCode: string;
-  attributeId: string;
-  mandatory?: boolean; // Can only tighten (true), not loosen
-  visible: boolean;
-  allowedValueIds?: string[]; // Restrict to subset
-  localizedLabels?: Record<string, string>; // Value code -> localized label
-}
-
-export interface SEKPriceLadder {
-  id: string;
-  brandId: string;
-  partnerId: string;
-  steps: number[]; // Ascending SEK values
-  lastEdited: string;
-  lastEditedBy: string;
-  publishedAt?: string;
-}
-
 export type CurrencyCode = 'SEK' | 'EUR' | 'GBP' | 'USD' | 'DKK' | 'NOK';
-
-export type MappingRuleType = 'nearest' | 'floor' | 'ceil' | 'table';
-
-export interface CurrencyMapping {
-  id: string;
-  brandId: string;
-  partnerId: string;
-  currency: CurrencyCode;
-  ruleType: MappingRuleType;
-  mappingTable?: Array<{ localPrice: number; sekPrice: number }>; // For table type
-  fxSource?: string; // Read-only FX source reference
-  lastEdited: string;
-  lastEditedBy: string;
-  publishedAt?: string;
-}
 
 export interface PartnerPricing {
   id: string;
@@ -115,59 +79,4 @@ export interface Partner {
   id: string;
   name: string;
   code: string;
-}
-
-// Effective configuration (computed from master + overrides)
-export interface EffectiveAttribute extends Attribute {
-  isOverridden: boolean;
-  overrideSource?: 'country' | 'partner';
-  effectiveMandatory: boolean;
-  effectiveValues?: DropdownValue[];
-}
-
-// GTIN Mapping Types
-export type PartnerType = 'Main Partner' | 'Premium Partner' | 'Sellpy';
-
-export interface GtinMapping {
-  id: string;
-  brandId?: string;
-  partnerType: PartnerType;
-  partnerId?: string; // Only for overrides
-  category?: string; // Only for US partners
-  gtin: string;
-  articleNumber: string;
-  source: 'inherited' | 'override';
-  lastEdited: string;
-  lastEditedBy: string;
-  publishedAt?: string;
-}
-
-export interface GtinMappingStats {
-  totalMappings: number;
-  inheritedCount: number;
-  overrideCount: number;
-  storageEfficiency: number; // Percentage of mappings that are inherited vs overrides
-}
-
-// AI Attribute Mapping Types
-export interface AttributeMapping {
-  id: string;
-  brandId: string;
-  partnerId: string;
-  attributeKey: 'color' | 'size' | 'gender' | 'subcategory';
-  brandValueCode: string; // Brand's dropdown value code
-  brandValueLabel: string; // Brand's dropdown value label
-  partnerValue: string; // Partner API value
-  confidence: number; // AI confidence score (0-100)
-  mappedAt: string; // When the mapping was created
-  mappedBy: 'ai' | 'manual';
-  lastUpdated: string;
-  lastUpdatedBy: string;
-}
-
-export interface AttributeMappingStats {
-  totalMappings: number;
-  aiMapped: number;
-  manualMapped: number;
-  averageConfidence: number;
 }

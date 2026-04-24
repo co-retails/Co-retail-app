@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Textarea } from './ui/textarea';
 import { VisuallyHidden } from './ui/visually-hidden';
-import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Camera, ChevronDown, Ban } from 'lucide-react';
+import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, ChevronDown, Ban } from 'lucide-react';
 import svgPaths from '../imports/svg-7un8q74kd7';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Badge } from './ui/badge';
@@ -620,8 +620,6 @@ export default function ItemDetailsDialog({
   const [showHistory, setShowHistory] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [openBrandPopover, setOpenBrandPopover] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const thriftedFlushDraftsRef = useRef<(() => void) | null>(null);
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
@@ -809,14 +807,6 @@ export default function ItemDetailsDialog({
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const handleTakePhoto = () => {
-    cameraInputRef.current?.click();
-  };
-
-  const handleUploadImage = () => {
-    fileInputRef.current?.click();
   };
 
   const displayImage = uploadedImage || item.image || item.thumbnail;
@@ -1190,7 +1180,6 @@ export default function ItemDetailsDialog({
                 alt={item.title || item.brand}
                 className="w-full h-full object-cover"
               />
-              {/* Edit image overlay button — "Take photo" hidden, not confirmed for scope */}
             </div>
           ) : (
             /* No image - back arrow in top left */
@@ -1207,23 +1196,6 @@ export default function ItemDetailsDialog({
             </div>
           )}
 
-          {/* Hidden file inputs */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-
           {/* Item Information */}
           <div className="p-4 space-y-6">
             {/* No Image State - Show small thumbnail and add image options */}
@@ -1235,7 +1207,6 @@ export default function ItemDetailsDialog({
                     <Package className="w-10 h-10 text-on-surface-variant opacity-30" />
                   </div>
                   
-                  {/* Add image options — "Take photo" hidden, not confirmed for scope */}
                   <div className="flex-1">
                     <p className="body-medium text-on-surface mb-2">No image</p>
                     <p className="body-small text-on-surface-variant">Add an image to help identify this item</p>

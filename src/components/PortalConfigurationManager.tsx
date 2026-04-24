@@ -1,15 +1,11 @@
 import { useState } from 'react';
 import { PortalConfigurationLanding } from './PortalConfigurationLanding';
-import { AttributeDictionaryScreen } from './AttributeDictionaryScreen';
 import { DropdownValuesScreen } from './DropdownValuesScreen';
-import { AttributeMappingScreen } from './AttributeMappingScreen';
-import { CurrencyMappingScreen } from './CurrencyMappingScreen';
 import { PartnerPricingScreen } from './PartnerPricingScreen';
 import { PurchasePriceCurrencyConverterScreen } from './PurchasePriceCurrencyConverterScreen';
 import { PublishingVersionsScreen } from './PublishingVersionsScreen';
 import { ValidationRulesScreen } from './ValidationRulesScreen';
 import { AuditLogScreen } from './AuditLogScreen';
-import { GtinMappingScreen } from './GtinMappingScreen';
 import { MarketStoreManagementScreen } from './MarketStoreManagementScreen';
 import PartnerWarehouseManagementScreen from './PartnerWarehouseManagementScreen';
 import PriceForkCalibrationScreen from './PriceForkCalibrationScreen';
@@ -70,14 +66,8 @@ export function PortalConfigurationManager({
         />
       );
 
-    case 'attribute-dictionary':
-      return <AttributeDictionaryScreen onBack={handleBackToLanding} />;
-
     case 'dropdown-values':
-      return <DropdownValuesScreen onBack={handleBackToLanding} onNavigate={handleNavigate} />;
-
-    case 'attribute-mappings':
-      return <AttributeMappingScreen onBack={handleBackToLanding} />;
+      return <DropdownValuesScreen onBack={handleBackToLanding} />;
 
     case 'partner-pricing':
       return <PartnerPricingScreen onBack={handleBackToLanding} />;
@@ -93,9 +83,6 @@ export function PortalConfigurationManager({
         />
       );
 
-    case 'currency-mapping':
-      return <CurrencyMappingScreen onBack={handleBackToLanding} />;
-
     case 'versions':
       return <PublishingVersionsScreen onBack={handleBackToLanding} />;
 
@@ -104,9 +91,6 @@ export function PortalConfigurationManager({
 
     case 'audit':
       return <AuditLogScreen onBack={handleBackToLanding} />;
-
-    case 'gtin-mapping':
-      return <GtinMappingScreen onBack={handleBackToLanding} />;
 
     case 'markets-stores':
       return <MarketStoreManagementScreen onBack={handleBackToLanding} />;

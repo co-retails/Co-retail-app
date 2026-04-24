@@ -50,7 +50,6 @@ import { toast } from 'sonner';
 
 interface DropdownValuesScreenProps {
   onBack: () => void;
-  onNavigate?: (screen: string) => void;
 }
 
 type ExtendedDropdownValue = DropdownValue & {
@@ -67,7 +66,7 @@ function slugify(value: string) {
     .replace(/-+/g, '-');
 }
 
-export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScreenProps) {
+export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
   const brands: Brand[] = useMemo(
     () => [
       { id: 'weekday', name: 'Weekday', code: 'WD' },
@@ -488,7 +487,7 @@ export function DropdownValuesScreen({ onBack, onNavigate }: DropdownValuesScree
             <Button
               variant="outline"
               className="border-outline hover:bg-surface-container-high"
-              onClick={() => toast.info('Use copy/paste or CSV import (coming soon) to manage values')}
+              onClick={() => toast.info('CSV import is not available in this build.')}
             >
               <Upload className="w-5 h-5 mr-2" />
               Import CSV

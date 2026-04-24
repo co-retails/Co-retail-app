@@ -326,7 +326,7 @@ src/
 > - The active app runtime only exposes `store-staff`, `partner`, and admin preview flows.
 > - Buyer portal and showroom flows referenced in older docs and tests are legacy or planned surfaces and are currently out of scope for this repo unless a user explicitly asks to revive them.
 > - There are no buyer/showroom component files or mounted routes in the current app shell. Treat `src/App.tsx`, `src/utils/navigationConfig.ts`, and `src/components/SwitchViewSheet.tsx` as the runtime source of truth.
-> - Do not infer current support for buyer/showroom from `FEATURES_DOCUMENTATION.md` or the legacy buyer/showroom Playwright scenarios.
+> - Do not infer current support for buyer/showroom from legacy docs or the buyer/showroom Playwright scenarios.
 
 **CRITICAL**: This application supports **three distinct user roles** with different interfaces, navigation, and data access.
 

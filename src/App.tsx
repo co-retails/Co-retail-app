@@ -2358,12 +2358,10 @@ export default function App() {
           returnOrder={currentReturnOrderDetails}
           onBack={handleBack}
           onScan={() => {
-            // TODO: Implement scan functionality
-            toast.info('Scan functionality coming soon');
+            toast.info('Scan is not available in this flow.');
           }}
           onAddManually={() => {
-            // TODO: Implement manual add functionality
-            toast.info('Manual add functionality coming soon');
+            toast.info('Manual add is not available in this flow.');
           }}
           onSaveAndClose={() => {
             setCurrentReturnOrderDetails(null);
@@ -3926,4 +3924,3 @@ export default function App() {
     </ResponsiveLayout>
   );
 }
-

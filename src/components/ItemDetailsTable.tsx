@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useOverlayPortalContainer } from './ui/overlay-portal-context';
-import { AlertCircleIcon, Package, Trash2Icon, Check, ChevronDown, Plus, Camera, Image as ImageIcon, Trash2, ChevronRight } from 'lucide-react';
+import { AlertCircleIcon, Package, Trash2Icon, Check, ChevronDown, Plus, Image as ImageIcon, Trash2, ChevronRight } from 'lucide-react';
 import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
 import { OrderItem } from './OrderCreationScreen';
 import { getPriceOptionsForCurrency } from '../data/partnerPricing';
@@ -343,7 +343,6 @@ export function ItemDetailsTable({
     return items.find((it) => it.id === imagePickerItemId)?.imageUrl;
   }, [items, imagePickerItemId]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const objectUrlsRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -1269,14 +1268,6 @@ export function ItemDetailsTable({
             className="hidden"
             onChange={handleImageInputChange}
           />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleImageInputChange}
-          />
 
           <Sheet open={imagePickerOpen} onOpenChange={setImagePickerOpen}>
             <SheetContent
@@ -1321,8 +1312,6 @@ export function ItemDetailsTable({
                     </div>
                     <ChevronRight className="h-5 w-5 text-on-surface-variant" />
                   </button>
-
-                  {/* "Take photo" option hidden — not confirmed for scope */}
 
                   {imagePickerCurrentUrl && (
                     <button

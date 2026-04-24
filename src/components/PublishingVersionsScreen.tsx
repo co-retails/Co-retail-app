@@ -24,7 +24,7 @@ const mockVersions: Version[] = [
     version: '1.3.0',
     status: 'draft',
     changes: 12,
-    description: 'Added new attributes for sustainability metrics and updated price ladders for EUR'
+    description: 'Added sustainability metrics and refreshed EUR pricing rules'
   },
   {
     id: '2',
@@ -33,7 +33,7 @@ const mockVersions: Version[] = [
     publishedDate: '2024-12-01',
     publishedBy: 'Admin User',
     changes: 8,
-    description: 'Updated dropdown values for category and added France country overrides'
+    description: 'Updated category dropdown values and France market configuration'
   },
   {
     id: '3',
@@ -42,7 +42,7 @@ const mockVersions: Version[] = [
     publishedDate: '2024-11-15',
     publishedBy: 'Admin User',
     changes: 15,
-    description: 'Major update to attribute dictionary and validation rules'
+    description: 'Major update to dropdown values and validation rules'
   },
   {
     id: '4',

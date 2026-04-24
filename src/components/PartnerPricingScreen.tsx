@@ -32,7 +32,7 @@ interface PartnerPricingScreenProps {
   onBack: () => void;
 }
 
-// Mock data for partners and currencies (Shenzhen hidden from selection)
+// Mock data for partners and currencies
 const mockPartners = [
   { id: '1', name: 'Sellpy Operations', code: 'SELLPY' },
   { id: '2', name: 'Thrifted', code: 'THRIFT' },
