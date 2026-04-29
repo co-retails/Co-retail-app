@@ -246,7 +246,7 @@ function BrandAutocompleteInput({
             <li key={name}>
               <button
                 type="button"
-                className="w-full px-3 py-2 text-left body-medium hover:bg-surface-container-high min-h-[40px]"
+                className="w-full px-3 py-2 text-left body-medium hover:bg-surface-container-high min-h-[48px] md:min-h-[40px] touch-manipulation"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onChange(name);
@@ -915,7 +915,7 @@ export function ItemDetailsTable({
                                       onUpdateItem(item.id, 'brand', brand);
                                       setOpenBrandPopovers(prev => ({ ...prev, [item.id]: false }));
                                     }}
-                                    className="flex min-h-[44px] cursor-pointer items-center justify-between py-3 md:min-h-0 md:py-1.5"
+                                    className="flex min-h-[48px] cursor-pointer items-center justify-between py-3 md:min-h-0 md:py-1.5 touch-manipulation"
                                   >
                                     <span className="body-medium">{brand}</span>
                                     {item.brand === brand && (

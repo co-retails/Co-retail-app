@@ -79,15 +79,6 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
 }
 
 function ReturnOrderSummaryCard({ returnOrder }: { returnOrder: ReturnOrderDetails }) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-surface-container text-on-surface';
-      case 'in-transit': return 'bg-tertiary-container text-on-tertiary-container';
-      case 'returned': return 'bg-primary-container text-on-primary-container';
-      case 'cancelled': return 'bg-error-container text-on-error-container';
-      default: return 'bg-surface-container text-on-surface';
-    }
-  };
 
   return (
     <Card className="mx-4 md:mx-6 mb-6 bg-surface-container border border-outline-variant">

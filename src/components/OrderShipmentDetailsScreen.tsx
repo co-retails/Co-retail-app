@@ -67,6 +67,7 @@ import {
   getAllThriftedSubcategoriesForBrand,
   getThriftedValidValues
 } from '../utils/spreadsheetUtils';
+import { StatusBadge } from './ui/status-badge';
 import { getCurrencyFromCountry, getPriceOptionsForCurrency } from '../data/partnerPricing';
 import PartnerWarehouseSelector, {
   type Partner,
@@ -303,71 +304,10 @@ export default function OrderShipmentDetailsScreen({
     }
   };
 
-  const getStatusColor = () => {
-    if (type === 'order') {
-      const order = data as PartnerOrder;
-      switch (order.status) {
-        case 'approval': return 'text-warning';
-        case 'pending': return 'text-on-surface-variant';
-        case 'draft': return 'text-on-surface-variant';
-        case 'registered': return 'text-tertiary';
-        case 'in-transit': return 'text-primary';
-        case 'delivered': return 'text-success';
-        case 'in-review': return 'text-warning';
-        default: return 'text-on-surface-variant';
-      }
-    } else if (type === 'shipment') {
-      const shipment = data as DeliveryNote;
-      switch (shipment.status) {
-        case 'draft': return 'text-on-surface-variant';
-        case 'pending': return 'text-on-surface-variant';
-        case 'registered': return 'text-primary';
-        case 'delivered': return 'text-success';
-        case 'rejected': return 'text-error';
-        default: return 'text-on-surface-variant';
-      }
-    } else {
-      const returnData = data as ReturnDelivery;
-      switch (returnData.status) {
-        case 'Pending': return 'text-on-surface-variant';
-        case 'In transit': return 'text-primary';
-        case 'Returned': return 'text-success';
-        case 'Cancelled': return 'text-error';
-        default: return 'text-on-surface-variant';
-      }
-    }
-  };
-
-  const getStatusDisplay = () => {
-    if (type === 'order') {
-      const order = data as PartnerOrder;
-      switch (order.status) {
-        case 'approval': return 'Approval';
-        case 'pending': return 'Pending';
-        case 'draft': return 'Draft';
-        case 'registered': return 'Ready for Packaging';
-        case 'in-transit': return 'In Transit';
-        case 'delivered': return 'Delivered';
-        case 'in-review': return 'In Review';
-        default: return order.status;
-      }
-    } else if (type === 'shipment') {
-      const shipment = data as DeliveryNote;
-      switch (shipment.status) {
-        case 'draft': return 'Draft';
-        case 'pending': return 'Pending';
-        case 'packing': return 'Packing';
-        case 'registered': return 'In Transit';
-        case 'delivered': return 'Delivered';
-        case 'partially-delivered': return 'Partially Delivered';
-        case 'cancelled': return 'Cancelled';
-        case 'rejected': return 'Rejected';
-        default: return shipment.status;
-      }
-    } else {
-      const returnData = data as ReturnDelivery;
-      return returnData.status;
-    }
+  const getStatusValue = () => {
+    if (type === 'order') return (data as PartnerOrder).status;
+    if (type === 'shipment') return (data as DeliveryNote).status;
+    return (data as ReturnDelivery).status;
   };
 
   const getIcon = () => {
@@ -493,8 +433,7 @@ export default function OrderShipmentDetailsScreen({
   const formattedSummaryDate = summaryDateValue
     ? new Date(summaryDateValue).toISOString().split('T')[0]
     : '—';
-  const statusDisplay = getStatusDisplay();
-  const statusColor = getStatusColor();
+  const statusValue = getStatusValue();
 
   const getPrimaryIdentifierLabel = () => {
     if (type === 'order') {
@@ -537,7 +476,7 @@ export default function OrderShipmentDetailsScreen({
     type === 'shipment' &&
     ((data as DeliveryNote).status === 'draft' ||
       (data as DeliveryNote).status === 'packing' ||
-      (data as DeliveryNote).status === 'registered');
+      (data as DeliveryNote).status === 'in-transit');
   const isReceiverEditable = isOrderReceiverEditable || isDeliveryReceiverEditable;
 
   const shipmentNoteStatus = type === 'shipment' ? (data as DeliveryNote).status : undefined;
@@ -550,7 +489,7 @@ export default function OrderShipmentDetailsScreen({
     type === 'shipment' &&
     (shipmentNoteStatus === 'draft' ||
       shipmentNoteStatus === 'packing' ||
-      shipmentNoteStatus === 'registered');
+      shipmentNoteStatus === 'in-transit');
   const canEditSenderByStatus = isOrderSenderEditable || isShipmentSenderEditable;
   
   const [isReceiverSelectorOpen, setIsReceiverSelectorOpen] = useState(false);
@@ -789,7 +728,7 @@ export default function OrderShipmentDetailsScreen({
               <span className="text-on-surface-variant">•</span>
               <span>Items: {totalItems}</span>
             </div>
-            {shipment.status === 'registered' && shipment.shippingLabel && (
+            {shipment.status === 'in-transit' && shipment.shippingLabel && (
               <div className="pt-2">
                 <div className="label-small text-on-surface-variant mb-1">
                   Shipping Label
@@ -1362,9 +1301,11 @@ export default function OrderShipmentDetailsScreen({
                 <div className="flex items-center gap-2">
                   <span className="body-small text-on-surface-variant">{formattedSummaryDate}</span>
                   <span className="text-on-surface-variant">•</span>
-                  <span className={`body-small ${statusColor || 'text-on-surface-variant'}`}>
-                    {statusDisplay || '—'}
-                  </span>
+                  {statusValue ? (
+                    <StatusBadge status={statusValue} />
+                  ) : (
+                    <span className="body-small text-on-surface-variant">—</span>
+                  )}
                 </div>
                 <CardTitle className="title-medium text-on-surface mt-1">
                   {getPrimaryIdentifierLabel()}

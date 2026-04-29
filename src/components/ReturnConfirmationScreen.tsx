@@ -23,8 +23,8 @@ export default function ReturnConfirmationScreen({ returnOrder, onBackToHome, on
 
           {/* Success Message */}
           <div className="text-center mb-8">
-            <div className="text-[20px] leading-[28px] text-success mb-2">Return successfully registered!</div>
-            <p className="text-[14px] leading-[20px] text-on-surface-variant">
+            <div className="title-large text-success mb-2">Return successfully registered!</div>
+            <p className="body-medium text-on-surface-variant">
               Your return has been created and is ready for carrier pickup.
             </p>
           </div>
@@ -63,8 +63,8 @@ export default function ReturnConfirmationScreen({ returnOrder, onBackToHome, on
 
           {/* Next Steps */}
           <div className="bg-success-container/20 border border-[var(--success-container)] rounded-lg p-3 w-full">
-            <p className="text-[12px] leading-[16px] text-success mb-2">Next steps:</p>
-            <div className="text-[11px] leading-[16px] text-success space-y-1">
+            <p className="body-small text-success mb-2">Next steps:</p>
+            <div className="label-small text-success space-y-1">
               <p>1. Ensure carrier shipping label is attached to the parcel</p>
               <p>2. Hand over the parcel to the carrier</p>
               <p>3. Partner will receive notification when return is in transit</p>
@@ -78,15 +78,14 @@ export default function ReturnConfirmationScreen({ returnOrder, onBackToHome, on
         <div className="flex flex-row gap-3 md:justify-end md:gap-4 md:max-w-xl md:ml-auto">
           <Button
             variant="outline"
-            className="flex-1 text-[12px] leading-[16px] tracking-[0.5px] border border-[var(--success-container)] text-success hover:bg-success-container/20 h-[56px] min-h-[56px] md:h-[56px] md:min-h-[56px] md:max-w-[220px] md:flex-none"
+            className="flex-1 label-medium border border-[var(--success-container)] text-success hover:bg-success-container/20 h-[56px] min-h-[56px] md:h-[56px] md:min-h-[56px] md:max-w-[220px] md:flex-none"
             onClick={onViewInShipping}
           >
             View in Shipping
           </Button>
 
           <Button
-            className="flex-1 text-[12px] leading-[16px] tracking-[0.5px] h-[56px] min-h-[56px] md:h-[56px] md:min-h-[56px] rounded-lg md:max-w-[240px] md:flex-none"
-            style={{ backgroundColor: '#000000', color: '#FFFFFF' }}
+            className="flex-1 label-medium h-[56px] min-h-[56px] md:h-[56px] md:min-h-[56px] rounded-lg md:max-w-[240px] md:flex-none"
             onClick={onBackToHome}
           >
             Back to Home

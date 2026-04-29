@@ -10,6 +10,7 @@ import { Checkbox } from './ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import type { Store, Brand, Country } from './StoreSelector';
 import { sortByNameAlpha, sortStoresByCode } from '../utils/spreadsheetUtils';
+import { StatusBadge } from './ui/status-badge';
 import { Partner as WarehousePartner } from './PartnerWarehouseSelector';
 import { DeliveryNote, Box } from './BoxManagementScreen';
 
@@ -571,19 +572,6 @@ export default function ShippingReportScreen({
     setIsDrawerOpen(true);
   };
 
-  const getStatusColor = (status: DeliveryStatus) => {
-    switch (status) {
-      case 'Draft': return 'bg-surface-container-high text-on-surface-variant';
-      case 'Packing': return 'bg-primary-container text-on-primary-container';
-      case 'Delivered': return 'bg-tertiary-container text-on-tertiary-container';
-      case 'In Transit': return 'bg-primary-container text-on-primary-container';
-      case 'Partly Delivered': return 'bg-secondary-container text-on-secondary-container';
-      case 'Rejected': return 'bg-error-container text-on-error-container';
-      case 'Cancelled': return 'bg-error-container text-on-error-container';
-      default: return 'bg-surface-container text-on-surface';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-surface">
       {/* Header */}
@@ -914,9 +902,7 @@ export default function ShippingReportScreen({
                           <td className="py-3 px-4 body-medium text-on-surface">{row.store}</td>
                           <td className="py-3 px-4 body-medium text-on-surface">
                             <div className="flex items-center gap-2">
-                              <Badge className={getStatusColor(row.status)}>
-                                {row.status}
-                              </Badge>
+                              <StatusBadge status={row.status} size="lg" />
                               {row.isOI21 && (
                                 <Badge variant="destructive" className="text-xs">
                                   Overdue
@@ -972,9 +958,7 @@ export default function ShippingReportScreen({
                               <td className="py-1.5 px-4 body-small text-on-surface-variant">—</td>
                               <td className="py-1.5 px-4 body-small text-on-surface">
                                 <div className="flex items-center gap-2">
-                                  <Badge className={getStatusColor(boxStatus as DeliveryStatus)} variant="outline">
-                                    {boxStatus}
-                                  </Badge>
+                                  <StatusBadge status={boxStatus} />
                                   {isBoxOI21 && (
                                     <Badge variant="destructive" className="text-xs">
                                       Overdue
@@ -1050,9 +1034,7 @@ export default function ShippingReportScreen({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge className={getStatusColor(row.status)}>
-                          {row.status}
-                        </Badge>
+                        <StatusBadge status={row.status} size="lg" />
                         {row.isOI21 && (
                           <Badge variant="destructive" className="text-xs">
                             Overdue
@@ -1128,9 +1110,7 @@ export default function ShippingReportScreen({
                                 <p className="body-small text-on-surface font-medium">{box.qrLabel}</p>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Badge className={getStatusColor(boxStatus as DeliveryStatus)} variant="outline">
-                                  {boxStatus}
-                                </Badge>
+                                <StatusBadge status={boxStatus} />
                                 {isBoxOI21 && (
                                   <Badge variant="destructive" className="text-xs">
                                     Overdue
@@ -1185,9 +1165,7 @@ export default function ShippingReportScreen({
                     </div>
                     <div>
                       <p className="body-small text-on-surface-variant">Status</p>
-                      <Badge className={getStatusColor(mapDeliveryStatus(selectedDeliveryNote.status))}>
-                        {mapDeliveryStatus(selectedDeliveryNote.status)}
-                      </Badge>
+                      <StatusBadge status={mapDeliveryStatus(selectedDeliveryNote.status)} size="lg" />
                     </div>
                     <div>
                       <p className="body-small text-on-surface-variant">Days In Transit</p>
@@ -1218,9 +1196,7 @@ export default function ShippingReportScreen({
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge className={getStatusColor(mapDeliveryStatus(selectedDeliveryNote.status))}>
-                                {box.status}
-                              </Badge>
+                              <StatusBadge status={box.status} />
                               {isBoxOI21 && (
                                 <Badge variant="destructive" className="text-xs">
                                   OI-21

@@ -131,7 +131,7 @@ function ReturnOrderSummaryCard({ partner }: { partner: Partner }) {
         {/* Metadata */}
         <div className="flex items-center gap-2 mb-2">
           <Calendar className="w-4 h-4 text-on-surface-variant" />
-          <span className="text-[10px] font-medium text-on-surface-variant tracking-[0.5px] leading-none">
+          <span className="label-small text-on-surface-variant leading-none">
             {new Date().toISOString().split('T')[0]}, Pending
           </span>
         </div>

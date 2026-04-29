@@ -43,13 +43,9 @@ export function StatsCard({
       className={`${baseClasses} ${interactiveClasses} ${className}`}
     >
       <div className="space-y-1">
-        <div className="label-small text-on-surface uppercase">
-          <p className="text-[12px] break-words">{label}</p>
-        </div>
+        <p className="label-medium text-on-surface uppercase break-words">{label}</p>
         {description && (
-          <div className="label-small text-on-surface-variant">
-            <p className="leading-tight text-[10px] break-words">{description}</p>
-          </div>
+          <p className="label-small text-on-surface-variant leading-tight break-words">{description}</p>
         )}
       </div>
       <div className={`title-large ${getValueColor()} mt-auto`}>

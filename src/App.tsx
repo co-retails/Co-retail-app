@@ -3218,7 +3218,7 @@ export default function App() {
                             ...box,
                             status: box.status === 'registered' ? 'registered' : 'pending'
                           })),
-                          status: 'registered',
+                          status: 'in-transit',
                           registeredDate: new Date().toISOString(),
                           shippingLabel: label
                         };
@@ -3266,7 +3266,7 @@ export default function App() {
                       ...box,
                       status: box.status === 'registered' ? 'registered' : 'pending'
                     })),
-                    status: 'registered',
+                    status: 'in-transit',
                     registeredDate: new Date().toISOString(),
                     shippingLabel: shippingLabel
                   };
@@ -3478,7 +3478,7 @@ export default function App() {
                 ));
                 
                 // Update order status based on delivery note status
-                if (deliveryNote.status === 'registered') {
+                if (deliveryNote.status === 'in-transit') {
                   const relatedOrder = partnerOrders.find(order => order.id === deliveryNote.orderId);
                   if (relatedOrder) {
                     setPartnerOrders(prev =>
@@ -3495,7 +3495,7 @@ export default function App() {
                 setDeliveryNotes(prev => [...prev, deliveryNote]);
                 
                 // Update order status based on delivery note status
-                if (deliveryNote.status === 'registered') {
+                if (deliveryNote.status === 'in-transit') {
                   setPartnerOrders(prev =>
                     prev.map(order =>
                       order.id === orderData.id
@@ -3551,7 +3551,7 @@ export default function App() {
                               ...box,
                               status: box.status === 'registered' ? 'registered' : 'pending'
                             })),
-                            status: 'registered',
+                            status: 'in-transit',
                             createdDate: freshShipment.createdDate,
                             registeredDate: new Date().toISOString(),
                             shippingLabel: label
@@ -3599,7 +3599,7 @@ export default function App() {
                         ...box,
                         status: box.status === 'registered' ? 'registered' : 'pending'
                       })),
-                      status: 'registered',
+                      status: 'in-transit',
                       createdDate: shipment.createdDate,
                       registeredDate: new Date().toISOString(),
                       shippingLabel: shippingLabel

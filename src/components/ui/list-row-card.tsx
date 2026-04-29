@@ -39,7 +39,7 @@ export function useListRowFonts() {
         bodyMd: 'body-medium',
         body: 'body-small',
         label: 'label-small',
-        tinyText: 'text-[11px]',
+        tinyText: 'label-small',
         baseText: 'text-sm',
       };
 }

@@ -207,7 +207,8 @@ export default function PartnerWarehouseSelector({
               <button
                 type="button"
                 onClick={handleBack}
-                className="mr-3 p-2 rounded-full hover:bg-surface-container-highest transition-colors"
+                className="inline-flex items-center justify-center mr-3 p-2 rounded-full hover:bg-surface-container-highest transition-colors min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
+                aria-label="Back"
               >
                 <ChevronLeft className="h-6 w-6 text-on-surface" />
               </button>

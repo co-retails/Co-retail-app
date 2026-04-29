@@ -270,7 +270,7 @@ export default function StoreFilterBottomSheet({
                               key={brand.id}
                               value={brand.name}
                               onSelect={() => handleBrandToggle(brand.id)}
-                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 touch-manipulation"
+                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[48px] md:min-h-0 touch-manipulation"
                             >
                               <Checkbox
                                 checked={viewFilter.brandIds?.includes(brand.id) || false}
@@ -351,7 +351,7 @@ export default function StoreFilterBottomSheet({
                                 key={country.id}
                                 value={country.name}
                                 onSelect={() => handleCountryToggle(country.id)}
-                                className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 touch-manipulation"
+                                className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[48px] md:min-h-0 touch-manipulation"
                               >
                                 <Checkbox
                                   checked={viewFilter.countryIds?.includes(country.id) || false}
@@ -435,7 +435,7 @@ export default function StoreFilterBottomSheet({
                                 key={store.id}
                                 value={`${store.name} ${brand?.name} ${country?.name} ${store.code}`}
                                 onSelect={() => handleStoreToggle(store.id)}
-                                className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 touch-manipulation"
+                                className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[48px] md:min-h-0 touch-manipulation"
                               >
                                 <Checkbox
                                   checked={viewFilter.storeIds?.includes(store.id) || false}

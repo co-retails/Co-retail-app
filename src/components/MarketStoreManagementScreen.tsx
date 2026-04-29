@@ -306,7 +306,7 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
                   setSelectedBrandIds([brand.id]);
                   setViewMode('countries');
                 }}
-                className="md:hidden text-primary hover:bg-primary-container p-2 rounded-full transition-colors"
+                className="md:hidden inline-flex items-center justify-center text-primary hover:bg-primary-container p-2 rounded-full transition-colors min-h-[48px] min-w-[48px] touch-manipulation"
                 aria-label="View Markets"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -391,7 +391,7 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
                   if (selectedBrandIds.length === 0) setSelectedBrandIds([country.brandId]);
                   setViewMode('stores');
                 }}
-                className="md:hidden text-primary hover:bg-primary-container p-2 rounded-full transition-colors"
+                className="md:hidden inline-flex items-center justify-center text-primary hover:bg-primary-container p-2 rounded-full transition-colors min-h-[48px] min-w-[48px] touch-manipulation"
                 aria-label="View Stores"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

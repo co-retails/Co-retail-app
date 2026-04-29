@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Card } from './ui/card';
 import { Section } from './ui/section';
-import svgPaths from "../imports/svg-8iuolkmxl8";
 import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
 import SalesDataDashboard from './SalesDataDashboard';
 import MonthlyGoalTracker, { GoalEditDialog } from './MonthlyGoalTracker';
@@ -40,27 +39,6 @@ interface DeliveryHomeScreenProps {
 }
 
 
-
-function StatusBarIPhone() {
-  return (
-    <div className="h-[44px] overflow-clip relative shrink-0 w-full md:hidden">
-      <div className="absolute h-[11.336px] right-[14.67px] top-[17.33px] w-[66.661px]">
-        <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 67 12">
-          <path d={svgPaths.p18c81cf0} fill="#212121" opacity="0.35" stroke="white" />
-          <path d={svgPaths.p3d3cbf00} fill="#212121" opacity="0.4" />
-          <path d={svgPaths.p3cceaf80} fill="#212121" />
-          <path clipRule="evenodd" d={svgPaths.p1d7c8600} fill="#212121" fillRule="evenodd" />
-          <path clipRule="evenodd" d={svgPaths.p3e2de00} fill="#212121" fillRule="evenodd" />
-        </svg>
-      </div>
-      <div className="absolute h-[21px] left-[24px] rounded-[24px] top-[12px] w-[54px]">
-        <div className="absolute font-normal h-[20px] leading-[0] left-[27px] text-[#212121] text-[15px] text-center top-px tracking-[-0.5px] translate-x-[-50%] w-[54px]">
-          <p className="leading-[20px]">9:41</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 interface HeaderProps {
   currentStore: string;
@@ -184,7 +162,7 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
             {/* Admin Settings Icon */}
             <button
               onClick={onAdminClick}
-              className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
+              className="inline-flex items-center justify-center p-2 rounded-full hover:bg-surface-container-high transition-colors min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
               aria-label="Admin Settings"
             >
               <Settings className="h-6 w-6 text-on-surface-variant" />

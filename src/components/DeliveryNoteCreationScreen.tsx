@@ -52,7 +52,7 @@ export interface DeliveryNote {
   id: string;
   orderId: string;
   boxes: Box[];
-  status: 'draft' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
+  status: 'draft' | 'packing' | 'in-transit' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
   createdDate: string;
   registeredDate?: string;
   partnerId?: string;
@@ -417,7 +417,7 @@ export default function DeliveryNoteCreationScreen({
         ...box,
         status: box.status === 'registered' ? 'registered' : 'pending'
       })),
-      status: 'registered',
+      status: 'in-transit',
       createdDate: deliveryNoteId && existingCreatedDate ? existingCreatedDate : new Date().toISOString(),
       registeredDate: new Date().toISOString()
     };

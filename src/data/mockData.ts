@@ -1175,7 +1175,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
         createdDate: '2025-12-10'
       }
     ],
-    status: 'registered',
+    status: 'in-transit',
     createdDate: '2025-12-10',
     shipmentDate: '2025-12-11',
     partnerId: '1',
@@ -1214,7 +1214,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
         createdDate: '2025-12-25'
       }
     ],
-    status: 'registered',
+    status: 'in-transit',
     createdDate: '2025-12-25',
     shipmentDate: '2025-12-26',
     partnerId: '1',
@@ -1252,7 +1252,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
         createdDate: '2025-12-15'
       }
     ],
-    status: 'registered',
+    status: 'in-transit',
     createdDate: '2025-12-15',
     shipmentDate: '2025-12-16',
     partnerId: '1',
@@ -1428,7 +1428,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
         createdDate: '2025-12-18'
       }
     ],
-    status: 'registered',
+    status: 'in-transit',
     createdDate: '2025-12-18',
     shipmentDate: '2025-12-19',
     partnerId: '1',
@@ -1769,6 +1769,46 @@ export const mockPartnerOrders: ExtendedPartnerOrder[] = [
     receivingStoreName: 'Drottninggatan 63',
     warehouseId: '2',
     warehouseName: 'Thrifted Oslo Distribution'
+  },
+  // In-transit orders — packed, dispatched, on their way to the store.
+  // Allows verifying the "In transit" badge and chip filter end-to-end.
+  {
+    id: 'THR-ORD-2024-004',
+    status: 'in-transit',
+    createdDate: '2024-12-08',
+    itemCount: 36,
+    boxCount: 2,
+    deliveryNote: 'DN-2024-001',
+    partnerId: '2',
+    partnerName: 'Thrifted',
+    receivingStoreId: '4',
+    receivingStoreName: 'Oslo Main Street',
+    warehouseId: '2',
+    warehouseName: 'Thrifted Oslo Distribution'
+  },
+  {
+    id: 'SEL-ORD-2024-INTRANSIT-001',
+    status: 'in-transit',
+    createdDate: '2024-12-07',
+    itemCount: 64,
+    boxCount: 3,
+    deliveryNote: 'DN-2024-002',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    receivingStoreId: '1',
+    receivingStoreName: 'Drottninggatan 63'
+  },
+  {
+    id: 'SEL-ORD-2024-INTRANSIT-002',
+    status: 'in-transit',
+    createdDate: '2024-12-06',
+    itemCount: 28,
+    boxCount: 2,
+    deliveryNote: 'DN-2024-003',
+    partnerId: '1',
+    partnerName: 'Sellpy',
+    receivingStoreId: '3',
+    receivingStoreName: 'Copenhagen Central'
   },
   // Sellpy orders
   // Approval orders (Sellpy only)

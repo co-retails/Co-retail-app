@@ -597,7 +597,7 @@ export default function PriceForkCalibrationScreen({
         <div className="flex items-center h-16 px-4 md:px-6">
           <button
             onClick={onBack}
-            className="p-2 -ml-2 rounded-full hover:bg-surface-container-high transition-colors mr-2"
+            className="inline-flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-surface-container-high transition-colors mr-2 min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
             aria-label="Back"
           >
             <ArrowLeft className="h-6 w-6 text-on-surface-variant" />

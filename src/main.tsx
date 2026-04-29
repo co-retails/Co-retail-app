@@ -18,4 +18,3 @@ if (!rootElement) {
   );
   console.log("App rendered successfully");
 }
-  

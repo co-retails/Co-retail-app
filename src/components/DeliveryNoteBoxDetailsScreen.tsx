@@ -6,8 +6,8 @@ import { SharedHeader } from './ui/shared-header';
 import { Section } from './ui/section';
 import { EmptyState } from './ui/empty-state';
 import { toast } from 'sonner@2.0.3';
-import { 
-  PackageIcon, 
+import {
+  PackageIcon,
   CheckIcon,
   MoreVertical,
   XIcon,
@@ -199,43 +199,7 @@ export default function DeliveryNoteBoxDetailsScreen({
     onBack();
   };
 
-  const getStatusDisplay = () => {
-    switch (box.status) {
-      case 'pending':
-        return 'Packing';
-      case 'registered':
-        return 'Registered';
-      case 'in-transit':
-        return 'In Transit';
-      case 'delivered':
-        return 'Delivered';
-      case 'rejected':
-        return 'Rejected';
-      case 'cancelled':
-        return 'Cancelled';
-      default:
-        return box.status;
-    }
-  };
 
-  const getStatusColor = () => {
-    switch (box.status) {
-      case 'pending':
-        return 'text-on-surface-variant';
-      case 'registered':
-        return 'text-success';
-      case 'in-transit':
-        return 'text-primary';
-      case 'delivered':
-        return 'text-success';
-      case 'rejected':
-        return 'text-error';
-      case 'cancelled':
-        return 'text-error';
-      default:
-        return 'text-on-surface-variant';
-    }
-  };
 
   return (
     <div className="min-h-screen bg-surface flex flex-col w-full max-w-full md:max-w-[600px] lg:max-w-[600px] mx-auto">

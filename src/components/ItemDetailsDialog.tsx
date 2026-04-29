@@ -16,7 +16,6 @@ import { VisuallyHidden } from './ui/visually-hidden';
 import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, ChevronDown, Ban } from 'lucide-react';
 import svgPaths from '../imports/svg-7un8q74kd7';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { useOverlayPortalContainer } from './ui/overlay-portal-context';
 import ActiveScanner from './ActiveScanner';
@@ -28,6 +27,7 @@ import {
   sortOptionsAlpha,
   sortStoreItemSizes,
 } from '../utils/spreadsheetUtils';
+import { getStatusLabel, getStatusTextColor } from '../utils/statusColors';
 
 export interface ItemDetails {
   id: string;
@@ -355,7 +355,6 @@ function ThriftedPartnerInlineSection({
   brandAutocompleteOptions,
   priceSelectOptions,
   priceCurrency,
-  getStatusColor,
   onOpenScanner,
   retailerDraft,
   externalDraft,
@@ -369,7 +368,6 @@ function ThriftedPartnerInlineSection({
   brandAutocompleteOptions: string[];
   priceSelectOptions: Array<{ value: string; label: string }>;
   priceCurrency?: string;
-  getStatusColor: (status: string) => string;
   onOpenScanner: () => void;
   retailerDraft: string;
   externalDraft: string;
@@ -458,9 +456,9 @@ function ThriftedPartnerInlineSection({
   return (
     <div className="space-y-8">
       <FieldRow icon={RefreshCw} label="Status">
-        <Badge className={`${getStatusColor(item.status)} px-2 py-0.5 rounded-full`}>
-          {item.status}
-        </Badge>
+        <span className={`body-medium ${getStatusTextColor(item.status)}`}>
+          {getStatusLabel(item.status)}
+        </span>
       </FieldRow>
 
       <FieldRow icon={Tag} label="Item ID*">
@@ -812,28 +810,6 @@ export default function ItemDetailsDialog({
   const displayImage = uploadedImage || item.image || item.thumbnail;
   const hasNoImage = !displayImage;
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'available':
-        return 'bg-success-container text-on-success-container';
-      case 'in transit':
-        return 'bg-primary-container text-on-primary-container';
-      case 'draft':
-        return 'bg-surface-container-high text-on-surface-variant';
-      case 'storage':
-        return 'bg-secondary-container text-on-secondary-container';
-      case 'sold':
-      case 'returned':
-        return 'bg-tertiary-container text-on-tertiary-container';
-      case 'missing':
-      case 'broken':
-      case 'rejected':
-        return 'bg-error-container text-on-error-container';
-      default:
-        return 'bg-surface-container-high text-on-surface-variant';
-    }
-  };
-
   const formatPriceValue = (amount?: number) => {
     if (amount === undefined || amount === null || Number.isNaN(amount)) {
       return 'Not set';
@@ -1053,9 +1029,9 @@ export default function ItemDetailsDialog({
             ) : (
               <div className="flex items-center gap-2">
                 {field === 'status' ? (
-                  <Badge className={`${getStatusColor(currentValue)} px-2 py-0.5 rounded-full`}>
-                    {currentValue}
-                  </Badge>
+                  <span className={`body-large ${getStatusTextColor(currentValue)}`}>
+                    {getStatusLabel(currentValue)}
+                  </span>
                 ) : formatValue ? (
                   <p className="body-large text-on-surface break-words">
                     {formatValue(currentValue)}
@@ -1225,7 +1201,6 @@ export default function ItemDetailsDialog({
                   brandAutocompleteOptions={brandAutocompleteOptions}
                   priceSelectOptions={priceSelectOptions}
                   priceCurrency={priceCurrency}
-                  getStatusColor={getStatusColor}
                   onOpenScanner={() => setShowIdScanner(true)}
                   retailerDraft={thriftedRetailerDraft}
                   externalDraft={thriftedExternalDraft}
@@ -1513,9 +1488,9 @@ export default function ItemDetailsDialog({
                     <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-primary"></div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
-                        <Badge className={`${getStatusColor(entry.status)} px-2 py-0.5 rounded-full`}>
-                          {entry.status}
-                        </Badge>
+                        <span className={`body-medium ${getStatusTextColor(entry.status)}`}>
+                          {getStatusLabel(entry.status)}
+                        </span>
                         <span className="label-small text-on-surface-variant">{entry.timestamp}</span>
                       </div>
                       {entry.user && (

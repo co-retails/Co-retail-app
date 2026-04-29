@@ -18,6 +18,8 @@ import {
 import type { Store as StoreRecord, Country as CountryRecord, Brand as BrandRecord } from './StoreSelector';
 import type { Warehouse } from './PartnerWarehouseSelector';
 import type { SetStateAction, MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent, ChangeEvent } from 'react';
+import { StatusBadge } from './ui/status-badge';
+import { getStatusLabel } from '../utils/statusColors';
 
 type ShippingPartnerOrder = ExtendedPartnerOrder & {
   externalOrderId?: string;
@@ -27,7 +29,7 @@ type ShippingPartnerOrder = ExtendedPartnerOrder & {
 
 type DeliveryNoteStatus = DeliveryNote['status'];
 type ShippingTab = 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'pending-registered';
-type OrderStatusFilter = 'approval' | 'pending' | 'draft' | 'registered' | 'in-transit' | 'all';
+type OrderStatusFilter = 'approval' | 'pending' | 'draft' | 'registered' | 'in-transit' | 'delivered' | 'all';
 type ShipmentStatusFilter = 'packing' | 'in-transit' | 'delivered' | 'all';
 type ReturnStatusFilter = 'in-transit' | 'returned' | 'all';
 type ShippingUserRole = UserRole | 'admin' | 'store-manager';
@@ -126,49 +128,9 @@ interface ShippingScreenProps {
   onViewFilterChange?: (filter: ViewFilter) => void;
 }
 
-const getDeliveryNoteStatusDisplay = (status: DeliveryNoteStatus) => {
-  switch (status) {
-    case 'draft':
-      return 'Draft';
-    case 'packing':
-      return 'Packing';
-    case 'registered':
-      return 'In Transit';
-    case 'delivered':
-      return 'Delivered';
-    case 'partially-delivered':
-      return 'Partially Delivered';
-    case 'cancelled':
-      return 'Cancelled';
-    case 'rejected':
-      return 'Rejected';
-    default:
-      return status;
-  }
-};
-
-const getDeliveryNoteStatusBadgeColor = (status: DeliveryNoteStatus) => {
-  switch (status) {
-    case 'draft':
-      return 'bg-surface-container-high text-on-surface-variant';
-    case 'packing':
-    case 'registered':
-      return 'bg-primary-container text-on-primary-container';
-    case 'delivered':
-      return 'bg-success-container text-on-success-container';
-    case 'partially-delivered':
-      return 'bg-warning-container text-on-warning-container';
-    case 'cancelled':
-    case 'rejected':
-      return 'bg-error-container text-on-error-container';
-    default:
-      return 'bg-surface-container-high text-on-surface-variant';
-  }
-};
-
-/** True when delivery is In transit (status registered) and has been so for more than 10 days. */
+/** True when delivery is In transit and has been so for more than 10 days. */
 const isDeliveryNoteInTransitOver10Days = (note: DeliveryNote): boolean => {
-  if (note.status !== 'registered') return false;
+  if (note.status !== 'in-transit') return false;
   const fromDate = note.shipmentDate || note.createdDate;
   if (!fromDate) return false;
   const from = new Date(fromDate);
@@ -213,10 +175,10 @@ function countItemsInBoxes(deliveryNote: DeliveryNote): number {
   );
 }
 
-/** After the delivery is registered (shipped), list item count reflects packed lines only. */
+/** Once the delivery is in transit (shipped), list item count reflects packed lines only. */
 function deliveryNoteUsesBoxedItemCount(status: DeliveryNote['status']): boolean {
   return (
-    status === 'registered' ||
+    status === 'in-transit' ||
     status === 'delivered' ||
     status === 'partially-delivered' ||
     status === 'cancelled' ||
@@ -334,12 +296,6 @@ function Tabs({ activeTab, onTabChange, userRole }: {
 
 function DeliveryItem({ delivery, onSelect }: { delivery: Delivery; onSelect: () => void }) {
   const fonts = useListRowFonts();
-  const getStatusBadgeClass = (status: Delivery['status']) => {
-    if (status === 'Delivered') {
-      return 'bg-success-container text-on-success-container';
-    }
-    return 'bg-surface-container-high text-on-surface';
-  };
 
   return (
     <button
@@ -359,9 +315,8 @@ function DeliveryItem({ delivery, onSelect }: { delivery: Delivery; onSelect: ()
           {/* Top Line - Date and Status in smallest font (consistent with other screens) */}
           <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-nowrap whitespace-nowrap`}>
             <span>{delivery.date},</span>
-            <span className={`${fonts.tinyText} font-semibold px-2 py-0.5 rounded-full ${getStatusBadgeClass(delivery.status)}`}>
-              {delivery.status}
-            </span>
+            <StatusBadge status={delivery.status} />
+
           </div>
 
           {/* Primary Line - Delivery ID (prominent) */}
@@ -460,9 +415,7 @@ function PartnerDeliveryNoteItem({
           {/* Top Line - Date and Status in smallest font (consistent with DeliveryItem) */}
           <div className={`${fonts.tinyText} font-medium text-on-surface-variant leading-tight tracking-[0.5px] mb-0.5 flex items-center gap-1 flex-wrap`}>
             <span>{deliveryNote.createdDate},</span>
-            <span className={`${fonts.tinyText} font-medium px-2 py-0.5 rounded-full ${getDeliveryNoteStatusBadgeColor(deliveryStatus)}`}>
-              {getDeliveryNoteStatusDisplay(deliveryStatus)}
-            </span>
+            <StatusBadge status={deliveryStatus} />
             {inTransitOver10Days && (
               <span className={`${fonts.tinyText} font-medium text-error`}>more than 10 days</span>
             )}
@@ -568,23 +521,6 @@ function ReturnDeliveryComponent({
   userRole?: ShippingUserRole;
 }) {
   const fonts = useListRowFonts();
-  const getStatusDisplay = (status: ReturnDelivery['status']) => {
-    switch (status) {
-      case 'Pending': return 'Pending';
-      case 'In transit': return 'In transit';
-      case 'Returned': return 'Returned';
-      default: return status;
-    }
-  };
-
-  const getStatusBadgeColor = (status: ReturnDelivery['status']) => {
-    switch (status) {
-      case 'Pending': return 'bg-warning-container text-on-warning-container';
-      case 'In transit': return 'bg-primary-container text-on-primary-container';
-      case 'Returned': return 'bg-success-container text-on-success-container';
-      default: return 'bg-surface-container-high text-on-surface-variant';
-    }
-  };
 
   const { sender, receiver } = resolveReturnDeliveryParties(returnDelivery, stores, brands, warehouses);
 
@@ -664,9 +600,7 @@ function ReturnDeliveryComponent({
             <span className={`${fonts.tinyText} font-medium text-on-surface-variant`}>
               {returnDelivery.date},
             </span>
-            <span className={`${fonts.tinyText} font-medium px-2 py-0.5 rounded-full ${getStatusBadgeColor(returnDelivery.status)}`}>
-              {getStatusDisplay(returnDelivery.status)}
-            </span>
+            <StatusBadge status={returnDelivery.status} />
           </div>
 
           {/* Primary Line - Delivery ID */}
@@ -695,9 +629,11 @@ function ReturnDeliveryComponent({
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
           {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
-          <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(returnDelivery.status)}`}>
-            {getStatusDisplay(returnDelivery.status)}
-          </div>
+          <StatusBadge
+            status={returnDelivery.status}
+            size="lg"
+            className="hidden lg:inline-flex"
+          />
 
           {/* More menu for pending returns */}
           {returnDelivery.status === 'Pending' && onCancel && (
@@ -712,7 +648,7 @@ function ReturnDeliveryComponent({
                     e.stopPropagation();
                     e.preventDefault();
                   }}
-                  className="p-2 rounded-full hover:bg-surface-container-high transition-colors touch-manipulation"
+                  className="inline-flex items-center justify-center p-2 rounded-full hover:bg-surface-container-high transition-colors min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
                   aria-label="More actions"
                 >
                   <MoreVertical className="w-5 h-5 text-on-surface-variant" />
@@ -800,29 +736,6 @@ function PartnerOrderItem({
   const warehouseRecord = order.warehouseId ? warehouses?.find(w => w.id === order.warehouseId) : undefined;
   const warehouseDisplay = order.warehouseName || warehouseRecord?.name;
   
-  const getStatusDisplay = (status: ShippingPartnerOrder['status']) => {
-    switch (status) {
-      case 'approval': return 'Approval';
-      case 'pending': return 'Pending';
-      case 'registered': return 'Ready for Packaging';
-      case 'in-transit': return 'In Transit';
-      case 'delivered': return 'Delivered';
-      case 'in-review': return 'In Review';
-      default: return status;
-    }
-  };
-
-  const getStatusBadgeColor = (status: ShippingPartnerOrder['status']) => {
-    switch (status) {
-      case 'approval': return 'bg-secondary-container text-on-secondary-container';
-      case 'pending': return 'bg-warning-container text-on-warning-container';
-      case 'registered': return 'bg-tertiary-container text-on-tertiary-container';
-      case 'in-transit': return 'bg-primary-container text-on-primary-container';
-      case 'delivered': return 'bg-success-container text-on-success-container';
-      case 'in-review': return 'bg-warning-container text-on-warning-container';
-      default: return 'bg-surface-container-high text-on-surface-variant';
-    }
-  };
 
   const canDeleteOrder =
     !!onDelete &&
@@ -865,9 +778,7 @@ function PartnerOrderItem({
             <span className={`${fonts.tinyText} font-medium text-on-surface-variant`}>
               {order.createdDate},
             </span>
-            <span className={`${fonts.tinyText} font-medium px-2 py-0.5 rounded-full ${getStatusBadgeColor(order.status)}`}>
-              {getStatusDisplay(order.status)}
-            </span>
+            <StatusBadge status={order.status} />
           </div>
 
           {/* Primary Line - Order ID */}
@@ -916,17 +827,19 @@ function PartnerOrderItem({
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
           {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
-          <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[140px] justify-center ${getStatusBadgeColor(order.status)}`}>
-            {getStatusDisplay(order.status)}
-          </div>
-          
+          <StatusBadge
+            status={order.status}
+            size="lg"
+            className="hidden lg:inline-flex min-w-[140px]"
+          />
+
           {/* Action Menu */}
           {(order.status === 'registered' && onCreateDeliveryNote) || canDeleteOrder ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
-                  className="p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors"
+                  className="inline-flex items-center justify-center p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
                   aria-label="Order actions"
                 >
                   <MoreVertical className="w-4 h-4" />
@@ -982,36 +895,6 @@ function SellpyOrderItem({
   order: SellpyOrder; 
   onClick?: () => void; 
 }) {
-  const getStatusColor = (status: SellpyOrder['status']) => {
-    switch (status) {
-      case 'pending': return 'text-on-warning-container';
-      case 'in-progress': return 'text-on-primary-container';
-      case 'completed': return 'text-on-tertiary-container';
-      case 'registered': return 'text-tertiary';
-      default: return 'text-on-surface-variant';
-    }
-  };
-
-  const getStatusDisplay = (status: SellpyOrder['status']) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'in-progress': return 'In Progress';
-      case 'completed': return 'Completed';
-      case 'registered': return 'Registered';
-      default: return status;
-    }
-  };
-
-  const getStatusBadgeColor = (status: SellpyOrder['status']) => {
-    switch (status) {
-      case 'pending': return 'bg-warning-container text-on-warning-container';
-      case 'in-progress': return 'bg-primary-container text-on-primary-container';
-      case 'completed': return 'bg-tertiary-container text-on-tertiary-container';
-      case 'registered': return 'bg-tertiary-container text-on-tertiary-container';
-      default: return 'bg-surface-container-high text-on-surface-variant';
-    }
-  };
-
   const getStatusIcon = (status: SellpyOrder['status']) => {
     switch (status) {
       case 'pending': return ClockIcon;
@@ -1041,8 +924,9 @@ function SellpyOrderItem({
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Top Line - Order ID and Status */}
-          <div className={`${fonts.tinyText} font-medium leading-tight tracking-[0.5px] mb-0.5 ${getStatusColor(order.status)}`}>
-            {order.id}, {getStatusDisplay(order.status)}
+          <div className={`${fonts.tinyText} font-medium leading-tight tracking-[0.5px] mb-0.5 text-on-surface-variant flex items-center gap-2 flex-wrap`}>
+            <span>{order.id},</span>
+            <StatusBadge status={order.status} />
           </div>
 
           {/* Primary Line - Date */}
@@ -1064,9 +948,11 @@ function SellpyOrderItem({
         {/* Trailing Elements */}
         <div className="flex-shrink-0 flex items-center gap-3">
           {/* Status Badge - Visible on desktop only (hidden on tablet to avoid duplicate with top-left status) */}
-          <div className={`hidden lg:flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(order.status)}`}>
-            {getStatusDisplay(order.status)}
-          </div>
+          <StatusBadge
+            status={order.status}
+            size="lg"
+            className="hidden lg:inline-flex"
+          />
 
           {/* Arrow */}
           <div className="w-5 h-5 flex items-center justify-center">
@@ -1174,37 +1060,45 @@ type ReturnSortField = 'date' | 'id' | 'senderReceiver' | 'items' | 'status';
   // Thrifted: Draft only (no Pending). Sellpy: Pending only (no Draft).
   const isThriftedPartnerForFilter = currentPartnerId === '2'; // Thrifted
   const canShowApprovalOrderFilter = !!isAdmin;
+  // Chip labels are derived from `getStatusLabel` so they always match the
+  // displayed StatusBadge. Two exceptions stay custom:
+  //   - 'all'      — not a status, always reads "All".
+  //   - 'packing'  — combined chip aggregating `draft` + `packing` shipment
+  //                  statuses; spelled "Draft & Packing" to signal the grouping.
   const orderStatusFilterOptions: Array<{ id: OrderStatusFilter; label: string }> = isThriftedPartnerForFilter
     ? [
         { id: 'all' as OrderStatusFilter, label: 'All' },
-        { id: 'draft' as OrderStatusFilter, label: 'Draft' },
-        { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
-        { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
+        { id: 'draft' as OrderStatusFilter, label: getStatusLabel('draft') },
+        { id: 'registered' as OrderStatusFilter, label: getStatusLabel('registered') },
+        { id: 'in-transit' as OrderStatusFilter, label: getStatusLabel('in-transit') },
+        { id: 'delivered' as OrderStatusFilter, label: getStatusLabel('delivered') }
       ]
     : canShowApprovalOrderFilter
       ? [
           { id: 'all' as OrderStatusFilter, label: 'All' },
-          { id: 'approval' as OrderStatusFilter, label: 'Approval' },
-          { id: 'pending' as OrderStatusFilter, label: 'Pending' },
-          { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
-          { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
+          { id: 'approval' as OrderStatusFilter, label: getStatusLabel('approval') },
+          { id: 'pending' as OrderStatusFilter, label: getStatusLabel('pending') },
+          { id: 'registered' as OrderStatusFilter, label: getStatusLabel('registered') },
+          { id: 'in-transit' as OrderStatusFilter, label: getStatusLabel('in-transit') },
+          { id: 'delivered' as OrderStatusFilter, label: getStatusLabel('delivered') }
         ]
       : [
           { id: 'all' as OrderStatusFilter, label: 'All' },
-          { id: 'pending' as OrderStatusFilter, label: 'Pending' },
-          { id: 'registered' as OrderStatusFilter, label: 'Ready for Packaging' },
-          { id: 'in-transit' as OrderStatusFilter, label: 'In transit' }
+          { id: 'pending' as OrderStatusFilter, label: getStatusLabel('pending') },
+          { id: 'registered' as OrderStatusFilter, label: getStatusLabel('registered') },
+          { id: 'in-transit' as OrderStatusFilter, label: getStatusLabel('in-transit') },
+          { id: 'delivered' as OrderStatusFilter, label: getStatusLabel('delivered') }
         ];
   const shipmentStatusFilterOptions: Array<{ id: ShipmentStatusFilter; label: string }> = [
     { id: 'all', label: 'All' },
     { id: 'packing', label: 'Draft & Packing' },
-    { id: 'in-transit', label: 'In transit' },
-    { id: 'delivered', label: 'Delivered' }
+    { id: 'in-transit', label: getStatusLabel('in-transit') },
+    { id: 'delivered', label: getStatusLabel('delivered') }
   ];
   const returnStatusFilterOptions: Array<{ id: ReturnStatusFilter; label: string }> = [
     { id: 'all', label: 'All' },
-    { id: 'in-transit', label: 'In transit' },
-    { id: 'returned', label: 'Returned' }
+    { id: 'in-transit', label: getStatusLabel('in-transit') },
+    { id: 'returned', label: getStatusLabel('returned') }
   ];
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -1622,6 +1516,8 @@ useEffect(() => {
           return order.status === 'registered';
         case 'in-transit':
           return order.status === 'in-transit';
+        case 'delivered':
+          return order.status === 'delivered';
         case 'all':
         default:
           return ['approval', 'pending', 'draft', 'registered', 'in-transit', 'in-review', 'delivered'].includes(order.status);
@@ -1891,25 +1787,25 @@ useEffect(() => {
                       case 'packing':
                         return noteStatus === 'draft' || noteStatus === 'packing';
           case 'in-transit':
-            return noteStatus === 'registered';
+            return noteStatus === 'in-transit';
           case 'delivered':
             return noteStatus === 'delivered' || noteStatus === 'rejected' || noteStatus === 'partially-delivered' || noteStatus === 'cancelled';
           case 'all':
           default:
-            return ['draft', 'packing', 'registered', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
+            return ['draft', 'packing', 'in-transit', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
         }
       })();
 
       return matchesSearch && matchesStatusFilter;
     }
-    
-    // For store staff: exclude draft/pending delivery notes - only show in-transit (registered) and delivered/rejected
+
+    // For store staff: exclude draft/pending delivery notes - only show in-transit and delivered/rejected
     if ((role === 'store-staff' || role === 'admin' || role === 'store-manager') && (noteStatus === 'draft' || noteStatus === 'packing')) {
       return false;
     }
-    
+
     const matchesTab = (activeTab === 'pending' && (noteStatus === 'draft' || noteStatus === 'packing')) ||
-      (activeTab === 'in-transit' && noteStatus === 'registered') ||
+      (activeTab === 'in-transit' && noteStatus === 'in-transit') ||
       (activeTab === 'all' && (noteStatus === 'delivered' || noteStatus === 'rejected'));
     
     return matchesSearch && matchesTab;
@@ -2243,12 +2139,12 @@ useEffect(() => {
                     case 'packing':
                       return noteStatus === 'draft' || noteStatus === 'packing';
                     case 'in-transit':
-                      return noteStatus === 'registered';
+                      return noteStatus === 'in-transit';
                     case 'delivered':
                       return noteStatus === 'delivered' || noteStatus === 'rejected' || noteStatus === 'partially-delivered' || noteStatus === 'cancelled';
                     case 'all':
                     default:
-                      return ['draft', 'packing', 'registered', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
+                      return ['draft', 'packing', 'in-transit', 'delivered', 'rejected', 'partially-delivered', 'cancelled'].includes(noteStatus);
                   }
                 }).length;
               })();
@@ -2449,14 +2345,7 @@ useEffect(() => {
                                 className="px-4 py-3 text-right cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >
-                                <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${
-                                  returnDelivery.status === 'Pending' ? 'bg-warning-container text-on-warning-container' :
-                                  returnDelivery.status === 'In transit' ? 'bg-primary-container text-on-primary-container' :
-                                  returnDelivery.status === 'Returned' ? 'bg-success-container text-on-success-container' :
-                                  'bg-surface-container-high text-on-surface-variant'
-                                }`}>
-                                  {returnDelivery.status}
-                                </div>
+                                <StatusBadge status={returnDelivery.status} size="lg" />
                               </td>
                               <td className="px-4 py-3 text-right">
                                 {returnDelivery.status !== 'Returned' && onUpdateReturnDeliveryStatus && role === 'partner' && (
@@ -2579,14 +2468,7 @@ useEffect(() => {
                                 className="px-4 py-3 text-right cursor-pointer"
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >
-                                <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${
-                                  returnDelivery.status === 'Pending' ? 'bg-warning-container text-on-warning-container' :
-                                  returnDelivery.status === 'In transit' ? 'bg-primary-container text-on-primary-container' :
-                                  returnDelivery.status === 'Returned' ? 'bg-success-container text-on-success-container' :
-                                  'bg-surface-container-high text-on-surface-variant'
-                                }`}>
-                                  {returnDelivery.status}
-                                </div>
+                                <StatusBadge status={returnDelivery.status} size="lg" />
                               </td>
                               <td className="px-4 py-3 text-right">
                                 {/* No action buttons for store staff - returns can only be marked as returned by partners */}
@@ -2642,28 +2524,8 @@ useEffect(() => {
                     </thead>
                     <tbody>
                       {filteredSellpyOrders.map((order) => {
-                        const getStatusColor = (status: SellpyOrder['status']) => {
-                          switch (status) {
-                            case 'pending': return 'text-on-surface-variant';
-                            case 'in-progress': return 'text-primary';
-                            case 'completed': return 'text-tertiary';
-                            case 'registered': return 'text-tertiary';
-                            default: return 'text-on-surface-variant';
-                          }
-                        };
-
-                        const getStatusDisplay = (status: SellpyOrder['status']) => {
-                          switch (status) {
-                            case 'pending': return 'Pending';
-                            case 'in-progress': return 'In Progress';
-                            case 'completed': return 'Completed';
-                            case 'registered': return 'Registered';
-                            default: return status;
-                          }
-                        };
-                        
                         return (
-                          <tr 
+                          <tr
                             key={order.id}
                             onClick={() => handleSellpyOrderSelect(order.id)}
                             className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors cursor-pointer"
@@ -2671,9 +2533,7 @@ useEffect(() => {
                             <td className="px-4 py-3 body-medium text-on-surface-variant">{order.createdDate}</td>
                             <td className="px-4 py-3 body-medium text-on-surface">{order.id}</td>
                             <td className="px-4 py-3">
-                              <span className={`body-medium ${getStatusColor(order.status)}`}>
-                                {getStatusDisplay(order.status)}
-                              </span>
+                              <StatusBadge status={order.status} size="lg" />
                             </td>
                             <td className="px-4 py-3 body-medium text-on-surface-variant">
                               {order.itemsWithRetailerIds} / {order.totalItems} items
@@ -2817,9 +2677,7 @@ useEffect(() => {
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >
                               <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getDeliveryNoteStatusBadgeColor(noteStatus)}`}>
-                                  {getDeliveryNoteStatusDisplay(noteStatus)}
-                                </div>
+                                <StatusBadge status={noteStatus} size="lg" />
                                 {inTransitOver10 && (
                                   <span className="label-medium text-error whitespace-nowrap">more than 10 days</span>
                                 )}
@@ -2830,7 +2688,7 @@ useEffect(() => {
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button 
-                                      className="p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors"
+                                      className="inline-flex items-center justify-center p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
                                       onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
                                     >
                                       <MoreVertical className="w-4 h-4" />
@@ -2942,30 +2800,6 @@ useEffect(() => {
                     </thead>
                     <tbody>
                       {paginatedPartnerOrders.map((order) => {
-                        const getStatusDisplay = (status: ShippingPartnerOrder['status']) => {
-                          switch (status) {
-                            case 'approval': return 'Approval';
-                            case 'pending': return 'Pending';
-                            case 'registered': return 'Ready for Packaging';
-                            case 'in-transit': return 'In Transit';
-                            case 'delivered': return 'Delivered';
-                            case 'in-review': return 'In Review';
-                            default: return status;
-                          }
-                        };
-
-                        const getStatusBadgeColor = (status: ShippingPartnerOrder['status']) => {
-                          switch (status) {
-                            case 'approval': return 'bg-secondary-container text-on-secondary-container';
-                            case 'pending': return 'bg-warning-container text-on-warning-container';
-                            case 'registered': return 'bg-tertiary-container text-on-tertiary-container';
-                            case 'in-transit': return 'bg-primary-container text-on-primary-container';
-                            case 'delivered': return 'bg-success-container text-on-success-container';
-                            case 'in-review': return 'bg-warning-container text-on-warning-container';
-                            default: return 'bg-surface-container-high text-on-surface-variant';
-                          }
-                        };
-
                         const isSellpyPending = order.status === 'pending' && order.partnerName === 'Sellpy Operations';
                         const receiverDisplay = getReceiverDisplay(order.receivingStoreId, order.receivingStoreName);
                         const storeRecord = order.receivingStoreId ? stores?.find(store => store.id === order.receivingStoreId) : undefined;
@@ -3075,9 +2909,7 @@ useEffect(() => {
                                 }
                               }}
                             >
-                              <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[140px] justify-center ${getStatusBadgeColor(order.status)}`}>
-                                {getStatusDisplay(order.status)}
-                              </div>
+                              <StatusBadge status={order.status} size="lg" className="min-w-[140px]" />
                             </td>
                             <td className="px-4 py-3 text-right">
                               {(
@@ -3091,7 +2923,7 @@ useEffect(() => {
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button 
-                                      className="p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors"
+                                      className="inline-flex items-center justify-center p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
                                       onClick={(e: ReactMouseEvent<HTMLButtonElement>) => e.stopPropagation()}
                                     >
                                       <MoreVertical className="w-4 h-4" />
@@ -3217,20 +3049,8 @@ useEffect(() => {
                     </thead>
                     <tbody>
                       {filteredDeliveries.map((delivery) => {
-                        const getStatusBadgeColor = (status: Delivery['status']) => {
-                          switch (status) {
-                            case 'Delivered': return 'bg-success-container text-on-success-container';
-                            case 'In transit': return 'bg-primary-container text-on-primary-container';
-                            case 'Partially Delivered': return 'bg-warning-container text-on-warning-container';
-                            case 'Cancelled': return 'bg-error-container text-on-error-container';
-                            default: return 'bg-surface-container-high text-on-surface-variant';
-                          }
-                        };
-                        
-                        const shouldHighlightStatus = delivery.status === 'Delivered' || delivery.status === 'In transit';
-                        
                         return (
-                          <tr 
+                          <tr
                             key={delivery.id}
                             onClick={() => onSelectDelivery(delivery)}
                             className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors cursor-pointer"
@@ -3241,15 +3061,7 @@ useEffect(() => {
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.items}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{delivery.boxes}</td>
                             <td className="px-4 py-3 text-right">
-                              {shouldHighlightStatus ? (
-                                <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(delivery.status)}`}>
-                                  {delivery.status}
-                                </div>
-                              ) : (
-                                <span className={`body-medium ${delivery.status === 'In transit' ? 'text-primary' : delivery.status === 'Partially Delivered' ? 'text-warning' : delivery.status === 'Cancelled' ? 'text-error' : 'text-on-surface-variant'}`}>
-                                  {delivery.status}
-                                </span>
-                              )}
+                              <StatusBadge status={delivery.status} size="lg" />
                             </td>
                             <td className="px-4 py-3 text-right">
                               <ChevronRight className="w-5 h-5 text-on-surface-variant inline-block" />
@@ -3271,19 +3083,8 @@ useEffect(() => {
                           return returnDelivery.storeName;
                         })();
 
-                        const getStatusBadgeColor = (status: ReturnDelivery['status']) => {
-                          switch (status) {
-                            case 'Pending': return 'bg-warning-container text-on-warning-container';
-                            case 'In transit': return 'bg-primary-container text-on-primary-container';
-                            case 'Returned': return 'bg-success-container text-on-success-container';
-                            default: return 'bg-surface-container-high text-on-surface-variant';
-                          }
-                        };
-
-                        const shouldHighlightStatus = returnDelivery.status === 'Pending' || returnDelivery.status === 'In transit' || returnDelivery.status === 'Returned';
-
                         return (
-                          <tr 
+                          <tr
                             key={returnDelivery.id}
                             onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                             className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container-high transition-colors cursor-pointer"
@@ -3294,15 +3095,7 @@ useEffect(() => {
                             <td className="px-4 py-3 body-medium text-on-surface text-right">{returnDelivery.items}</td>
                             <td className="px-4 py-3 body-medium text-on-surface text-right">—</td>
                             <td className="px-4 py-3 text-right">
-                              {shouldHighlightStatus ? (
-                                <div className={`inline-flex px-3 py-1.5 rounded-full label-medium min-w-[120px] justify-center ${getStatusBadgeColor(returnDelivery.status)}`}>
-                                  {returnDelivery.status}
-                                </div>
-                              ) : (
-                                <span className={`body-medium ${returnDelivery.status === 'Pending' ? 'text-warning' : returnDelivery.status === 'In transit' ? 'text-primary' : 'text-on-surface-variant'}`}>
-                                  {returnDelivery.status}
-                                </span>
-                              )}
+                              <StatusBadge status={returnDelivery.status} size="lg" />
                             </td>
                             <td className="px-4 py-3 text-right">
                               <ChevronRight className="w-5 h-5 text-on-surface-variant inline-block" />

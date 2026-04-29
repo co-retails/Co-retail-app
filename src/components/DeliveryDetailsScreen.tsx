@@ -10,6 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { StatusBadge } from './ui/status-badge';
+import { getStatusLabel } from '../utils/statusColors';
 
 type DeliveryDetailsUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner';
 
@@ -118,16 +120,10 @@ function TopAppBar({
 }
 
 function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
+  const statusLabel = getStatusLabel(delivery.status);
   const statusDisplay = delivery.status === 'Cancelled' && delivery.cancellationReason
-    ? `${delivery.status} • ${delivery.cancellationReason}`
-    : delivery.status;
-
-  const getStatusBadgeClass = (status: Delivery['status']) => {
-    if (status === 'Delivered') {
-      return 'bg-success-container text-on-success-container';
-    }
-    return '';
-  };
+    ? `${statusLabel} • ${delivery.cancellationReason}`
+    : statusLabel;
 
   const isDelivered = delivery.status === 'Delivered';
 
@@ -153,9 +149,7 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
                 })()}
               </span>
               {isDelivered ? (
-                <span className={`label-small px-2 py-0.5 rounded-full ${getStatusBadgeClass(delivery.status)}`}>
-                  {statusDisplay}
-                </span>
+                <StatusBadge status={delivery.status}>{statusDisplay}</StatusBadge>
               ) : (
                 <span>{statusDisplay}</span>
               )}

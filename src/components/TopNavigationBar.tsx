@@ -115,7 +115,7 @@ export default function TopNavigationBar({
           {/* Settings Icon */}
           <button
             onClick={onSettingsClick}
-            className="p-2 rounded-xl hover:bg-surface-container-high"
+            className="inline-flex items-center justify-center p-2 rounded-xl hover:bg-surface-container-high min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
             style={{ transition: 'all 200ms ease' }}
             onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}

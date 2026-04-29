@@ -3,6 +3,7 @@ import { ArrowLeft, Upload, Clock, CheckCircle, AlertCircle, Download } from 'lu
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { StatusBadge } from './ui/status-badge';
 
 interface PublishingVersionsScreenProps {
   onBack: () => void;
@@ -60,26 +61,8 @@ export function PublishingVersionsScreen({ onBack }: PublishingVersionsScreenPro
   const [pendingChanges] = useState(12);
 
   const getStatusBadge = (status: Version['status']) => {
-    switch (status) {
-      case 'draft':
-        return (
-          <Badge variant="outline" className="border-outline bg-surface-container-highest">
-            <span className="label-small text-on-surface-variant">Draft</span>
-          </Badge>
-        );
-      case 'published':
-        return (
-          <Badge variant="outline" className="border-tertiary bg-tertiary-container">
-            <span className="label-small text-on-tertiary-container">Published</span>
-          </Badge>
-        );
-      case 'archived':
-        return (
-          <Badge variant="outline" className="border-outline bg-surface-variant">
-            <span className="label-small text-on-surface-variant">Archived</span>
-          </Badge>
-        );
-    }
+    const label = status.charAt(0).toUpperCase() + status.slice(1);
+    return <StatusBadge status={status}>{label}</StatusBadge>;
   };
 
   return (

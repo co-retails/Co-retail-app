@@ -32,11 +32,12 @@
   /* The default color for text or elements on top of primary containers. */
   --on-primary-container: rgba(44, 44, 36, 1);
   /* The secondary color used for secondary(but NOT-DESTRUCTIVE) buttons and interactive elements. */
-  --secondary: rgba(240, 240, 235, 1);
+  /* Mid-tone olive-grey so `text-secondary` is readable on light surfaces (matches --on-surface-variant). */
+  --secondary: rgba(114, 114, 108, 1);
   /* The default color for text or elements that appear on top of secondary colored elements. */
-  --secondary-foreground: rgba(44, 44, 36, 1);
+  --secondary-foreground: rgba(255, 255, 255, 1);
   /* The secondary container color. */
-  --secondary-container: rgba(240, 240, 235, 1);
+  --secondary-container: rgba(220, 220, 215, 1);
   /* The default color for text or elements on top of secondary containers. */
   --on-secondary-container: rgba(44, 44, 36, 1);
   /* The muted color used for less prominent elements, such as disabled buttons or disabled text. */

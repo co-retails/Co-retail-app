@@ -38,7 +38,7 @@ export interface DeliveryNote {
   orderId: string;
   externalOrderId?: string;
   boxes: Box[];
-  status: 'draft' | 'packing' | 'registered' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
+  status: 'draft' | 'packing' | 'in-transit' | 'delivered' | 'partially-delivered' | 'cancelled' | 'rejected';
   createdDate: string;
   shipmentDate?: string;
   partnerId?: string;
@@ -249,7 +249,7 @@ export default function BoxManagementScreen({
       id: `DN-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       orderId,
       boxes: registeredBoxes,
-      status: 'registered',
+      status: 'in-transit',
       createdDate: new Date().toISOString().split('T')[0],
       shipmentDate: new Date().toISOString().split('T')[0]
     };

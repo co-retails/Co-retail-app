@@ -13,6 +13,7 @@ import {
 import { Edit3, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw, MapPin } from "lucide-react";
 import type { StatusHistoryEntry } from './ItemDetailsDialog';
 import { useIsListRowBumped } from './ui/list-row-card';
+import { getStatusTextColor } from '../utils/statusColors';
 
 // Base item interface that works for both Item and OrderItem
 export interface BaseItem {
@@ -290,29 +291,7 @@ export const ItemCard = memo(function ItemCard({
       icon: quickActionIcon(a.action),
     }));
   };
-  const getStatusColor = (status?: string) => {
-    if (!status) return 'text-on-surface-variant';
-    
-    switch (status.toLowerCase()) {
-      case 'available':
-        return 'text-success';
-      case 'in transit':
-        return 'text-primary';
-      case 'draft':
-        return 'text-on-surface-variant';
-      case 'storage':
-        return 'text-warning';
-      case 'sold':
-      case 'returned':
-        return 'text-tertiary';
-      case 'missing':
-      case 'broken':
-      case 'rejected':
-        return 'text-error';
-      default:
-        return 'text-on-surface-variant';
-    }
-  };
+  const getStatusColor = getStatusTextColor;
 
   if (variant === 'order-details') {
     const {
