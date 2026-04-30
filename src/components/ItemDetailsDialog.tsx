@@ -9,11 +9,10 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Textarea } from './ui/textarea';
+import BrandPicker from './BrandPicker';
 import { VisuallyHidden } from './ui/visually-hidden';
-import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, ChevronDown, Ban } from 'lucide-react';
+import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Ban } from 'lucide-react';
 import svgPaths from '../imports/svg-7un8q74kd7';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Separator } from './ui/separator';
@@ -617,7 +616,6 @@ export default function ItemDetailsDialog({
   const [scannedId, setScannedId] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [openBrandPopover, setOpenBrandPopover] = useState(false);
   const thriftedFlushDraftsRef = useRef<(() => void) | null>(null);
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
@@ -918,51 +916,13 @@ export default function ItemDetailsDialog({
                     className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base touch-manipulation"
                   />
                 ) : type === 'select' && field === 'brand' ? (
-                  <Popover open={openBrandPopover} onOpenChange={setOpenBrandPopover}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation justify-between flex-1"
-                      >
-                        <span className="truncate">
-                          {currentValue || 'Select brand'}
-                        </span>
-                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search brands..." />
-                        <CommandList>
-                          <CommandEmpty>No brand found.</CommandEmpty>
-                          <CommandGroup>
-                            {selectOptions.map((option) => (
-                              <CommandItem
-                                key={option.value}
-                                value={option.value}
-                                onSelect={() => {
-                                  setEditValues({
-                                    ...editValues,
-                                    [field]: option.value
-                                  });
-                                  setOpenBrandPopover(false);
-                                }}
-                                className="relative flex items-center cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 pr-8"
-                              >
-                                <span>{option.label}</span>
-                                {currentValue === option.value && (
-                                  <span className="absolute right-2 flex size-3.5 items-center justify-center">
-                                    <Check className="w-4 h-4" />
-                                  </span>
-                                )}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <BrandPicker
+                    value={currentValue?.toString() || ''}
+                    onChange={(v) => setEditValues({ ...editValues, [field]: v })}
+                    brands={selectOptions.map((o) => o.value)}
+                    placeholder="Select brand"
+                    triggerClassName="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation flex-1"
+                  />
                 ) : type === 'select' ? (
                   <Select
                     modal={false}
@@ -1213,20 +1173,9 @@ export default function ItemDetailsDialog({
             ) : (
               <>
                 {/* Item ID - Replaces Title */}
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="title-large text-on-surface mb-1 flex-1 min-w-0 break-words">
-                    Item ID: {item.itemId}
-                  </h2>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowIdScanner(true)}
-                    className="flex items-center gap-2 flex-shrink-0 min-h-[48px] touch-manipulation"
-                  >
-                    <QrCode size={18} />
-                    Scan new ID
-                  </Button>
-                </div>
+                <h2 className="title-large text-on-surface mb-1 break-words">
+                  Item ID: {item.itemId}
+                </h2>
 
                 <Separator className="bg-outline-variant" />
 

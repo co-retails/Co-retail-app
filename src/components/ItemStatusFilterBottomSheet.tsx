@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { FilterIcon, CheckIcon, ChevronDownIcon } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
+import MultiPicker, { MultiPickerOption } from './MultiPicker';
 
 interface ItemStatusFilterBottomSheetProps {
   selectedStatuses: string[];
@@ -72,6 +73,12 @@ export default function ItemStatusFilterBottomSheet({
     [availablePricePoints]
   );
 
+  // Options for the MultiPicker brand dropdown (full-screen on mobile).
+  const brandPickerOptions: MultiPickerOption[] = useMemo(
+    () => sortedBrands.map((b) => ({ id: b, label: b })),
+    [sortedBrands]
+  );
+
   const handleStatusToggle = (status: string) => {
     const newStatuses = selectedStatuses.includes(status)
       ? selectedStatuses.filter(s => s !== status)
@@ -84,13 +91,6 @@ export default function ItemStatusFilterBottomSheet({
       ? selectedCategories.filter(c => c !== category)
       : [...selectedCategories, category];
     onCategoryChange(newCategories);
-  };
-
-  const handleBrandToggle = (brand: string) => {
-    const newBrands = selectedItemBrands.includes(brand)
-      ? selectedItemBrands.filter(b => b !== brand)
-      : [...selectedItemBrands, brand];
-    onBrandChange(newBrands);
   };
 
   const handleColorToggle = (color: string) => {
@@ -148,13 +148,14 @@ export default function ItemStatusFilterBottomSheet({
       <SheetTrigger asChild>
         {children}
       </SheetTrigger>
-      <SheetContent 
-        side={isMobile ? "bottom" : "right"} 
-        className={isMobile 
-          ? "max-h-[85vh] flex flex-col" 
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className={isMobile
+          ? "max-h-[85vh] flex flex-col"
           : "w-full sm:max-w-md flex flex-col h-full"
         }
       >
+        <style>{`[data-status-filter-popover]{animation:none!important;transition:none!important;width:var(--radix-popover-trigger-width)!important}`}</style>
         {/* Header - Compact */}
         <SheetHeader className={isMobile ? "flex-shrink-0 px-4 pt-4 pb-3 pr-12" : "flex-shrink-0 px-6 pt-6 pb-4 pr-12"}>
           <div className="flex items-center justify-between">
@@ -219,7 +220,11 @@ export default function ItemStatusFilterBottomSheet({
                     <ChevronDownIcon className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0 h-44" align="start">
+                <PopoverContent
+                  data-status-filter-popover=""
+                  className="p-0"
+                  align="start"
+                >
                   <Command>
                     <CommandInput placeholder="Search statuses..." />
                     <CommandList>
@@ -296,7 +301,11 @@ export default function ItemStatusFilterBottomSheet({
                     <ChevronDownIcon className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0 h-60" align="start">
+                <PopoverContent
+                  data-status-filter-popover=""
+                  className="p-0"
+                  align="start"
+                >
                   <Command>
                     <CommandInput placeholder="Search categories..." />
                     <CommandList>
@@ -356,48 +365,16 @@ export default function ItemStatusFilterBottomSheet({
               <label className="body-small text-on-surface-variant mb-1 block">
                 Item Brands ({selectedItemBrands.length})
               </label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full h-12 md:h-10 justify-between text-left min-h-[48px] md:min-h-0 touch-manipulation"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="body-medium text-on-surface">
-                        {selectedItemBrands.length === 0 
-                          ? "Select brands..." 
-                          : `${selectedItemBrands.length} selected`
-                        }
-                      </span>
-                    </div>
-                    <ChevronDownIcon className="h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0 h-60" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search brands..." />
-                    <CommandList>
-                      <CommandEmpty>No brands found.</CommandEmpty>
-                      <CommandGroup>
-                        {sortedBrands.map((brand) => (
-                          <CommandItem
-                            key={brand}
-                            value={brand}
-                            onSelect={() => handleBrandToggle(brand)}
-                            className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0 touch-manipulation"
-                          >
-                            <Checkbox
-                              checked={selectedItemBrands.includes(brand)}
-                              className="pointer-events-none"
-                            />
-                            <span className="body-medium">{brand}</span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <MultiPicker
+                options={brandPickerOptions}
+                selectedIds={selectedItemBrands}
+                onChange={onBrandChange}
+                placeholder="Select brands..."
+                searchPlaceholder="Search brands..."
+                emptyText="No brands found."
+                title="Select brands"
+                triggerClassName="w-full h-12 md:h-10 text-left min-h-[48px] md:min-h-0 touch-manipulation"
+              />
               {selectedItemBrands.length > 0 && (
                 <div className="flex items-center justify-between mt-1">
                   <div className="flex flex-wrap gap-1">
@@ -450,7 +427,11 @@ export default function ItemStatusFilterBottomSheet({
                     <ChevronDownIcon className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0 h-60" align="start">
+                <PopoverContent
+                  data-status-filter-popover=""
+                  className="p-0"
+                  align="start"
+                >
                   <Command>
                     <CommandInput placeholder="Search colors..." />
                     <CommandList>
@@ -527,7 +508,11 @@ export default function ItemStatusFilterBottomSheet({
                     <ChevronDownIcon className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0 h-60" align="start">
+                <PopoverContent
+                  data-status-filter-popover=""
+                  className="p-0"
+                  align="start"
+                >
                   <Command>
                     <CommandInput placeholder="Search prices..." />
                     <CommandList>

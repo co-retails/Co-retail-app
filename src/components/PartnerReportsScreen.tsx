@@ -280,9 +280,8 @@ export default function PartnerReportsScreen({
                       <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0" align="start">
+                  <PopoverContent className="w-[200px] p-0 z-50" align="start">
                     <Command>
-                      <CommandInput placeholder="Search partners..." />
                       <CommandList>
                         <CommandEmpty>No partners found.</CommandEmpty>
                         <CommandGroup>
@@ -337,7 +336,7 @@ export default function PartnerReportsScreen({
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-surface-container-high border border-outline">
+                  <SelectContent className="bg-surface-container-high border border-outline z-50">
                     <SelectItem value="month" className="body-medium">Month</SelectItem>
                     <SelectItem value="daily" className="body-medium">Yesterday</SelectItem>
                     <SelectItem value="week" className="body-medium">Week</SelectItem>
@@ -357,7 +356,7 @@ export default function PartnerReportsScreen({
                     >
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-surface-container-high border border-outline">
+                    <SelectContent className="bg-surface-container-high border border-outline z-50">
                       {salesData.map(data => (
                         <SelectItem key={data.month} value={data.month} className="body-medium">
                           {new Date(data.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -409,9 +408,8 @@ export default function PartnerReportsScreen({
                     <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0" align="start">
+                <PopoverContent className="w-[200px] p-0 z-50" align="start">
                   <Command>
-                    <CommandInput placeholder="Search brands..." />
                     <CommandList>
                       <CommandEmpty>No brands found.</CommandEmpty>
                       <CommandGroup>
@@ -449,7 +447,7 @@ export default function PartnerReportsScreen({
                     <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0" align="start">
+                <PopoverContent className="w-[200px] p-0 z-50" align="start">
                   <Command>
                     <CommandInput placeholder="Search countries..." />
                     <CommandList>
@@ -489,7 +487,7 @@ export default function PartnerReportsScreen({
                     <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0" align="start">
+                <PopoverContent className="w-[250px] p-0 z-50" align="start">
                   <Command>
                     <CommandInput placeholder="Search stores..." />
                     <CommandList>
@@ -528,7 +526,7 @@ export default function PartnerReportsScreen({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-surface-container-high border border-outline">
+                <SelectContent className="bg-surface-container-high border border-outline z-50">
                   <SelectItem value="SEK" className="body-medium">SEK</SelectItem>
                   <SelectItem value="EUR" className="body-medium">EUR</SelectItem>
                   <SelectItem value="USD" className="body-medium">USD</SelectItem>

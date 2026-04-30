@@ -520,10 +520,18 @@ function ActiveFiltersDisplay({
 }) {
   const activeFilters: ActiveFilter[] = [];
   
-  if (filters.brand !== 'all') activeFilters.push({ key: 'brand', label: filters.brand });
-  if (filters.category !== 'all') activeFilters.push({ key: 'category', label: filters.category });
-  if (filters.status !== 'all') activeFilters.push({ key: 'status', label: filters.status });
-  if (filters.colour !== 'all') activeFilters.push({ key: 'colour', label: filters.colour });
+  const summarize = (key: keyof ItemFilters, prefix: string, values: string[]) => {
+    if (values.length === 0) return;
+    activeFilters.push({
+      key,
+      label: values.length === 1 ? values[0]! : `${prefix} (${values.length})`,
+    });
+  };
+  summarize('brand', 'Brand', filters.brand);
+  summarize('category', 'Category', filters.category);
+  summarize('status', 'Status', filters.status);
+  summarize('colour', 'Colour', filters.colour);
+  summarize('size', 'Size', filters.size);
   if (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 1000) {
     activeFilters.push({ 
       key: 'priceRange', 
@@ -2217,11 +2225,19 @@ export default function ItemsScreen({
         }
       }
       
-      // Advanced filter sheet filters
-      const matchesBrand = itemFilters.brand === 'all' || item.brand === itemFilters.brand;
-      const matchesCategory = itemFilters.category === 'all' || item.category === itemFilters.category;
-      const matchesStatus = itemFilters.status === 'all' || item.status === itemFilters.status;
-      const matchesColour = itemFilters.colour === 'all' || item.color === itemFilters.colour;
+      // Advanced filter sheet filters (multi-select: empty array = no filter)
+      const matchesBrand =
+        itemFilters.brand.length === 0 || itemFilters.brand.includes(item.brand);
+      const matchesCategory =
+        itemFilters.category.length === 0 || itemFilters.category.includes(item.category);
+      const matchesStatus =
+        itemFilters.status.length === 0 || itemFilters.status.includes(item.status);
+      const matchesColour =
+        itemFilters.colour.length === 0 ||
+        (item.color !== undefined && itemFilters.colour.includes(item.color));
+      const matchesSize =
+        itemFilters.size.length === 0 ||
+        (item.size !== undefined && itemFilters.size.includes(item.size));
       const matchesPrice = item.price >= itemFilters.priceRange[0] && item.price <= itemFilters.priceRange[1];
       
       // ViewFilter filters (for partner portal - filter by brand/store/country)
@@ -2242,8 +2258,8 @@ export default function ItemsScreen({
         // Country filtering would need items to have a countryId or storeId field
       }
       
-      return matchesPartner && matchesQuickSearch && matchesQuickFilter && 
-             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesPrice && matchesViewFilter;
+      return matchesPartner && matchesQuickSearch && matchesQuickFilter &&
+             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesSize && matchesPrice && matchesViewFilter;
     }).map(item => {
       // Set location based on status if not already set
       let itemWithLocation = item;
@@ -2521,20 +2537,20 @@ export default function ItemsScreen({
 
   const handleRemoveFilter = (filterKey: keyof ItemFilters) => {
     const newFilters = { ...itemFilters };
-    
+
     switch (filterKey) {
       case 'brand':
       case 'category':
       case 'status':
       case 'colour':
-      case 'location':
-        newFilters[filterKey] = 'all';
+      case 'size':
+        newFilters[filterKey] = [];
         break;
       case 'priceRange':
         newFilters.priceRange = [0, 1000];
         break;
     }
-    
+
     setItemFilters(newFilters);
   };
 
@@ -2544,11 +2560,11 @@ export default function ItemsScreen({
   };
 
   const hasActiveFilters = () => {
-    return itemFilters.brand !== 'all' ||
-           itemFilters.category !== 'all' ||
-           itemFilters.status !== 'all' ||
-           itemFilters.colour !== 'all' ||
-           itemFilters.location !== 'all' ||
+    return itemFilters.brand.length > 0 ||
+           itemFilters.category.length > 0 ||
+           itemFilters.status.length > 0 ||
+           itemFilters.colour.length > 0 ||
+           itemFilters.size.length > 0 ||
            itemFilters.priceRange[0] !== 0 ||
            itemFilters.priceRange[1] !== 1000 ||
            itemFilters.sortBy !== 'date-desc';

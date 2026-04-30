@@ -3,14 +3,10 @@ import { sortByNameAlpha, sortStoresByCode } from '../utils/spreadsheetUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from './ui/sheet';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { Checkbox } from './ui/checkbox';
-import { ScrollArea } from './ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { FilterIcon, CheckIcon, XIcon, ChevronDownIcon, PlusIcon } from 'lucide-react';
+import { FilterIcon, CheckIcon } from 'lucide-react';
 import { Brand, Store, Country } from './StoreSelector';
 import { useMediaQuery } from './ui/use-mobile';
+import MultiPicker, { MultiPickerOption } from './MultiPicker';
 
 export type ViewMode = 'all' | 'by-partner' | 'by-store';
 
@@ -72,30 +68,6 @@ export default function StoreFilterBottomSheet({
   const handleViewAllStores = () => {
     onViewAllStores();
     setSheetOpen(false);
-  };
-
-  const handleBrandToggle = (brandId: string) => {
-    const currentBrandIds = viewFilter.brandIds || [];
-    const newBrandIds = currentBrandIds.includes(brandId)
-      ? currentBrandIds.filter(id => id !== brandId)
-      : [...currentBrandIds, brandId];
-    onBrandFilterChange(newBrandIds);
-  };
-
-  const handleStoreToggle = (storeId: string) => {
-    const currentStoreIds = viewFilter.storeIds || [];
-    const newStoreIds = currentStoreIds.includes(storeId)
-      ? currentStoreIds.filter(id => id !== storeId)
-      : [...currentStoreIds, storeId];
-    onStoreFilterChange(newStoreIds);
-  };
-
-  const handleCountryToggle = (countryId: string) => {
-    const currentCountryIds = viewFilter.countryIds || [];
-    const newCountryIds = currentCountryIds.includes(countryId)
-      ? currentCountryIds.filter(id => id !== countryId)
-      : [...currentCountryIds, countryId];
-    onCountryFilterChange(newCountryIds);
   };
 
 
@@ -182,9 +154,40 @@ export default function StoreFilterBottomSheet({
       }
       return acc;
     }, [] as Country[]);
-    
+
     return sortByNameAlpha(uniqueCountries);
   };
+
+  // Options for the MultiPicker components.
+  const brandOptions: MultiPickerOption[] = useMemo(
+    () => sortedBrands.map((b) => ({ id: b.id, label: b.name })),
+    [sortedBrands]
+  );
+
+  const countryOptions: MultiPickerOption[] = useMemo(
+    () => getFilteredCountries().map((c) => ({ id: c.id, label: c.name })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [countries]
+  );
+
+  const storeOptions: MultiPickerOption[] = useMemo(
+    () =>
+      getFilteredStores().map((store) => {
+        const brand = brands.find((b) => b.id === store.brandId);
+        const country = countries.find((c) => c.id === store.countryId);
+        const subtitleParts: string[] = [];
+        if (brand) subtitleParts.push(brand.name);
+        if (country) subtitleParts.push(`${country.name} • ${store.code}`);
+        return {
+          id: store.id,
+          label: store.name,
+          subtitle: subtitleParts.join(' • '),
+          searchValue: `${store.name} ${brand?.name ?? ''} ${country?.name ?? ''} ${store.code}`,
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stores, brands, countries, viewFilter.brandIds, viewFilter.countryIds]
+  );
 
   return (
     <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -242,48 +245,17 @@ export default function StoreFilterBottomSheet({
                 <label className="body-small text-on-surface-variant mb-1 block">
                   Brands ({viewFilter.brandIds?.length || 0})
                 </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-12 md:h-10 justify-between text-left min-h-[48px] md:min-h-0 touch-manipulation"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="body-medium text-on-surface">
-                          {(viewFilter.brandIds?.length || 0) === 0 
-                            ? "Select brands..." 
-                            : `${viewFilter.brandIds?.length} selected`
-                          }
-                        </span>
-                      </div>
-                      <ChevronDownIcon className="h-4 w-4 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 h-44" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search brands..." />
-                      <CommandList>
-                        <CommandEmpty>No brands found.</CommandEmpty>
-                        <CommandGroup>
-                          {sortedBrands.map((brand) => (
-                            <CommandItem
-                              key={brand.id}
-                              value={brand.name}
-                              onSelect={() => handleBrandToggle(brand.id)}
-                              className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[48px] md:min-h-0 touch-manipulation"
-                            >
-                              <Checkbox
-                                checked={viewFilter.brandIds?.includes(brand.id) || false}
-                                className="pointer-events-none"
-                              />
-                              <span className="body-medium">{brand.name}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <MultiPicker
+                  options={brandOptions}
+                  selectedIds={viewFilter.brandIds || []}
+                  onChange={onBrandFilterChange}
+                  placeholder="Select brands..."
+                  emptyText="No brands found."
+                  title="Select brands"
+                  triggerClassName="w-full h-12 md:h-10 text-left min-h-[48px] md:min-h-0 touch-manipulation"
+                  compact
+                  hideSearch
+                />
                 {(viewFilter.brandIds?.length || 0) > 0 && (
                   <div className="flex items-center justify-between mt-1">
                     <div className="flex flex-wrap gap-1">
@@ -322,50 +294,16 @@ export default function StoreFilterBottomSheet({
                 <label className="body-small text-on-surface-variant mb-1 block">
                   Countries ({viewFilter.countryIds?.length || 0})
                 </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-12 md:h-10 justify-between text-left min-h-[48px] md:min-h-0 touch-manipulation"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="body-medium text-on-surface">
-                          {(viewFilter.countryIds?.length || 0) === 0 
-                            ? "Select countries..." 
-                            : `${viewFilter.countryIds?.length} selected`
-                          }
-                        </span>
-                      </div>
-                      <ChevronDownIcon className="h-4 w-4 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 h-60" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search countries..." />
-                      <CommandList>
-                        <CommandEmpty>No countries found.</CommandEmpty>
-                        <CommandGroup>
-                          {getFilteredCountries().map((country) => {
-                            return (
-                              <CommandItem
-                                key={country.id}
-                                value={country.name}
-                                onSelect={() => handleCountryToggle(country.id)}
-                                className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[48px] md:min-h-0 touch-manipulation"
-                              >
-                                <Checkbox
-                                  checked={viewFilter.countryIds?.includes(country.id) || false}
-                                  className="pointer-events-none"
-                                />
-                                <span className="body-medium">{country.name}</span>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <MultiPicker
+                  options={countryOptions}
+                  selectedIds={viewFilter.countryIds || []}
+                  onChange={onCountryFilterChange}
+                  placeholder="Select countries..."
+                  searchPlaceholder="Search countries..."
+                  emptyText="No countries found."
+                  title="Select countries"
+                  triggerClassName="w-full h-12 md:h-10 text-left min-h-[48px] md:min-h-0 touch-manipulation"
+                />
                 {(viewFilter.countryIds?.length || 0) > 0 && (
                   <div className="flex items-center justify-between mt-1">
                     <div className="flex flex-wrap gap-1">
@@ -404,69 +342,16 @@ export default function StoreFilterBottomSheet({
                 <label className="body-small text-on-surface-variant mb-1 block">
                   Stores ({viewFilter.storeIds?.length || 0})
                 </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full h-12 md:h-10 justify-between text-left min-h-[48px] md:min-h-0 touch-manipulation"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="body-medium text-on-surface">
-                          {(viewFilter.storeIds?.length || 0) === 0 
-                            ? "Select stores..." 
-                            : `${viewFilter.storeIds?.length} selected`
-                          }
-                        </span>
-                      </div>
-                      <ChevronDownIcon className="h-4 w-4 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0 h-72" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search stores..." />
-                      <CommandList>
-                        <CommandEmpty>No stores found.</CommandEmpty>
-                        <CommandGroup>
-                          {getFilteredStores().map((store) => {
-                            const country = countries.find(c => c.id === store.countryId);
-                            const brand = brands.find(b => b.id === store.brandId);
-                            return (
-                              <CommandItem
-                                key={store.id}
-                                value={`${store.name} ${brand?.name} ${country?.name} ${store.code}`}
-                                onSelect={() => handleStoreToggle(store.id)}
-                                className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[48px] md:min-h-0 touch-manipulation"
-                              >
-                                <Checkbox
-                                  checked={viewFilter.storeIds?.includes(store.id) || false}
-                                  className="pointer-events-none"
-                                />
-                                <div className="flex flex-col flex-1">
-                                  <span className="body-medium">{store.name}</span>
-                                  <div className="flex items-center gap-2">
-                                    {brand && (
-                                      <span className="body-small text-on-surface-variant">
-                                        {brand.name}
-                                      </span>
-                                    )}
-                                    {brand && country && (
-                                      <span className="body-small text-on-surface-variant">•</span>
-                                    )}
-                                    {country && (
-                                      <span className="body-small text-on-surface-variant">
-                                        {country.name} • {store.code}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <MultiPicker
+                  options={storeOptions}
+                  selectedIds={viewFilter.storeIds || []}
+                  onChange={onStoreFilterChange}
+                  placeholder="Select stores..."
+                  searchPlaceholder="Search stores..."
+                  emptyText="No stores found."
+                  title="Select stores"
+                  triggerClassName="w-full h-12 md:h-10 text-left min-h-[48px] md:min-h-0 touch-manipulation"
+                />
                 {(viewFilter.storeIds?.length || 0) > 0 && (
                   <div className="flex items-center justify-between mt-1">
                     <div className="flex flex-wrap gap-1">

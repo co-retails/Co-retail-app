@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { sortOptionsAlpha, sortStoreItemSizes } from '../utils/spreadsheetUtils';
 import {
   Sheet,
@@ -12,26 +12,25 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Slider } from './ui/slider';
-import { ChevronDown, Check } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import MultiPicker, { MultiPickerOption } from './MultiPicker';
 
 export interface ItemFilters {
-  brand: string;
-  category: string;
-  status: string;
-  colour: string;
-  size: string;
+  /** Empty array = no filter (show all). */
+  brand: string[];
+  category: string[];
+  status: string[];
+  colour: string[];
+  size: string[];
   priceRange: [number, number];
   sortBy: 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 }
 
 export const defaultFilters: ItemFilters = {
-  brand: 'all',
-  category: 'all',
-  status: 'all',
-  colour: 'all',
-  size: 'all',
+  brand: [],
+  category: [],
+  status: [],
+  colour: [],
+  size: [],
   priceRange: [0, 1000],
   sortBy: 'date-desc'
 };
@@ -107,7 +106,6 @@ export default function ItemFilterSheet({
 }: ItemFilterSheetProps) {
   const [localFilters, setLocalFilters] = useState<ItemFilters>(filters);
   const [isMobile, setIsMobile] = React.useState(false);
-  const [brandPickerOpen, setBrandPickerOpen] = useState(false);
 
   // Detect mobile screen size
   React.useEffect(() => {
@@ -145,16 +143,44 @@ export default function ItemFilterSheet({
   // Calculate active filter count
   const activeFilterCount = Object.entries(localFilters).filter(([key, value]) => {
     if (key === 'sortBy') return false;
-    if (key === 'priceRange') return value[0] !== 0 || value[1] !== 1000;
-    return value !== 'all';
+    if (key === 'priceRange') {
+      const [lo, hi] = value as [number, number];
+      return lo !== 0 || hi !== 1000;
+    }
+    return Array.isArray(value) && value.length > 0;
   }).length;
 
-  const selectableBrands = React.useMemo(() => {
+  const selectableBrands = useMemo(() => {
     const source = brandOptions && brandOptions.length > 0 ? brandOptions : DEFAULT_BRAND_OPTIONS;
     return Array.from(new Set(source.map(name => name.trim()).filter(Boolean))).sort((a, b) =>
       a.localeCompare(b)
     );
   }, [brandOptions]);
+
+  // Build MultiPicker option lists once per render.
+  const brandPickerOptions: MultiPickerOption[] = useMemo(
+    () => selectableBrands.map(b => ({ id: b, label: b })),
+    [selectableBrands]
+  );
+  const categoryPickerOptions: MultiPickerOption[] = useMemo(
+    () => FILTER_CATEGORY_VALUES.map(c => ({ id: c, label: c })),
+    []
+  );
+  const statusPickerOptions: MultiPickerOption[] = useMemo(
+    () => FILTER_STATUS_VALUES.map(s => ({ id: s, label: s })),
+    []
+  );
+  const colourPickerOptions: MultiPickerOption[] = useMemo(
+    () => FILTER_COLOUR_VALUES.map(c => ({ id: c, label: c })),
+    []
+  );
+  const sizePickerOptions: MultiPickerOption[] = useMemo(
+    () => FILTER_SIZE_VALUES.map(s => ({ id: s, label: s })),
+    []
+  );
+
+  const filterTriggerClass =
+    'w-full bg-surface-container border border-outline-variant rounded-lg text-left min-h-[48px] body-large';
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -186,61 +212,17 @@ export default function ItemFilterSheet({
             <Label htmlFor="brand" className="label-large text-on-surface">
               Brand
             </Label>
-            <Popover open={brandPickerOpen} onOpenChange={setBrandPickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  role="combobox"
-                  aria-expanded={brandPickerOpen}
-                  className="w-full justify-between bg-surface-container border border-outline-variant rounded-lg text-left"
-                  id="brand"
-                >
-                  <span className="truncate">
-                    {localFilters.brand === 'all' ? 'All brands' : localFilters.brand}
-                  </span>
-                  <ChevronDown className="w-4 h-4 opacity-60 flex-shrink-0" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="p-0 w-[calc(100vw-2rem)] sm:w-72"
-                align="start"
-              >
-                <Command>
-                  <CommandInput placeholder="Search brands..." />
-                  <CommandList>
-                    <CommandEmpty>No brand found.</CommandEmpty>
-                    <CommandGroup heading="Brands">
-                      <CommandItem
-                        value="all"
-                        onSelect={() => {
-                          updateFilter('brand', 'all');
-                          setBrandPickerOpen(false);
-                        }}
-                        className="flex items-center justify-between min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation"
-                      >
-                        <span>All brands</span>
-                        {localFilters.brand === 'all' && <Check className="w-4 h-4 opacity-70" />}
-                      </CommandItem>
-                      {selectableBrands.map((brand) => (
-                        <CommandItem
-                          key={brand}
-                          value={brand.toLowerCase()}
-                          onSelect={() => {
-                            updateFilter('brand', brand);
-                            setBrandPickerOpen(false);
-                          }}
-                          className="flex items-center justify-between min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation"
-                        >
-                          <span>{brand}</span>
-                          {localFilters.brand === brand && <Check className="w-4 h-4 opacity-70" />}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <MultiPicker
+              options={brandPickerOptions}
+              selectedIds={localFilters.brand}
+              onChange={(v) => updateFilter('brand', v)}
+              placeholder="All brands"
+              searchPlaceholder="Search brands..."
+              emptyText="No brands found."
+              title="Select brands"
+              triggerId="brand"
+              triggerClassName={filterTriggerClass}
+            />
           </div>
 
           {/* Category Filter */}
@@ -248,25 +230,19 @@ export default function ItemFilterSheet({
             <Label htmlFor="category" className="label-large text-on-surface">
               Category
             </Label>
-            <Select
-              value={localFilters.category}
-              onValueChange={(value) => updateFilter('category', value)}
-            >
-              <SelectTrigger 
-                id="category"
-                className="bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large"
-              >
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All categories</SelectItem>
-                {FILTER_CATEGORY_VALUES.map((cat) => (
-                  <SelectItem key={cat} value={cat} className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiPicker
+              options={categoryPickerOptions}
+              selectedIds={localFilters.category}
+              onChange={(v) => updateFilter('category', v)}
+              placeholder="All categories"
+              searchPlaceholder="Search categories..."
+              emptyText="No categories found."
+              title="Select categories"
+              triggerId="category"
+              triggerClassName={filterTriggerClass}
+              compact
+              hideSearch
+            />
           </div>
 
           {/* Status Filter */}
@@ -274,25 +250,19 @@ export default function ItemFilterSheet({
             <Label htmlFor="status" className="label-large text-on-surface">
               Status
             </Label>
-            <Select
-              value={localFilters.status}
-              onValueChange={(value) => updateFilter('status', value)}
-            >
-              <SelectTrigger 
-                id="status"
-                className="bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large"
-              >
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All statuses</SelectItem>
-                {FILTER_STATUS_VALUES.map((st) => (
-                  <SelectItem key={st} value={st} className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
-                    {st}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiPicker
+              options={statusPickerOptions}
+              selectedIds={localFilters.status}
+              onChange={(v) => updateFilter('status', v)}
+              placeholder="All statuses"
+              searchPlaceholder="Search statuses..."
+              emptyText="No statuses found."
+              title="Select statuses"
+              triggerId="status"
+              triggerClassName={filterTriggerClass}
+              compact
+              hideSearch
+            />
           </div>
 
           {/* Colour Filter */}
@@ -300,25 +270,19 @@ export default function ItemFilterSheet({
             <Label htmlFor="colour" className="label-large text-on-surface">
               Colour
             </Label>
-            <Select
-              value={localFilters.colour}
-              onValueChange={(value) => updateFilter('colour', value)}
-            >
-              <SelectTrigger 
-                id="colour"
-                className="bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large"
-              >
-                <SelectValue placeholder="Select colour" />
-              </SelectTrigger>
-              <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All colours</SelectItem>
-                {FILTER_COLOUR_VALUES.map((col) => (
-                  <SelectItem key={col} value={col} className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
-                    {col}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiPicker
+              options={colourPickerOptions}
+              selectedIds={localFilters.colour}
+              onChange={(v) => updateFilter('colour', v)}
+              placeholder="All colours"
+              searchPlaceholder="Search colours..."
+              emptyText="No colours found."
+              title="Select colours"
+              triggerId="colour"
+              triggerClassName={filterTriggerClass}
+              compact
+              hideSearch
+            />
           </div>
 
           {/* Size Filter */}
@@ -326,25 +290,19 @@ export default function ItemFilterSheet({
             <Label htmlFor="size" className="label-large text-on-surface">
               Size
             </Label>
-            <Select
-              value={localFilters.size}
-              onValueChange={(value) => updateFilter('size', value)}
-            >
-              <SelectTrigger
-                id="size"
-                className="bg-surface-container border border-outline-variant rounded-lg min-h-[48px] body-large"
-              >
-                <SelectValue placeholder="Select size" />
-              </SelectTrigger>
-              <SelectContent className="bg-surface-container-high border border-outline">
-                <SelectItem value="all" className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">All sizes</SelectItem>
-                {FILTER_SIZE_VALUES.map((sz) => (
-                  <SelectItem key={sz} value={sz} className="body-large min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
-                    {sz}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiPicker
+              options={sizePickerOptions}
+              selectedIds={localFilters.size}
+              onChange={(v) => updateFilter('size', v)}
+              placeholder="All sizes"
+              searchPlaceholder="Search sizes..."
+              emptyText="No sizes found."
+              title="Select sizes"
+              triggerId="size"
+              triggerClassName={filterTriggerClass}
+              compact
+              hideSearch
+            />
           </div>
 
           {/* Price Range */}

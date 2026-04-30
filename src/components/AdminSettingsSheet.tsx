@@ -298,19 +298,29 @@ export default function AdminSettingsSheet({
       {/* Menu Content */}
       <div className={isLargeScreen ? 'flex-1 overflow-y-auto' : ''}>
         <div className="py-2">
-          {menuSections.map((section, sectionIndex) => (
-            <div key={sectionIndex}>
-              {section.title && (
-                <div className="px-6 py-3">
-                  <h3 className="title-small text-on-surface">{section.title}</h3>
-                </div>
-              )}
+          {(() => {
+            // Filter sections to only those with at least one role-visible item.
+            // Without this, sections render an empty title for roles that have
+            // no items in that group.
+            const visibleSections = menuSections
+              .map((section) => ({
+                ...section,
+                items: section.items.filter((item) =>
+                  item.visibleFor.includes(currentAppRole)
+                ),
+              }))
+              .filter((section) => section.items.length > 0);
 
-              <div className="space-y-1 px-3">
-                {section.items.map((item) => {
-                  if (!item.visibleFor.includes(currentAppRole)) return null;
+            return visibleSections.map((section, sectionIndex) => (
+              <div key={section.title ?? sectionIndex}>
+                {section.title && (
+                  <div className="px-6 py-3">
+                    <h3 className="title-small text-on-surface">{section.title}</h3>
+                  </div>
+                )}
 
-                  return (
+                <div className="space-y-1 px-3">
+                  {section.items.map((item) => (
                     <button
                       key={item.id}
                       onClick={item.onClick}
@@ -327,15 +337,15 @@ export default function AdminSettingsSheet({
                       </div>
                       <ChevronRight className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
                     </button>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
 
-              {sectionIndex < menuSections.length - 1 && (
-                <Separator className="my-2 bg-outline-variant" />
-              )}
-            </div>
-          ))}
+                {sectionIndex < visibleSections.length - 1 && (
+                  <Separator className="my-2 bg-outline-variant" />
+                )}
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </>
