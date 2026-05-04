@@ -620,7 +620,6 @@ export default function DeliveryNoteDetailsScreen({
                             }}
                             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
                           >
-                            <EditIcon className="w-4 h-4 mr-2" />
                             <span className="body-medium text-on-surface">Edit box label</span>
                           </DropdownMenuItem>
                         )}
@@ -632,7 +631,6 @@ export default function DeliveryNoteDetailsScreen({
                             }}
                             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
                           >
-                            <RotateCcwIcon className="w-4 h-4 mr-2" />
                             <span className="body-medium text-on-surface">Unregister</span>
                           </DropdownMenuItem>
                         )}
@@ -644,7 +642,6 @@ export default function DeliveryNoteDetailsScreen({
                             }}
                             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
                           >
-                            <Trash2Icon className="w-4 h-4 mr-2" />
                             <span className="body-medium">Remove box</span>
                           </DropdownMenuItem>
                         )}
@@ -744,7 +741,6 @@ export default function DeliveryNoteDetailsScreen({
                             onClick={() => handleDeleteUnassignedItem(item.id)}
                             className="text-error focus:text-error"
                           >
-                            <Trash2Icon className="mr-2 h-4 w-4" />
                             Delete faulty item
                           </DropdownMenuItem>
                         </DropdownMenuContent>

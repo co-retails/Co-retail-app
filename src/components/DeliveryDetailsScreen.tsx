@@ -94,21 +94,18 @@ function TopAppBar({
                 onClick={handleMarkDelivered}
                 className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
               >
-                <CheckCircle2 className="w-4 h-4 mr-2" />
                 <span className="body-medium text-on-surface">Mark as Delivered</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleMarkRejected}
                 className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
               >
-                <XCircle className="w-4 h-4 mr-2" />
                 <span className="body-medium">Mark as Rejected</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleMarkCancelled}
                 className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
               >
-                <XCircle className="w-4 h-4 mr-2" />
                 <span className="body-medium">Mark as Cancelled</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -244,7 +241,6 @@ function BoxCardRow({
             }}
             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
           >
-            <XCircle className="w-4 h-4 mr-2" />
             <span className="body-medium">Mark as Rejected</span>
           </DropdownMenuItem>
         )}

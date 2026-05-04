@@ -1856,6 +1856,9 @@ function MultiSelectActions({
   bulkQuickActions: Array<{ action: ItemQuickAction; label: string; className?: string }>;
   onBulkQuickAction: (action: ItemQuickAction) => void;
 }) {
+  const isLargeScreen = useMediaQuery('(min-width: 640px)');
+  const [bulkSheetOpen, setBulkSheetOpen] = useState(false);
+
   // Don't show if there are no items
   if (totalCount === 0) return null;
 
@@ -1900,35 +1903,62 @@ function MultiSelectActions({
         
         {hasSelectedItems && bulkQuickActions.length > 0 && (
         <div className="flex items-center justify-center h-full">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button 
-                className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-                aria-label="Bulk actions"
-              >
-                <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                  <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
-                </svg>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Bulk actions{HIGHLIGHT_NEW && <span className="new-badge">NEW</span>}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {bulkQuickActions.map(({ action, label, className }) => (
-                <DropdownMenuItem
-                  key={action}
-                  onClick={() => onBulkQuickAction(action)}
-                  className={className}
-                >
-                  {quickActionIcon(action)}
-                  <span>{label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <button
+            className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
+            aria-label="Bulk actions"
+            onClick={() => setBulkSheetOpen(true)}
+          >
+            <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+              <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+            </svg>
+          </button>
         </div>
         )}
       </div>
+
+      <Sheet open={bulkSheetOpen} onOpenChange={setBulkSheetOpen}>
+        <SheetContent
+          side={isLargeScreen ? 'right' : 'bottom'}
+          className={`
+            ${isLargeScreen ? 'max-w-md' : 'max-h-[85vh] rounded-t-3xl'}
+            bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
+          `}
+        >
+          {!isLargeScreen && (
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-8 h-1 bg-outline-variant rounded-full" />
+            </div>
+          )}
+
+          <SheetHeader className={`relative px-6 pb-4 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
+            <SheetTitle className="title-large text-on-surface text-left">
+              Bulk actions
+              {HIGHLIGHT_NEW && <span className="new-badge ml-2">NEW</span>}
+            </SheetTitle>
+            <SheetDescription className="body-small text-on-surface-variant text-left">
+              {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto px-2 pb-4">
+            <div className="flex flex-col">
+              {bulkQuickActions.map(({ action, label, className }) => (
+                <button
+                  key={action}
+                  onClick={() => {
+                    onBulkQuickAction(action);
+                    setBulkSheetOpen(false);
+                  }}
+                  className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${className ?? ''}`}
+                >
+                  {quickActionIcon(action)}
+                  <span className="body-large">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -2118,6 +2148,12 @@ export default function ItemsScreen({
   // Check if we're in partner portal mode - only show filter if viewFilter/onViewFilterChange are provided
   // These props are only provided for partner portal, not for store app
   const isPartnerPortal = !!(externalViewFilter && externalOnViewFilterChange);
+
+  // Store app: per-card kebab is never shown — single-item actions live in item details.
+  // Multi-select stays on the "Expired flag" chip so users can bulk-unflag via the top action bar.
+  // Partner portal keeps its existing behavior.
+  const showItemCardActions = isPartnerPortal;
+  const showItemCardSelection = isPartnerPortal ? quickFilter !== 'all' : quickFilter === 'expired';
 
   useEffect(() => {
     if (
@@ -3069,20 +3105,9 @@ export default function ItemsScreen({
           />
         )}
         
-        {/* Item count row for 'All' filter - matches MultiSelectActions height */}
-        {quickFilter === 'all' && filteredItems.length > 0 && (
-          <div className="border-t border-outline-variant">
-            <div className="flex items-center justify-between px-1 py-3 min-h-[48px]">
-              <div className="body-medium text-on-surface font-normal px-3 md:px-5">
-                {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Multi-select Actions - Only show when not on 'all' filter */}
-        {quickFilter !== 'all' && (
-          <MultiSelectActions 
+        {/* Multi-select Actions - shown only when the active chip supports bulk actions */}
+        {showItemCardSelection && (
+          <MultiSelectActions
             selectedCount={selectedItemsInCurrentFilter.length}
             totalCount={filteredItems.length}
             isAllSelected={paginatedItems.length > 0 && paginatedItems.every(item => item.selected)}
@@ -3091,9 +3116,9 @@ export default function ItemsScreen({
             onBulkQuickAction={handleBulkQuickAction}
           />
         )}
-        
+
         {/* Items List */}
-        <div className="space-y-0 mb-4">
+        <div className={`space-y-0 mb-4 ${showItemCardSelection ? '' : 'pt-4'}`}>
           {filteredItems.length === 0 ? (
             <EmptyState 
               hasItems={items.length > 0}
@@ -3108,7 +3133,7 @@ export default function ItemsScreen({
                   <div className="overflow-x-auto rounded-lg border border-outline-variant bg-surface">
                     <table className="w-full min-w-[1400px] table-fixed border-collapse">
                       <colgroup>
-                        {quickFilter !== 'all' && <col style={{ width: '3.25rem' }} />}
+                        {showItemCardSelection && <col style={{ width: '3.25rem' }} />}
                         <col style={{ width: '4.5rem' }} /> {/* Image */}
                         <col style={{ width: '7.5rem' }} /> {/* Date */}
                         <col style={{ width: '9rem' }} /> {/* Item ID */}
@@ -3125,7 +3150,7 @@ export default function ItemsScreen({
                       </colgroup>
                       <thead className="bg-surface-container">
                         <tr className="border-b border-outline-variant">
-                          {quickFilter !== 'all' && (
+                          {showItemCardSelection && (
                             <th className="px-3 py-3 text-left">
                               <span className="label-medium text-on-surface"> </span>
                             </th>
@@ -3164,7 +3189,7 @@ export default function ItemsScreen({
                                 }
                               }}
                             >
-                              {quickFilter !== 'all' && (
+                              {showItemCardSelection && (
                                 <td className="px-3 py-3 align-middle">
                                   <input
                                     type="checkbox"
@@ -3235,8 +3260,8 @@ export default function ItemsScreen({
                         onToggleSelect={handleToggleSelect}
                         onMoreActions={(baseItem, action) => handleMoreActions(baseItem as Item, action)}
                         onClick={(baseItem) => handleItemClick(baseItem as Item)}
-                        showActions={true}
-                        showSelection={quickFilter !== 'all'}
+                        showActions={showItemCardActions}
+                        showSelection={showItemCardSelection}
                         userRole={userRole ?? 'store-staff'}
                       />
                     </div>

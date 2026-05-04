@@ -306,14 +306,12 @@ export default function DeliveryNoteBoxDetailsScreen({
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" sideOffset={4}>
                                     <DropdownMenuItem onClick={() => handleMarkAsNotScanned(item)}>
-                                      <XIcon className="mr-2 h-4 w-4" />
                                       Mark as Not Scanned
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem 
+                                    <DropdownMenuItem
                                       onClick={() => handleRemoveItem(item.id)}
                                       className="text-error focus:text-error"
                                     >
-                                      <Trash2Icon className="mr-2 h-4 w-4" />
                                       Delete faulty item
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
@@ -370,14 +368,12 @@ export default function DeliveryNoteBoxDetailsScreen({
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" sideOffset={4}>
                                     <DropdownMenuItem onClick={() => handleMarkAsScanned(item)}>
-                                      <CheckIcon className="mr-2 h-4 w-4" />
                                       Mark as Scanned
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem 
+                                    <DropdownMenuItem
                                       onClick={() => handleRemoveItem(item.id)}
                                       className="text-error focus:text-error"
                                     >
-                                      <Trash2Icon className="mr-2 h-4 w-4" />
                                       Delete faulty item
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
@@ -448,12 +444,10 @@ export default function DeliveryNoteBoxDetailsScreen({
                                 <DropdownMenuContent align="end" sideOffset={4}>
                                   {scannedItemIds.has(item.id) ? (
                                     <DropdownMenuItem onClick={() => handleMarkAsNotScanned(item)}>
-                                      <XIcon className="mr-2 h-4 w-4" />
                                       Mark as not scanned
                                     </DropdownMenuItem>
                                   ) : (
                                     <DropdownMenuItem onClick={() => handleMarkAsScanned(item)}>
-                                      <CheckIcon className="mr-2 h-4 w-4" />
                                       Mark as scanned
                                     </DropdownMenuItem>
                                   )}

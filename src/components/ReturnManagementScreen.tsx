@@ -126,8 +126,8 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
 
 function ReturnOrderSummaryCard({ partner }: { partner: Partner }) {
   return (
-    <Card className="mx-4 md:mx-6 mb-3 bg-transparent border-0 shadow-none">
-      <CardContent className="p-3">
+    <Card className="mx-4 md:mx-6 bg-transparent border-0 shadow-none">
+      <CardContent className="p-3 pb-0">
         {/* Metadata */}
         <div className="flex items-center gap-2 mb-2">
           <Calendar className="w-4 h-4 text-on-surface-variant" />
@@ -135,12 +135,7 @@ function ReturnOrderSummaryCard({ partner }: { partner: Partner }) {
             {new Date().toISOString().split('T')[0]}, Pending
           </span>
         </div>
-        
-        {/* Primary info */}
-        <h2 className="title-medium text-on-surface mb-2">
-          Return order: {Math.floor(1000000 + Math.random() * 9000000)}
-        </h2>
-        
+
         {/* Secondary info */}
         <div className="flex items-center gap-2">
           <User className="w-4 h-4 text-on-surface-variant" />
@@ -200,7 +195,7 @@ function TabBar({
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className="flex-1 pb-3 pt-4 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-h-[48px]"
+            className="flex-1 pb-3 pt-2 px-4 relative hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation min-h-[48px]"
             onClick={() => onTabChange(tab.id)}
           >
             <span className={`title-small ${

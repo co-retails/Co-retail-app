@@ -95,7 +95,6 @@ function TopAppBarWithDeliveryInfo({
                 onClick={onCancelDelivery}
                 className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
               >
-                <XCircle className="w-4 h-4 mr-2" />
                 <span className="body-medium">Mark delivery as cancelled (Missing delivery)</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -188,7 +187,10 @@ function BoxCard({
       <DropdownMenuContent align="end" className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-64">
         {showMarkScanned && (
           <DropdownMenuItem
-            onClick={onMarkScanned}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onMarkScanned?.();
+            }}
             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
           >
             <span className="body-medium text-on-surface">Mark as scanned</span>
@@ -196,7 +198,10 @@ function BoxCard({
         )}
         {showMarkUnscanned && (
           <DropdownMenuItem
-            onClick={onMarkUnscanned}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onMarkUnscanned?.();
+            }}
             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
           >
             <span className="body-medium text-on-surface">Mark as not scanned</span>
@@ -204,19 +209,23 @@ function BoxCard({
         )}
         {canRejectBox && (
           <DropdownMenuItem
-            onClick={onMarkRejected}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onMarkRejected?.();
+            }}
             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
           >
-            <XCircle className="w-4 h-4 mr-2" />
             <span className="body-medium">Reject box</span>
           </DropdownMenuItem>
         )}
         {canCancelBox && (
           <DropdownMenuItem
-            onClick={onMarkCancelled}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onMarkCancelled?.();
+            }}
             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
           >
-            <XCircle className="w-4 h-4 mr-2" />
             <span className="body-medium">Mark as cancelled (Missing box)</span>
           </DropdownMenuItem>
         )}

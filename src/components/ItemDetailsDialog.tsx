@@ -12,7 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import BrandPicker from './BrandPicker';
 import { VisuallyHidden } from './ui/visually-hidden';
-import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Ban } from 'lucide-react';
+import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Ban, Barcode } from 'lucide-react';
+import JsBarcode from 'jsbarcode';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
+import { useMediaQuery } from './ui/use-mobile';
 import svgPaths from '../imports/svg-7un8q74kd7';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Separator } from './ui/separator';
@@ -615,6 +618,22 @@ export default function ItemDetailsDialog({
   const [isScanning, setIsScanning] = useState(false);
   const [scannedId, setScannedId] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [showBarcode, setShowBarcode] = useState(false);
+  const isLargeScreen = useMediaQuery('(min-width: 640px)');
+  const barcodeRefCallback = useCallback((node: SVGSVGElement | null) => {
+    if (!node || !item?.itemId) return;
+    try {
+      JsBarcode(node, `9${item.itemId}`, {
+        format: 'CODE128',
+        displayValue: true,
+        fontSize: 14,
+        height: 80,
+        margin: 8,
+      });
+    } catch (err) {
+      console.error('Failed to render barcode', err);
+    }
+  }, [item?.itemId]);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const thriftedFlushDraftsRef = useRef<(() => void) | null>(null);
   const onSaveRef = useRef(onSave);
@@ -1083,6 +1102,7 @@ export default function ItemDetailsDialog({
   }
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={handleMainDialogOpenChange}>
       <DialogContent
         className={
@@ -1173,9 +1193,19 @@ export default function ItemDetailsDialog({
             ) : (
               <>
                 {/* Item ID - Replaces Title */}
-                <h2 className="title-large text-on-surface mb-1 break-words">
-                  Item ID: {item.itemId}
-                </h2>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="title-large text-on-surface mb-1 flex-1 min-w-0 break-words">
+                    Item ID: {item.itemId}
+                  </h2>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowBarcode(true)}
+                    className="flex items-center gap-2 flex-shrink-0 min-h-[48px] min-w-[48px] px-4 touch-manipulation"
+                  >
+                    <Barcode size={18} />
+                    Show barcode
+                  </Button>
+                </div>
 
                 <Separator className="bg-outline-variant" />
 
@@ -1508,5 +1538,52 @@ export default function ItemDetailsDialog({
         )}
       </DialogContent>
     </Dialog>
+
+    <Sheet open={showBarcode} onOpenChange={setShowBarcode}>
+      <SheetContent
+        side={isLargeScreen ? 'right' : 'bottom'}
+        containerZIndex={12000}
+        className={`
+          ${isLargeScreen ? 'max-w-md' : 'max-h-[85vh] rounded-t-3xl'}
+          bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
+        `}
+      >
+        {!isLargeScreen && (
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="w-8 h-1 bg-outline-variant rounded-full" />
+          </div>
+        )}
+
+        <SheetHeader className={`relative px-6 pb-4 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
+          <SheetTitle className="title-large text-on-surface text-left">Item barcode</SheetTitle>
+          <SheetDescription className="body-small text-on-surface-variant text-left">
+            Scan this barcode at the POS to sell the item.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
+          <div className="flex flex-col items-center justify-center bg-white rounded-2xl border border-outline-variant py-6 px-4">
+            <svg ref={barcodeRefCallback} aria-label={`Barcode for item ${item?.itemId ?? ''}`} />
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <p className="title-small text-on-surface">If the item has lost its hangtag</p>
+            <p className="body-medium text-on-surface-variant">
+              Write the Item ID and price on an empty hangtag and attach it to the item.
+            </p>
+            <p className="body-medium text-on-surface-variant">
+              To sell the item, either:
+            </p>
+            <p className="body-medium text-on-surface-variant">
+              a) Type the Item ID manually in the POS, or
+            </p>
+            <p className="body-medium text-on-surface-variant">
+              b) Open item details, show the barcode, and scan it in the POS.
+            </p>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+    </>
   );
 }
