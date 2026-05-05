@@ -10,6 +10,7 @@ import { ExtendedPartnerOrder } from '../components/PartnerDashboard';
 import { DeliveryNote } from '../components/BoxManagementScreen';
 import { SellpyOrder } from '../components/ShippingScreen';
 import { OrderItem } from '../components/OrderCreationScreen';
+import { SapExportJob, mockSapExportJobs } from '../data/mockSapExportJobs';
 
 import { UserRole as AppUserRole } from '../components/RoleSwitcher';
 import { UserRole, ItemStatus } from '../components/StatusUpdateScreen';
@@ -64,7 +65,9 @@ export type Screen =
   | 'store-user-access'
   | 'partner-user-access'
   | 'partner-reports'
-  | 'shipping-report';
+  | 'shipping-report'
+  | 'sap-export-jobs'
+  | 'sap-export-job-details';
 
 /**
  * Central state management hook for the entire application
@@ -157,6 +160,10 @@ export function useAppState() {
   // opened from ReceiveDeliveryScreen). Defaults to 'delivery-details'.
   const [boxDetailsPreviousScreen, setBoxDetailsPreviousScreen] = useState<'delivery-details' | 'receive'>('delivery-details');
   
+  // SAP MDG export jobs (admin operations view)
+  const [sapExportJobs, setSapExportJobs] = useState<SapExportJob[]>(mockSapExportJobs);
+  const [selectedSapExportJobId, setSelectedSapExportJobId] = useState<string | null>(null);
+
   // Status update state
   const [userRole] = useState<UserRole>('Store Manager');
   
@@ -287,6 +294,11 @@ export function useAppState() {
     // Details screen
     detailsScreenData,
     setDetailsScreenData,
-    
+
+    // SAP MDG export jobs
+    sapExportJobs,
+    setSapExportJobs,
+    selectedSapExportJobId,
+    setSelectedSapExportJobId,
   };
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import svgPathsNew from "../imports/svg-9jzmb4i3sv";
 import { 
@@ -250,183 +250,91 @@ function QuickFilterChips({
   );
 }
 
-function UnflagExpiredSheet({ isOpen, onClose, item, onSave }: {
+/**
+ * Default weeks until an unflagged item is flagged as expired again.
+ * In production this comes from PartnerPolicy.expiredItemsToReturnAfterWeeks
+ * (see PartnerSettingsScreen). The MVP has no live partner-policy lookup, so
+ * we use this constant as the displayed value.
+ */
+const DEFAULT_EXPIRE_AGAIN_WEEKS = 8;
+
+function UnflagExpiredSheet({ isOpen, onClose, item, bulkCount, expireAgainWeeks, onConfirm }: {
   isOpen: boolean;
   onClose: () => void;
   item: Item | null;
-  onSave: (updates: Partial<Item>) => void;
+  bulkCount?: number;
+  expireAgainWeeks: number;
+  onConfirm: (updates: Partial<Item>) => void;
 }) {
-  const [option, setOption] = useState<'reset' | 'postpone-4' | 'postpone-8'>('reset');
   const [isMobile, setIsMobile] = useState(false);
+  const appliedRef = useRef(false);
 
-  // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Apply the unflag exactly once per open. The sheet is now post-action — it
+  // confirms what just happened, rather than collecting a choice.
   useEffect(() => {
-    if (isOpen) {
-      setOption('reset'); // Reset to default when sheet opens
+    if (!isOpen) {
+      appliedRef.current = false;
+      return;
     }
-  }, [isOpen]);
-
-  const handleSave = () => {
-    if (!item) return;
-
-    const updates: Partial<Item> = {};
-
-    if (option === 'reset') {
-      // Reset expired time - clear all expired flags
-      updates.isExpired = false;
-      updates.expiredFlaggedAt = undefined;
-      updates.expiredPostponeWeeks = undefined;
-    } else if (option === 'postpone-4') {
-      // Flag as expired again after 4 weeks
-      updates.expiredPostponeWeeks = 4;
-      // Keep isExpired as true but update the postpone weeks
-    } else if (option === 'postpone-8') {
-      // Flag as expired again after 8 weeks
-      updates.expiredPostponeWeeks = 8;
-      // Keep isExpired as true but update the postpone weeks
-    }
-
-    onSave(updates);
-    onClose();
-  };
+    if (appliedRef.current) return;
+    appliedRef.current = true;
+    onConfirm({
+      isExpired: false,
+      expiredFlaggedAt: undefined,
+      expiredPostponeWeeks: undefined,
+    });
+  }, [isOpen, onConfirm]);
 
   if (!item) return null;
 
+  const count = bulkCount && bulkCount > 0 ? bulkCount : 1;
+  const noun = count === 1 ? 'Item' : 'Items';
+  const subjectPronoun = count === 1 ? 'It' : 'They';
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent 
-        side={isMobile ? "bottom" : "right"} 
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
         className="bg-surface border-outline-variant p-0 flex flex-col md:max-w-[400px] md:h-full max-h-[85vh] md:max-h-full"
       >
-        {/* Header - Fixed */}
         <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
           <SheetTitle className="title-large text-on-surface">
-            Unflag Expired Item
+            {noun} unflagged
           </SheetTitle>
-          <SheetDescription className="body-medium text-on-surface-variant">
-            Choose how to handle the expired flag for this item.
+          <SheetDescription className="sr-only">
+            Confirmation that the expired flag has been removed.
           </SheetDescription>
         </SheetHeader>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-          {/* Reset Option (Default) */}
-          <button
-            onClick={() => setOption('reset')}
-            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
-              option === 'reset'
-                ? 'border-primary bg-primary-container text-on-primary-container'
-                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                option === 'reset'
-                  ? 'border-on-primary-container bg-on-primary-container'
-                  : 'border-on-surface-variant'
-              }`}>
-                {option === 'reset' && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="title-small text-on-surface mb-1">
-                  Reset expired time
-                </div>
-                <div className="body-small text-on-surface-variant">
-                  Remove the expired flag and reset the timer as if this is a new item
-                </div>
-              </div>
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="rounded-lg bg-success-container text-on-success-container p-4">
+            <div className="title-small mb-1">
+              {count === 1
+                ? 'The expired flag has been removed.'
+                : `${count} items have been unflagged.`}
             </div>
-          </button>
-
-          {/* Postpone 4 Weeks Option */}
-          <button
-            onClick={() => setOption('postpone-4')}
-            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
-              option === 'postpone-4'
-                ? 'border-primary bg-primary-container text-on-primary-container'
-                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                option === 'postpone-4'
-                  ? 'border-on-primary-container bg-on-primary-container'
-                  : 'border-on-surface-variant'
-              }`}>
-                {option === 'postpone-4' && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="title-small text-on-surface mb-1">
-                  Flag as expired again after 4 weeks
-                </div>
-                <div className="body-small text-on-surface-variant">
-                  Keep the expired flag but extend the timer by 4 weeks
-                </div>
-              </div>
+            <div className="body-medium">
+              {subjectPronoun} will be flagged as expired again in {expireAgainWeeks} weeks (per partner settings).
             </div>
-          </button>
-
-          {/* Postpone 8 Weeks Option */}
-          <button
-            onClick={() => setOption('postpone-8')}
-            className={`w-full p-4 rounded-lg border-2 transition-colors text-left ${
-              option === 'postpone-8'
-                ? 'border-primary bg-primary-container text-on-primary-container'
-                : 'border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high'
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                option === 'postpone-8'
-                  ? 'border-on-primary-container bg-on-primary-container'
-                  : 'border-on-surface-variant'
-              }`}>
-                {option === 'postpone-8' && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary-container" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="title-small text-on-surface mb-1">
-                  Flag as expired again after 8 weeks
-                </div>
-                <div className="body-small text-on-surface-variant">
-                  Keep the expired flag but extend the timer by 8 weeks
-                </div>
-              </div>
-            </div>
-          </button>
+          </div>
         </div>
 
-        {/* Footer - Fixed at bottom */}
-        <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
-          <Button 
-            variant="outline" 
+        <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0">
+          <Button
             size="lg"
             onClick={onClose}
-            className="flex-1 bg-surface border border-outline text-on-surface hover:bg-surface-container-high rounded-lg min-h-[48px] label-large touch-manipulation"
+            className="w-full bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
           >
-            Cancel
-          </Button>
-          <Button 
-            size="lg"
-            onClick={handleSave}
-            className="flex-1 bg-primary hover:bg-primary/90 text-on-primary rounded-lg min-h-[48px] label-large touch-manipulation"
-          >
-            Confirm
+            Done
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -2874,33 +2782,15 @@ export default function ItemsScreen({
     const bulkIds = bulkUnflagItemIds;
     if (bulkIds && bulkIds.length > 0) {
       bulkIds.forEach((id) => handleSaveItemDetails(id, updates));
-      const n = bulkIds.length;
-      const successMessage =
-        updates.isExpired === false
-          ? `Expired flag removed for ${n} items`
-          : updates.expiredPostponeWeeks === 4
-            ? `${n} items will be flagged as expired again after 4 weeks`
-            : `${n} items will be flagged as expired again after 8 weeks`;
-      toast.success(successMessage);
+      toast.success(`Expired flag removed for ${bulkIds.length} items`);
       deselectIds(bulkIds);
       setBulkUnflagItemIds(null);
-      setShowUnflagExpiredSheet(false);
-      setItemToUnflagExpired(null);
       return;
     }
 
     if (!itemToUnflagExpired) return;
-
-    const successMessage = updates.isExpired === false
-      ? `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} expired flag removed`
-      : updates.expiredPostponeWeeks === 4
-      ? `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} will be flagged as expired again after 4 weeks`
-      : `Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} will be flagged as expired again after 8 weeks`;
-
     handleSaveItemDetails(itemToUnflagExpired.id, updates);
-    toast.success(successMessage);
-    setShowUnflagExpiredSheet(false);
-    setItemToUnflagExpired(null);
+    toast.success(`Item ${itemToUnflagExpired.itemId || itemToUnflagExpired.id} expired flag removed`);
   };
 
   return (
@@ -3338,7 +3228,9 @@ export default function ItemsScreen({
           setBulkUnflagItemIds(null);
         }}
         item={itemToUnflagExpired}
-        onSave={handleUnflagExpired}
+        bulkCount={bulkUnflagItemIds?.length ?? 0}
+        expireAgainWeeks={DEFAULT_EXPIRE_AGAIN_WEEKS}
+        onConfirm={handleUnflagExpired}
       />
     </div>
   );

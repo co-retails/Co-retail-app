@@ -24,6 +24,7 @@ import {
   SheetDescription,
   SheetFooter,
 } from './ui/sheet';
+import { useMediaQuery } from './ui/use-mobile';
 
 interface StockCheckReviewScreenProps {
   session: StockCheckSession;
@@ -188,6 +189,9 @@ function BulkActionsBar({
   };
 
   const menuOptions = getMenuOptions();
+  const [bulkSheetOpen, setBulkSheetOpen] = useState(false);
+  const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+  const showUnflagInSheet = activeTab === 'scanned';
 
   return (
     <div className={`sticky top-0 z-[5] border-b border-outline-variant ${
@@ -196,18 +200,18 @@ function BulkActionsBar({
       <div className="flex items-center justify-between px-1 py-3 min-h-[48px]">
         {/* Left side - Select all and count */}
         <div className="flex items-center gap-3">
-          <button 
+          <button
             className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
             onClick={onToggleAll}
             aria-label={isAllSelected ? "Deselect all items" : "Select all items"}
           >
             <div className="relative w-6 h-6">
               <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 44 44">
-                <path 
-                  clipRule="evenodd" 
-                  d={isAllSelected ? svgPaths.p181a1800 : svgPaths.p3e435600} 
-                  fill={isAllSelected ? "var(--primary)" : "var(--outline-variant)"} 
-                  fillRule="evenodd" 
+                <path
+                  clipRule="evenodd"
+                  d={isAllSelected ? svgPaths.p181a1800 : svgPaths.p3e435600}
+                  fill={isAllSelected ? "var(--primary)" : "var(--outline-variant)"}
+                  fillRule="evenodd"
                 />
               </svg>
               {isAllSelected && (
@@ -219,62 +223,86 @@ function BulkActionsBar({
               )}
             </div>
           </button>
-          
+
           <div className={`body-medium font-normal ${
             hasSelectedItems ? 'text-on-primary-container' : 'text-on-surface'
           }`}>
-            {hasSelectedItems 
+            {hasSelectedItems
               ? `${selectedCount} selected`
               : `${totalCount} ${totalCount === 1 ? 'item' : 'items'}`
             }
           </div>
         </div>
-        
+
         {/* Right side - Actions (only show when items are selected) */}
         {hasSelectedItems && menuOptions.length > 0 && (
           <div className="flex items-center gap-2">
-            {/* More Actions Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-                  aria-label="More actions"
-                >
-                  <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                    <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
-                  </svg>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Bulk Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {menuOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option.status}
-                    onClick={() => onBulkAction(option.status)}
-                    className={`cursor-pointer ${option.className}`}
-                  >
-                    <span>{option.label}</span>
-                  </DropdownMenuItem>
-                ))}
-                {/* Unflag expired option - only show in scanned tab */}
-                {activeTab === 'scanned' && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={onUnflagExpired}
-                      className="cursor-pointer"
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      <span>Unflag expired</span>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <button
+              onClick={() => setBulkSheetOpen(true)}
+              className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
+              aria-label="Bulk actions"
+            >
+              <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+              </svg>
+            </button>
           </div>
         )}
       </div>
+
+      <Sheet open={bulkSheetOpen} onOpenChange={setBulkSheetOpen}>
+        <SheetContent
+          side={isLargeScreen ? 'right' : 'bottom'}
+          className={`
+            ${isLargeScreen ? 'max-w-md' : 'max-h-[85vh] rounded-t-3xl'}
+            bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
+          `}
+        >
+          {!isLargeScreen && (
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-8 h-1 bg-outline-variant rounded-full" />
+            </div>
+          )}
+
+          <SheetHeader className={`relative px-6 pb-4 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
+            <SheetTitle className="title-large text-on-surface text-left">
+              Bulk actions
+            </SheetTitle>
+            <SheetDescription className="body-small text-on-surface-variant text-left">
+              {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto px-2 pb-4">
+            <div className="flex flex-col">
+              {menuOptions.map((option) => (
+                <button
+                  key={option.status}
+                  onClick={() => {
+                    onBulkAction(option.status);
+                    setBulkSheetOpen(false);
+                  }}
+                  className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${option.className}`}
+                >
+                  <span className="body-large">{option.label}</span>
+                </button>
+              ))}
+              {showUnflagInSheet && (
+                <button
+                  onClick={() => {
+                    onUnflagExpired();
+                    setBulkSheetOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors text-on-surface"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  <span className="body-large">Unflag expired</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -287,53 +315,17 @@ function NotFoundItemCard({ itemId }: { itemId: string }) {
   );
 }
 
-function ReviewItemCard({ 
-  item, 
-  onUpdateStatus,
-  onMoreActions,
+function ReviewItemCard({
+  item,
   isSelected,
   onToggleSelect,
-  activeTab,
-  onUnflagExpired
-}: { 
-  item: StockItem; 
-  onUpdateStatus: (itemId: string, status: 'Missing' | 'Found' | 'Available' | 'Broken') => void;
-  onMoreActions: (itemId: string) => void;
+  activeTab
+}: {
+  item: StockItem;
   isSelected: boolean;
   onToggleSelect: (itemId: string) => void;
   activeTab: ReviewTab;
-  onUnflagExpired?: (itemId: string) => void;
 }) {
-  // Get menu options based on active tab
-  const getMenuOptions = () => {
-    switch (activeTab) {
-      case 'not-scanned':
-        return [
-          { label: 'Missing', status: 'Missing' as const, className: 'text-error' }
-        ];
-      case 'not-found':
-        return []; // No actions for not-found items
-      case 'scanned':
-        // For expired items, show only Broken and Unflag expired
-        if (item.isExpired) {
-          return [
-            { label: 'Broken', status: 'Broken' as const, className: 'text-error', isAction: true },
-            { label: 'Unflag expired', action: 'unflag-expired' as const, className: 'text-on-surface', isAction: false }
-          ];
-        }
-        return [
-          { label: 'Available', status: 'Available' as const, className: 'text-on-surface' },
-          { label: 'Broken', status: 'Broken' as const, className: 'text-error' }
-        ];
-      case 'all-included':
-        return [];
-      default:
-        return [];
-    }
-  };
-
-  const menuOptions = getMenuOptions();
-
   return (
     <div className="w-full bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
       <div className={`flex items-center py-3 ${activeTab === 'all-included' ? 'px-4' : 'px-1'}`}>
@@ -392,50 +384,6 @@ function ReviewItemCard({
           />
         </div>
         
-        {/* Trailing element - Actions only (price removed) */}
-        {menuOptions.length > 0 && (
-          <div className="flex-shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button 
-                  className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-                  aria-label="More actions"
-                >
-                  <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                    <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
-                  </svg>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Item actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {menuOptions.map((option, index) => {
-                  if ('action' in option && option.action === 'unflag-expired') {
-                    return (
-                      <DropdownMenuItem
-                        key={`unflag-${index}`}
-                        onClick={() => onUnflagExpired?.(item.id)}
-                        className={`cursor-pointer ${option.className}`}
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        <span>{option.label}</span>
-                      </DropdownMenuItem>
-                    );
-                  }
-                  return (
-                    <DropdownMenuItem
-                      key={option.status || index}
-                      onClick={() => onUpdateStatus(item.id, option.status!)}
-                      className={`cursor-pointer ${option.className}`}
-                    >
-                      <span>{option.label}</span>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -493,15 +441,12 @@ function ItemsList({
     }`}>
       <div className="flex flex-col gap-2">
         {items.map((item) => (
-          <ReviewItemCard 
+          <ReviewItemCard
             key={item.id}
-            item={item} 
-            onUpdateStatus={onUpdateStatus}
-            onMoreActions={onMoreActions}
+            item={item}
             isSelected={selectedItems.has(item.id)}
             onToggleSelect={onToggleSelect}
             activeTab={activeTab}
-            onUnflagExpired={onUnflagExpired}
           />
         ))}
       </div>

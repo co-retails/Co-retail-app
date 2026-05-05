@@ -516,27 +516,10 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
           </div>
           
           {/* Items List */}
-          <ItemsList 
+          <ItemsList
             items={currentItems}
             selectedItems={selectedItems}
           />
-          
-          {/* Progress Indicator */}
-          {scannedItems.length > 0 && (
-            <div className="px-4 md:px-6 mt-6 mb-24 md:mb-6">
-              <div className="text-center mb-2">
-                <span className="body-small text-on-surface-variant">
-                  {scannedItems.length}/{stockItems.length} items scanned
-                </span>
-              </div>
-              <div className="w-full bg-surface-variant rounded-full h-2">
-                <div 
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${stockItems.length > 0 ? (scannedItems.length / stockItems.length) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-          )}
         </div>
       </div>
       

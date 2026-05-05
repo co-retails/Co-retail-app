@@ -13,13 +13,13 @@ interface PeriodData {
 }
 
 interface SalesData {
-  yesterday: PeriodData;
+  today: PeriodData;
   sevenDays: PeriodData;
   thirtyDays: PeriodData;
 }
 
 const mockSalesData: SalesData = {
-  yesterday: {
+  today: {
     categories: [
       { name: 'Jeans', value: 2, percentage: 100 },
       { name: 'Tops', value: 1, percentage: 50 },
@@ -51,7 +51,7 @@ const mockSalesData: SalesData = {
   }
 };
 
-type TimePeriod = 'yesterday' | 'sevenDays' | 'thirtyDays';
+type TimePeriod = 'today' | 'sevenDays' | 'thirtyDays';
 
 function CategoryBar({ category }: { category: CategoryData }) {
   return (
@@ -99,13 +99,13 @@ function TabButton({
 }
 
 export default function SalesDataDashboard() {
-  const [activeTab, setActiveTab] = useState<TimePeriod>('yesterday');
+  const [activeTab, setActiveTab] = useState<TimePeriod>('today');
 
   const currentData = mockSalesData[activeTab];
 
   const getTabLabel = (period: TimePeriod) => {
     switch (period) {
-      case 'yesterday': return 'Yesterday';
+      case 'today': return 'Today';
       case 'sevenDays': return '7 days';
       case 'thirtyDays': return '30 days';
     }
@@ -127,7 +127,7 @@ export default function SalesDataDashboard() {
           {/* Tabs */}
           <div className="px-4">
             <div className="flex border-b border-outline-variant">
-              {(['yesterday', 'sevenDays', 'thirtyDays'] as TimePeriod[]).map((period) => (
+              {(['today', 'sevenDays', 'thirtyDays'] as TimePeriod[]).map((period) => (
                 <TabButton
                   key={period}
                   label={getTabLabel(period)}

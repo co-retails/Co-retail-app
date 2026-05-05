@@ -73,6 +73,7 @@ const STATUS_TONE: Record<string, StatusToneKey> = {
   available: 'success',
   delivered: 'success',
   returned: 'success',
+  success: 'success',
 
   // tertiary / final celebrated
   sold: 'tertiary',
@@ -82,6 +83,7 @@ const STATUS_TONE: Record<string, StatusToneKey> = {
   'in-transit': 'primary',
   packing: 'primary',
   registered: 'primary',
+  'in-progress': 'primary',
   // Both spellings appear in upstream data; both alias to the same tone.
   'partially-delivered': 'primary',
   'partly-delivered': 'primary',
@@ -89,12 +91,14 @@ const STATUS_TONE: Record<string, StatusToneKey> = {
   // warning / needs attention
   approval: 'warning',
   pending: 'warning',
+  queued: 'warning',
 
   // error / negative
   rejected: 'error',
   missing: 'error',
   broken: 'error',
   cancelled: 'error',
+  failed: 'error',
 
   // neutral / inactive
   draft: 'neutral',
@@ -110,6 +114,8 @@ const STATUS_TONE: Record<string, StatusToneKey> = {
 const STATUS_LABELS: Record<string, string> = {
   registered: 'Ready for Packing',
   approval: 'Awaiting approval',
+  'in-progress': 'In progress',
+  queued: 'Queued',
   // `in-transit` falls through to the sentence-case helper, which yields
   // "In transit" — the intended user-facing label for both partner orders
   // and delivery notes.

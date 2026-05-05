@@ -12,16 +12,17 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { 
-  Users, 
-  Package, 
-  Store, 
+import {
+  Users,
+  Package,
+  Store,
   ChevronRight,
   LogOut,
   Cog,
   BarChart3,
   UserIcon,
-  X
+  X,
+  Database
 } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
 
@@ -57,6 +58,7 @@ interface AdminSettingsSheetProps {
   onNavigateToPartnerSettings?: () => void;
   onNavigateToStoreUserAccess?: () => void;
   onNavigateToPartnerUserAccess?: () => void;
+  onNavigateToSapExportJobs?: () => void;
 }
 
 interface MenuItem {
@@ -83,7 +85,8 @@ export default function AdminSettingsSheet({
   onNavigateToPortalConfiguration,
   onNavigateToPartnerSettings,
   onNavigateToStoreUserAccess,
-  onNavigateToPartnerUserAccess
+  onNavigateToPartnerUserAccess,
+  onNavigateToSapExportJobs
 }: AdminSettingsSheetProps) {
   if (!userAccount) {
     console.warn('AdminSettingsSheet: userAccount is undefined, sheet will not render.');
@@ -151,6 +154,13 @@ export default function AdminSettingsSheet({
   const handlePartnerUserAccess = () => {
     if (onNavigateToPartnerUserAccess) {
       onNavigateToPartnerUserAccess();
+      onClose();
+    }
+  };
+
+  const handleSapExportJobs = () => {
+    if (onNavigateToSapExportJobs) {
+      onNavigateToSapExportJobs();
       onClose();
     }
   };
@@ -223,6 +233,19 @@ export default function AdminSettingsSheet({
           description: 'Manage partner access and agreements',
           icon: <Store className="w-6 h-6" />,
           onClick: handlePartnerSettings,
+          visibleFor: ['admin']
+        }
+      ]
+    },
+    {
+      title: 'Operations',
+      items: [
+        {
+          id: 'sap-export-jobs',
+          title: 'SAP MDG export jobs',
+          description: 'Status of CSV exports to SAP MDG for registered orders',
+          icon: <Database className="w-6 h-6" />,
+          onClick: handleSapExportJobs,
           visibleFor: ['admin']
         }
       ]

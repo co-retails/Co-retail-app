@@ -197,17 +197,20 @@ export default function ShippingReportScreen({
     return note.createdDate; // Placeholder - in real implementation, boxes would have deliveredDate
   };
 
-  // Filter delivery notes based on all filters
-  const filteredDeliveryNotes = useMemo(() => {
+  // Notes scoped by every filter EXCEPT the All/Overdue chip toggle. Used both
+  // as the input to `filteredDeliveryNotes` and to compute chip box counts so
+  // the chips show how many boxes each option would surface in the current
+  // dropdown scope.
+  const chipScopedDeliveryNotes = useMemo(() => {
     // Exclude draft and packing deliveries
-    let filtered = deliveryNotes.filter(note => 
+    let filtered = deliveryNotes.filter(note =>
       note.status !== 'draft' && note.status !== 'packing'
     );
 
     // Brand filter (via store)
     if (selectedBrandIds.length > 0) {
       const brandStoreIds = filteredStores.map(s => s.id);
-      filtered = filtered.filter(note => 
+      filtered = filtered.filter(note =>
         note.storeId && brandStoreIds.includes(note.storeId)
       );
     }
@@ -215,21 +218,21 @@ export default function ShippingReportScreen({
     // Country filter (via store)
     if (selectedCountryIds.length > 0) {
       const countryStoreIds = filteredStores.map(s => s.id);
-      filtered = filtered.filter(note => 
+      filtered = filtered.filter(note =>
         note.storeId && countryStoreIds.includes(note.storeId)
       );
     }
 
     // Store filter
     if (selectedStoreIds.length > 0) {
-      filtered = filtered.filter(note => 
+      filtered = filtered.filter(note =>
         note.storeId && selectedStoreIds.includes(note.storeId)
       );
     }
 
     // Partner filter
     if (selectedPartnerIds.length > 0) {
-      filtered = filtered.filter(note => 
+      filtered = filtered.filter(note =>
         note.partnerId && selectedPartnerIds.includes(note.partnerId)
       );
     }
@@ -246,31 +249,6 @@ export default function ShippingReportScreen({
       });
     }
 
-    // OI-21 filter (> 21 days in transit) - includes deliveries with overdue boxes
-    if (filterOI21) {
-      filtered = filtered.filter(note => {
-        const inTransitDate = getInTransitDate(note);
-        if (!inTransitDate) return false;
-        const days = calculateDaysInTransit(inTransitDate);
-        const isOverdue = days !== null && days > 21;
-        
-        if (!isOverdue) return false;
-        
-        // Check if delivery itself is overdue (In Transit status)
-        const status = mapDeliveryStatus(note.status);
-        if (status === 'In Transit') {
-          return true;
-        }
-        
-        // Check if any boxes are overdue (> 21 days in transit)
-        // Boxes use the delivery's in-transit date, so if delivery is overdue,
-        // any boxes still in-transit are also overdue
-        const hasOverdueBoxes = note.boxes.some(box => box.status === 'in-transit');
-        
-        return hasOverdueBoxes;
-      });
-    }
-
     // Status filter
     if (selectedStatuses.length > 0) {
       filtered = filtered.filter(note => {
@@ -280,7 +258,52 @@ export default function ShippingReportScreen({
     }
 
     return filtered;
-  }, [deliveryNotes, selectedBrandIds, selectedCountryIds, selectedStoreIds, selectedPartnerIds, dateRangeStart, dateRangeEnd, filterOI21, selectedStatuses, filteredStores]);
+  }, [deliveryNotes, selectedBrandIds, selectedCountryIds, selectedStoreIds, selectedPartnerIds, dateRangeStart, dateRangeEnd, selectedStatuses, filteredStores]);
+
+  // Filter delivery notes based on all filters
+  const filteredDeliveryNotes = useMemo(() => {
+    if (!filterOI21) return chipScopedDeliveryNotes;
+
+    // OI-21 filter (> 21 days in transit) - includes deliveries with overdue boxes
+    return chipScopedDeliveryNotes.filter(note => {
+      const inTransitDate = getInTransitDate(note);
+      if (!inTransitDate) return false;
+      const days = calculateDaysInTransit(inTransitDate);
+      const isOverdue = days !== null && days > 21;
+
+      if (!isOverdue) return false;
+
+      // Check if delivery itself is overdue (In Transit status)
+      const status = mapDeliveryStatus(note.status);
+      if (status === 'In Transit') {
+        return true;
+      }
+
+      // Check if any boxes are overdue (> 21 days in transit)
+      // Boxes use the delivery's in-transit date, so if delivery is overdue,
+      // any boxes still in-transit are also overdue
+      const hasOverdueBoxes = note.boxes.some(box => box.status === 'in-transit');
+
+      return hasOverdueBoxes;
+    });
+  }, [chipScopedDeliveryNotes, filterOI21]);
+
+  // Box counts for the All / Overdue filter chips. Derived from the chip-
+  // scoped list so the counts reflect the current dropdown selections.
+  const chipBoxCounts = useMemo(() => {
+    const allBoxes = chipScopedDeliveryNotes.flatMap(note => note.boxes);
+    const total = allBoxes.length;
+    const overdue = allBoxes.filter(box => {
+      if (box.status !== 'in-transit') return false;
+      const note = chipScopedDeliveryNotes.find(n => n.boxes.includes(box));
+      if (!note) return false;
+      const inTransitDate = getInTransitDate(note);
+      if (!inTransitDate) return false;
+      const days = calculateDaysInTransit(inTransitDate);
+      return days !== null && days > 21;
+    }).length;
+    return { total, overdue };
+  }, [chipScopedDeliveryNotes]);
 
   // Calculate metrics
   const metrics = useMemo((): DeliveryMetrics => {
@@ -450,11 +473,35 @@ export default function ShippingReportScreen({
   };
 
   const handlePartnerToggle = (partnerId: string) => {
-    setSelectedPartnerIds(prev => 
-      prev.includes(partnerId) 
+    setSelectedPartnerIds(prev =>
+      prev.includes(partnerId)
         ? prev.filter(id => id !== partnerId)
         : [...prev, partnerId]
     );
+  };
+
+  const handleStatusToggle = (status: DeliveryStatus) => {
+    setSelectedStatuses(prev =>
+      prev.includes(status)
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  const STATUS_OPTIONS: DeliveryStatus[] = [
+    'Draft',
+    'Packing',
+    'In Transit',
+    'Partly Delivered',
+    'Delivered',
+    'Cancelled',
+    'Rejected',
+  ];
+
+  const getStatusDisplayText = (): string => {
+    if (selectedStatuses.length === 0) return 'All Statuses';
+    if (selectedStatuses.length === 1) return selectedStatuses[0];
+    return `${selectedStatuses.length} selected`;
   };
 
   const toggleDeliveryExpansion = (deliveryNoteId: string, e: React.MouseEvent) => {
@@ -642,7 +689,6 @@ export default function ShippingReportScreen({
                   style={{ zIndex: 10060 }}
                 >
                   <Command>
-                    <CommandInput placeholder="Search brands..." />
                     <CommandList>
                       <CommandEmpty>No brands found.</CommandEmpty>
                       <CommandGroup>
@@ -775,7 +821,6 @@ export default function ShippingReportScreen({
                     style={{ zIndex: 10060 }}
                   >
                     <Command>
-                      <CommandInput placeholder="Search partners..." />
                       <CommandList>
                         <CommandEmpty>No partners found.</CommandEmpty>
                         <CommandGroup>
@@ -807,6 +852,49 @@ export default function ShippingReportScreen({
               )}
             </div>
 
+            {/* Status Filter */}
+            <div className="flex items-center gap-2">
+              <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Status:</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="bg-surface-container border border-outline-variant rounded-lg h-12 md:h-10 px-3 body-medium min-w-[150px] min-h-[48px] md:min-h-0 justify-between"
+                  >
+                    <span className="truncate">{getStatusDisplayText()}</span>
+                    <ChevronDown className="h-4 w-4 opacity-50 ml-2 flex-shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[200px] p-0"
+                  align="start"
+                  style={{ zIndex: 10060 }}
+                >
+                  <Command>
+                    <CommandList>
+                      <CommandEmpty>No statuses found.</CommandEmpty>
+                      <CommandGroup>
+                        {STATUS_OPTIONS.map((status) => (
+                          <CommandItem
+                            key={status}
+                            value={status}
+                            onSelect={() => handleStatusToggle(status)}
+                            className="flex items-center gap-2 cursor-pointer py-3 md:py-1.5 min-h-[44px] md:min-h-0"
+                          >
+                            <Checkbox
+                              checked={selectedStatuses.includes(status)}
+                              className="pointer-events-none"
+                            />
+                            <span className="body-medium">{status}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
             {/* Date Range */}
             <div className="flex items-center gap-2">
               <label className="label-small text-on-surface-variant whitespace-nowrap flex items-center h-12 md:h-10">Date:</label>
@@ -828,16 +916,27 @@ export default function ShippingReportScreen({
             </div>
           </div>
 
-          {/* Filter Chips */}
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <Button
-              variant={filterOI21 ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterOI21(!filterOI21)}
-              className="h-8"
-            >
-              Overdue (&gt; 21 days)
-            </Button>
+          {/* All / Overdue chips — match the Items screen pattern */}
+          <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide">
+            {[
+              { id: 'all' as const, label: 'All', count: chipBoxCounts.total, active: !filterOI21 },
+              { id: 'overdue' as const, label: 'Overdue (> 21 days)', count: chipBoxCounts.overdue, active: filterOI21 },
+            ].map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => setFilterOI21(chip.id === 'overdue')}
+                className={`flex-shrink-0 min-h-[44px] flex items-center px-4 py-2 rounded-lg border transition-colors ${
+                  chip.active
+                    ? 'bg-secondary-container border-secondary text-on-secondary-container'
+                    : 'bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest'
+                }`}
+              >
+                <span className="label-medium whitespace-nowrap">
+                  {chip.label} ({chip.count})
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       </div>

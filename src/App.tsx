@@ -40,6 +40,9 @@ import ShippingLabelScreen from './components/ShippingLabelScreen';
 import SwitchViewSheet from './components/SwitchViewSheet';
 import WhatsNewDialog from './components/WhatsNewDialog';
 import PartnerPortalLoginScreen from './components/PartnerPortalLoginScreen';
+import SapExportJobsScreen from './components/SapExportJobsScreen';
+import SapExportJobDetailsScreen from './components/SapExportJobDetailsScreen';
+import { SapExportJob } from './data/mockSapExportJobs';
 
 // Retry wrapper for lazy imports — handles chunk load failures after new deployments
 function lazyWithRetry<T extends React.ComponentType<any>>(
@@ -223,7 +226,11 @@ export default function App() {
     detailsScreenData,
     setDetailsScreenData,
     orderCreationReturnScreen,
-    setOrderCreationReturnScreen
+    setOrderCreationReturnScreen,
+    sapExportJobs,
+    setSapExportJobs,
+    selectedSapExportJobId,
+    setSelectedSapExportJobId
   } = state;
 
   // Gates side-sheet vs full-screen rendering for screens that should appear
@@ -890,12 +897,114 @@ export default function App() {
   };
 
   const handleRegisterSellpyOrder = (orderId: string) => {
-    setSellpyOrders(prev => prev.map(order =>
-      order.id === orderId ? { ...order, status: 'registered' } : order
+    const order = sellpyOrders.find((o) => o.id === orderId);
+    setSellpyOrders(prev => prev.map(o =>
+      o.id === orderId ? { ...o, status: 'registered' } : o
     ));
-    setRegisteredOrderId(orderId);
-    setShowPostRegistrationDialog(true);
+    handleOrderRegistered({
+      orderId,
+      partnerId: '1',
+      partnerName: 'Sellpy',
+      itemCount: order?.totalItems ?? order?.items.length ?? 0,
+    });
   };
+
+  /**
+   * Wraps the existing post-registration UX with SAP MDG export-job creation
+   * and a simulated lifecycle (queued → in-progress → success/failed). Real
+   * backend would replace the setTimeouts with a server-driven status feed.
+   */
+  const handleOrderRegistered = React.useCallback((args: {
+    orderId: string;
+    partnerId?: string;
+    partnerName?: string;
+    itemCount: number;
+  }) => {
+    setRegisteredOrderId(args.orderId);
+    setShowPostRegistrationDialog(true);
+
+    const jobId = `sap-job-${Date.now()}`;
+    const newJob: SapExportJob = {
+      id: jobId,
+      orderId: args.orderId,
+      partnerId: args.partnerId,
+      partnerName: args.partnerName ?? 'Unknown partner',
+      status: 'queued',
+      itemCount: args.itemCount,
+      fileName: `sap-mdg-${args.orderId}.csv`,
+      createdAt: new Date().toISOString(),
+      retryCount: 0,
+    };
+    setSapExportJobs((prev) => [newJob, ...prev]);
+
+    setTimeout(() => {
+      setSapExportJobs((prev) =>
+        prev.map((j) =>
+          j.id === jobId
+            ? { ...j, status: 'in-progress', startedAt: new Date().toISOString() }
+            : j,
+        ),
+      );
+    }, 1200);
+
+    setTimeout(() => {
+      const failed = Math.random() < 0.15;
+      setSapExportJobs((prev) =>
+        prev.map((j) =>
+          j.id === jobId
+            ? failed
+              ? {
+                  ...j,
+                  status: 'failed',
+                  completedAt: new Date().toISOString(),
+                  errorCode: 'SAP_TIMEOUT',
+                  errorMessage:
+                    'SAP MDG endpoint did not respond within 30s. The CSV was not accepted; SAP may need to retry from their side.',
+                }
+              : { ...j, status: 'success', completedAt: new Date().toISOString() }
+            : j,
+        ),
+      );
+    }, 3200);
+  }, [setRegisteredOrderId, setShowPostRegistrationDialog, setSapExportJobs]);
+
+  const handleRetrySapExportJob = React.useCallback((jobId: string) => {
+    setSapExportJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId
+          ? {
+              ...j,
+              status: 'queued',
+              startedAt: undefined,
+              completedAt: undefined,
+              errorCode: undefined,
+              errorMessage: undefined,
+              retryCount: j.retryCount + 1,
+            }
+          : j,
+      ),
+    );
+
+    setTimeout(() => {
+      setSapExportJobs((prev) =>
+        prev.map((j) =>
+          j.id === jobId
+            ? { ...j, status: 'in-progress', startedAt: new Date().toISOString() }
+            : j,
+        ),
+      );
+    }, 1200);
+
+    setTimeout(() => {
+      setSapExportJobs((prev) =>
+        prev.map((j) =>
+          j.id === jobId
+            ? { ...j, status: 'success', completedAt: new Date().toISOString() }
+            : j,
+        ),
+      );
+    }, 3200);
+  }, [setSapExportJobs]);
 
   const handleClosePostRegistrationDialog = () => {
     setShowPostRegistrationDialog(false);
@@ -1666,6 +1775,8 @@ export default function App() {
     currentScreen !== 'partner-settings' &&
     currentScreen !== 'store-user-access' &&
     currentScreen !== 'partner-user-access' &&
+    currentScreen !== 'sap-export-jobs' &&
+    currentScreen !== 'sap-export-job-details' &&
     currentScreen !== 'return-management' &&
     currentScreen !== 'return-confirmation' &&
     currentScreen !== 'return-shipping-label' &&
@@ -2592,8 +2703,12 @@ export default function App() {
 
                 // If registering, show the post-registration dialog
                 if (shouldRegister) {
-                  setRegisteredOrderId(newOrder.id);
-                  setShowPostRegistrationDialog(true);
+                  handleOrderRegistered({
+                    orderId: newOrder.id,
+                    partnerId: newOrder.partnerId,
+                    partnerName: newOrder.partnerName,
+                    itemCount: newOrder.itemCount,
+                  });
                 } else {
                   // Navigate to order details screen so user can fix validation errors
                   const store = mockStores?.find(s => s.id === storeSelection.storeId);
@@ -2901,8 +3016,12 @@ export default function App() {
                   : o
               )
             );
-            setRegisteredOrderId(order.id);
-            setShowPostRegistrationDialog(true);
+            handleOrderRegistered({
+              orderId: order.id,
+              partnerId: order.partnerId,
+              partnerName: order.partnerName,
+              itemCount: lineItems.length,
+            });
             if (order.partnerId && order.warehouseId) {
               setCurrentPartnerWarehouseSelection({
                 partnerId: order.partnerId,
@@ -3808,6 +3927,36 @@ export default function App() {
         </Suspense>
       )}
 
+      {/* SAP MDG export jobs (admin only) */}
+      {currentScreen === 'sap-export-jobs' && currentUserRole === 'admin' && (
+        <SapExportJobsScreen
+          jobs={sapExportJobs}
+          onBack={() => {
+            setIsAdminSettingsSheetOpen(false);
+            setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : 'home');
+          }}
+          onSelectJob={(jobId) => {
+            setSelectedSapExportJobId(jobId);
+            setCurrentScreenSafe('sap-export-job-details');
+          }}
+        />
+      )}
+
+      {/* SAP MDG export job details (admin only) */}
+      {currentScreen === 'sap-export-job-details' && currentUserRole === 'admin' && (() => {
+        const job = sapExportJobs.find((j) => j.id === selectedSapExportJobId);
+        if (!job) return null;
+        const items = partnerOrderLineItemsByOrderId[job.orderId] ?? [];
+        return (
+          <SapExportJobDetailsScreen
+            job={job}
+            orderItems={items}
+            onBack={() => setCurrentScreenSafe('sap-export-jobs')}
+            onRetry={handleRetrySapExportJob}
+          />
+        );
+      })()}
+
       {/* Post-registration dialog */}
       <PostRegistrationDialog 
         isOpen={showPostRegistrationDialog}
@@ -3851,6 +4000,10 @@ export default function App() {
         onNavigateToPartnerUserAccess={() => {
           setIsAdminSettingsSheetOpen(false);
           setCurrentScreenSafe('partner-user-access');
+        }}
+        onNavigateToSapExportJobs={() => {
+          setIsAdminSettingsSheetOpen(false);
+          setCurrentScreenSafe('sap-export-jobs');
         }}
       />
 

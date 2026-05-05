@@ -91,6 +91,9 @@ function NavigationBar({ activeDestination, destinations }: ResponsiveNavigation
               }`}>
                 {destination.label}
               </span>
+              {isActive && (
+                <div className="w-6 h-0.5 bg-primary rounded-full mt-1" />
+              )}
             </button>
           );
         })}
