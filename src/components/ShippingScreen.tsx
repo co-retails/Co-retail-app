@@ -108,7 +108,6 @@ interface ShippingScreenProps {
   currentWarehouseId?: string;
   onSelectSellpyOrder?: (order: SellpyOrder) => void;
   onUpdateReturnDeliveryStatus?: (deliveryId: string, status: 'Returned') => void;
-  onCancelReturn?: (deliveryId: string, reason?: string) => void;
   onOpenOrderDetails?: (order: ShippingPartnerOrder, activeTab?: ShippingTab, activeFilter?: string) => void;
   onOpenShipmentDetails?: (deliveryNote: DeliveryNote, activeTab?: ShippingTab, activeFilter?: string) => void;
   onOpenReturnDetails?: (returnDelivery: ReturnDelivery, activeTab?: ShippingTab, activeFilter?: string) => void;
@@ -502,18 +501,16 @@ function PartnerDeliveryNoteItem({
 
 
 function ReturnDeliveryComponent({
-  returnDelivery, 
+  returnDelivery,
   onUpdateStatus,
-  onCancel,
   onClick,
   stores,
   brands,
   warehouses,
   userRole
-}: { 
-  returnDelivery: ReturnDelivery; 
+}: {
+  returnDelivery: ReturnDelivery;
   onUpdateStatus?: (deliveryId: string, status: 'Returned') => void;
-  onCancel?: (deliveryId: string) => void;
   onClick?: () => void;
   stores?: StoreRecord[];
   brands?: BrandRecord[];
@@ -530,15 +527,8 @@ function ReturnDeliveryComponent({
     }
   };
 
-  const handleCancel = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onCancel && confirm('Are you sure you want to cancel this return? This action cannot be undone.')) {
-      onCancel(returnDelivery.id);
-    }
-  };
-
   // Use div wrapper when there are action buttons to avoid nested buttons
-  const hasActionButton = (returnDelivery.status !== 'Returned' && onUpdateStatus) || (returnDelivery.status === 'Pending' && onCancel);
+  const hasActionButton = returnDelivery.status !== 'Returned' && !!onUpdateStatus;
   const ComponentWrapper = onClick && !hasActionButton ? 'button' : 'div';
   
   const handleContentClick = (e: React.MouseEvent | React.TouchEvent) => {
@@ -634,36 +624,6 @@ function ReturnDeliveryComponent({
             size="lg"
             className="hidden lg:inline-flex"
           />
-
-          {/* More menu for pending returns */}
-          {returnDelivery.status === 'Pending' && onCancel && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                  }}
-                  onTouchEnd={(e: React.TouchEvent) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                  }}
-                  className="inline-flex items-center justify-center p-2 rounded-full hover:bg-surface-container-high transition-colors min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
-                  aria-label="More actions"
-                >
-                  <MoreVertical className="w-5 h-5 text-on-surface-variant" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem
-                  onClick={handleCancel}
-                  className="text-error focus:text-error focus:bg-error-container"
-                >
-                  Cancel return
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
 
           {/* Mark as Returned button - Only show for partners, not store staff */}
           {returnDelivery.status !== 'Returned' && returnDelivery.status !== 'Pending' && onUpdateStatus && userRole === 'partner' && (
@@ -978,7 +938,6 @@ export default function ShippingScreen({
   currentWarehouseId,
   onSelectSellpyOrder,
   onUpdateReturnDeliveryStatus,
-  onCancelReturn,
   onOpenOrderDetails,
   onOpenShipmentDetails,
   onOpenReturnDetails,
@@ -1892,7 +1851,7 @@ useEffect(() => {
                   type="text"
                   id="shipping-search"
                   name="shipping-search"
-                  placeholder={showReturns ? "Search for return delivery ID or store name" : 
+                  placeholder={
                     showSellpyOrders ? "Search for order ID or store name" :
                     role === 'partner' ? "Search for order ID or delivery note" : "Search for delivery ID"
                   }
@@ -2266,7 +2225,6 @@ useEffect(() => {
                         <ReturnDeliveryComponent 
                           returnDelivery={returnDelivery}
                           onUpdateStatus={onUpdateReturnDeliveryStatus}
-                          onCancel={onCancelReturn}
                           onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                           stores={stores}
                           brands={brands}
@@ -2390,7 +2348,6 @@ useEffect(() => {
                         <ReturnDeliveryComponent 
                           returnDelivery={returnDelivery}
                           onUpdateStatus={onUpdateReturnDeliveryStatus}
-                          onCancel={onCancelReturn}
                           onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                           stores={stores}
                           brands={brands}
@@ -3022,7 +2979,6 @@ useEffect(() => {
                       <ReturnDeliveryComponent 
                         returnDelivery={returnDelivery}
                         onUpdateStatus={onUpdateReturnDeliveryStatus}
-                        onCancel={onCancelReturn}
                         onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab)}
                         stores={stores}
                         brands={brands}

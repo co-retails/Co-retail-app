@@ -726,13 +726,6 @@ export const ItemCard = memo(function ItemCard({
             </div>
           </div>
           
-          {/* Line 4.5: Box Label */}
-          {item.boxLabel && (
-            <div className={`${bumped ? 'label-medium break-words' : 'label-small truncate'} text-on-surface-variant mb-0.5`}>
-              Box label: {item.boxLabel}
-            </div>
-          )}
-
           {/* Line 5: Seller */}
           {!hideSellerName && (
             <div className={`${bumped ? 'body-medium break-words' : 'body-small truncate'} text-on-surface`}>

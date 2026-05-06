@@ -655,7 +655,6 @@ export default function DeliveryNoteDetailsScreen({
                       date={boxDate}
                       status={statusDisplay}
                       boxLabel={box.qrLabel}
-                      boxId={box.id}
                       orderNumber={orderId}
                       itemCount={box.items.length}
                       onSelect={onOpenBoxDetails ? () => onOpenBoxDetails(box) : undefined}

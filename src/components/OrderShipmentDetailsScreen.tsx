@@ -1425,7 +1425,6 @@ export default function OrderShipmentDetailsScreen({
                               date={boxDate}
                               status={statusDisplay}
                               boxLabel={box.qrLabel}
-                              boxId={box.id}
                               orderNumber={orderNumber}
                               itemCount={box.items.length}
                               onSelect={() => handleBoxClick(box)}

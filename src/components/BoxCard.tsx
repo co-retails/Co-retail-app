@@ -5,8 +5,6 @@ import { useIsListRowBumped, useListRowFonts } from './ui/list-row-card';
 export interface BoxCardProps {
   /** Primary short identifier / QR label of the box */
   boxLabel?: string;
-  /** Internal box id */
-  boxId?: string;
   /** Linked order number */
   orderNumber?: string;
   /** Created date (string, already formatted) */
@@ -41,7 +39,6 @@ export interface BoxCardProps {
  */
 export default function BoxCard({
   boxLabel,
-  boxId,
   orderNumber,
   date,
   status,
@@ -119,38 +116,27 @@ export default function BoxCard({
           </div>
         )}
 
-        {/* Line 3 — box id */}
-        {boxId && (
-          <div className={`${fonts.label} text-on-surface-variant mb-1 break-words`}>
-            <span className={`${fonts.label} text-on-surface-variant`}>Box ID: </span>
-            {boxId}
+        {/* Line 3 — delivery */}
+        {deliveryLabel && (
+          <div className={`${fonts.body} text-on-surface-variant mb-1 break-words`}>
+            <span className={`${fonts.label} text-on-surface-variant`}>Delivery: </span>
+            {deliveryLabel}
           </div>
         )}
 
-        {/* Line 4 — order nr */}
+        {/* Line 4 — sender */}
+        {sender && (
+          <div className={`${fonts.body} text-on-surface-variant ${orderNumber ? 'mb-1' : ''} break-words`}>
+            <span className={`${fonts.label} text-on-surface-variant`}>Sender: </span>
+            {sender}
+          </div>
+        )}
+
+        {/* Line 5 — order nr */}
         {orderNumber && (
-          <div className={`${fonts.body} text-on-surface-variant ${sender || deliveryLabel ? 'mb-1' : ''} break-words`}>
+          <div className={`${fonts.body} text-on-surface-variant break-words`}>
             <span className={`${fonts.label} text-on-surface-variant`}>Order nr: </span>
             {orderNumber}
-          </div>
-        )}
-
-        {/* Line 5 — sender / delivery */}
-        {(sender || deliveryLabel) && (
-          <div className={`${fonts.body} text-on-surface-variant break-words`}>
-            {sender && (
-              <>
-                <span className={`${fonts.label} text-on-surface-variant`}>Sender: </span>
-                {sender}
-              </>
-            )}
-            {sender && deliveryLabel && ' • '}
-            {deliveryLabel && (
-              <>
-                <span className={`${fonts.label} text-on-surface-variant`}>Delivery: </span>
-                {deliveryLabel}
-              </>
-            )}
           </div>
         )}
       </div>

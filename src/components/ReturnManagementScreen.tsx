@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { ArrowLeft, MoreVertical, QrCode, Package, Calendar, User } from 'lucide-react';
+import { ArrowLeft, QrCode, Package, Calendar, User } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Partner } from './PartnerSelectionScreen';
 import { ItemCard, BaseItem } from './ItemCard';
@@ -79,6 +79,7 @@ interface ReturnManagementScreenProps {
   onContinue?: () => void; // New prop for Continue button
   onSaveAndClose?: () => void; // Handler for Save & close button
   onUpdateItem: (itemId: string, action: 'select' | 'deselect' | 'missing' | 'extend' | 'scan' | 'unscan') => void;
+  onCancelReturn?: () => void; // Cancel an existing pending return delivery (omit on new-return creation)
 }
 
 const getFallbackDaysFromId = (id: string) => {
@@ -102,23 +103,34 @@ const getDaysInStoreForItem = (item: ReturnItem) => {
   return getFallbackDaysFromId(item.id);
 };
 
-function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
+function TopAppBar({ onBack, title, onCancelReturn }: { onBack: () => void; title: string; onCancelReturn?: () => void }) {
   return (
     <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
       <div className="flex items-center h-16 px-4 md:px-6">
         {/* Leading icon */}
-        <button 
+        <button
           className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2 touch-manipulation min-w-[48px] min-h-[48px]"
           onClick={onBack}
           aria-label="Go back"
         >
           <ArrowLeft className="w-6 h-6 text-on-surface" />
         </button>
-        
+
         {/* Title */}
         <h1 className="title-large text-on-surface flex-1">
           {title}
         </h1>
+
+        {/* Trailing action - cancel return text (only on a pending return delivery) */}
+        {onCancelReturn && (
+          <button
+            type="button"
+            onClick={onCancelReturn}
+            className="label-small text-error hover:underline focus:underline focus:outline-none touch-manipulation min-h-[48px] px-2"
+          >
+            Cancel return
+          </button>
+        )}
       </div>
     </div>
   );
@@ -456,14 +468,15 @@ function BottomActions({
   );
 }
 
-export default function ReturnManagementScreen({ 
-  partner, 
-  items, 
-  onBack, 
-  onCreateReturn, 
+export default function ReturnManagementScreen({
+  partner,
+  items,
+  onBack,
+  onCreateReturn,
   onContinue,
   onSaveAndClose,
-  onUpdateItem 
+  onUpdateItem,
+  onCancelReturn
 }: ReturnManagementScreenProps) {
   // Filter items to only show items from the selected partner
   const partnerItems = items.filter(item => !item.partnerId || item.partnerId === partner.id);
@@ -587,7 +600,7 @@ export default function ReturnManagementScreen({
       <div className="hidden md:block h-16"></div>
       
       {/* Top App Bar */}
-      <TopAppBar onBack={onBack} title="Return" />
+      <TopAppBar onBack={onBack} title="Return" onCancelReturn={onCancelReturn} />
       
       {/* Content - M3 Grid: 16px mobile, 24px tablet+ */}
       <div className="pb-20">
@@ -645,15 +658,6 @@ export default function ReturnManagementScreen({
         
         {/* Content Area */}
         <div className="pt-4 md:pt-6">
-          {/* Item count - only show when there are items */}
-          {currentItems.length > 0 && (
-            <div className="px-4 md:px-6 mb-4">
-              <span className="body-medium text-on-surface-variant">
-                {currentItems.length} items
-              </span>
-            </div>
-          )}
-          
           {/* Items or Empty State */}
           {currentItems.length > 0 ? (
             <div className="px-4 md:px-6 pb-4">

@@ -32,6 +32,22 @@ export interface Box {
   cancellationReason?: 'Missing box';
 }
 
+// Deterministic hash so a given delivery always derives the same demo order numbers,
+// and all boxes inside one delivery share the same order / external order.
+const hashString = (s: string): number => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+};
+
+export const demoOrderNumberForDelivery = (deliveryKey: string): string =>
+  `ORD-${1000 + (hashString(deliveryKey) % 9000)}`;
+
+export const demoExternalOrderForDelivery = (deliveryKey: string): string =>
+  `EXT-${10000 + (hashString(`${deliveryKey}:ext`) % 90000)}`;
+
 type ReceiveUserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner';
 
 interface ReceiveDeliveryScreenProps {
@@ -73,10 +89,10 @@ function TopAppBarWithDeliveryInfo({
           <ArrowLeft className="w-6 h-6 text-on-surface" />
         </button>
         
-        {/* Delivery Info - Compact */}
+        {/* Title */}
         <div className="flex-1 min-w-0">
           <h1 className="title-medium text-on-surface truncate">
-            Delivery: {delivery.deliveryId}
+            Receive boxes
           </h1>
         </div>
 
@@ -238,8 +254,6 @@ function BoxCard({
       date={box.date}
       status={box.status}
       boxLabel={box.boxId}
-      boxId={box.id}
-      orderNumber={box.orderNumber}
       sender={box.partnerName}
       deliveryLabel={box.deliveryLabel}
       itemCount={box.items}
@@ -404,12 +418,15 @@ export default function ReceiveDeliveryScreen({
 
     // Generate boxes for each in-transit delivery
     inTransitDeliveries.forEach(deliveryItem => {
+      // One order / external order per delivery, shared across all its boxes
+      const orderNumber = demoOrderNumberForDelivery(deliveryItem.id);
+      const externalOrder = demoExternalOrderForDelivery(deliveryItem.id);
       for (let i = 1; i <= deliveryItem.boxes; i++) {
         allBoxes.push({
           id: `box-${deliveryItem.id}-${i}`,
           boxId: `BOX-${deliveryItem.deliveryId.slice(-6)}-${i.toString().padStart(3, '0')}`,
-          orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-          externalOrder: `EXT-${Math.floor(10000 + Math.random() * 90000)}`,
+          orderNumber,
+          externalOrder,
           items: Math.floor(20 + Math.random() * 100),
           status: 'In transit',
           date: deliveryItem.date,
@@ -443,12 +460,14 @@ export default function ReceiveDeliveryScreen({
     }
     
     const mockBoxes: Box[] = [];
+    const orderNumber = demoOrderNumberForDelivery(delivery.id);
+    const externalOrder = demoExternalOrderForDelivery(delivery.id);
     for (let i = 1; i <= delivery.boxes; i++) {
       mockBoxes.push({
         id: `box-${i}`,
         boxId: `BOX-${delivery.deliveryId.slice(-6)}-${i.toString().padStart(3, '0')}`,
-        orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-        externalOrder: `EXT-${Math.floor(10000 + Math.random() * 90000)}`,
+        orderNumber,
+        externalOrder,
         items: Math.floor(20 + Math.random() * 100),
         status: 'In transit',
         date: delivery.date,
@@ -592,11 +611,12 @@ export default function ReceiveDeliveryScreen({
       
       // If no delivery match, try to find by box pattern in existing boxes from other deliveries
       // For now, create a new box with partner/delivery info if matched, or generic if not
+      const orderKey = matchedDelivery?.id || scannedCode;
       const newBox: Box = {
         id: `box-${Date.now()}`,
         boxId: scannedCode, // Use scanned code as boxId
-        orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-        externalOrder: `EXT-${Math.floor(10000 + Math.random() * 90000)}`,
+        orderNumber: demoOrderNumberForDelivery(orderKey),
+        externalOrder: demoExternalOrderForDelivery(orderKey),
         items: Math.floor(20 + Math.random() * 100),
         status: 'In transit',
         date: matchedDelivery?.date || delivery.date || new Date().toISOString().split('T')[0],
@@ -778,19 +798,6 @@ export default function ReceiveDeliveryScreen({
         
         {/* Content Area */}
         <div className="pt-4">
-          {/* Box count - only show when there are boxes */}
-          {currentBoxes.length > 0 && (
-            <div className="px-4 md:px-6 mb-4">
-              <span className="body-medium text-on-surface-variant">
-                {activeTab === 'scanned' 
-                  ? `${scannedBoxes.length} ${scannedBoxes.length === 1 ? 'box' : 'boxes'} scanned`
-                  : `${notScannedBoxes.length} ${notScannedBoxes.length === 1 ? 'box' : 'boxes'} not scanned`
-                }
-              </span>
-            </div>
-          )}
-
-          
           {/* Boxes List */}
           <BoxesList
             boxes={currentBoxes}

@@ -56,19 +56,19 @@ function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
     <div className="sticky top-0 bg-primary z-10">
       <div className="flex items-center h-16 px-4 md:px-6">
         {/* Leading icon */}
-        <button 
+        <button
           className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-on-primary/12 transition-colors mr-2 touch-manipulation min-w-[48px] min-h-[48px]"
           onClick={onBack}
           aria-label="Go back"
         >
           <ArrowLeft className="w-6 h-6 text-on-primary" />
         </button>
-        
+
         {/* Title */}
         <h1 className="title-large text-on-primary flex-1">
           {title}
         </h1>
-        
+
         {/* Trailing icon */}
         <button className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-on-primary/12 transition-colors touch-manipulation min-w-[48px] min-h-[48px]">
           <MoreVertical className="w-6 h-6 text-on-primary" />

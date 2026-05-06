@@ -598,7 +598,6 @@ export default function DeliveryNoteCreationScreen({
                   date={boxDate}
                   status={statusDisplay}
                   boxLabel={box.status !== 'pending' ? box.qrLabel : undefined}
-                  boxId={box.id}
                   orderNumber={orderId}
                   itemCount={box.items.length}
                   onSelect={onOpenBoxDetails ? () => onOpenBoxDetails(box) : undefined}

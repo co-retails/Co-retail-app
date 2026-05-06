@@ -116,13 +116,17 @@ function TopAppBar({
   );
 }
 
-function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
+function DeliveryAndSenderCard({ delivery, boxes }: { delivery: Delivery; boxes: Box[] }) {
   const statusLabel = getStatusLabel(delivery.status);
   const statusDisplay = delivery.status === 'Cancelled' && delivery.cancellationReason
     ? `${statusLabel} • ${delivery.cancellationReason}`
     : statusLabel;
 
   const isDelivered = delivery.status === 'Delivered';
+
+  // A delivery has a single order / external order, shared by all of its boxes — read it off any box
+  const orderNumber = boxes.find(b => b.orderNumber)?.orderNumber;
+  const externalOrder = boxes.find(b => b.externalOrder)?.externalOrder;
 
   return (
     <Card className="mx-4 md:mx-6 mb-6 bg-surface-container border border-outline-variant">
@@ -156,6 +160,22 @@ function DeliveryAndSenderCard({ delivery }: { delivery: Delivery }) {
             <h3 className="title-medium text-on-surface mb-2">
               Delivery ID: {delivery.deliveryId}
             </h3>
+
+            {/* Order nr */}
+            {orderNumber && (
+              <div className="body-small text-on-surface-variant mb-1 break-words">
+                <span className="text-on-surface-variant">Order nr: </span>
+                {orderNumber}
+              </div>
+            )}
+
+            {/* External order */}
+            {externalOrder && (
+              <div className="body-small text-on-surface-variant mb-1 break-words">
+                <span className="text-on-surface-variant">External order: </span>
+                {externalOrder}
+              </div>
+            )}
 
             {/* Secondary text - Details */}
             <div className="body-small text-on-surface-variant mb-3">
@@ -253,8 +273,6 @@ function BoxCardRow({
       date={box.date}
       status={box.status}
       boxLabel={box.boxId}
-      boxId={box.id}
-      orderNumber={box.orderNumber}
       itemCount={box.items}
       onSelect={onSelect}
       menuSlot={menuSlot}
@@ -362,7 +380,7 @@ export default function DeliveryDetailsScreen({
       {/* Content */}
       <div className="flex-1 overflow-y-auto pt-6">
         {/* Delivery & Sender Info */}
-        <DeliveryAndSenderCard delivery={delivery} />
+        <DeliveryAndSenderCard delivery={delivery} boxes={boxes} />
 
         {/* Instructions */}
         <div className="px-4 md:px-6 mb-4">
