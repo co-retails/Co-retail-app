@@ -508,13 +508,6 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         
         {/* Content Area */}
         <div className="pt-4 md:pt-6 pb-4">
-          {/* Item count */}
-          <div className="px-4 md:px-6 mb-4">
-            <span className="body-medium text-on-surface-variant">
-              {currentItems.length} items
-            </span>
-          </div>
-          
           {/* Items List */}
           <ItemsList
             items={currentItems}

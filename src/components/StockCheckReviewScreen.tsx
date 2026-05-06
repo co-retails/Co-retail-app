@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { ArrowLeft, X, MoreVertical, CheckCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, X, MoreVertical, CheckCircle } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { StockItem, StockCheckSession } from './StockCheckScreen';
-import { ItemCard, BaseItem } from './ItemCard';
+import { ItemCard, BaseItem, quickActionIcon, type ItemQuickAction } from './ItemCard';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import svgPathsNew from "../imports/svg-9jzmb4i3sv";
 import { toast } from 'sonner';
@@ -141,6 +141,14 @@ function FilterChips({
   );
 }
 
+type BulkOption = {
+  key: string;
+  label: string;
+  action: ItemQuickAction;
+  className?: string;
+  onClick: () => void;
+};
+
 function BulkActionsBar({
   selectedCount,
   totalCount,
@@ -149,7 +157,8 @@ function BulkActionsBar({
   onBulkAction,
   onClearSelection,
   activeTab,
-  onUnflagExpired
+  onUnflagExpired,
+  hasExpiredSelection
 }: {
   selectedCount: number;
   totalCount: number;
@@ -159,39 +168,39 @@ function BulkActionsBar({
   onClearSelection: () => void;
   activeTab: ReviewTab;
   onUnflagExpired: () => void;
+  hasExpiredSelection: boolean;
 }) {
   const hasSelectedItems = selectedCount > 0;
-  
+
   // Don't show multiselect for 'all-included' and 'not-found' tabs
   if (activeTab === 'all-included' || activeTab === 'not-found') {
     return null;
   }
 
-  // Get menu options based on active tab
-  const getMenuOptions = () => {
-    switch (activeTab) {
-      case 'not-scanned':
-        return [
-          { label: 'Missing', status: 'Missing' as const, className: 'text-error' }
-        ];
-      case 'not-found':
-        return [
-          { label: 'Available', status: 'Available' as const, className: 'text-on-surface' }
-        ];
-      case 'scanned':
-        return [
-          { label: 'Available', status: 'Available' as const, className: 'text-on-surface' },
-          { label: 'Broken', status: 'Broken' as const, className: 'text-error' }
-        ];
-      default:
-        return [];
+  // Build the menu so it only includes actions applicable to the current selection.
+  // Action keys map to the shared `quickActionIcon` so icons are consistent with ItemsScreen's bulk menu.
+  const getMenuOptions = (): BulkOption[] => {
+    if (activeTab === 'not-scanned') {
+      return [
+        { key: 'missing', label: 'Missing', action: 'mark-missing', className: 'text-error', onClick: () => onBulkAction('Missing') },
+      ];
     }
+    if (activeTab === 'scanned') {
+      const opts: BulkOption[] = [
+        { key: 'available', label: 'Available', action: 'mark-available', onClick: () => onBulkAction('Available') },
+        { key: 'broken', label: 'Broken', action: 'mark-broken', className: 'text-error', onClick: () => onBulkAction('Broken') },
+      ];
+      if (hasExpiredSelection) {
+        opts.push({ key: 'unflag-expired', label: 'Unflag expired', action: 'unflag-expired', onClick: onUnflagExpired });
+      }
+      return opts;
+    }
+    return [];
   };
 
   const menuOptions = getMenuOptions();
   const [bulkSheetOpen, setBulkSheetOpen] = useState(false);
   const isLargeScreen = useMediaQuery('(min-width: 1024px)');
-  const showUnflagInSheet = activeTab === 'scanned';
 
   return (
     <div className={`sticky top-0 z-[5] border-b border-outline-variant ${
@@ -277,28 +286,17 @@ function BulkActionsBar({
             <div className="flex flex-col">
               {menuOptions.map((option) => (
                 <button
-                  key={option.status}
+                  key={option.key}
                   onClick={() => {
-                    onBulkAction(option.status);
+                    option.onClick();
                     setBulkSheetOpen(false);
                   }}
-                  className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${option.className}`}
+                  className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${option.className ?? ''}`}
                 >
+                  {quickActionIcon(option.action)}
                   <span className="body-large">{option.label}</span>
                 </button>
               ))}
-              {showUnflagInSheet && (
-                <button
-                  onClick={() => {
-                    onUnflagExpired();
-                    setBulkSheetOpen(false);
-                  }}
-                  className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors text-on-surface"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                  <span className="body-large">Unflag expired</span>
-                </button>
-              )}
             </div>
           </div>
         </SheetContent>
@@ -1138,6 +1136,7 @@ export default function StockCheckReviewScreen({
           onClearSelection={() => setSelectedItems(new Set())}
           activeTab={activeTab}
           onUnflagExpired={handleUnflagExpiredBulk}
+          hasExpiredSelection={currentItems.some(item => selectedItems.has(item.id) && item.isExpired)}
         />
         
         {/* Content Area */}

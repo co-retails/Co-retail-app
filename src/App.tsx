@@ -1,7 +1,7 @@
 import React, { Suspense, startTransition, useEffect } from 'react';
 import DeliveryHomeScreen from './components/DeliveryHomeScreen';
 import ShippingScreen, { Delivery, ReturnDelivery, SellpyOrder } from './components/ShippingScreen';
-import ReceiveDeliveryScreen from './components/ReceiveDeliveryScreen';
+import ReceiveDeliveryScreen, { demoOrderNumberForDelivery, demoExternalOrderForDelivery } from './components/ReceiveDeliveryScreen';
 import PartnerSelectionScreen, { Partner } from './components/PartnerSelectionScreen';
 import ReturnManagementScreen, { ReturnItem, ReturnOrder, normalizeReturnItemStatus } from './components/ReturnManagementScreen';
 import ReturnConfirmationScreen from './components/ReturnConfirmationScreen';
@@ -480,6 +480,7 @@ export default function App() {
     // Clear previous screen tracking since we're coming from partner-selection (normal flow)
     state.setReturnManagementPreviousScreen(null);
     state.setReturnManagementPreviousTab(undefined);
+    setPendingReturnDeliveryId(null);
     setCurrentScreenSafe('return-management');
   };
 
@@ -644,6 +645,7 @@ export default function App() {
     // Clear previous screen tracking since we're coming from partner-selection (normal flow)
     state.setReturnManagementPreviousScreen(null);
     state.setReturnManagementPreviousTab(undefined);
+    setPendingReturnDeliveryId(null);
     setCurrentScreenSafe('return-management');
   };
 
@@ -1155,6 +1157,9 @@ export default function App() {
   /** Set in handleSaveAndClose(skipNavigation) so handleContinueToLabel can open the label sheet before deliveryNotes state flushes. */
   const boxContinueDeliveryNoteRef = React.useRef<{ boxId: string; deliveryNoteId: string } | null>(null);
   const [showShippingLabelScreen, setShowShippingLabelScreen] = React.useState<{ deliveryNoteId: string; onRegister: (shippingLabel?: string) => void } | null>(null);
+
+  // Tracks the delivery ID of the pending return that was opened in ReturnManagementScreen, so the cancel-return menu in its top bar can target the right delivery. Null when entering the screen for new-return creation.
+  const [pendingReturnDeliveryId, setPendingReturnDeliveryId] = React.useState<string | null>(null);
 
   const handleAddBoxToDeliveryNote = (deliveryNoteId: string, boxLabel: string) => {
     const deliveryNote = deliveryNotes.find(note => note.id === deliveryNoteId);
@@ -1969,6 +1974,9 @@ export default function App() {
           onSelectDelivery={(delivery) => {
             setSelectedDelivery(delivery);
             // Generate mock boxes for the delivery
+            // One order / external order per delivery, shared across all its boxes
+            const orderNumber = demoOrderNumberForDelivery(delivery.id);
+            const externalOrder = demoExternalOrderForDelivery(delivery.id);
             const mockBoxes = [];
             for (let i = 1; i <= delivery.boxes; i++) {
               const initialStatus =
@@ -1980,8 +1988,8 @@ export default function App() {
               mockBoxes.push({
                 id: `box-${i}`,
                 boxId: `BOX-${delivery.deliveryId.slice(-6)}-${i.toString().padStart(3, '0')}`,
-                orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-                externalOrder: `EXT-${Math.floor(10000 + Math.random() * 90000)}`,
+                orderNumber,
+                externalOrder,
                 items: Math.floor(20 + Math.random() * 100),
                 status: initialStatus as 'In transit' | 'Delivered' | 'Cancelled',
                 date: delivery.date,
@@ -2146,6 +2154,7 @@ export default function App() {
                 state.setReturnManagementPreviousTab(tabToRestore);
                 setReturnItems(itemsForReturn);
                 setSelectedPartner(partner);
+                setPendingReturnDeliveryId(returnDelivery.id);
                 setCurrentScreenSafe('return-management');
                 return;
               } else {
@@ -2159,7 +2168,6 @@ export default function App() {
             handleViewShipmentDetails('return', returnDelivery, 'shipping', tabToRestore, activeFilter as 'in-transit' | 'returned' | 'all' | undefined);
           }}
           onUpdateReturnDeliveryStatus={handleUpdateReturnDeliveryStatus}
-          onCancelReturn={handleCancelReturn}
           brands={mockBrands}
           countries={mockCountries}
           stores={mockStores}
@@ -2394,6 +2402,13 @@ export default function App() {
             // Navigate to shipping label screen
             setCurrentScreenSafe('return-shipping-label');
           }}
+          onCancelReturn={pendingReturnDeliveryId ? () => {
+            if (confirm('Are you sure you want to cancel this return? This action cannot be undone.')) {
+              handleCancelReturn(pendingReturnDeliveryId);
+              setPendingReturnDeliveryId(null);
+              handleBack();
+            }
+          } : undefined}
         />
       )}
 
