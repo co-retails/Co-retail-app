@@ -29,7 +29,6 @@ import {
   TableRow
 } from './ui/table';
 import {
-  ArrowLeft,
   Plus,
   Edit,
   Trash2,
@@ -38,6 +37,7 @@ import {
   GripVertical,
   MoreVertical
 } from 'lucide-react';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -458,24 +458,12 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
   return (
     <div className="min-h-screen bg-surface pb-20 md:pb-0">
       {/* Top App Bar */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
-        <div className="flex items-center h-16 px-4 md:px-6">
-          <button
-            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
-            onClick={onBack}
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-6 h-6 text-on-surface" />
-          </button>
-
-          <div className="flex-1">
-            <h1 className="title-large text-on-surface">Attribute values</h1>
-            <p className="body-small text-on-surface-variant">
-              Manage attribute value options
-            </p>
-          </div>
-
-          <div className="flex gap-2">
+      <PortalTopAppBar
+        title="Attribute values"
+        subtitle="Manage attribute value options"
+        onBack={onBack}
+        actions={
+          <>
             <Button
               variant="outline"
               className="border-outline hover:bg-surface-container-high"
@@ -496,41 +484,41 @@ export function DropdownValuesScreen({ onBack }: DropdownValuesScreenProps) {
               <Plus className="w-5 h-5 mr-2" />
               Add value
             </Button>
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {/* Context Bar */}
-        <div className="border-t border-outline-variant bg-surface-container px-4 md:px-6 py-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="label-medium text-on-surface-variant">Brand:</span>
-              <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                <SelectTrigger className="w-[180px] bg-surface-container-high border border-outline rounded-lg min-h-[40px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.id}>
-                      {brand.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Badge variant="outline" className="border-outline bg-surface">
-              <span className="label-medium text-on-surface-variant">
-                {filteredValues.length} values
+      {/* Context Bar */}
+      <div className="sticky top-16 z-10 border-b border-outline-variant bg-surface-container px-4 md:px-6 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="label-medium text-on-surface-variant">Brand:</span>
+            <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+              <SelectTrigger className="w-[180px] bg-surface-container-high border border-outline rounded-lg min-h-[40px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {brands.map((brand) => (
+                  <SelectItem key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Badge variant="outline" className="border-outline bg-surface">
+            <span className="label-medium text-on-surface-variant">
+              {filteredValues.length} values
+            </span>
+          </Badge>
+
+          {currentAttribute && (
+            <Badge variant="secondary" className="bg-secondary-container text-on-secondary-container">
+              <span className="label-medium">
+                Attribute: {currentAttribute.label}
               </span>
             </Badge>
-
-            {currentAttribute && (
-              <Badge variant="secondary" className="bg-secondary-container text-on-secondary-container">
-                <span className="label-medium">
-                  Attribute: {currentAttribute.label}
-                </span>
-              </Badge>
-            )}
-          </div>
+          )}
         </div>
       </div>
 

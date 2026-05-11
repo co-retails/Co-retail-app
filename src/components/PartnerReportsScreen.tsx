@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -197,28 +198,17 @@ export default function PartnerReportsScreen({
 
   return (
     <div className="min-h-screen bg-surface">
-      {/* Header */}
-      <div className="w-full bg-surface border-b border-outline-variant sticky top-0 z-20" id="reports-header">
-        <div className="px-4 md:px-6 py-4 max-w-7xl mx-auto">
-          <div className="flex items-center gap-4 mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="hover:bg-surface-container-high"
-            >
-              <ArrowLeft className="h-5 w-5 text-on-surface" />
-            </Button>
-            <div>
-              <h1 className="headline-medium text-on-surface">Reports</h1>
-              <p className="body-small text-on-surface-variant mt-1">
-                Sales and stock analytics for partners
-              </p>
-            </div>
-          </div>
+      {/* Top App Bar */}
+      <PortalTopAppBar
+        title="Reports"
+        subtitle="Sales and stock analytics for partners"
+        onBack={onBack}
+      />
 
-          {/* Tabs */}
-          <div className="flex border-b border-outline-variant">
+      {/* Tabs */}
+      <div className="w-full bg-surface border-b border-outline-variant sticky top-16 z-10" id="reports-header">
+        <div className="px-4 md:px-6 max-w-7xl mx-auto">
+          <div className="flex">
             <button
               onClick={() => setActiveTab('sales')}
               className={`relative px-6 py-3 transition-colors ${
@@ -263,7 +253,7 @@ export default function PartnerReportsScreen({
       </div>
 
       {/* Global Filters - Compact Single Row */}
-      <div className="w-full bg-surface border-b border-outline-variant sticky top-[145px] z-10" id="reports-filters">
+      <div className="w-full bg-surface border-b border-outline-variant sticky top-[112px] z-10" id="reports-filters">
         <div className="px-4 md:px-6 py-3 max-w-7xl mx-auto">
           <div className="flex items-end gap-3 flex-wrap">
             {/* Partner Filter - Multiselect for Admins, Read-only display for Partners */}

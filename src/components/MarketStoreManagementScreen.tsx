@@ -8,7 +8,6 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import svgPaths from "../imports/svg-7un8q74kd7";
 import {
-  ArrowLeft,
   Plus,
   Trash2,
   Store as StoreIcon,
@@ -21,6 +20,7 @@ import {
   Save,
   ChevronDown
 } from 'lucide-react';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useMediaQuery } from './ui/use-mobile';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -484,23 +484,11 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
   return (
     <div className="min-h-screen bg-surface pb-20 md:pb-0">
       {/* Top App Bar */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
-        <div className="flex items-center h-16 px-4 md:px-6">
-          <button
-            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
-            onClick={onBack}
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-6 h-6 text-on-surface" />
-          </button>
-
-          <div className="flex-1">
-            <h1 className="title-large text-on-surface">Markets & Stores</h1>
-            <p className="body-small text-on-surface-variant">
-              Enable brands, markets, and stores for Co-retail app
-            </p>
-          </div>
-
+      <PortalTopAppBar
+        title="Markets & Stores"
+        subtitle="Enable brands, markets, and stores for Co-retail app"
+        onBack={onBack}
+        actions={
           <Button
             onClick={handleAddNew}
             className="bg-primary text-on-primary hover:bg-primary/90 h-10"
@@ -508,8 +496,8 @@ export function MarketStoreManagementScreen({ onBack }: MarketStoreManagementScr
             <Plus className="w-4 h-4 mr-2" />
             Add New
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* View Mode Tabs */}
       <div className="border-b border-outline-variant bg-surface">

@@ -172,7 +172,7 @@ export default function MonthlyGoalTracker({
 
   return (
     <Card className="bg-surface border-0 rounded-lg">
-      <CardContent className="p-4">
+      <CardContent className="p-0">
         <div className="space-y-4">
           {/* Progress section */}
             <div className="space-y-3">
@@ -196,25 +196,18 @@ export default function MonthlyGoalTracker({
               <div className="grid grid-cols-3 gap-4 pt-2">
                 {/* Current sales */}
                 <div className="text-center space-y-1">
-                  <div className="flex items-center justify-center gap-1">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                  </div>
                   <div className="title-large text-primary">{currentSales}</div>
                   <div className="label-small text-on-surface-variant">Sold</div>
                 </div>
 
                 {/* Goal */}
                 <div className="text-center space-y-1">
-                  <div className="flex items-center justify-center gap-1">
-                    <Target className="h-4 w-4 text-on-surface-variant" />
-                  </div>
                   <div className="title-large text-on-surface">{monthlyGoal}</div>
                   <div className="label-small text-on-surface-variant">Goal</div>
                 </div>
 
                 {/* Remaining */}
                 <div className="text-center space-y-1">
-                  <div className="h-4 w-4 mx-auto"> </div>
                   <div className={`title-large ${isGoalAchieved ? 'text-primary' : 'text-on-surface'}`}>
                     {isGoalAchieved ? '+' : ''}{isGoalAchieved ? currentSales - monthlyGoal : remaining}
                   </div>

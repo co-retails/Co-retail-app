@@ -4,7 +4,8 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { ArrowLeft, Plus, Edit, Building2, Warehouse as WarehouseIcon, Trash2, Save, X, ChevronDown, MoreVertical } from 'lucide-react';
+import { Plus, Edit, Building2, Warehouse as WarehouseIcon, Trash2, Save, X, ChevronDown, MoreVertical } from 'lucide-react';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import { Partner, Warehouse } from './PartnerWarehouseSelector';
 import { toast } from 'sonner';
 import { Badge } from './ui/badge';
@@ -270,30 +271,21 @@ export default function PartnerWarehouseManagementScreen({
 
   return (
     <div className="h-full flex flex-col bg-surface">
-      {/* Header */}
-      <div className="bg-surface border-b border-outline-variant px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      {/* Top App Bar */}
+      <PortalTopAppBar
+        title="Partner & Warehouse Management"
+        subtitle="Manage partners and their warehouses"
+        onBack={onBack}
+        actions={
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="text-on-surface"
+            onClick={handleAddPartner}
+            className="bg-primary text-on-primary hover:bg-primary/90"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <Plus className="w-4 h-4 mr-2" />
+            Add Partner
           </Button>
-          <div>
-            <h1 className="headline-small text-on-surface">Partner & Warehouse Management</h1>
-            <p className="body-small text-on-surface-variant">Manage partners and their warehouses</p>
-          </div>
-        </div>
-        <Button
-          onClick={handleAddPartner}
-          className="bg-primary text-on-primary hover:bg-primary/90"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Partner
-        </Button>
-      </div>
+        }
+      />
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 sm:p-6">

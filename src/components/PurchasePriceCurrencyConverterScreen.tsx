@@ -19,7 +19,8 @@ import {
   DialogHeader,
   DialogTitle
 } from './ui/dialog';
-import { ArrowLeft, Plus, Edit2, Trash2, HelpCircle, Save } from 'lucide-react';
+import { Plus, Edit2, Trash2, HelpCircle, Save } from 'lucide-react';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import { toast } from 'sonner@2.0.3';
 
 interface PurchasePriceCurrencyConverterScreenProps {
@@ -168,27 +169,17 @@ export function PurchasePriceCurrencyConverterScreen({
     <>
       <div className="min-h-screen bg-surface pb-20 md:pb-0">
         {/* Top App Bar */}
-        <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
-          <div className="flex items-center h-16 px-4 md:px-6 gap-2">
-            <button
-              className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-              onClick={onBack}
-              aria-label="Go back"
-            >
-              <ArrowLeft className="w-6 h-6 text-on-surface" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <div className="title-large text-on-surface">Purchase price currency converter</div>
-              <div className="body-medium text-on-surface-variant">
-                Convert purchase prices from EUR to sales price currency
-              </div>
-            </div>
+        <PortalTopAppBar
+          title="Purchase price currency converter"
+          subtitle="Convert purchase prices from EUR to sales price currency"
+          onBack={onBack}
+          actions={
             <Button className="gap-2" onClick={openCreateDialog}>
               <Plus className="w-5 h-5" />
               <span>Add converter</span>
             </Button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Content */}
         <div className="max-w-6xl px-4 md:px-6 py-6">

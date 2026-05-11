@@ -9,12 +9,12 @@ import {
   CheckCircle,
   FileText,
   ChevronRight,
-  ArrowLeft,
   Globe,
   Building2,
   Sparkles
 } from 'lucide-react';
 import { UserRole } from './PortalConfigTypes';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 
 interface PortalConfigurationLandingProps {
   userRole: UserRole;
@@ -118,30 +118,18 @@ export function PortalConfigurationLanding({
   return (
     <div className="min-h-screen bg-surface pb-20 md:pb-0">
       {/* Top App Bar */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
-        <div className="flex items-center h-16 px-4 md:px-6">
-          <button
-            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
-            onClick={onBack}
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-6 h-6 text-on-surface" />
-          </button>
-
-          <div className="flex-1">
-            <h1 className="title-large text-on-surface">Portal configuration</h1>
-            <p className="body-small text-on-surface-variant">
-              Manage attributes, pricing, and validation rules
-            </p>
-          </div>
-
-          {!isAdmin && (
+      <PortalTopAppBar
+        title="Portal configuration"
+        subtitle="Manage attributes, pricing, and validation rules"
+        onBack={onBack}
+        actions={
+          !isAdmin ? (
             <Badge variant="outline" className="border-outline bg-surface-container">
               <span className="label-medium text-on-surface-variant">View only</span>
             </Badge>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
       {/* Content */}
       <div className="max-w-7xl px-4 md:px-6 py-6 space-y-8">

@@ -336,12 +336,9 @@ export default function DeliveryHomeScreen({
           {/* Monthly Goal Tracker */}
           <Section>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-on-surface-variant" />
-                <h2 className="title-medium text-on-surface">
-                  {new Date().toLocaleDateString('en-US', { month: 'long' })} progress
-                </h2>
-              </div>
+              <h2 className="title-medium text-on-surface">
+                {new Date().toLocaleDateString('en-US', { month: 'long' })} progress
+              </h2>
               <GoalEditDialog currentGoal={monthlyGoal} onGoalUpdate={onGoalUpdate} />
             </div>
             
