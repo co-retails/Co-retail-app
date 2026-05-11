@@ -40,7 +40,8 @@ import {
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { ArrowLeft, Brain, DownloadCloud, Info, Loader2, RefreshCw, Sparkles, Search, Wand2, X } from 'lucide-react';
+import { Brain, DownloadCloud, Info, Loader2, RefreshCw, Sparkles, Search, Wand2, X } from 'lucide-react';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 
 interface PriceForkCalibrationScreenProps {
   partnerId: string;
@@ -593,27 +594,15 @@ export default function PriceForkCalibrationScreen({
   return (
     <div className="min-h-screen bg-surface">
       {/* Top App Bar */}
-      <div className="sticky top-0 z-10 bg-surface border-b border-outline-variant">
-        <div className="flex items-center h-16 px-4 md:px-6">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-surface-container-high transition-colors mr-2 min-h-[48px] min-w-[48px] md:min-h-[40px] md:min-w-[40px] touch-manipulation"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-6 w-6 text-on-surface-variant" />
-          </button>
-          <div className="flex-1">
-            <h1 className="title-large text-on-surface">
-              Price Fork calibration
-              {hasUnsavedChanges && (
-                <span className="ml-2 w-2 h-2 bg-primary rounded-full inline-block" />
-              )}
-            </h1>
-            <p className="body-small text-on-surface-variant">
-              Configure AI pricing parameters per brand. Tune the AI engine, test on real inventory, and surface insights before publishing changes to partners.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 ml-4">
+      <PortalTopAppBar
+        title="Price Fork calibration"
+        subtitle="Configure AI pricing parameters per brand. Tune the AI engine, test on real inventory, and surface insights before publishing changes to partners."
+        onBack={onBack}
+        actions={
+          <>
+            {hasUnsavedChanges && (
+              <span className="w-2 h-2 bg-primary rounded-full inline-block" aria-label="Unsaved changes" />
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -633,27 +622,27 @@ export default function PriceForkCalibrationScreen({
               <Sparkles className="w-4 h-4 mr-2" />
               Save
             </Button>
-          </div>
+          </>
+        }
+      />
+      <div className="px-4 md:px-6 py-2 bg-primary-container/20 border-b border-primary/10">
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-primary flex-shrink-0" />
+          <p className="body-small text-on-surface">
+            <span className="font-medium">Applies to API-integrated order creation only.</span> Price Fork automatically sets suggested sales prices for items sourced via API integration. Manual order creation is not affected by these settings.
+          </p>
         </div>
-        <div className="px-4 md:px-6 py-2 bg-primary-container/20 border-t border-primary/10">
+      </div>
+      {hasUnsavedChanges && (
+        <div className="px-4 md:px-6 py-2 bg-warning-container/80 border-b border-warning/20">
           <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-primary flex-shrink-0" />
-            <p className="body-small text-on-surface">
-              <span className="font-medium">Applies to API-integrated order creation only.</span> Price Fork automatically sets suggested sales prices for items sourced via API integration. Manual order creation is not affected by these settings.
+            <Loader2 className="w-4 h-4 text-warning animate-spin" />
+            <p className="body-small text-on-warning-container">
+              Unsaved changes. Run tests on updated parameters and save to version the changes.
             </p>
           </div>
         </div>
-        {hasUnsavedChanges && (
-          <div className="px-4 md:px-6 py-2 bg-warning-container/80 border-t border-warning/20">
-            <div className="flex items-center gap-2">
-              <Loader2 className="w-4 h-4 text-warning animate-spin" />
-              <p className="body-small text-on-warning-container">
-                Unsaved changes. Run tests on updated parameters and save to version the changes.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Content */}
       <div className="w-full max-w-none px-4 md:px-6 py-6 space-y-8">

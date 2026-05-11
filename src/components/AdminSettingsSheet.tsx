@@ -230,7 +230,7 @@ export default function AdminSettingsSheet({
         {
           id: 'partner-settings',
           title: 'Partner settings',
-          description: 'Manage partner access and agreements',
+          description: 'Manage partner access',
           icon: <Store className="w-6 h-6" />,
           onClick: handlePartnerSettings,
           visibleFor: ['admin']

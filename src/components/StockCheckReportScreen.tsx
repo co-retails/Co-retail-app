@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { ArrowLeft, Calendar, Download, FileText } from 'lucide-react';
+import { Calendar, Download, FileText } from 'lucide-react';
 import { StockCheckSession } from './StockCheckScreen';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 
 interface StockCheckReportScreenProps {
   session: StockCheckSession;
@@ -12,28 +13,6 @@ interface StockCheckReportScreenProps {
   onDone: () => void;
   onDateChange?: (date: string) => void;
   availableSessions?: StockCheckSession[];
-}
-
-function TopAppBar({ onBack, title }: { onBack: () => void; title: string }) {
-  return (
-    <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
-      <div className="flex items-center h-16 px-4 md:px-6">
-        {/* Leading icon - Back button */}
-        <button 
-          className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
-          onClick={onBack}
-          aria-label="Go back"
-        >
-          <ArrowLeft className="w-6 h-6 text-on-surface" />
-        </button>
-        
-        {/* Title */}
-        <h1 className="title-large text-on-surface flex-1">
-          {title}
-        </h1>
-      </div>
-    </div>
-  );
 }
 
 function ReportDateSelector({ 
@@ -313,10 +292,11 @@ export default function StockCheckReportScreen({
 
   return (
     <div className="bg-surface min-h-screen flex flex-col">
-      {/* Spacer for top nav on desktop */}
-      <div className="hidden md:block h-16"></div>
       {/* Top App Bar */}
-      <TopAppBar onBack={onBack} title="Stock check report" />
+      <PortalTopAppBar
+        onBack={onBack}
+        title="Stock check report"
+      />
       
       {/* Content */}
       <div className="flex-1 pb-40">

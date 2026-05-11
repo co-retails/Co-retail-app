@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Search, Filter, FileText, User, Calendar, Download } from 'lucide-react';
+import { Search, Filter, FileText, User, Calendar, Download } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 
 interface AuditLogScreenProps {
   onBack: () => void;
@@ -141,27 +142,17 @@ export function AuditLogScreen({ onBack }: AuditLogScreenProps) {
   return (
     <div className="min-h-screen bg-surface pb-20 md:pb-0">
       {/* Top App Bar */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
-        <div className="flex items-center h-16 px-4 md:px-6 gap-2">
-          <button
-            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-            onClick={onBack}
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-6 h-6 text-on-surface" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <div className="title-large text-on-surface">Audit log</div>
-            <div className="body-medium text-on-surface-variant">
-              Track all configuration changes and actions
-            </div>
-          </div>
+      <PortalTopAppBar
+        title="Audit log"
+        subtitle="Track all configuration changes and actions"
+        onBack={onBack}
+        actions={
           <Button variant="outline" className="gap-2">
             <Download className="w-5 h-5" />
             <span>Export</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Search and Filters */}
       <div className="border-b border-outline-variant bg-surface-container-low">

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, Download, ChevronDown, Clock, ChevronRight, Package, Truck } from 'lucide-react';
+import { RefreshCw, Download, ChevronDown, Clock, ChevronRight, Package, Truck } from 'lucide-react';
 import { Button } from './ui/button';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
@@ -621,53 +622,44 @@ export default function ShippingReportScreen({
 
   return (
     <div className="min-h-screen bg-surface">
-      {/* Header */}
-      <div className="w-full bg-surface border-b border-outline-variant sticky top-0 z-20">
-        <div className="px-4 md:px-6 py-4 max-w-7xl mx-auto">
-          <div className="flex items-center gap-4 mb-4">
+      {/* Top App Bar */}
+      <PortalTopAppBar
+        title="Shipping Report"
+        subtitle={
+          <>
+            Last updated: {lastRefreshTime.toLocaleTimeString()} •
+            {dateRangeStart && dateRangeEnd
+              ? ` ${new Date(dateRangeStart).toLocaleDateString()} - ${new Date(dateRangeEnd).toLocaleDateString()}`
+              : ' All dates'}
+          </>
+        }
+        onBack={onBack}
+        actions={
+          <>
             <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="hover:bg-surface-container-high"
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              className="border-outline-variant"
             >
-              <ArrowLeft className="h-5 w-5 text-on-surface" />
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
             </Button>
-            <div className="flex-1">
-              <h1 className="headline-medium text-on-surface">Shipping Report</h1>
-              <p className="body-small text-on-surface-variant mt-1">
-                Last updated: {lastRefreshTime.toLocaleTimeString()} • 
-                {dateRangeStart && dateRangeEnd 
-                  ? ` ${new Date(dateRangeStart).toLocaleDateString()} - ${new Date(dateRangeEnd).toLocaleDateString()}`
-                  : ' All dates'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                className="border-outline-variant"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportCSV}
-                className="border-outline-variant"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="border-outline-variant"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </>
+        }
+      />
 
       {/* Filter Panel */}
-      <div className="w-full bg-surface border-b border-outline-variant sticky top-[120px] z-10">
+      <div className="w-full bg-surface border-b border-outline-variant sticky top-16 z-10">
         <div className="px-4 md:px-6 py-3 max-w-7xl mx-auto">
           <div className="flex items-center gap-3 flex-wrap">
             {/* Brand Filter */}

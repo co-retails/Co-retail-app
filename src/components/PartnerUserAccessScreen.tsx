@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronRight, Filter, Package, Pencil, Plus, User, UserX, Users } from 'lucide-react';
+import { ChevronRight, Filter, Package, Pencil, Plus, User, UserX, Users } from 'lucide-react';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
@@ -487,24 +488,22 @@ export default function PartnerUserAccessScreen({
 
   return (
     <div className="min-h-screen bg-surface">
-      <div className="bg-surface-container border-b border-outline-variant sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
-          <div className="flex items-center gap-3 mb-4">
-            <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
+      <PortalTopAppBar
+        title="Partner user access"
+        subtitle="Manage partner users only. Admin users are handled in Admin user access."
+        onBack={onBack}
+        actions={
+          canManage ? (
+            <Button onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add partner user access
             </Button>
-            <div className="flex-1">
-              <h1 className="headline-small text-on-surface">Partner user access</h1>
-              <p className="body-medium text-on-surface-variant">Manage partner users only. Admin users are handled in Admin user access.</p>
-            </div>
-            {canManage && (
-              <Button onClick={openCreate}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add partner user access
-              </Button>
-            )}
-          </div>
+          ) : undefined
+        }
+      />
 
+      <div className="bg-surface-container border-b border-outline-variant">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
           <div className="space-y-3">
             <input
               type="text"

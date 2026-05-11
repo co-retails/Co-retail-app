@@ -118,28 +118,26 @@ export default function SalesDataDashboard() {
       <Card className="bg-surface border-0 rounded-lg">
         <CardContent className="p-0">
           {/* Header */}
-          <div className="p-4 pb-2">
+          <div className="pb-2">
             <h4 className="body-medium text-on-surface">
               Top 5 categories - sold resell items
             </h4>
           </div>
-          
+
           {/* Tabs */}
-          <div className="px-4">
-            <div className="flex border-b border-outline-variant">
-              {(['today', 'sevenDays', 'thirtyDays'] as TimePeriod[]).map((period) => (
-                <TabButton
-                  key={period}
-                  label={getTabLabel(period)}
-                  isActive={activeTab === period}
-                  onClick={() => setActiveTab(period)}
-                />
-              ))}
-            </div>
+          <div className="flex border-b border-outline-variant">
+            {(['today', 'sevenDays', 'thirtyDays'] as TimePeriod[]).map((period) => (
+              <TabButton
+                key={period}
+                label={getTabLabel(period)}
+                isActive={activeTab === period}
+                onClick={() => setActiveTab(period)}
+              />
+            ))}
           </div>
-          
+
           {/* Total Sold Items - Below tabs */}
-          <div className="px-4 pt-3 pb-2">
+          <div className="pt-3 pb-2">
             <div className="flex items-baseline gap-2">
               <span className="title-small text-on-surface">
                 {currentData.totalSoldItems.toLocaleString()}
@@ -149,9 +147,9 @@ export default function SalesDataDashboard() {
               </span>
             </div>
           </div>
-          
+
           {/* Chart */}
-          <div className="p-4 space-y-3">
+          <div className="py-4 space-y-3">
             {currentData.categories.map((category, index) => (
               <CategoryBar key={index} category={category} />
             ))}

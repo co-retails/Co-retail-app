@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import {
@@ -315,33 +316,20 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
     <>
       <div className="min-h-screen bg-surface pb-20 md:pb-0">
         {/* Top App Bar */}
-      <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
-        <div className="flex items-center h-16 px-4 md:px-6 gap-2">
-          <button
-            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
-            onClick={() => {
-              onBack();
-            }}
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-6 h-6 text-on-surface" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <div className="title-large text-on-surface">Partner pricing</div>
-            <div className="body-medium text-on-surface-variant">
-              Set fixed prices per currency for each partner
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+        <PortalTopAppBar
+          title="Partner pricing"
+          subtitle="Set fixed prices per currency for each partner"
+          onBack={onBack}
+          actions={
             <Button className="gap-2" onClick={openCreateDialog}>
               <Plus className="w-5 h-5" />
               <span>Add price set</span>
             </Button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Context Bar */}
-        <div className="border-t border-outline-variant bg-surface-container px-4 md:px-6 py-3">
+        <div className="sticky top-16 z-10 border-b border-outline-variant bg-surface-container px-4 md:px-6 py-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="label-medium text-on-surface-variant">Partner:</span>
@@ -361,10 +349,9 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-6xl px-4 md:px-6 py-6">
+        {/* Content */}
+        <div className="max-w-6xl px-4 md:px-6 py-6">
         <div className="space-y-6">
           {displayedPartners.map((partner) => {
             const partnerPrices = pricePoints.filter(
