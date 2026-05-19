@@ -7,34 +7,115 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+  check_suite:
+    types:
+      - completed
 
 permissions:
+  checks: read
   contents: write
   pull-requests: write
+  statuses: read
 
 concurrency:
-  group: auto-merge-katya-pr-${{ github.event.pull_request.number }}
+  group: auto-merge-katya-pr-${{ github.event.pull_request.number || github.event.check_suite.head_sha }}
   cancel-in-progress: true
 
 jobs:
   auto-merge:
-    if: >
-      github.event.pull_request.user.login == 'katyarunnberg' &&
-      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     steps:
-      - name: Enable auto-merge for Katya PRs
+      - name: Merge Katya PRs when checks are green
         uses: actions/github-script@v7
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const pull_number = context.payload.pull_request.number;
-
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+            async function resolvePullNumber() {
+              const directPr = context.payload.pull_request;
+              if (directPr) {
+                return directPr.number;
+              }
+
+              const headSha = context.payload.check_suite?.head_sha;
+              if (!headSha) {
+                return null;
+              }
+
+              const { data: associatedPulls } =
+                await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  owner,
+                  repo,
+                  commit_sha: headSha,
+                });
+
+              const katyaPr = associatedPulls.find((candidate) =>
+                candidate.state === "open" &&
+                candidate.user?.login === "katyarunnberg" &&
+                candidate.base?.ref === "main"
+              );
+
+              return katyaPr?.number ?? null;
+            }
+
+            async function checksReady(ref) {
+              const { data: checkRuns } = await github.rest.checks.listForRef({
+                owner,
+                repo,
+                ref,
+                per_page: 100,
+              });
+
+              const pendingCheckRuns = checkRuns.check_runs.filter((run) =>
+                run.status !== "completed"
+              );
+              if (pendingCheckRuns.length > 0) {
+                return {
+                  ready: false,
+                  reason: `pending check runs: ${pendingCheckRuns.map((run) => run.name).join(", ")}`,
+                };
+              }
+
+              const failingCheckRuns = checkRuns.check_runs.filter((run) =>
+                run.status === "completed" &&
+                !["success", "neutral", "skipped"].includes(run.conclusion ?? "")
+              );
+              if (failingCheckRuns.length > 0) {
+                return {
+                  ready: false,
+                  reason: `failing check runs: ${failingCheckRuns.map((run) => `${run.name}=${run.conclusion}`).join(", ")}`,
+                };
+              }
+
+              const { data: combinedStatus } = await github.rest.repos.getCombinedStatusForRef({
+                owner,
+                repo,
+                ref,
+              });
+
+              if (combinedStatus.state === "pending") {
+                return { ready: false, reason: "combined status pending" };
+              }
+
+              if (combinedStatus.state === "failure") {
+                return { ready: false, reason: "combined status failing" };
+              }
+
+              return { ready: true, reason: "all checks green" };
+            }
+
+            const pull_number = await resolvePullNumber();
+            if (!pull_number) {
+              core.info("No open Katya PR found for this event.");
+              return;
+            }
+
             for (let attempt = 1; attempt <= 20; attempt++) {
-              const { data: repoInfo } = await github.rest.repos.get({ owner, repo });
               const { data: pr } = await github.rest.pulls.get({
                 owner,
                 repo,
@@ -42,8 +123,16 @@ jobs:
               });
 
               core.info(
-                `Attempt ${attempt}: state=${pr.state}, draft=${pr.draft}, mergeable=${pr.mergeable}, auto_merge=${pr.auto_merge !== null}`
+                `Attempt ${attempt}: state=${pr.state}, draft=${pr.draft}, mergeable=${pr.mergeable}`
               );
+
+              if (
+                pr.user?.login !== "katyarunnberg" ||
+                pr.base?.ref !== "main"
+              ) {
+                core.info("Pull request does not match the Katya -> main rule.");
+                return;
+              }
 
               if (pr.state !== "open") {
                 core.info("Pull request is no longer open. Nothing to do.");
@@ -65,39 +154,20 @@ jobs:
                 return;
               }
 
-              if (pr.auto_merge) {
-                core.info("Auto-merge is already enabled.");
+              const readiness = await checksReady(pr.head.sha);
+              core.info(`Checks readiness: ${readiness.reason}`);
+              if (!readiness.ready) {
                 return;
               }
 
-              const mergeMethod =
-                repoInfo.allow_merge_commit ? "MERGE" :
-                repoInfo.allow_squash_merge ? "SQUASH" :
-                repoInfo.allow_rebase_merge ? "REBASE" :
-                null;
-
-              if (!mergeMethod) {
-                core.setFailed("Repository does not allow any merge methods.");
-                return;
-              }
-
-              await github.graphql(`
-                mutation EnableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-                  enablePullRequestAutoMerge(input: {
-                    pullRequestId: $pullRequestId,
-                    mergeMethod: $mergeMethod
-                  }) {
-                    pullRequest {
-                      number
-                    }
-                  }
-                }
-              `, {
-                pullRequestId: pr.node_id,
-                mergeMethod,
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number,
+                merge_method: "merge",
               });
 
-              core.info(`Auto-merge enabled using ${mergeMethod}.`);
+              core.info("Pull request merged successfully.");
               return;
             }
 
