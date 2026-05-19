@@ -23,7 +23,7 @@ jobs:
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     steps:
-      - name: Merge Katya PR when ready
+      - name: Enable auto-merge for Katya PRs
         uses: actions/github-script@v7
         with:
           script: |
@@ -34,6 +34,7 @@ jobs:
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
             for (let attempt = 1; attempt <= 20; attempt++) {
+              const { data: repoInfo } = await github.rest.repos.get({ owner, repo });
               const { data: pr } = await github.rest.pulls.get({
                 owner,
                 repo,
@@ -41,7 +42,7 @@ jobs:
               });
 
               core.info(
-                `Attempt ${attempt}: state=${pr.state}, draft=${pr.draft}, mergeable=${pr.mergeable}`
+                `Attempt ${attempt}: state=${pr.state}, draft=${pr.draft}, mergeable=${pr.mergeable}, auto_merge=${pr.auto_merge !== null}`
               );
 
               if (pr.state !== "open") {
@@ -64,14 +65,39 @@ jobs:
                 return;
               }
 
-              await github.rest.pulls.merge({
-                owner,
-                repo,
-                pull_number,
-                merge_method: "merge",
+              if (pr.auto_merge) {
+                core.info("Auto-merge is already enabled.");
+                return;
+              }
+
+              const mergeMethod =
+                repoInfo.allow_merge_commit ? "MERGE" :
+                repoInfo.allow_squash_merge ? "SQUASH" :
+                repoInfo.allow_rebase_merge ? "REBASE" :
+                null;
+
+              if (!mergeMethod) {
+                core.setFailed("Repository does not allow any merge methods.");
+                return;
+              }
+
+              await github.graphql(`
+                mutation EnableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: $mergeMethod
+                  }) {
+                    pullRequest {
+                      number
+                    }
+                  }
+                }
+              `, {
+                pullRequestId: pr.node_id,
+                mergeMethod,
               });
 
-              core.info("Pull request merged successfully.");
+              core.info(`Auto-merge enabled using ${mergeMethod}.`);
               return;
             }
 
