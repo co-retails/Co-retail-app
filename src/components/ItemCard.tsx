@@ -667,7 +667,7 @@ export const ItemCard = memo(function ItemCard({
         >
           {/* Line 1: Date • Status • Days (Available only) */}
           <div className="flex items-center gap-1 mb-0.5 flex-nowrap whitespace-nowrap">
-            <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface whitespace-nowrap flex-shrink-0`}>
+            <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface-variant whitespace-nowrap flex-shrink-0`}>
               {item.date || '2022-06-09'}
             </div>
             <div className="w-1 h-1 rounded-full bg-outline-variant flex-shrink-0"></div>
@@ -677,7 +677,7 @@ export const ItemCard = memo(function ItemCard({
             {item.status?.toLowerCase() === 'available' && daysInStore !== null && (
               <>
                 <div className="w-1 h-1 rounded-full bg-outline-variant flex-shrink-0"></div>
-                <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface whitespace-nowrap flex-shrink-0`}>
+                <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface-variant whitespace-nowrap flex-shrink-0`}>
                   {daysInStore} {daysInStore === 1 ? 'day' : 'days'}
                 </div>
               </>
@@ -702,7 +702,7 @@ export const ItemCard = memo(function ItemCard({
           </div>
 
           {/* Line 4: ID and Delivery */}
-          <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface opacity-90 mb-0.5`}>
+          <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface-variant opacity-90 mb-0.5`}>
             <div className="line-clamp-2 break-words">
               {showBothIds && item.retailerItemId && item.partnerItemId ? (
                 <>
@@ -728,7 +728,7 @@ export const ItemCard = memo(function ItemCard({
           
           {/* Line 5: Seller */}
           {!hideSellerName && (
-            <div className={`${bumped ? 'body-medium break-words' : 'body-small truncate'} text-on-surface`}>
+            <div className={`${bumped ? 'body-medium break-words' : 'body-small truncate'} text-on-surface-variant`}>
               {item.sellerName || 'Sellpy'}
             </div>
           )}

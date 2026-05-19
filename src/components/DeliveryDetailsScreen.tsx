@@ -1,6 +1,6 @@
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { ArrowLeft, QrCode, Truck, MoreVertical, CheckCircle2, XCircle, Check, Package } from 'lucide-react';
+import { ArrowLeft, QrCode, Truck, MoreVertical, Check, Package } from 'lucide-react';
 import { Delivery } from './ShippingScreen';
 import { Box } from './ReceiveDeliveryScreen';
 import BoxCard from './BoxCard';
@@ -55,12 +55,6 @@ function TopAppBar({
     }
   };
 
-  const handleMarkRejected = () => {
-    if (onUpdateDeliveryStatus) {
-      onUpdateDeliveryStatus(delivery.id, 'Rejected');
-    }
-  };
-
   return (
     <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
       <div className="flex items-center h-16 px-4 md:px-6">
@@ -95,12 +89,6 @@ function TopAppBar({
                 className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
               >
                 <span className="body-medium text-on-surface">Mark as Delivered</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={handleMarkRejected}
-                className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-              >
-                <span className="body-medium">Mark as Rejected</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleMarkCancelled}
