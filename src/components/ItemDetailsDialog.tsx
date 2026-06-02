@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import BrandPicker from './BrandPicker';
 import { VisuallyHidden } from './ui/visually-hidden';
-import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Ban, Barcode } from 'lucide-react';
+import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Ban, Barcode, Shirt } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useMediaQuery } from './ui/use-mobile';
@@ -42,6 +42,8 @@ export interface ItemDetails {
   subcategory?: string;
   size?: string;
   color?: string;
+  /** Material / fabric composition, e.g. "100% Cotton" */
+  material?: string;
   price: number;
   status: string;
   date: string;
@@ -49,6 +51,8 @@ export interface ItemDetails {
   boxLabel?: string;
   image?: string; // Full-size product image
   thumbnail?: string; // Thumbnail/fallback image
+  /** Multiple product photos (e.g. Sellpy partner items). Shown as a horizontal-scroll gallery, up to 5. */
+  images?: string[];
   daysRemaining?: number;
   source?: string;
   orderNumber?: string;
@@ -89,7 +93,7 @@ interface ItemDetailsDialogProps {
   };
 }
 
-type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'price' | 'status' | 'location' | null;
+type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'material' | 'price' | 'status' | 'location' | null;
 
 function ThriftedBrandAutocompleteEdit({
   value,
@@ -342,10 +346,38 @@ const AVAILABLE_LOCATIONS = [
   'Store'
 ];
 
+// Material is optional; these are the selectable dropdown values.
+const AVAILABLE_MATERIALS = [
+  'Acrylic',
+  'Bamboo',
+  'Cashmere',
+  'Cotton',
+  'Denim',
+  'Elastane',
+  'Faux fur',
+  'Faux leather',
+  'Leather',
+  'Linen',
+  'Merino Wool',
+  'Modal',
+  'Nylon',
+  'Organic cotton',
+  'Polyamide',
+  'Polyester',
+  'Rayon',
+  'Silk',
+  'Spandex',
+  'Viscose',
+  'Wool',
+  'Other'
+];
+
 const SORTED_AVAILABLE_CATEGORIES = sortOptionsAlpha(AVAILABLE_CATEGORIES);
 const SORTED_AVAILABLE_COLORS = sortOptionsAlpha(AVAILABLE_COLORS);
 const SORTED_AVAILABLE_BRANDS = sortOptionsAlpha(AVAILABLE_BRANDS);
 const SORTED_AVAILABLE_SIZES = sortStoreItemSizes(AVAILABLE_SIZES);
+// Exported so the order-details tables share one material dropdown source.
+export const SORTED_AVAILABLE_MATERIALS = sortOptionsAlpha(AVAILABLE_MATERIALS);
 const SORTED_AVAILABLE_LOCATIONS = sortOptionsAlpha(AVAILABLE_LOCATIONS);
 const SORTED_THRIFTED_CATEGORIES = sortOptionsAlpha([...THRIFTED_VALID_VALUES.categories]);
 const SORTED_THRIFTED_COLORS = sortOptionsAlpha([...THRIFTED_VALID_VALUES.colors]);
@@ -597,10 +629,100 @@ function ThriftedPartnerInlineSection({
   );
 }
 
-export default function ItemDetailsDialog({ 
-  item, 
-  isOpen, 
-  onClose, 
+/**
+ * Horizontal-scroll image gallery for Sellpy partner items (up to 5 photos).
+ * Uses inline scroll-snap (the pre-compiled Tailwind build has no snap-* utilities)
+ * and swipe to page through images, with non-interactive dot indicators.
+ */
+function SellpyImageCarousel({
+  images,
+  alt,
+  onBack,
+}: {
+  images: string[];
+  alt: string;
+  onBack: () => void;
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleScroll = () => {
+    const el = scrollerRef.current;
+    if (!el || el.clientWidth === 0) return;
+    const idx = Math.round(el.scrollLeft / el.clientWidth);
+    setActiveIndex(Math.max(0, Math.min(images.length - 1, idx)));
+  };
+
+  return (
+    <div className="relative w-full aspect-square bg-surface-container-high">
+      {/* Back arrow on top of the gallery */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onBack}
+        className="absolute top-4 left-4 min-h-[48px] min-w-[48px] bg-surface-container-highest/90 text-on-surface hover:bg-surface-container-high shadow-md z-20 touch-manipulation"
+        aria-label="Back"
+      >
+        <ArrowLeft size={20} />
+      </Button>
+
+      {/* Swipeable track */}
+      <div
+        ref={scrollerRef}
+        onScroll={handleScroll}
+        className="flex h-full w-full overflow-x-auto scrollbar-hide [-webkit-overflow-scrolling:touch]"
+        style={{ scrollSnapType: 'x mandatory', overflowY: 'hidden' }}
+        role="group"
+        aria-roledescription="carousel"
+        aria-label={`${images.length} item photos`}
+      >
+        {images.map((src, i) => (
+          <div
+            key={i}
+            className="relative h-full w-full flex-shrink-0"
+            style={{ scrollSnapAlign: 'center', scrollSnapStop: 'always' }}
+            aria-roledescription="slide"
+            aria-label={`Image ${i + 1} of ${images.length}`}
+          >
+            <ImageWithFallback
+              src={src}
+              alt={`${alt} – photo ${i + 1}`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Counter pill (bottom-right) */}
+      <div className="absolute bottom-4 right-4 z-20 rounded-full bg-black/50 px-2 py-1 pointer-events-none">
+        <span className="label-small text-white">
+          {activeIndex + 1} / {images.length}
+        </span>
+      </div>
+
+      {/* Dot indicators (bottom-center) */}
+      <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-2 pointer-events-none">
+        {images.map((_, i) => (
+          <span
+            key={i}
+            className="rounded-full transition-all"
+            style={{
+              width: 8,
+              height: 8,
+              backgroundColor:
+                i === activeIndex ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function ItemDetailsDialog({
+  item,
+  isOpen,
+  onClose,
   onSave,
   statusHistory = [],
   priceOptions,
@@ -824,7 +946,12 @@ export default function ItemDetailsDialog({
     }
   };
 
-  const displayImage = uploadedImage || item.image || item.thumbnail;
+  // Sellpy partner items can carry multiple photos shown in a horizontal-scroll gallery (cap at 5).
+  const galleryImages = (Array.isArray(item.images) ? item.images.filter(Boolean) : []).slice(0, 5);
+  const isSellpyItem = item.source === 'Sellpy Operations' || item.source === 'Sellpy';
+  const displayImage = uploadedImage || item.image || item.thumbnail || galleryImages[0];
+  // Show the gallery only for Sellpy items with >1 photo and when the user hasn't just uploaded a replacement.
+  const showImageCarousel = isSellpyItem && !uploadedImage && galleryImages.length > 1;
   const hasNoImage = !displayImage;
 
   const formatPriceValue = (amount?: number) => {
@@ -1119,7 +1246,13 @@ export default function ItemDetailsDialog({
         {/* Content */}
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch]">
           {/* Image Section */}
-          {displayImage ? (
+          {showImageCarousel ? (
+            <SellpyImageCarousel
+              images={galleryImages}
+              alt={item.title || item.brand}
+              onBack={closeWithThriftedFlush}
+            />
+          ) : displayImage ? (
             <div className="relative w-full aspect-square bg-surface-container-high">
               {/* Back arrow on top of image */}
               <Button
@@ -1291,6 +1424,15 @@ export default function ItemDetailsDialog({
                     icon={Package}
                     type="select"
                     options={SORTED_AVAILABLE_COLORS}
+                  />
+
+                  <EditableField
+                    field="material"
+                    label="Material"
+                    value={item.material}
+                    icon={Shirt}
+                    type="select"
+                    options={SORTED_AVAILABLE_MATERIALS}
                   />
 
                   {userRole === 'admin' && (

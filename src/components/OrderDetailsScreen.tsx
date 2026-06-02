@@ -472,6 +472,9 @@ export default function OrderDetailsScreen({
                                 <span className="label-medium text-on-surface">Color</span>
                               </th>
                               <th className="px-4 py-3 text-left">
+                                <span className="label-medium text-on-surface">Material</span>
+                              </th>
+                              <th className="px-4 py-3 text-left">
                                 <span className="label-medium text-on-surface">Price</span>
                               </th>
                               <th className="px-4 py-3 text-left">
@@ -511,6 +514,9 @@ export default function OrderDetailsScreen({
                                   </td>
                                   <td className="px-4 py-3">
                                     <span className="body-medium text-on-surface">{item.color || '—'}</span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="body-medium text-on-surface">{item.material || '—'}</span>
                                   </td>
                                   <td className="px-4 py-3">
                                     <span className="body-medium text-on-surface">{item.price ? `$${item.price.toFixed(2)}` : '—'}</span>
@@ -577,6 +583,9 @@ export default function OrderDetailsScreen({
                                 <span className="label-medium text-on-surface">Color</span>
                               </th>
                               <th className="px-4 py-3 text-left">
+                                <span className="label-medium text-on-surface">Material</span>
+                              </th>
+                              <th className="px-4 py-3 text-left">
                                 <span className="label-medium text-on-surface">Price</span>
                               </th>
                               <th className="px-4 py-3 text-center">
@@ -616,6 +625,9 @@ export default function OrderDetailsScreen({
                                   </td>
                                   <td className="px-4 py-3">
                                     <span className="body-medium text-on-surface">{item.color}</span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="body-medium text-on-surface">{item.material || '—'}</span>
                                   </td>
                                   <td className="px-4 py-3">
                                     <span className="body-medium text-on-surface">${item.price.toFixed(2)}</span>

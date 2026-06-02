@@ -22,7 +22,9 @@ import {
   BarChart3,
   UserIcon,
   X,
-  Database
+  Database,
+  TriangleAlert,
+  FlaskConical
 } from 'lucide-react';
 import { useMediaQuery } from './ui/use-mobile';
 
@@ -50,6 +52,8 @@ interface AdminSettingsSheetProps {
   currentViewLabel: string;
   onLogout: () => void;
   onRoleChange?: (role: 'admin' | 'partner' | 'store-staff') => void;
+  /** Prototype-only: simulate failed device→store detection during SSO sign-in. */
+  onSimulateStoreDetectionFailure?: () => void;
   onSwitchView?: () => void;
   onNavigateToStockCheckReport?: () => void;
   onNavigateToShippingReport?: () => void;
@@ -78,6 +82,7 @@ export default function AdminSettingsSheet({
   currentViewLabel,
   onLogout,
   onRoleChange,
+  onSimulateStoreDetectionFailure,
   onSwitchView,
   onNavigateToStockCheckReport,
   onNavigateToShippingReport,
@@ -370,6 +375,34 @@ export default function AdminSettingsSheet({
             ));
           })()}
         </div>
+
+        {/* Prototype-only: store detection fallback (visible while in Store user role) */}
+        {currentAppRole === 'store-staff' && onSimulateStoreDetectionFailure && (
+          <>
+            <Separator className="my-2 bg-outline-variant" />
+            <div className="px-6 py-3">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="w-4 h-4 text-on-surface-variant" />
+                <h3 className="title-small text-on-surface">Prototype</h3>
+              </div>
+              <p className="body-small text-on-surface-variant mt-1">
+                Simulate an SSO sign-in where the device's store can't be detected, then pick a
+                store from the ones you have access to. (With a single accessible store it's
+                auto-selected and this flow never appears.)
+              </p>
+            </div>
+            <div className="px-3 pb-4 space-y-2">
+              <Button
+                variant="outline"
+                onClick={() => onSimulateStoreDetectionFailure()}
+                className="w-full justify-start rounded-lg min-h-[48px] h-12 px-3 touch-manipulation"
+              >
+                <TriangleAlert className="w-5 h-5 mr-2 flex-shrink-0" />
+                Simulate store detection failure
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

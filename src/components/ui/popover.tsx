@@ -24,15 +24,21 @@ function PopoverContent({
   align = "center",
   side = "bottom",
   sideOffset = 4,
+  disableAnimation = false,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  /** When true, opens/closes instantly with no enter/exit animation. */
+  disableAnimation?: boolean;
+}) {
   const portalContainer = useOverlayPortalContainer();
   const isMobile = useMediaQuery("(max-width: 640px)");
 
   const resolvedAlign = isMobile ? align : "start";
   const resolvedSide = isMobile ? side : "bottom";
 
-  const animationClasses = isMobile
+  const animationClasses = disableAnimation
+    ? ""
+    : isMobile
     ? "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 transition-[opacity,transform]"
     : "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 transition-opacity";
 

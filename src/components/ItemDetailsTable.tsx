@@ -24,7 +24,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useOverlayPortalContainer } from './ui/overlay-portal-context';
 import { AlertCircleIcon, Package, Trash2Icon, Check, ChevronDown, Plus, Image as ImageIcon, Trash2, ChevronRight } from 'lucide-react';
-import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry } from './ItemDetailsDialog';
+import ItemDetailsDialog, { ItemDetails, StatusHistoryEntry, SORTED_AVAILABLE_MATERIALS } from './ItemDetailsDialog';
 import { OrderItem } from './OrderCreationScreen';
 import { getPriceOptionsForCurrency } from '../data/partnerPricing';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
@@ -568,6 +568,8 @@ export function ItemDetailsTable({
       { key: 'sub', width: '11rem' },
       { key: 'size', width: '5.5rem' },
       { key: 'color', width: '6.5rem' },
+      // Material is always optional, so it gets a column on every order-details table.
+      { key: 'material', width: '8.5rem' },
     );
     if (showPurchasePrice) cols.push({ key: 'purchase', width: '6.5rem' });
     if (showPrice) cols.push({ key: 'price', width: '7.5rem' });
@@ -729,6 +731,9 @@ export function ItemDetailsTable({
                 </th>
                 <th className="px-3 py-3 text-left">
                   <span className="label-medium text-on-surface">Color</span>
+                </th>
+                <th className="px-3 py-3 text-left">
+                  <span className="label-medium text-on-surface">Material</span>
                 </th>
                 {showPurchasePrice && (
                   <th className="px-3 py-3 text-right">
@@ -901,7 +906,7 @@ export function ItemDetailsTable({
                             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-full p-0" align="start">
+                        <PopoverContent className="w-full p-0" align="start" disableAnimation>
                           <Command>
                             <CommandInput placeholder="Search brands..." />
                             <CommandList>
@@ -1109,6 +1114,37 @@ export function ItemDetailsTable({
                   </DesktopEditFieldWithHint>
                 ) : (
                   <span className="body-medium text-on-surface">{item.color}</span>
+                )}
+              </td>
+
+              {/* Material — always optional; blank is valid and never blocks registration */}
+              <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
+                {isEditable && onUpdateItem ? (
+                  <DesktopEditFieldWithHint>
+                    <Select
+                      value={item.material || undefined}
+                      onValueChange={(value: string) => onUpdateItem(item.id, 'material', value)}
+                    >
+                      <SelectTrigger
+                        className={`${DESKTOP_SELECT_TRIGGER} h-9 body-medium border-outline-variant focus:border-primary bg-surface-container`}
+                      >
+                        <SelectValue placeholder="Optional" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SORTED_AVAILABLE_MATERIALS.map((material) => (
+                          <SelectItem
+                            key={material}
+                            value={material}
+                            className="body-medium min-h-[48px] touch-manipulation py-3 md:min-h-0 md:py-1.5"
+                          >
+                            {material}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </DesktopEditFieldWithHint>
+                ) : (
+                  <span className="body-medium text-on-surface">{item.material || '—'}</span>
                 )}
               </td>
 

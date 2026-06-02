@@ -31,6 +31,7 @@ import RetailerIdScanScreen from './components/RetailerIdScanScreen';
 import PostRegistrationDialog from './components/PostRegistrationDialog';
 import OrderShipmentDetailsScreen, { DetailType } from './components/OrderShipmentDetailsScreen';
 import type { StoreSelection } from './components/StoreSelector';
+import StoreDetectionFallback from './components/StoreDetectionFallback';
 import DeliveryNoteBoxDetailsScreen from './components/DeliveryNoteBoxDetailsScreen';
 import { FullScreenDialog, FullScreenDialogContent } from './components/ui/full-screen-dialog';
 import { Sheet, SheetContent } from './components/ui/sheet';
@@ -167,6 +168,14 @@ export default function App() {
     setPartnerPortalSessionEmail,
     currentStoreSelection,
     setCurrentStoreSelection,
+    isStoreDetectionFallbackOpen,
+    setIsStoreDetectionFallbackOpen,
+    accessibleStoreIds,
+    setAccessibleStoreIds,
+    storeManuallySelected,
+    setStoreManuallySelected,
+    storeManualNoticeDismissed,
+    setStoreManualNoticeDismissed,
     currentPartnerWarehouseSelection,
     setCurrentPartnerWarehouseSelection,
     partnerPortalViewFilter,
@@ -1729,6 +1738,29 @@ export default function App() {
     setIsAdminSettingsSheetOpen(true);
   };
 
+  // Prototype-only: simulate an SSO sign-in where the device's store could not
+  // be detected, forcing the store user to pick from their accessible stores.
+  // Only relevant when the user has more than one accessible store — with a
+  // single store we auto-select it silently and never surface this flow.
+  const handleSimulateStoreDetectionFailure = () => {
+    setIsAdminSettingsSheetOpen(false);
+    setStoreManuallySelected(false);
+    setStoreManualNoticeDismissed(false);
+    // Clear the active store so the device reflects "not detected" until a pick.
+    setCurrentStoreSelection({ brandId: '', countryId: '', storeId: '' });
+    setAccessibleStoreIds(['1', '2', '3']);
+    setCurrentScreenSafe('home');
+    setIsStoreDetectionFallbackOpen(true);
+  };
+
+  const handleStoreDetectionFallbackConfirm = (selection: StoreSelection) => {
+    setCurrentStoreSelection(selection);
+    setStoreManuallySelected(true);
+    // A fresh manual pick re-surfaces the notice even if previously dismissed.
+    setStoreManualNoticeDismissed(false);
+    setIsStoreDetectionFallbackOpen(false);
+  };
+
   const handleOpenSwitchView = () => {
     if (currentUserRole !== 'admin') return;
     setIsSwitchViewSheetOpen(true);
@@ -1946,6 +1978,11 @@ export default function App() {
             currentMonthlySales={currentMonthlySales}
             monthlyGoal={displayMonthlyGoal}
             onGoalUpdate={setMonthlyGoal}
+            isStoreUser={currentUserRole === 'store-staff'}
+            storeManuallySelected={storeManuallySelected}
+            showManualStoreNotice={storeManuallySelected && !storeManualNoticeDismissed}
+            onChangeStoreManually={() => setIsStoreDetectionFallbackOpen(true)}
+            onDismissManualStoreNotice={() => setStoreManualNoticeDismissed(true)}
           />
         );
       })()}
@@ -3990,6 +4027,7 @@ export default function App() {
         currentViewLabel={currentViewLabel}
         onLogout={handleLogout}
         onRoleChange={(role) => handleRoleChange(role)}
+        onSimulateStoreDetectionFailure={handleSimulateStoreDetectionFailure}
         onSwitchView={handleOpenSwitchView}
         onNavigateToStockCheckReport={handleNavigateToStockCheckReports}
         onNavigateToShippingReport={() => {
@@ -4020,6 +4058,15 @@ export default function App() {
           setIsAdminSettingsSheetOpen(false);
           setCurrentScreenSafe('sap-export-jobs');
         }}
+      />
+
+      {/* Store detection fallback (prototype: triggered from Settings while in Store user role) */}
+      <StoreDetectionFallback
+        isOpen={isStoreDetectionFallbackOpen}
+        onClose={() => setIsStoreDetectionFallbackOpen(false)}
+        onConfirm={handleStoreDetectionFallbackConfirm}
+        accessibleStores={mockStores.filter((s) => accessibleStoreIds.includes(s.id))}
+        brands={mockBrands}
       />
 
       <SwitchViewSheet

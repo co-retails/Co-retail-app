@@ -33,6 +33,8 @@ export interface OrderItem {
   subcategory: string;
   size: string;
   color: string;
+  /** Material / fabric composition; always optional. */
+  material?: string;
   price: number;
   purchasePrice?: number;
   status?: 'error' | 'pending' | 'scanned' | 'draft' | 'in-transit';

@@ -100,7 +100,17 @@ export function useAppState() {
     countryId: '1', // Sweden
     storeId: '1' // Drottninggatan 63
   });
-  
+
+  // Store detection fallback — used when SSO sign-in cannot detect the device's
+  // store and the store user must pick from the stores they have access to.
+  const [isStoreDetectionFallbackOpen, setIsStoreDetectionFallbackOpen] = useState(false);
+  const [accessibleStoreIds, setAccessibleStoreIds] = useState<string[]>([]);
+  const [storeManuallySelected, setStoreManuallySelected] = useState(false);
+  // Tracks whether the user dismissed the "store selected manually" notice.
+  // The manual-selection flag persists past dismissal so the store selector
+  // still re-opens the manual picker.
+  const [storeManualNoticeDismissed, setStoreManualNoticeDismissed] = useState(false);
+
   // Partner/Warehouse selection state
   const [currentPartnerWarehouseSelection, setCurrentPartnerWarehouseSelection] = useState<PartnerWarehouseSelection>({
     partnerId: '1', // Sellpy Operations
@@ -220,6 +230,14 @@ export function useAppState() {
     // Store/Partner selection
     currentStoreSelection,
     setCurrentStoreSelection,
+    isStoreDetectionFallbackOpen,
+    setIsStoreDetectionFallbackOpen,
+    accessibleStoreIds,
+    setAccessibleStoreIds,
+    storeManuallySelected,
+    setStoreManuallySelected,
+    storeManualNoticeDismissed,
+    setStoreManualNoticeDismissed,
     currentPartnerWarehouseSelection,
     setCurrentPartnerWarehouseSelection,
     partnerPortalViewFilter,

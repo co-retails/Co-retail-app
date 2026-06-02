@@ -54,6 +54,8 @@ export interface Item extends BaseItem {
   subcategory?: string;
   size?: string;
   color?: string;
+  /** Material / fabric composition, e.g. "100% Cotton" */
+  material?: string;
   price: number;
   status: 'Draft' | 'In transit' | 'Available' | 'Sold' | 'Returned' | 'Missing' | 'Broken' | 'Rejected';
   date: string;
@@ -61,6 +63,8 @@ export interface Item extends BaseItem {
   boxLabel?: string;
   sellerName?: string;
   thumbnail?: string;
+  /** Multiple product photos (Sellpy partner items). Shown as a horizontal-scroll gallery, up to 5. */
+  images?: string[];
   daysRemaining?: number;
   source?: string;
   orderNumber?: string;
@@ -493,6 +497,7 @@ export const initialItems: Item[] = [
     category: 'Hoodie',
     size: 'M',
     color: 'Gray',
+    material: '80% Cotton, 20% Polyester',
     price: 10,
     status: 'Available',
     date: '2024-11-29',
@@ -501,6 +506,14 @@ export const initialItems: Item[] = [
     sellerName: 'Sellpy Operations',
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1732475530169-70c2cda1712f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTE5NDA5MHww&ixlib=rb-4.1.0&q=80&w=1080',
+    // Sellpy items can include several photos — shown as a horizontal-scroll gallery (max 5).
+    images: [
+      'https://images.unsplash.com/photo-1732475530169-70c2cda1712f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTE5NDA5MHww&ixlib=rb-4.1.0&q=80&w=1080',
+      'https://images.unsplash.com/photo-1556821840-3a63f95609a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob29kaWUlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
+      'https://images.unsplash.com/photo-1576566588028-4147f3842f27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzd2VhdGVyJTIwZmFzaGlvbnxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXJkaWdhbiUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0c2hpcnQlMjBzdHJpcGVkfGVufDF8fHx8MTc2MTI4OTQ0OXww&ixlib=rb-4.1.0&q=80&w=1080',
+    ],
     selected: false,
     location: 'Shopfloor',
     daysRemaining: 28,
@@ -519,6 +532,7 @@ export const initialItems: Item[] = [
     category: 'Dresses',
     size: '36',
     color: 'Blue',
+    material: '100% Viscose',
     price: 12,
     status: 'In transit',
     date: '2024-12-02',
@@ -527,6 +541,12 @@ export const initialItems: Item[] = [
     sellerName: 'Sellpy Operations',
     source: 'Sellpy Operations',
     thumbnail: 'https://images.unsplash.com/photo-1613966570650-add3cf83aa83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzc3xlbnwxfHx8fDE3NjEyMDc5MjF8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    // Multiple Sellpy photos (3 here) to show the gallery adapts to the image count.
+    images: [
+      'https://images.unsplash.com/photo-1613966570650-add3cf83aa83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzc3xlbnwxfHx8fDE3NjEyMDc5MjF8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxza2lydCUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+      'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXJkaWdhbiUyMGZhc2hpb258ZW58MXx8fHwxNzYxMjg5NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    ],
     selected: false,
     location: 'In transit',
     daysRemaining: 32,
@@ -543,6 +563,7 @@ export const initialItems: Item[] = [
     category: 'Shorts',
     size: 'M',
     color: 'White',
+    material: '98% Cotton, 2% Elastane',
     price: 5,
     status: 'Available',
     date: '2024-11-20',
@@ -568,6 +589,7 @@ export const initialItems: Item[] = [
     category: 'Tops',
     size: 'S',
     color: 'Red',
+    material: '50% Cotton, 50% Modal',
     price: 40,
     status: 'Sold',
     date: '2024-11-10',
@@ -1902,6 +1924,7 @@ export default function ItemsScreen({
     | 'category'
     | 'size'
     | 'color'
+    | 'material'
     | 'delivery'
     | 'boxLabel'
     | 'partner'
@@ -2270,6 +2293,7 @@ export default function ItemsScreen({
           case 'category': return normalize(a.category);
           case 'size': return normalize(a.size);
           case 'color': return normalize(a.color);
+          case 'material': return normalize(a.material);
           case 'delivery': return normalize(a.deliveryId);
           case 'boxLabel': return normalize(a.boxLabel);
           case 'partner': return normalize(a.sellerName);
@@ -2288,6 +2312,7 @@ export default function ItemsScreen({
           case 'category': return normalize(b.category);
           case 'size': return normalize(b.size);
           case 'color': return normalize(b.color);
+          case 'material': return normalize(b.material);
           case 'delivery': return normalize(b.deliveryId);
           case 'boxLabel': return normalize(b.boxLabel);
           case 'partner': return normalize(b.sellerName);
@@ -3031,6 +3056,7 @@ export default function ItemsScreen({
                         <col style={{ width: '8.5rem' }} /> {/* Category */}
                         <col style={{ width: '5.5rem' }} /> {/* Size */}
                         <col style={{ width: '6.5rem' }} /> {/* Color */}
+                        <col style={{ width: '8.5rem' }} /> {/* Material */}
                         <col style={{ width: '8.5rem' }} /> {/* Delivery */}
                         <col style={{ width: '8.5rem' }} /> {/* Box label */}
                         <col style={{ width: '9rem' }} /> {/* Partner */}
@@ -3054,6 +3080,7 @@ export default function ItemsScreen({
                           <SortableHeader field="category" label="Category" />
                           <SortableHeader field="size" label="Size" />
                           <SortableHeader field="color" label="Color" />
+                          <SortableHeader field="material" label="Material" />
                           <SortableHeader field="delivery" label="Delivery" />
                           <SortableHeader field="boxLabel" label="Box label" />
                           <SortableHeader field="partner" label="Partner" />
@@ -3107,6 +3134,7 @@ export default function ItemsScreen({
                               <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.category || '—'}</td>
                               <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.size || '—'}</td>
                               <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.color || '—'}</td>
+                              <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.material || '—'}</td>
                               <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.deliveryId || '—'}</td>
                               <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.boxLabel || '—'}</td>
                               <td className="px-3 py-3 body-medium text-on-surface align-middle">{item.sellerName || '—'}</td>

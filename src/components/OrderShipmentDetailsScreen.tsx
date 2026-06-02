@@ -144,6 +144,8 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
   const subcategories = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Sneakers', 'Boots', 'Bags', 'Scarves'];
   const colors = ['Black', 'White', 'Blue', 'Red', 'Gray', 'Green', 'Navy', 'Beige'];
   const sizes = ['XS', 'S', 'M', 'L', 'XL', '36', '37', '38', '39', '40'];
+  // Material is always optional, so the demo data intentionally leaves some items blank.
+  const materials = ['Cotton', 'Organic cotton', 'Wool', 'Linen', 'Viscose', 'Polyester', 'Denim', 'Leather', 'Faux leather', 'Silk'];
 
   // Determine if this is a Thrifted or Sellpy order
   const isThrifted = partnerName === 'Thrifted';
@@ -224,6 +226,8 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
       subcategory: subcategory,
       size: itemStatus === 'error' && fieldErrors?.size ? undefined : (Math.random() > 0.7 ? undefined : sizes[Math.floor(Math.random() * sizes.length)]),
       color: itemStatus === 'error' && fieldErrors?.color ? '' : colors[Math.floor(Math.random() * colors.length)],
+      // Optional: ~1 in 4 items left blank to show material is never required.
+      material: index % 4 === 0 ? undefined : materials[Math.floor(Math.random() * materials.length)],
       price: itemStatus === 'error' && fieldErrors?.price ? 0 : price,
       purchasePrice: purchasePrice,
       status: itemStatus,
@@ -1048,8 +1052,29 @@ export default function OrderShipmentDetailsScreen({
           
           updatedItem.fieldErrors = Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined;
           updatedItem.errors = Object.keys(fieldErrors).length > 0 ? Object.values(fieldErrors) : undefined;
+        } else if (isPendingOrder) {
+          // For non-Thrifted pending orders (e.g. Sellpy): clear the edited field's
+          // validation error as soon as a valid value is chosen. We only clear the
+          // field that was just edited (instead of rebuilding all errors) because
+          // valid Sellpy items can legitimately have empty optional fields like size.
+          const existingErrors: Record<string, string> = { ...(updatedItem.fieldErrors || {}) };
+          const isValueFilled =
+            field === 'price'
+              ? (typeof value === 'number' ? value : parseFloat(value)) > 0
+              : typeof value === 'string'
+                ? value.trim().length > 0
+                : value !== undefined && value !== null && value !== '';
+
+          if (isValueFilled && field in existingErrors) {
+            delete existingErrors[field as string];
+          }
+
+          const hasRemainingErrors = Object.keys(existingErrors).length > 0;
+          updatedItem.fieldErrors = hasRemainingErrors ? existingErrors : undefined;
+          updatedItem.errors = hasRemainingErrors ? Object.values(existingErrors) : undefined;
+          updatedItem.status = hasRemainingErrors ? 'error' : undefined;
         }
-        
+
         return updatedItem;
       });
       return updated;

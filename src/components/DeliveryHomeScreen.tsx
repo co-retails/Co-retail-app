@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card } from './ui/card';
 import { Section } from './ui/section';
 import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
+import StoreManualSelectionBanner from './StoreManualSelectionBanner';
 import SalesDataDashboard from './SalesDataDashboard';
 import MonthlyGoalTracker, { GoalEditDialog } from './MonthlyGoalTracker';
 import { ChevronDown, Settings, Target, UserIcon, RotateCcw, ClipboardCheck, QrCode } from 'lucide-react';
@@ -36,6 +37,14 @@ interface DeliveryHomeScreenProps {
   currentMonthlySales: number;
   monthlyGoal: number | null;
   onGoalUpdate: (newGoal: number) => void;
+  /** True for store users signed in via SSO (store dashboard, not admin/partner). */
+  isStoreUser?: boolean;
+  /** True when the store was picked manually after device detection failed. */
+  storeManuallySelected?: boolean;
+  /** Whether to show the "store selected manually" notice (hidden once dismissed). */
+  showManualStoreNotice?: boolean;
+  onChangeStoreManually?: () => void;
+  onDismissManualStoreNotice?: () => void;
 }
 
 
@@ -43,13 +52,17 @@ interface DeliveryHomeScreenProps {
 interface HeaderProps {
   currentStore: string;
   onStoreClick: () => void;
+  /** When true the store name is shown as fixed (no chevron, not clickable). */
+  storeSelectorLocked?: boolean;
   onAdminClick?: () => void;
   currentStoreSelection?: StoreSelection;
   stores?: Store[];
   brands?: Brand[];
+  /** When a banner already clears the fixed desktop nav, skip the header's own top offset. */
+  hasTopBanner?: boolean;
 }
 
-function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelection, stores = [], brands = [] }: HeaderProps) {
+function Header({ currentStore, onStoreClick, storeSelectorLocked = false, onAdminClick, currentStoreSelection, stores = [], brands = [], hasTopBanner = false }: HeaderProps) {
   // Determine which logo to show based on the selected store's brand
   const getBrandLogo = () => {
     if (!currentStoreSelection?.storeId || !stores.length || !brands.length) {
@@ -146,16 +159,9 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
                   )}
                 </>
               ) : (
-                <>
-                  <div className="h-[28px] w-[153px] mb-1">
-                    <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
-                      <path d={svgPaths.p2523a00} fill="#1A1A1A" />
-                    </svg>
-                  </div>
-                  <div className="label-large text-on-surface tracking-wider uppercase">
-                    Resell
-                  </div>
-                </>
+                <div className="h-[28px] mb-1 flex items-center justify-center">
+                  <span className="title-large text-on-surface tracking-wide">Resell</span>
+                </div>
               )}
             </div>
             
@@ -171,19 +177,25 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
           
           {/* Store Selector Row */}
           <div className="flex justify-center">
-            <button
-              onClick={onStoreClick}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-surface-container-high transition-colors"
-            >
-              <span className="title-medium text-on-surface">{currentStore}</span>
-              <ChevronDown className="h-4 w-4 text-on-surface-variant" />
-            </button>
+            {storeSelectorLocked ? (
+              <div className="flex items-center gap-2 px-4 py-2">
+                <span className="title-medium text-on-surface">{currentStore}</span>
+              </div>
+            ) : (
+              <button
+                onClick={onStoreClick}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-surface-container-high transition-colors min-h-[48px] touch-manipulation"
+              >
+                <span className="title-medium text-on-surface">{currentStore}</span>
+                <ChevronDown className="h-4 w-4 text-on-surface-variant" />
+              </button>
+            )}
           </div>
         </div>
       </div>
       
       {/* Desktop Header - Logo and selector, positioned below top nav */}
-      <div className="hidden md:flex flex-col items-center px-6 py-4 bg-surface" style={{ marginTop: '4rem' }}>
+      <div className="hidden md:flex flex-col items-center px-6 py-4 bg-surface" style={{ marginTop: hasTopBanner ? '0' : '4rem' }}>
         {/* Logo */}
         <div className="flex flex-col items-center mb-3">
           {logoPath ? (
@@ -203,27 +215,26 @@ function Header({ currentStore, onStoreClick, onAdminClick, currentStoreSelectio
               )}
             </>
           ) : (
-            <>
-              <div className="h-[28px] w-[153px] mb-1">
-                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 153 28">
-                  <path d={svgPaths.p2523a00} fill="#1A1A1A" />
-                </svg>
-              </div>
-              <div className="label-large text-on-surface tracking-wider uppercase">
-                Resell
-              </div>
-            </>
+            <div className="h-[28px] mb-1 flex items-center justify-center">
+              <span className="title-large text-on-surface tracking-wide">Resell</span>
+            </div>
           )}
         </div>
         
         {/* Store Selector */}
-        <button
-          onClick={onStoreClick}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-surface-container-high transition-colors"
-        >
-          <span className="title-medium text-on-surface">{currentStore}</span>
-          <ChevronDown className="h-4 w-4 text-on-surface-variant" />
-        </button>
+        {storeSelectorLocked ? (
+          <div className="flex items-center gap-2 px-4 py-2">
+            <span className="title-medium text-on-surface">{currentStore}</span>
+          </div>
+        ) : (
+          <button
+            onClick={onStoreClick}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-surface-container-high transition-colors"
+          >
+            <span className="title-medium text-on-surface">{currentStore}</span>
+            <ChevronDown className="h-4 w-4 text-on-surface-variant" />
+          </button>
+        )}
       </div>
     </>
   );
@@ -252,9 +263,32 @@ export default function DeliveryHomeScreen({
   onStoreSelectionChange,
   currentMonthlySales,
   monthlyGoal,
-  onGoalUpdate
+  onGoalUpdate,
+  isStoreUser = false,
+  storeManuallySelected = false,
+  showManualStoreNotice = false,
+  onChangeStoreManually,
+  onDismissManualStoreNotice
 }: DeliveryHomeScreenProps) {
   const [isStoreSelectorOpen, setIsStoreSelectorOpen] = useState(false);
+
+  // Store-selector interactivity:
+  // - Store user, store detected via device (not manual)  → locked (not clickable).
+  // - Store user, store picked manually                   → re-opens the manual picker.
+  // - Everyone else (admin/partner)                       → opens the full store selector.
+  const storeSelectorLocked = isStoreUser && !storeManuallySelected;
+  const handleStoreSelectorClick = () => {
+    if (storeSelectorLocked) return;
+    if (isStoreUser && storeManuallySelected) {
+      if (onChangeStoreManually) {
+        onChangeStoreManually();
+      } else {
+        setIsStoreSelectorOpen(true);
+      }
+    } else {
+      setIsStoreSelectorOpen(true);
+    }
+  };
 
   // Get current store display name
   const getCurrentStoreDisplay = () => {
@@ -271,14 +305,28 @@ export default function DeliveryHomeScreen({
   };
   return (
     <div className="bg-surface min-h-screen w-full">
+      {/* Manual store-selection notice (device detection failed) */}
+      {showManualStoreNotice && (
+        <>
+          {/* Desktop-only spacer to clear the fixed TopNavigationBar (h-16) */}
+          <div className="hidden md:block h-16" aria-hidden="true" />
+          <StoreManualSelectionBanner
+            storeName={getCurrentStoreDisplay()}
+            onDismiss={() => onDismissManualStoreNotice?.()}
+          />
+        </>
+      )}
+
       {/* Header - Full Width */}
-      <Header 
-        currentStore={getCurrentStoreDisplay()} 
-        onStoreClick={() => setIsStoreSelectorOpen(true)}
+      <Header
+        currentStore={getCurrentStoreDisplay()}
+        onStoreClick={handleStoreSelectorClick}
+        storeSelectorLocked={storeSelectorLocked}
         onAdminClick={onNavigateToAdmin}
         currentStoreSelection={currentStoreSelection}
         stores={stores}
         brands={brands}
+        hasTopBanner={showManualStoreNotice}
       />
 
       {/* Main Content Container */}
