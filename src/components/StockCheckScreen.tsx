@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
-import { ArrowLeft, X, QrCode, Package } from 'lucide-react';
+import { ArrowLeft, X, QrCode, Package, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { ItemCard, BaseItem } from './ItemCard';
 import CameraScanner from './CameraScanner';
 
@@ -268,6 +268,15 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
   const [isScanning] = useState(true); // Always start scanning
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  // Counts every scan in this session so we can simulate a "not found" result
+  // on every other scan (see handleScan).
+  const scanCountRef = useRef(0);
+  // Holds the latest scan-result notice so we can surface it inline at the top of
+  // the scan screen (more visible than a transient toast). The tone drives styling:
+  //   error   → ID not found in this stock check
+  //   warning → ID already scanned in this session
+  //   info    → item added with a non-Available status (e.g. Missing)
+  const [scanNotice, setScanNotice] = useState<{ tone: 'error' | 'warning' | 'info'; text: string } | null>(null);
 
   // Load accumulated items from today's session
   const accumulatedItems = loadAccumulatedItems();
@@ -359,7 +368,27 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
     };
   }, [isScanning, notScannedItems.length]);
 
-  const handleScan = (scannedCode: string) => {
+  const handleScan = (scannedCode?: string) => {
+    // Prototype simulation of the different outcomes a scan can produce. The
+    // running count lets us trigger each scenario predictably in the demo.
+    scanCountRef.current += 1;
+    const scanNumber = scanCountRef.current;
+
+    // Every 5th scan: simulate re-scanning an ID that was already counted.
+    if (scanNumber % 5 === 0) {
+      const alreadyScanned = stockItems.find(item => item.isScanned);
+      const scannedId = alreadyScanned?.itemId ?? scannedCode ?? `${34780000 + Math.floor(Math.random() * 100000)}`;
+      setScanNotice({ tone: 'warning', text: `Item ID "${scannedId}" already scanned` });
+      return;
+    }
+
+    // Every other scan: simulate an ID that isn't part of this stock check.
+    if (scanNumber % 2 === 0) {
+      const scannedId = scannedCode ?? `${34780000 + Math.floor(Math.random() * 100000)}`;
+      setScanNotice({ tone: 'error', text: `Scanned Item ID "${scannedId}" not found` });
+      return;
+    }
+
     // Randomly decide if we're scanning an existing item or a new item not in the list
     // This simulates scanning items with any status (Missing, Sold, In Transit, Expired, etc.)
     const scanNewItem = Math.random() > 0.7; // 30% chance to scan a new/unexpected item
@@ -372,9 +401,11 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       const sizes = ['XS', 'S', 'M', 'L', 'XL'];
       
       // For unexpected items, they could be Missing items that were found
-      // Use 'Missing' as default status for unexpected items (they were not in the list)
+      // Use a non-Available status (Missing/Broken) since they were not in the list
       const boxLabels = ['BOX-123456', 'BOX-789012', 'BOX-987654', 'BOX-456789', 'BOX-234567'];
       const deliveryIds = ['DEL-0931', 'DEL-1130', 'DEL-0950', 'DEL-1001', 'DEL-1045'];
+      const nonAvailableStatuses: Array<StockItem['status']> = ['Missing', 'Broken'];
+      const unexpectedStatus = nonAvailableStatuses[Math.floor(Math.random() * nonAvailableStatuses.length)]!;
       const newItem: StockItem = {
         id: `unexpected-item-${Date.now()}`,
         itemId: `${34780000 + Math.floor(Math.random() * 10000)}`,
@@ -383,7 +414,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         size: sizes[Math.floor(Math.random() * sizes.length)]!,
         color: colors[Math.floor(Math.random() * colors.length)]!,
         price: Math.floor(Math.random() * 50) + 10,
-        status: 'Missing', // Unexpected items were not in the list, so they're Missing
+        status: unexpectedStatus, // Unexpected items were not in the list, so they're Missing/Broken
         orderNumber: `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`,
         date: getToday(),
         isScanned: true,
@@ -403,15 +434,13 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       });
       setSelectedItems(prev => new Set([...prev, newItem.id]));
       setActiveTab('scanned');
-      
-      // Show success feedback for unexpected item
-      const event = new CustomEvent('toast', {
-        detail: { 
-          message: `Scanned unexpected item: ${newItem.itemId} (not in expected list)`, 
-          type: 'success' 
-        }
+
+      // Item has a non-Available status but is still added to the Scanned list —
+      // surface that so the user knows why it was flagged.
+      setScanNotice({
+        tone: 'info',
+        text: `Item ID "${newItem.itemId}" added to Scanned — status ${newItem.status}`,
       });
-      window.dispatchEvent(event);
     } else {
       // Simulate scanning an item from the expected list
       // Keep the original status, don't change it to 'Scanned'
@@ -429,12 +458,9 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         });
         setSelectedItems(prev => new Set([...prev, randomItem.id]));
         setActiveTab('scanned');
-        
-        // Show success feedback
-        const event = new CustomEvent('toast', {
-          detail: { message: `Scanned: ${randomItem.itemId}`, type: 'success' }
-        });
-        window.dispatchEvent(event);
+
+        // A clean, expected (Available) scan — clear any previous notice.
+        setScanNotice(null);
       }
     }
     
@@ -493,6 +519,30 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
           enableFakeScan={true}
           height="16rem"
         />
+
+        {/* Scan-result banner — surfaces the latest scan outcome inline at the top */}
+        {scanNotice && (() => {
+          const tone = {
+            error: { bg: 'bg-error-container', fg: 'text-on-error-container', Icon: AlertCircle },
+            warning: { bg: 'bg-warning-container', fg: 'text-on-warning-container', Icon: AlertTriangle },
+            info: { bg: 'bg-secondary-container', fg: 'text-on-secondary-container', Icon: Info },
+          }[scanNotice.tone];
+          const Icon = tone.Icon;
+          return (
+            <div role="alert" className={`mt-3 flex items-start gap-3 rounded-[12px] px-4 py-3 ${tone.bg}`}>
+              <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${tone.fg}`} />
+              <p className={`flex-1 body-medium ${tone.fg}`}>{scanNotice.text}</p>
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={() => setScanNotice(null)}
+                className={`w-12 h-12 -my-2 -mr-2 flex items-center justify-center rounded-full shrink-0 hover:opacity-70 transition-opacity touch-manipulation ${tone.fg}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          );
+        })()}
       </div>
       
       {/* Content */}

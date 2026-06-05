@@ -17,6 +17,8 @@ interface ResponsiveNavigationProps {
   destinations: NavigationDestination[];
   userInitials?: string;
   onSettingsClick?: () => void;
+  /** Hide the mobile bottom navigation bar (desktop top nav is unaffected). */
+  hideMobileNav?: boolean;
 }
 
 function NavigationBar({ activeDestination, destinations }: ResponsiveNavigationProps) {
@@ -190,16 +192,19 @@ function NavigationRail({ activeDestination, destinations }: ResponsiveNavigatio
   );
 }
 
-export default function ResponsiveNavigation({ 
-  activeDestination, 
-  destinations, 
+export default function ResponsiveNavigation({
+  activeDestination,
+  destinations,
   userInitials = 'JD',
-  onSettingsClick 
+  onSettingsClick,
+  hideMobileNav = false
 }: ResponsiveNavigationProps) {
   return (
     <>
-      <NavigationBar activeDestination={activeDestination} destinations={destinations} />
-      <TopNavigationBar 
+      {!hideMobileNav && (
+        <NavigationBar activeDestination={activeDestination} destinations={destinations} />
+      )}
+      <TopNavigationBar
         activeDestination={activeDestination} 
         destinations={destinations}
         userInitials={userInitials}

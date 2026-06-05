@@ -1,6 +1,24 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { isMobileOrTablet, hasCameraSupport } from '../utils/deviceDetection';
+
+/**
+ * Store items use two code types after the data migration: migrated (legacy)
+ * items carry 2D Data Matrix codes, while new co-retail items use regular 1D
+ * barcodes (CODE_128 / EAN / UPC). Every scanner must read both, so we
+ * explicitly enable the 2D formats (QR + Data Matrix) alongside the common 1D
+ * barcode formats.
+ */
+const SUPPORTED_SCAN_FORMATS: Html5QrcodeSupportedFormats[] = [
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.DATA_MATRIX,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+];
 
 export interface CameraScannerProps {
   /** Callback when a code is successfully scanned */
@@ -96,7 +114,10 @@ export default function CameraScanner({
     log('Starting camera...');
 
     try {
-      const scanner = new Html5Qrcode(containerRef.current.id);
+      const scanner = new Html5Qrcode(containerRef.current.id, {
+        formatsToSupport: SUPPORTED_SCAN_FORMATS,
+        verbose: false,
+      });
       scannerRef.current = scanner;
 
       await scanner.start(

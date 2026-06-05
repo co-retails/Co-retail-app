@@ -1830,6 +1830,14 @@ export default function App() {
     currentScreen !== 'receive' &&
     currentScreen !== 'scan';
 
+  // Hide the mobile bottom navigation on the Thrifted "create new order" screen
+  // (it has its own footer actions). Desktop navigation is left untouched.
+  const currentPartnerForNav = mockWarehousePartners?.find(
+    p => p.id === currentPartnerWarehouseSelection?.partnerId
+  );
+  const hideMobileNavForOrderCreation =
+    currentScreen === 'order-creation' && currentPartnerForNav?.name === 'Thrifted';
+
   // === Render ===
   return (
     <ResponsiveLayout
@@ -4081,11 +4089,12 @@ export default function App() {
 
       {/* Show main navigation only for main app screens */}
       {showMainNavigation && (
-        <ResponsiveNavigation 
+        <ResponsiveNavigation
           activeDestination={activeDestination}
           destinations={navigationDestinations}
           userInitials={effectiveUserAccount?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'JD'}
           onSettingsClick={handleOpenAdminSettings}
+          hideMobileNav={hideMobileNavForOrderCreation}
         />
       )}
       

@@ -905,8 +905,6 @@ export default function ThriftedOrderCreationScreen({
               </div>
             </div>
 
-            <p className="body-small text-on-surface-variant">{templateAvailability.helperText}</p>
-
             {uploadError && (
               <Alert variant="destructive">
                 <AlertTriangleIcon className="h-4 w-4" />
@@ -915,21 +913,6 @@ export default function ThriftedOrderCreationScreen({
             )}
 
             {renderUploadStatus()}
-
-            <div className="p-3 bg-surface-container rounded-lg">
-              <p className="label-small text-on-surface-variant mb-2">CSV Format Requirements:</p>
-              <ul className="space-y-1 body-small text-on-surface-variant">
-                <li>• Required columns: SKU, Retailer ID*, Item brand, Subcategory, Size, Color, Gender, Price (SEK)*</li>
-                <li>• <strong>Retailer ID*</strong> and <strong>Price (SEK)*</strong> are mandatory</li>
-                <li>• Subcategory options: {getAllThriftedSubcategoriesForBrand(selectedBrandId).join(', ')}</li>
-                <li>• Category is automatically mapped from Subcategory</li>
-                <li>• Gender options: {thriftedValidValues.genders.join(', ')}</li>
-                <li>• Price must be one of the valid SEK price ladder values</li>
-                <li>• Duplicate checks run within the file and, when appending, against the current order</li>
-                <li>• Files larger than {THRIFTED_IMPORT_CHUNK_SIZE.toLocaleString()} rows are processed locally in chunks and merged into one result</li>
-                <li>• Use the template to ensure correct format</li>
-              </ul>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -1000,8 +983,6 @@ export default function ThriftedOrderCreationScreen({
               </div>
             </div>
 
-            <p className="body-small text-on-surface-variant">{templateAvailability.helperText}</p>
-
             {uploadError && (
               <Alert variant="destructive">
                 <AlertTriangleIcon className="h-4 w-4" />
@@ -1010,21 +991,6 @@ export default function ThriftedOrderCreationScreen({
             )}
 
             {renderUploadStatus()}
-
-            <div className="p-3 bg-surface-container rounded-lg">
-              <p className="label-small text-on-surface-variant mb-2">CSV Format Requirements:</p>
-              <ul className="space-y-1 body-small text-on-surface-variant">
-                <li>• Required columns: SKU, Retailer ID*, Item brand, Subcategory, Size, Color, Gender, Price (SEK)*</li>
-                <li>• <strong>Retailer ID*</strong> and <strong>Price (SEK)*</strong> are mandatory</li>
-                <li>• Subcategory options: {getAllThriftedSubcategoriesForBrand(selectedBrandId).join(', ')}</li>
-                <li>• Category is automatically mapped from Subcategory</li>
-                <li>• Gender options: {thriftedValidValues.genders.join(', ')}</li>
-                <li>• Price must be one of the valid SEK price ladder values</li>
-                <li>• Duplicate checks run within the file and, when appending, against the current order</li>
-                <li>• Files larger than {THRIFTED_IMPORT_CHUNK_SIZE.toLocaleString()} rows are processed locally in chunks and merged into one result</li>
-                <li>• Use the template to ensure correct format</li>
-              </ul>
-            </div>
           </CardContent>
         </Card>
       )}

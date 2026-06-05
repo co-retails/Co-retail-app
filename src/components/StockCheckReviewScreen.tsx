@@ -201,6 +201,9 @@ function BulkActionsBar({
   const menuOptions = getMenuOptions();
   const [bulkSheetOpen, setBulkSheetOpen] = useState(false);
   const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+  // On desktop show a compact dropdown; fall back to the side sheet when there
+  // are more than 5 actions so the list stays scannable.
+  const useDropdown = isLargeScreen && menuOptions.length <= 5;
 
   return (
     <div className={`sticky top-0 z-[5] border-b border-outline-variant ${
@@ -246,61 +249,90 @@ function BulkActionsBar({
         {/* Right side - Actions (only show when items are selected) */}
         {hasSelectedItems && menuOptions.length > 0 && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setBulkSheetOpen(true)}
-              className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
-              aria-label="Bulk actions"
-            >
-              <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
-              </svg>
-            </button>
+            {useDropdown ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
+                    aria-label="Bulk actions"
+                  >
+                    <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                      <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+                    </svg>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {menuOptions.map((option) => (
+                    <DropdownMenuItem
+                      key={option.key}
+                      onClick={option.onClick}
+                      className={option.className}
+                    >
+                      {quickActionIcon(option.action)}
+                      <span>{option.label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <button
+                onClick={() => setBulkSheetOpen(true)}
+                className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
+                aria-label="Bulk actions"
+              >
+                <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                  <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+                </svg>
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      <Sheet open={bulkSheetOpen} onOpenChange={setBulkSheetOpen}>
-        <SheetContent
-          side={isLargeScreen ? 'right' : 'bottom'}
-          className={`
-            ${isLargeScreen ? 'max-w-md' : 'max-h-[85vh] rounded-t-3xl'}
-            bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
-          `}
-        >
-          {!isLargeScreen && (
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-8 h-1 bg-outline-variant rounded-full" />
-            </div>
-          )}
+      {!useDropdown && (
+        <Sheet open={bulkSheetOpen} onOpenChange={setBulkSheetOpen}>
+          <SheetContent
+            side={isLargeScreen ? 'right' : 'bottom'}
+            className={`
+              ${isLargeScreen ? 'max-w-md' : 'max-h-[85vh] rounded-t-3xl'}
+              bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col
+            `}
+          >
+            {!isLargeScreen && (
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-8 h-1 bg-outline-variant rounded-full" />
+              </div>
+            )}
 
-          <SheetHeader className={`relative px-6 pb-4 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
-            <SheetTitle className="title-large text-on-surface text-left">
-              Bulk actions
-            </SheetTitle>
-            <SheetDescription className="body-small text-on-surface-variant text-left">
-              {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
-            </SheetDescription>
-          </SheetHeader>
+            <SheetHeader className={`relative px-6 pb-4 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
+              <SheetTitle className="title-large text-on-surface text-left">
+                Bulk actions
+              </SheetTitle>
+              <SheetDescription className="body-small text-on-surface-variant text-left">
+                {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
+              </SheetDescription>
+            </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-2 pb-4">
-            <div className="flex flex-col">
-              {menuOptions.map((option) => (
-                <button
-                  key={option.key}
-                  onClick={() => {
-                    option.onClick();
-                    setBulkSheetOpen(false);
-                  }}
-                  className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${option.className ?? ''}`}
-                >
-                  {quickActionIcon(option.action)}
-                  <span className="body-large">{option.label}</span>
-                </button>
-              ))}
+            <div className="flex-1 overflow-y-auto px-2 pb-4">
+              <div className="flex flex-col">
+                {menuOptions.map((option) => (
+                  <button
+                    key={option.key}
+                    onClick={() => {
+                      option.onClick();
+                      setBulkSheetOpen(false);
+                    }}
+                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors ${option.className ?? ''}`}
+                  >
+                    {quickActionIcon(option.action)}
+                    <span className="body-large">{option.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

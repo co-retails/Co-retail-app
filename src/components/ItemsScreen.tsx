@@ -488,7 +488,112 @@ function ActiveFiltersDisplay({
   );
 }
 
-export const initialItems: Item[] = [
+const rawInitialItems: Item[] = [
+  // --- Migrated (legacy) items: 6-digit IDs, shown as Data Matrix codes ---
+  {
+    id: 'itm-legacy-1',
+    itemId: '512097',
+    idFormat: 'legacy',
+    // 43-digit Data Matrix payload carried over from the old system.
+    // The item ID (512097) is the last 6 digits of the payload.
+    dataMatrix: '1099887766554433221101020304050607080512097',
+    title: 'Vintage Corduroy Trousers',
+    brand: 'Weekday',
+    category: 'Trousers',
+    size: '32',
+    color: 'Brown',
+    material: '100% Cotton',
+    price: 12,
+    status: 'Available',
+    date: '2026-05-10',
+    deliveryId: 'DEL-0912',
+    boxLabel: 'BOX-501122',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    selected: false,
+    location: 'Shopfloor',
+    daysRemaining: 21,
+    lastInStoreAt: '2026-05-10T09:00:00.000Z',
+    statusHistory: [
+      { status: 'Available', timestamp: '2026-05-10 09:00', user: 'System', note: 'Migrated from legacy system' }
+    ]
+  },
+  {
+    id: 'itm-legacy-2',
+    itemId: '498310',
+    idFormat: 'legacy',
+    title: 'Retro Knit Sweater',
+    brand: 'Monki',
+    category: 'Knitwear',
+    size: 'S',
+    color: 'Green',
+    material: '70% Wool, 30% Acrylic',
+    price: 14,
+    status: 'Available',
+    date: '2026-05-08',
+    deliveryId: 'DEL-0908',
+    boxLabel: 'BOX-498800',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 25,
+    lastInStoreAt: '2026-05-08T11:30:00.000Z',
+    statusHistory: [
+      { status: 'Available', timestamp: '2026-05-08 11:30', user: 'System', note: 'Migrated from legacy system' }
+    ]
+  },
+  // --- New co-retail items: 12-digit GTIN IDs, shown as regular barcodes ---
+  {
+    id: 'itm-gtin-1',
+    itemId: '735210054321',
+    idFormat: 'gtin',
+    title: 'Organic Cotton Tee',
+    brand: 'COS',
+    category: 'T-shirts',
+    size: 'M',
+    color: 'White',
+    material: '100% Organic Cotton',
+    price: 15,
+    status: 'Available',
+    date: '2026-05-20',
+    deliveryId: 'DEL-1205',
+    boxLabel: 'BOX-735210',
+    sellerName: 'Co-retail',
+    source: 'Co-retail',
+    selected: false,
+    location: 'Shopfloor',
+    daysRemaining: 30,
+    lastInStoreAt: '2026-05-20T08:15:00.000Z',
+    statusHistory: [
+      { status: 'Available', timestamp: '2026-05-20 08:15', user: 'Anna S.', note: 'Created in co-retail app' }
+    ]
+  },
+  {
+    id: 'itm-gtin-2',
+    itemId: '400123456784',
+    idFormat: 'gtin',
+    title: 'Relaxed Denim Jacket',
+    brand: 'Levi’s',
+    category: 'Jackets',
+    size: 'L',
+    color: 'Blue',
+    material: '100% Cotton Denim',
+    price: 25,
+    status: 'Available',
+    date: '2026-05-18',
+    deliveryId: 'DEL-1188',
+    boxLabel: 'BOX-400123',
+    sellerName: 'Co-retail',
+    source: 'Co-retail',
+    selected: false,
+    location: 'Shopfloor',
+    daysRemaining: 28,
+    lastInStoreAt: '2026-05-18T14:40:00.000Z',
+    statusHistory: [
+      { status: 'Available', timestamp: '2026-05-18 14:40', user: 'Erik L.', note: 'Created in co-retail app' }
+    ]
+  },
   {
     id: 'itm-1001',
     itemId: '684755',
@@ -1771,6 +1876,32 @@ export const initialItems: Item[] = [
     ]
   }
 ];
+
+/** Deterministic 12-digit pseudo-GTIN for an item promoted to a new co-retail item. */
+function toMockGtin(index: number): string {
+  return String(735000000000 + index * 37);
+}
+
+/**
+ * Split the catalogue roughly 50/50 between migrated QR items (6-digit IDs,
+ * Data Matrix codes) and new co-retail barcode items (12-digit GTINs).
+ *
+ * Items that already declare an explicit `idFormat` (the hand-authored examples
+ * at the top) are left untouched; every remaining item alternates between a new
+ * GTIN barcode item and a migrated QR item.
+ */
+export const initialItems: Item[] = rawInitialItems.map((item, index) => {
+  if (item.idFormat) return item;
+  if (index % 2 === 0) {
+    return {
+      ...item,
+      idFormat: 'gtin',
+      itemId: toMockGtin(index),
+    };
+  }
+  return { ...item, idFormat: 'legacy' };
+});
+
 function MultiSelectActions({
   selectedCount,
   totalCount,
@@ -1793,6 +1924,9 @@ function MultiSelectActions({
   if (totalCount === 0) return null;
 
   const hasSelectedItems = selectedCount > 0;
+  // On desktop show a compact dropdown; fall back to the side sheet when there
+  // are more than 5 actions so the list stays scannable.
+  const useDropdown = isLargeScreen && bulkQuickActions.length <= 5;
 
   return (
     <div className="border-t border-outline-variant">
@@ -1833,19 +1967,47 @@ function MultiSelectActions({
         
         {hasSelectedItems && bulkQuickActions.length > 0 && (
         <div className="flex items-center justify-center h-full">
-          <button
-            className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
-            aria-label="Bulk actions"
-            onClick={() => setBulkSheetOpen(true)}
-          >
-            <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-              <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
-            </svg>
-          </button>
+          {useDropdown ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
+                  aria-label="Bulk actions"
+                >
+                  <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                    <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {bulkQuickActions.map(({ action, label, className }) => (
+                  <DropdownMenuItem
+                    key={action}
+                    onClick={() => onBulkQuickAction(action)}
+                    className={className}
+                  >
+                    {quickActionIcon(action)}
+                    <span>{label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <button
+              className="p-3 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors min-w-[48px] min-h-[48px] touch-manipulation"
+              aria-label="Bulk actions"
+              onClick={() => setBulkSheetOpen(true)}
+            >
+              <svg className="w-6 h-6" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+                <path d={svgPathsNew.p3fdba000} fill="var(--on-surface)" />
+              </svg>
+            </button>
+          )}
         </div>
         )}
       </div>
 
+      {!useDropdown && (
       <Sheet open={bulkSheetOpen} onOpenChange={setBulkSheetOpen}>
         <SheetContent
           side={isLargeScreen ? 'right' : 'bottom'}
@@ -1889,6 +2051,7 @@ function MultiSelectActions({
           </div>
         </SheetContent>
       </Sheet>
+      )}
     </div>
   );
 }

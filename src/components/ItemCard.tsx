@@ -52,6 +52,14 @@ export interface BaseItem {
   isArchived?: boolean;
   archivedAt?: string;
   boxLabel?: string;
+  /**
+   * Code format for this item. 'legacy' = migrated 6-digit ID shown as a Data
+   * Matrix code; 'gtin' = 12-digit GTIN shown as a regular barcode. When unset,
+   * it is derived from the item-ID length (see utils/itemCodes).
+   */
+  idFormat?: 'legacy' | 'gtin';
+  /** Explicit 43-digit Data Matrix payload for migrated (legacy) items. */
+  dataMatrix?: string;
 }
 
 export type UserRole = 'admin' | 'store-staff' | 'store-manager' | 'partner';

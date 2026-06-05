@@ -14,6 +14,8 @@ import BrandPicker from './BrandPicker';
 import { VisuallyHidden } from './ui/visually-hidden';
 import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Ban, Barcode, Shirt } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
+import DataMatrixCode from './DataMatrixCode';
+import { getItemCodeType, getDataMatrixValue, getBarcodeValue, getQrItemId, generateDataMatrixValue } from '../utils/itemCodes';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useMediaQuery } from './ui/use-mobile';
 import svgPaths from '../imports/svg-7un8q74kd7';
@@ -34,6 +36,14 @@ import { getStatusLabel, getStatusTextColor } from '../utils/statusColors';
 export interface ItemDetails {
   id: string;
   itemId: string;
+  /**
+   * Code format. 'legacy' = migrated 6-digit ID shown as a Data Matrix code;
+   * 'gtin' = 12-digit GTIN shown as a regular barcode. When unset it is derived
+   * from the item-ID length (see utils/itemCodes).
+   */
+  idFormat?: 'legacy' | 'gtin';
+  /** Explicit 43-digit Data Matrix payload for migrated (legacy) items. */
+  dataMatrix?: string;
   /** Thrifted external ID (SKU); optional, shown separately from Item ID* */
   externalId?: string;
   title: string;
@@ -742,10 +752,14 @@ export default function ItemDetailsDialog({
   const [showHistory, setShowHistory] = useState(false);
   const [showBarcode, setShowBarcode] = useState(false);
   const isLargeScreen = useMediaQuery('(min-width: 640px)');
+  // Migrated (legacy) 6-digit items show a Data Matrix code; new 12-digit GTIN
+  // items show a regular barcode.
+  const itemCodeType = useMemo(() => getItemCodeType(item ?? undefined), [item?.idFormat, item?.itemId]);
+  const dataMatrixValue = useMemo(() => getDataMatrixValue(item ?? undefined), [item?.dataMatrix, item?.itemId]);
   const barcodeRefCallback = useCallback((node: SVGSVGElement | null) => {
     if (!node || !item?.itemId) return;
     try {
-      JsBarcode(node, `9${item.itemId}`, {
+      JsBarcode(node, getBarcodeValue(item), {
         format: 'CODE128',
         displayValue: true,
         fontSize: 14,
@@ -901,13 +915,25 @@ export default function ItemDetailsDialog({
   const handleScan = () => {
     setIsScanning(true);
     setTimeout(() => {
-      const mockId = `${Math.floor(100000 + Math.random() * 900000)}`;
-      // Automatically save and close
-      onSave(item.id, { itemId: mockId });
       if (enableThriftedPartnerItemDialog) {
+        // Thrifted partner flow: assign a fresh 6-digit retailer ID.
+        const mockId = `${Math.floor(100000 + Math.random() * 900000)}`;
+        onSave(item.id, { itemId: mockId });
         setThriftedRetailerDraft(mockId);
+        toast.success(`Item ID updated to ${mockId}`);
+      } else {
+        // Migrated (QR) flow: scanning a new hang tag's QR code yields a
+        // 43-digit Data Matrix payload; the new item ID is its last 6 digits.
+        const scannedShortId = `${Math.floor(100000 + Math.random() * 900000)}`;
+        const scannedDataMatrix = generateDataMatrixValue(scannedShortId);
+        const newItemId = getQrItemId(scannedDataMatrix);
+        onSave(item.id, {
+          itemId: newItemId,
+          idFormat: 'legacy',
+          dataMatrix: scannedDataMatrix,
+        });
+        toast.success(`Item ID updated to ${newItemId}`);
       }
-      toast.success(`Item ID updated to ${mockId}`);
       setShowIdScanner(false);
       setScannedId('');
       setIsScanning(false);
@@ -1194,9 +1220,15 @@ export default function ItemDetailsDialog({
                   <ArrowLeft size={20} />
                 </Button>
                 <div className="flex-1">
-                  <h1 className="title-large text-on-surface">Scan new item ID</h1>
+                  <h1 className="title-large text-on-surface">
+                    {!enableThriftedPartnerItemDialog && itemCodeType === 'datamatrix'
+                      ? 'Scan QR code'
+                      : 'Scan new item ID'}
+                  </h1>
                   <p className="body-small text-on-surface-variant">
-                    Current ID: {item.itemId}
+                    {!enableThriftedPartnerItemDialog && itemCodeType === 'datamatrix'
+                      ? `Scan the QR code on the new hang tag. Current ID: ${item.itemId}`
+                      : `Current ID: ${item.itemId}`}
                   </p>
                 </div>
               </div>
@@ -1327,16 +1359,29 @@ export default function ItemDetailsDialog({
               <>
                 {/* Item ID - Replaces Title */}
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="title-large text-on-surface mb-1 flex-1 min-w-0 break-words">
-                    Item ID: {item.itemId}
-                  </h2>
+                  <div className="flex items-center gap-1 flex-1 min-w-0">
+                    <h2 className="title-large text-on-surface mb-1 min-w-0 break-words">
+                      Item ID: {item.itemId}
+                    </h2>
+                    {itemCodeType === 'datamatrix' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowIdScanner(true)}
+                        className="h-12 w-12 flex-shrink-0 text-on-surface-variant touch-manipulation"
+                        aria-label="Edit item ID by scanning a QR code"
+                      >
+                        <Edit3 size={18} />
+                      </Button>
+                    )}
+                  </div>
                   <Button
                     variant="outline"
                     onClick={() => setShowBarcode(true)}
                     className="flex items-center gap-2 flex-shrink-0 min-h-[48px] min-w-[48px] px-4 touch-manipulation"
                   >
-                    <Barcode size={18} />
-                    Show barcode
+                    {itemCodeType === 'datamatrix' ? <QrCode size={18} /> : <Barcode size={18} />}
+                    {itemCodeType === 'datamatrix' ? 'Show QR code' : 'Show barcode'}
                   </Button>
                 </div>
 
@@ -1697,31 +1742,58 @@ export default function ItemDetailsDialog({
         )}
 
         <SheetHeader className={`relative px-6 pb-4 flex-shrink-0 ${isLargeScreen ? 'pt-6' : ''}`}>
-          <SheetTitle className="title-large text-on-surface text-left">Item barcode</SheetTitle>
+          <SheetTitle className="title-large text-on-surface text-left">
+            {itemCodeType === 'datamatrix' ? 'Item QR code' : 'Item barcode'}
+          </SheetTitle>
           <SheetDescription className="body-small text-on-surface-variant text-left">
-            Scan this barcode at the POS to sell the item.
+            {itemCodeType === 'datamatrix'
+              ? 'This item was migrated from the old app. Scan its QR code at the POS to sell the item.'
+              : 'Scan this barcode at the POS to sell the item.'}
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
           <div className="flex flex-col items-center justify-center bg-white rounded-2xl border border-outline-variant py-6 px-4">
-            <svg ref={barcodeRefCallback} aria-label={`Barcode for item ${item?.itemId ?? ''}`} />
+            {itemCodeType === 'datamatrix' ? (
+              <div className="flex flex-col items-center gap-3">
+                <DataMatrixCode
+                  value={dataMatrixValue}
+                  size={180}
+                  title={`QR code for item ${item?.itemId ?? ''}`}
+                />
+                <span className="font-mono text-sm leading-tight text-black text-center">
+                  {item?.itemId ?? ''}
+                </span>
+              </div>
+            ) : (
+              <svg ref={barcodeRefCallback} aria-label={`Barcode for item ${item?.itemId ?? ''}`} />
+            )}
           </div>
 
           <div className="space-y-3 pt-2">
             <p className="title-small text-on-surface">If the item has lost its hangtag</p>
-            <p className="body-medium text-on-surface-variant">
-              Write the Item ID and price on an empty hangtag and attach it to the item.
-            </p>
-            <p className="body-medium text-on-surface-variant">
-              To sell the item, either:
-            </p>
-            <p className="body-medium text-on-surface-variant">
-              a) Type the Item ID manually in the POS, or
-            </p>
-            <p className="body-medium text-on-surface-variant">
-              b) Open item details, show the barcode, and scan it in the POS.
-            </p>
+            {itemCodeType === 'datamatrix' ? (
+              <>
+                <p className="body-medium text-on-surface-variant">
+                  Edit the item ID in item details and scan the QR code of the new hang tag.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="body-medium text-on-surface-variant">
+                  Write the Item ID and price on an empty hangtag and attach it to the item.
+                </p>
+                <p className="body-medium text-on-surface-variant">
+                  To sell the item, either:
+                </p>
+                <p className="body-medium text-on-surface-variant">
+                  a) Type the Item ID manually in the POS, or
+                </p>
+                <p className="body-medium text-on-surface-variant">
+                  b) Open item details, show the barcode, and scan it in the POS.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </SheetContent>

@@ -77,7 +77,7 @@ export function getThriftedValidValues(brandId?: string | null) {
 export const THRIFTED_VALID_VALUES = getThriftedValidValues('weekday');
 
 export const THRIFTED_IMPORT_CHUNK_SIZE = 1000;
-export const MOCK_THRIFTED_TEMPLATE_ENDPOINT_LIVE = false;
+export const MOCK_THRIFTED_TEMPLATE_ENDPOINT_LIVE = true;
 
 const FIELD_ERROR_SEPARATOR = ' | ';
 const DUPLICATE_SKU_IN_FILE = 'Duplicate SKU in this upload file';
