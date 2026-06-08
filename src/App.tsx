@@ -3888,11 +3888,6 @@ export default function App() {
             }
             deliveryNoteId={isShipment && deliveryNoteData ? deliveryNoteData.id : undefined}
             existingCreatedDate={isShipment && deliveryNoteData ? deliveryNoteData.createdDate : undefined}
-            onUpdateReceiver={handleUpdateOrderReceiver}
-            countries={mockCountries}
-            stores={mockStores}
-            brands={mockBrands}
-            storeId={receivingStoreId}
             onDeleteUnassignedItem={(itemId) => {
               // Remove item from order items
               toast.success('Item removed');

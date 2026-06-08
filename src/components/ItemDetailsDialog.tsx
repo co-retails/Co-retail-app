@@ -1177,7 +1177,7 @@ export default function ItemDetailsDialog({
             )}
           </div>
         </div>
-        {!isEditing && !(enableThriftedPartnerItemDialog && field === 'status') && (
+        {!isEditing && !(enableThriftedPartnerItemDialog && field === 'status') && !(field === 'price' && itemCodeType === 'barcode') && (
           <Button
             size="icon"
             variant="ghost"

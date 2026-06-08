@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Filter, Package, Pencil, Plus, User, UserX, Users } from 'lucide-react';
+import { Copy, Filter, MoreVertical, Package, Pencil, Plus, User, UserX, Users } from 'lucide-react';
 import { PortalTopAppBar } from './ui/portal-top-app-bar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -7,6 +7,7 @@ import { Card, CardContent } from './ui/card';
 import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './ui/sheet';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import {
   FullScreenDialog,
   FullScreenDialogContent,
@@ -78,6 +79,7 @@ export default function PartnerUserAccessScreen({
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [formState, setFormState] = useState<FormState>(createFormState());
+  const [actionSheetUserId, setActionSheetUserId] = useState<string | null>(null);
 
   const [brandSearch, setBrandSearch] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
@@ -142,14 +144,25 @@ export default function PartnerUserAccessScreen({
     return countries.filter((country) => selectedBrandSet.has(country.brandId)).map((country) => country.id);
   }, [formState.scope.allCountries, formState.scope.countryIds, formState.scope.allBrands, formState.scope.brandIds, countries]);
 
-  const filteredStoreOptions = useMemo(() => {
+  const storeGroups = useMemo(() => {
     const selectedBrandSet = new Set(selectedBrandIdsForFiltering);
     const selectedCountrySet = new Set(selectedCountryIdsForFiltering);
-    return stores
+    const matching = stores
       .filter((store) => (formState.scope.allBrands ? true : selectedBrandSet.has(store.brandId)))
-      .filter((store) => (formState.scope.allCountries ? true : selectedCountrySet.has(store.countryId)))
-      .map((store) => ({ id: store.id, label: `${store.name} (${store.code})` }));
-  }, [stores, formState.scope.allBrands, formState.scope.allCountries, selectedBrandIdsForFiltering, selectedCountryIdsForFiltering]);
+      .filter((store) => (formState.scope.allCountries ? true : selectedCountrySet.has(store.countryId)));
+    const byBrand = new Map<string, { brandId: string; brandName: string; stores: Array<{ id: string; label: string }> }>();
+    matching.forEach((store) => {
+      const existing = byBrand.get(store.brandId);
+      const entry = existing ?? {
+        brandId: store.brandId,
+        brandName: brands.find((brand) => brand.id === store.brandId)?.name ?? 'Unknown brand',
+        stores: []
+      };
+      entry.stores.push({ id: store.id, label: `${store.name} (${store.code})` });
+      if (!existing) byBrand.set(store.brandId, entry);
+    });
+    return Array.from(byBrand.values()).sort((a, b) => a.brandName.localeCompare(b.brandName));
+  }, [stores, brands, formState.scope.allBrands, formState.scope.allCountries, selectedBrandIdsForFiltering, selectedCountryIdsForFiltering]);
 
   const filteredWarehouseOptions = useMemo(() => {
     const selectedPartnerId = formState.partnerId;
@@ -249,6 +262,19 @@ export default function PartnerUserAccessScreen({
       partnerId: user.partnerId,
       partnerName: user.partnerName,
       scope: user.scope
+    });
+    setIsEditorOpen(true);
+  };
+
+  const openCopy = (user: PartnerAccessUser) => {
+    setEditingUserId(null);
+    setFormState({
+      name: '',
+      email: '',
+      status: user.status,
+      partnerId: user.partnerId,
+      partnerName: user.partnerName,
+      scope: { ...user.scope }
     });
     setIsEditorOpen(true);
   };
@@ -387,6 +413,89 @@ export default function PartnerUserAccessScreen({
     );
   };
 
+  const renderStoreScopeSection = () => {
+    const allSelected = formState.scope.allStores;
+    const query = storeSearch.toLowerCase();
+    const totalCount = storeGroups.reduce((sum, group) => sum + group.stores.length, 0);
+    const visibleGroups = storeGroups
+      .map((group) => ({ ...group, stores: group.stores.filter((store) => store.label.toLowerCase().includes(query)) }))
+      .filter((group) => group.stores.length > 0);
+    const selectedCountLabel = allSelected ? `All ${totalCount}` : `${formState.scope.storeIds.length} selected`;
+
+    const toggleBrandStores = (storeIds: string[], checked: boolean) => {
+      setFormState((prev) => {
+        const next = new Set(prev.scope.storeIds);
+        storeIds.forEach((id) => {
+          if (checked) next.add(id);
+          else next.delete(id);
+        });
+        return { ...prev, scope: { ...prev.scope, storeIds: Array.from(next) } };
+      });
+    };
+
+    return (
+      <Card className="border-outline">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="label-large text-on-surface">Stores</span>
+              <Badge variant="secondary" className="text-xs bg-surface-container-highest">
+                {selectedCountLabel}
+              </Badge>
+            </div>
+            <label className="inline-flex items-center gap-2">
+              <Checkbox checked={allSelected} onCheckedChange={(checked) => updateScopeToggle('allStores', Boolean(checked))} />
+              <span className="body-small text-on-surface-variant">All</span>
+            </label>
+          </div>
+          {!allSelected && (
+            <>
+              <input
+                type="text"
+                value={storeSearch}
+                onChange={(event) => setStoreSearch(event.target.value)}
+                placeholder="Search stores..."
+                className="h-10 w-full rounded-lg border border-outline-variant bg-surface px-3 body-medium text-on-surface"
+              />
+              <div className="max-h-60 overflow-y-auto rounded-lg border border-outline-variant p-2 space-y-3">
+                {visibleGroups.length === 0 && <p className="body-small text-on-surface-variant">No matches</p>}
+                {visibleGroups.map((group) => {
+                  const groupStoreIds = group.stores.map((store) => store.id);
+                  const allInGroupSelected = groupStoreIds.every((id) => formState.scope.storeIds.includes(id));
+                  return (
+                    <div key={group.brandId} className="space-y-2">
+                      <div className="flex items-center justify-between gap-2 border-b border-outline-variant pb-1">
+                        <span className="label-medium text-on-surface-variant">{group.brandName}</span>
+                        <label className="inline-flex items-center gap-2">
+                          <Checkbox
+                            checked={allInGroupSelected}
+                            onCheckedChange={(checked) => toggleBrandStores(groupStoreIds, Boolean(checked))}
+                          />
+                          <span className="body-small text-on-surface-variant">All</span>
+                        </label>
+                      </div>
+                      <div className="space-y-2 pl-1">
+                        {group.stores.map((store) => (
+                          <label key={store.id} className="flex items-center gap-2">
+                            <Checkbox
+                              checked={formState.scope.storeIds.includes(store.id)}
+                              onCheckedChange={(checked) => updateScopeSelection('storeIds', store.id, Boolean(checked))}
+                            />
+                            <span className="body-small text-on-surface">{store.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   const editorBody = (
     <div className="min-h-0 overflow-y-auto overscroll-contain px-4 md:px-6 py-4 space-y-4">
         <div className="space-y-3">
@@ -459,28 +568,10 @@ export default function PartnerUserAccessScreen({
           </CardContent>
         </Card>
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() =>
-              setFormState((prev) => ({
-                ...prev,
-                scope: {
-                  ...defaultAccessScope(),
-                  allPartners: false,
-                  partnerIds: prev.partnerId ? [prev.partnerId] : []
-                }
-              }))
-            }
-          >
-            All brands/countries/stores/warehouses
-          </Button>
-        </div>
-
         <div className="space-y-3">
           {renderScopeSection('Brands', 'allBrands', 'brandIds', brandSearch, setBrandSearch, brands.map((item) => ({ id: item.id, label: item.name })))}
           {renderCountryScopeSection()}
-          {renderScopeSection('Stores', 'allStores', 'storeIds', storeSearch, setStoreSearch, filteredStoreOptions)}
+          {renderStoreScopeSection()}
           {renderScopeSection('Warehouses', 'allWarehouses', 'warehouseIds', warehouseSearch, setWarehouseSearch, filteredWarehouseOptions)}
         </div>
     </div>
@@ -490,13 +581,12 @@ export default function PartnerUserAccessScreen({
     <div className="min-h-screen bg-surface">
       <PortalTopAppBar
         title="Partner user access"
-        subtitle="Manage partner users only. Admin users are handled in Admin user access."
         onBack={onBack}
         actions={
           canManage ? (
             <Button onClick={openCreate}>
               <Plus className="w-4 h-4 mr-2" />
-              Add partner user access
+              Add partner access
             </Button>
           ) : undefined
         }
@@ -504,41 +594,13 @@ export default function PartnerUserAccessScreen({
 
       <div className="bg-surface-container border-b border-outline-variant">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
-          <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="Search by name, email, or partner..."
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full md:max-w-2xl h-14 rounded-lg border border-outline-variant bg-surface px-4 body-large text-on-surface"
-            />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Card className="bg-primary-container border-0">
-                <CardContent className="p-3">
-                  <div className="text-2xl font-semibold text-on-primary-container">{new Set(filteredUsers.map((user) => user.partnerId)).size}</div>
-                  <div className="body-small text-on-primary-container/80">Partners</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-secondary-container border-0">
-                <CardContent className="p-3">
-                  <div className="text-2xl font-semibold text-on-secondary-container">{filteredUsers.length}</div>
-                  <div className="body-small text-on-secondary-container/80">Users</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-tertiary-container border-0">
-                <CardContent className="p-3">
-                  <div className="text-2xl font-semibold text-on-tertiary-container">{filteredUsers.filter((user) => user.status === 'active').length}</div>
-                  <div className="body-small text-on-tertiary-container/80">Active</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-surface-container-high border-outline border">
-                <CardContent className="p-3">
-                  <div className="text-2xl font-semibold text-on-surface">{filteredUsers.filter((user) => user.scope.allBrands).length}</div>
-                  <div className="body-small text-on-surface-variant">All brands</div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <input
+            type="text"
+            placeholder="Search by name, email, or partner..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="w-full md:max-w-2xl h-14 rounded-lg border border-outline-variant bg-surface px-4 body-large text-on-surface"
+          />
         </div>
       </div>
 
@@ -599,9 +661,9 @@ export default function PartnerUserAccessScreen({
             <p className="body-large text-on-surface-variant">No users found</p>
           </div>
         ) : isDesktop ? (
-          <div className="overflow-x-auto rounded-lg border border-outline-variant bg-surface-container">
+          <div className="overflow-x-auto rounded-lg border border-outline-variant bg-surface">
             <table className="w-full border-collapse">
-              <thead>
+              <thead className="bg-surface-container">
                 <tr className="border-b border-outline">
                   <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">User</th>
                   <th className="text-left py-3 px-4 body-medium font-semibold text-on-surface">Partner</th>
@@ -645,21 +707,29 @@ export default function PartnerUserAccessScreen({
                       </Badge>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        {canManage && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
-                              <Pencil className="w-4 h-4 mr-1" />
+                      {canManage && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label="User actions">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => openEdit(user)}>
+                              <Pencil className="w-4 h-4" />
                               Edit
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => toggleEnabled(user.id)}>
-                              <UserX className="w-4 h-4 mr-1" />
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toggleEnabled(user.id)}>
+                              <UserX className="w-4 h-4" />
                               {user.status === 'active' ? 'Disable' : 'Enable'}
-                            </Button>
-                          </>
-                        )}
-                        <ChevronRight className="w-4 h-4 text-on-surface-variant" />
-                      </div>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openCopy(user)}>
+                              <Copy className="w-4 h-4" />
+                              Copy user access
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -694,20 +764,18 @@ export default function PartnerUserAccessScreen({
                       <p className="body-small text-on-surface-variant/70">Last active: {formatLastActive(user.lastActive)}</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                  <div className="mt-3 flex items-center justify-end">
                     {canManage && (
-                      <>
-                        <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
-                          <Pencil className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => toggleEnabled(user.id)}>
-                          <UserX className="w-4 h-4 mr-1" />
-                          {user.status === 'active' ? 'Disable' : 'Enable'}
-                        </Button>
-                      </>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="touch-manipulation"
+                        aria-label="User actions"
+                        onClick={() => setActionSheetUserId(user.id)}
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </Button>
                     )}
-                    <ChevronRight className="w-4 h-4 text-on-surface-variant" />
                   </div>
                 </CardContent>
               </Card>
@@ -718,12 +786,63 @@ export default function PartnerUserAccessScreen({
 
       {canManage && (
         <>
+          <Sheet open={actionSheetUserId !== null} onOpenChange={(open) => !open && setActionSheetUserId(null)}>
+            <SheetContent side="bottom" className="rounded-t-2xl bg-surface border-outline-variant p-0">
+              <SheetHeader className="px-4 py-4 border-b border-outline-variant text-left">
+                <SheetTitle className="title-medium text-on-surface">User actions</SheetTitle>
+                <SheetDescription className="sr-only">Choose an action for this partner user</SheetDescription>
+              </SheetHeader>
+              {(() => {
+                const actionUser = users.find((user) => user.id === actionSheetUserId);
+                if (!actionUser) return null;
+                const itemClass =
+                  'flex w-full items-center gap-3 rounded-lg px-4 min-h-[48px] body-large text-on-surface hover:bg-surface-container-high touch-manipulation';
+                return (
+                  <div className="p-2 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+                    <button
+                      type="button"
+                      className={itemClass}
+                      onClick={() => {
+                        setActionSheetUserId(null);
+                        openEdit(actionUser);
+                      }}
+                    >
+                      <Pencil className="w-5 h-5 text-on-surface-variant" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className={itemClass}
+                      onClick={() => {
+                        setActionSheetUserId(null);
+                        toggleEnabled(actionUser.id);
+                      }}
+                    >
+                      <UserX className="w-5 h-5 text-on-surface-variant" />
+                      {actionUser.status === 'active' ? 'Disable' : 'Enable'}
+                    </button>
+                    <button
+                      type="button"
+                      className={itemClass}
+                      onClick={() => {
+                        setActionSheetUserId(null);
+                        openCopy(actionUser);
+                      }}
+                    >
+                      <Copy className="w-5 h-5 text-on-surface-variant" />
+                      Copy user access
+                    </button>
+                  </div>
+                );
+              })()}
+            </SheetContent>
+          </Sheet>
           {isDesktop ? (
             <Sheet open={isEditorOpen} onOpenChange={setIsEditorOpen}>
               <SheetContent side="right" className="bg-surface border-outline-variant p-0 max-w-[760px] w-full h-full overflow-hidden !gap-0 grid grid-rows-[auto_minmax(0,1fr)_auto]">
                 <SheetHeader className="shrink-0 border-b border-outline-variant px-6 py-4">
-                  <SheetTitle className="title-large text-on-surface">{editingUserId ? 'Edit partner user access' : 'Add partner user access'}</SheetTitle>
-                  <SheetDescription className="body-medium text-on-surface-variant">Set partner user access scope.</SheetDescription>
+                  <SheetTitle className="title-large text-on-surface">{editingUserId ? 'Edit partner access' : 'Add partner access'}</SheetTitle>
+                  <SheetDescription className="sr-only">Set partner access scope.</SheetDescription>
                 </SheetHeader>
                 {editorBody}
                 <div className="shrink-0 z-10 bg-surface border-t border-outline-variant p-4 md:px-6 flex gap-2">
@@ -740,8 +859,8 @@ export default function PartnerUserAccessScreen({
             <FullScreenDialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
               <FullScreenDialogContent className="bg-surface p-0 h-screen overflow-hidden !gap-0 grid grid-rows-[auto_minmax(0,1fr)_auto]">
                 <FullScreenDialogHeader className="shrink-0 border-b border-outline-variant px-4 py-4">
-                  <FullScreenDialogTitle className="title-large text-on-surface">{editingUserId ? 'Edit partner user access' : 'Add partner user access'}</FullScreenDialogTitle>
-                  <FullScreenDialogDescription className="body-medium text-on-surface-variant">Set partner user access scope.</FullScreenDialogDescription>
+                  <FullScreenDialogTitle className="title-large text-on-surface">{editingUserId ? 'Edit partner access' : 'Add partner access'}</FullScreenDialogTitle>
+                  <FullScreenDialogDescription className="sr-only">Set partner access scope.</FullScreenDialogDescription>
                 </FullScreenDialogHeader>
                 {editorBody}
                 <div className="shrink-0 z-10 bg-surface border-t border-outline-variant p-4 md:px-6 flex gap-2 pb-[max(env(safe-area-inset-bottom),1rem)]">

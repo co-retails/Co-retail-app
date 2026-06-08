@@ -9,6 +9,7 @@ import { AuditLogScreen } from './AuditLogScreen';
 import { MarketStoreManagementScreen } from './MarketStoreManagementScreen';
 import PartnerWarehouseManagementScreen from './PartnerWarehouseManagementScreen';
 import PriceForkCalibrationScreen from './PriceForkCalibrationScreen';
+import { GtinMappingScreen } from './GtinMappingScreen';
 import { UserRole } from './PortalConfigTypes';
 import { Partner, Warehouse } from './PartnerWarehouseSelector';
 
@@ -91,6 +92,9 @@ export function PortalConfigurationManager({
 
     case 'audit':
       return <AuditLogScreen onBack={handleBackToLanding} />;
+
+    case 'gtin-mapping':
+      return <GtinMappingScreen onBack={handleBackToLanding} />;
 
     case 'markets-stores':
       return <MarketStoreManagementScreen onBack={handleBackToLanding} />;

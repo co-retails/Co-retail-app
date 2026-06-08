@@ -80,3 +80,27 @@ export interface Partner {
   name: string;
   code: string;
 }
+
+// GTIN Mapping Types
+export type PartnerType = 'Main Partner' | 'Premium Partner' | 'Sellpy';
+
+export interface GtinMapping {
+  id: string;
+  brandId?: string;
+  partnerType: PartnerType;
+  partnerId?: string; // Only for overrides
+  category?: string; // Only for US partners
+  gtin: string;
+  articleNumber: string;
+  source: 'inherited' | 'override';
+  lastEdited: string;
+  lastEditedBy: string;
+  publishedAt?: string;
+}
+
+export interface GtinMappingStats {
+  totalMappings: number;
+  inheritedCount: number;
+  overrideCount: number;
+  storageEfficiency: number; // Percentage of mappings that are inherited vs overrides
+}
