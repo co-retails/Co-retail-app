@@ -601,7 +601,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         price: 35.00,
         status: undefined,
         partnerItemId: 'VDJ-001',
-        retailerItemId: 'RID-ABC123',
+        retailerItemId: '735210054320',
         source: 'api-integration'
       },
       {
@@ -617,7 +617,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         price: 45.00,
         status: undefined,
         partnerItemId: 'LBT-002',
-        retailerItemId: 'RID-DEF456',
+        retailerItemId: '735210088172',
         source: 'api-integration'
       }
     ]
@@ -647,7 +647,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         price: 28.00,
         status: undefined,
         partnerItemId: 'CTD-101',
-        retailerItemId: 'RID-GHI789',
+        retailerItemId: '735210120438',
         source: 'api-integration'
       },
       {
@@ -751,7 +751,7 @@ export const mockSellpyOrders: SellpyOrder[] = [
         price: 12.00,
         status: undefined,
         partnerItemId: 'SLK-301',
-        retailerItemId: 'RID-JKL012',
+        retailerItemId: '735210156901',
         source: 'api-integration'
       }
     ]
@@ -1164,7 +1164,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             price: 35.00,
             status: undefined,
             partnerItemId: 'VDJ-001',
-            retailerItemId: 'RID-ABC123',
+            retailerItemId: '735210192343',
             source: 'api-integration'
           },
           {
@@ -1179,7 +1179,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             price: 28.00,
             status: undefined,
             partnerItemId: 'SD-002',
-            retailerItemId: 'RID-DEF456',
+            retailerItemId: '735210225089',
             source: 'api-integration'
           }
         ],
@@ -1218,7 +1218,7 @@ export const mockDeliveryNotes: DeliveryNote[] = [
             price: 12.00,
             status: undefined,
             partnerItemId: 'SLK-301',
-            retailerItemId: 'RID-JKL012',
+            retailerItemId: '735210263715',
             source: 'api-integration'
           }
         ],

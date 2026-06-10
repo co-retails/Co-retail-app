@@ -73,6 +73,7 @@ import PartnerWarehouseSelector, {
   type Partner,
   type Warehouse,
 } from './PartnerWarehouseSelector';
+import { generateGtin } from '../utils/itemCodes';
 
 export type DetailType = 'order' | 'shipment' | 'return';
 
@@ -167,7 +168,7 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
     if (type === 'order' && isPending) {
       if (isThrifted) {
         // Thrifted pending orders: all items valid, all have retailer IDs
-        retailerItemId = `RID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        retailerItemId = generateGtin();
         itemStatus = undefined;
       } else if (isSellpy) {
         // Sellpy pending orders: ~30% of items have validation errors
@@ -187,15 +188,15 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
           errors = [errorType.message];
         } else {
           // Some valid items may not have retailer IDs yet
-          retailerItemId = Math.random() > 0.4 ? `RID-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : undefined;
+          retailerItemId = Math.random() > 0.4 ? generateGtin() : undefined;
         }
       } else {
         // Other partners: default behavior
-        retailerItemId = Math.random() > 0.3 ? `RID-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : undefined;
+        retailerItemId = Math.random() > 0.3 ? generateGtin() : undefined;
       }
     } else {
       // Non-pending orders or other types: default behavior
-      retailerItemId = type === 'order' && Math.random() > 0.3 ? `RID-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : undefined;
+      retailerItemId = type === 'order' && Math.random() > 0.3 ? generateGtin() : undefined;
       itemStatus = type === 'return' ? undefined : (Math.random() > 0.8 ? 'pending' : undefined);
     }
     

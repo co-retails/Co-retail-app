@@ -33,6 +33,7 @@ import {
   THRIFTED_VALID_VALUES,
   filterBrandsByQuery,
   getThriftedImportOutcome,
+  getGenderOptionsForBrand,
   sortOptionsAlpha,
 } from '../utils/spreadsheetUtils';
 
@@ -568,6 +569,8 @@ export function ItemDetailsTable({
       { key: 'sub', width: '11rem' },
       { key: 'size', width: '5.5rem' },
       { key: 'color', width: '6.5rem' },
+      // Gender is always optional, sourced from per-brand portal config attribute values.
+      { key: 'gender', width: '6.5rem' },
       // Material is always optional, so it gets a column on every order-details table.
       { key: 'material', width: '8.5rem' },
     );
@@ -731,6 +734,9 @@ export function ItemDetailsTable({
                 </th>
                 <th className="px-3 py-3 text-left">
                   <span className="label-medium text-on-surface">Color</span>
+                </th>
+                <th className="px-3 py-3 text-left">
+                  <span className="label-medium text-on-surface">Gender</span>
                 </th>
                 <th className="px-3 py-3 text-left">
                   <span className="label-medium text-on-surface">Material</span>
@@ -1114,6 +1120,44 @@ export function ItemDetailsTable({
                   </DesktopEditFieldWithHint>
                 ) : (
                   <span className="body-medium text-on-surface">{item.color}</span>
+                )}
+              </td>
+
+              {/* Gender — values sourced from per-brand portal config attribute values.
+                  Optional in the partner portal; thrifted validation marks it required and
+                  surfaces fieldErrors.gender, so the cell shows the hint when it's set. */}
+              <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
+                {isEditable && onUpdateItem ? (
+                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.gender}>
+                    <Select
+                      value={item.gender || undefined}
+                      onValueChange={(value: string) => onUpdateItem(item.id, 'gender', value)}
+                    >
+                      <SelectTrigger
+                        aria-invalid={Boolean(item.fieldErrors?.gender)}
+                        className={`${DESKTOP_SELECT_TRIGGER} h-9 body-medium ${
+                          item.fieldErrors?.gender
+                            ? 'border-error focus:border-error bg-error-container/10'
+                            : 'border-outline-variant focus:border-primary bg-surface-container'
+                        }`}
+                      >
+                        <SelectValue placeholder={thriftedPartnerTable ? 'Select gender' : 'Optional'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getGenderOptionsForBrand(item.brand).map((gender) => (
+                          <SelectItem
+                            key={gender}
+                            value={gender}
+                            className="body-medium min-h-[48px] touch-manipulation py-3 md:min-h-0 md:py-1.5"
+                          >
+                            {gender}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </DesktopEditFieldWithHint>
+                ) : (
+                  <span className="body-medium text-on-surface">{item.gender || '—'}</span>
                 )}
               </td>
 

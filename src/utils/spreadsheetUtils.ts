@@ -76,6 +76,14 @@ export function getThriftedValidValues(brandId?: string | null) {
 // Keep existing constant for backwards compatibility (defaults to Weekday-ish set)
 export const THRIFTED_VALID_VALUES = getThriftedValidValues('weekday');
 
+/** Gender dropdown values for a brand, sourced from the portal config attribute values. */
+export function getGenderOptionsForBrand(brand?: string | null): string[] {
+  const gendersKey = getMasterGendersBrandKey(brand);
+  return [...MASTER_VALUES_DEMO.gendersByBrand[gendersKey]].sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
 export const THRIFTED_IMPORT_CHUNK_SIZE = 1000;
 export const MOCK_THRIFTED_TEMPLATE_ENDPOINT_LIVE = true;
 

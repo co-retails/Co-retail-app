@@ -93,6 +93,7 @@ const LoadingFallback = () => (
 import { useAppState, Screen } from './hooks/useAppState';
 import { useNavigationHandlers } from './hooks/useNavigationHandlers';
 import { getNavigationDestinations, getActiveDestination } from './utils/navigationConfig';
+import { generateGtin } from './utils/itemCodes';
 import { 
   mockBrands, 
   mockCountries, 
@@ -1369,7 +1370,7 @@ export default function App() {
           return {
             id: `item-${deliveryNote.orderId}-${index + 1}`,
             partnerItemId: `PID-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-            retailerItemId: index < 2 ? `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : undefined,
+            retailerItemId: index < 2 ? generateGtin() : undefined,
             itemId: `ITEM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
             brand: brands[Math.floor(Math.random() * brands.length)],
             category: categories[Math.floor(Math.random() * categories.length)],
@@ -2092,7 +2093,7 @@ export default function App() {
                     return {
                       id: `item-${deliveryNote.orderId}-${index + 1}`,
                       partnerItemId: `PID-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-                      retailerItemId: index < 2 ? `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : undefined,
+                      retailerItemId: index < 2 ? generateGtin() : undefined,
                       itemId: `ITEM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
                       brand: brands[Math.floor(Math.random() * brands.length)],
                       category: categories[Math.floor(Math.random() * categories.length)],
@@ -2893,7 +2894,7 @@ export default function App() {
             return {
               id: `item-${index + 1}`,
               partnerItemId: `PID-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-              retailerItemId: index < 2 ? `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : undefined,
+              retailerItemId: index < 2 ? generateGtin() : undefined,
               itemId: '',
               brand: brands[Math.floor(Math.random() * brands.length)],
               category: categories[Math.floor(Math.random() * categories.length)],
@@ -3284,7 +3285,7 @@ export default function App() {
                     return {
                       id: `item-${shipment.orderId}-${index + 1}`,
                       partnerItemId: `PID-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-                      retailerItemId: index < 2 ? `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : undefined,
+                      retailerItemId: index < 2 ? generateGtin() : undefined,
                       itemId: `ITEM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
                       brand: brands[Math.floor(Math.random() * brands.length)],
                       category: categories[Math.floor(Math.random() * categories.length)],
@@ -3584,7 +3585,7 @@ export default function App() {
             return {
               id: `item-${orderData.id}-${index + 1}`,
               partnerItemId: `PID-${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-              retailerItemId: index < 2 ? `RID-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : undefined,
+              retailerItemId: index < 2 ? generateGtin() : undefined,
               itemId: `ITEM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
               brand: brands[Math.floor(Math.random() * brands.length)],
               category: categories[Math.floor(Math.random() * categories.length)],

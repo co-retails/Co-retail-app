@@ -117,3 +117,27 @@ export function getBarcodeValue(input: ItemCodeInput): string {
   if (isGtinItemId(itemId)) return itemId;
   return `9${itemId}`;
 }
+
+/** The mod-10 (UPC-A) check digit for a numeric GTIN body. */
+function gtinCheckDigit(body: string): string {
+  let sum = 0;
+  for (let i = 0; i < body.length; i++) {
+    const digit = body.charCodeAt(i) - 48;
+    // The rightmost body digit is an odd position and weighted ×3.
+    const weight = (body.length - i) % 2 === 1 ? 3 : 1;
+    sum += digit * weight;
+  }
+  return ((10 - (sum % 10)) % 10).toString();
+}
+
+/**
+ * Generate a realistic 12-digit GTIN (GTIN-12 / UPC-A): 11 random digits plus a
+ * valid mod-10 check digit, so demo item IDs look like real scanned barcodes.
+ */
+export function generateGtin(): string {
+  let body = '';
+  while (body.length < GTIN_ITEM_ID_LENGTH - 1) {
+    body += Math.floor(Math.random() * 10).toString();
+  }
+  return body + gtinCheckDigit(body);
+}
