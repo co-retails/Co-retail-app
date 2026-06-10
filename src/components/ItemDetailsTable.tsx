@@ -49,6 +49,14 @@ function DesktopEditFieldWithHint({
   children: ReactNode;
 }) {
   const hasHint = Boolean(errorMessage && String(errorMessage).trim());
+  // The error message shows on hover/focus AND on click/tap. These are two
+  // separate Radix primitives on purpose: a Tooltip handles hover, a Popover
+  // handles click. Radix tooltips intentionally dismiss on press, which makes
+  // click-to-open unreliable — popovers, by contrast, are built to toggle on
+  // click and to dismiss on outside-click/Esc. `pinned` (the popover) suppresses
+  // the hover tooltip so the same message can never appear twice at once.
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
   return (
     <div
       className="grid w-full min-w-0 items-center"
@@ -63,18 +71,43 @@ function DesktopEditFieldWithHint({
       <div className="flex min-h-9 shrink-0 items-center justify-center self-center">
         {hasHint ? (
           <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className="inline-flex shrink-0 cursor-default text-error"
-                  tabIndex={0}
-                  role="img"
-                  aria-label={errorMessage ?? 'Validation error'}
+            <Tooltip open={hovered && !pinned} onOpenChange={setHovered}>
+              <Popover open={pinned} onOpenChange={setPinned}>
+                <PopoverTrigger asChild>
+                  <TooltipTrigger asChild>
+                    <span
+                      className="inline-flex shrink-0 cursor-pointer text-error"
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={pinned}
+                      aria-label={errorMessage ?? 'Validation error'}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setPinned((prev) => !prev);
+                        } else if (e.key === 'Escape') {
+                          setPinned(false);
+                        }
+                      }}
+                    >
+                      <AlertCircleIcon className="h-4 w-4" aria-hidden />
+                    </span>
+                  </TooltipTrigger>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="center"
+                  sideOffset={6}
+                  disableAnimation
+                  onOpenAutoFocus={(e: Event) => e.preventDefault()}
+                  className="w-auto max-w-[18rem] border-outline-variant bg-popover px-3 py-2 text-popover-foreground shadow-md"
                 >
-                  <AlertCircleIcon className="h-4 w-4" aria-hidden />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[18rem] bg-error-container text-on-error-container">
+                  <p className="body-small">{errorMessage}</p>
+                </PopoverContent>
+              </Popover>
+              <TooltipContent
+                side="top"
+                className="max-w-[18rem] border border-outline-variant bg-popover text-popover-foreground shadow-md [&>svg]:bg-[var(--popover)] [&>svg]:fill-[var(--popover)]"
+              >
                 <p className="body-small">{errorMessage}</p>
               </TooltipContent>
             </Tooltip>
