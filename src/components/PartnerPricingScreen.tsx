@@ -11,16 +11,15 @@ import {
   SelectValue
 } from './ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from './ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from './ui/sheet';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import {
   partnerPriceBooks,
@@ -84,6 +83,15 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
     currency: defaultCurrency,
     pricesText: ''
   });
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size so the sheet slides up from the bottom on phones
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const brandNameMap = useMemo(() => ({ ...brandNameById }), []);
 
@@ -468,7 +476,7 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
         </div>
       </div>
       </div>
-      <Dialog
+      <Sheet
         open={isDialogOpen}
         onOpenChange={(open: boolean) => {
           setIsDialogOpen(open);
@@ -477,19 +485,22 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
           }
         }}
       >
-        <DialogContent className="bg-surface border-outline max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="title-large text-on-surface">
+        <SheetContent
+          side={isMobile ? 'bottom' : 'right'}
+          className="bg-surface border-outline-variant p-0 flex flex-col md:max-w-[400px] md:h-full max-h-[85vh] md:max-h-full"
+        >
+          <SheetHeader className="border-b border-outline-variant px-4 pt-6 pb-4 pr-12 flex-shrink-0">
+            <SheetTitle className="title-large text-on-surface">
               {dialogMode === 'edit' ? 'Edit price set' : 'Add price set'}
-            </DialogTitle>
-            <DialogDescription className="body-medium text-on-surface-variant">
+            </SheetTitle>
+            <SheetDescription className="body-medium text-on-surface-variant">
               Paste price points directly from a spreadsheet or enter them manually separated by commas,
               spaces or new lines.
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="partner-select" className="label-medium text-on-surface">
                   Partner
@@ -591,49 +602,31 @@ export function PartnerPricingScreen({ onBack }: PartnerPricingScreenProps) {
                 automatically.
               </p>
             </div>
-
-            <div className="space-y-2">
-              <Label className="label-medium text-on-surface">Preview</Label>
-              {parsedPrices.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {parsedPrices.map((price) => (
-                    <Badge
-                      key={price}
-                      variant="secondary"
-                      className="bg-primary-container text-on-primary-container"
-                    >
-                      {price} {formState.currency}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <p className="body-small text-on-surface-variant">
-                  Paste prices to preview the resulting price points.
-                </p>
-              )}
-            </div>
           </div>
 
-          <DialogFooter>
+          <SheetFooter className="border-t border-outline-variant px-4 pt-4 pb-6 flex-shrink-0 flex-row gap-3">
             <Button
               variant="outline"
+              size="lg"
               onClick={() => {
                 setIsDialogOpen(false);
                 resetFormState();
               }}
-              className="border-outline hover:bg-surface-container-high"
+              className="flex-1 border-outline hover:bg-surface-container-high"
             >
               Cancel
             </Button>
             <Button
+              size="lg"
               onClick={handleSavePricePoint}
               disabled={!parsedPrices.length}
+              className="flex-1"
             >
               {dialogMode === 'edit' ? 'Save changes' : 'Add price set'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

@@ -21,6 +21,7 @@ export interface ItemFilters {
   status: string[];
   colour: string[];
   size: string[];
+  partner: string[];
   priceRange: [number, number];
   sortBy: 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 }
@@ -31,6 +32,7 @@ export const defaultFilters: ItemFilters = {
   status: [],
   colour: [],
   size: [],
+  partner: [],
   priceRange: [0, 1000],
   sortBy: 'date-desc'
 };
@@ -42,6 +44,7 @@ interface ItemFilterSheetProps {
   onApplyFilters: (filters: ItemFilters) => void;
   onResetFilters: () => void;
   brandOptions?: string[];
+  partnerOptions?: string[];
 }
 
 const DEFAULT_BRAND_OPTIONS = ['Nike', 'Adidas', 'H&M', 'Zara', 'Uniqlo', "Levi's"];
@@ -102,7 +105,8 @@ export default function ItemFilterSheet({
   filters,
   onApplyFilters,
   onResetFilters,
-  brandOptions
+  brandOptions,
+  partnerOptions
 }: ItemFilterSheetProps) {
   const [localFilters, setLocalFilters] = useState<ItemFilters>(filters);
   const [isMobile, setIsMobile] = React.useState(false);
@@ -157,6 +161,13 @@ export default function ItemFilterSheet({
     );
   }, [brandOptions]);
 
+  const selectablePartners = useMemo(() => {
+    const source = partnerOptions ?? [];
+    return Array.from(new Set(source.map(name => name.trim()).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [partnerOptions]);
+
   // Build MultiPicker option lists once per render.
   const brandPickerOptions: MultiPickerOption[] = useMemo(
     () => selectableBrands.map(b => ({ id: b, label: b })),
@@ -177,6 +188,10 @@ export default function ItemFilterSheet({
   const sizePickerOptions: MultiPickerOption[] = useMemo(
     () => FILTER_SIZE_VALUES.map(s => ({ id: s, label: s })),
     []
+  );
+  const partnerPickerOptions: MultiPickerOption[] = useMemo(
+    () => selectablePartners.map(p => ({ id: p, label: p })),
+    [selectablePartners]
   );
 
   const filterTriggerClass =
@@ -319,6 +334,28 @@ export default function ItemFilterSheet({
               className="py-2"
             />
           </div>
+
+          {/* Partner Filter */}
+          {partnerPickerOptions.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="partner" className="label-large text-on-surface">
+                Partner
+              </Label>
+              <MultiPicker
+                options={partnerPickerOptions}
+                selectedIds={localFilters.partner}
+                onChange={(v) => updateFilter('partner', v)}
+                placeholder="All partners"
+                searchPlaceholder="Search partners..."
+                emptyText="No partners found."
+                title="Select partners"
+                triggerId="partner"
+                triggerClassName={filterTriggerClass}
+                compact
+                hideSearch
+              />
+            </div>
+          )}
 
           {/* Sort By */}
           <div className="space-y-2">

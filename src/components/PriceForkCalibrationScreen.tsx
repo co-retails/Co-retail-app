@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  brandTierWeights,
   calibrationParameters,
   mockBrandSegments,
   mockCategoryMappings,
@@ -37,10 +36,19 @@ import {
   TableHeader,
   TableRow
 } from './ui/table';
-import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from './ui/dialog';
+// Popover removed from MatrixPriceCell — uses plain absolute dropdown to avoid
+// position:fixed containing-block issues inside the horizontal scroll container.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Brain, DownloadCloud, Info, Loader2, RefreshCw, Sparkles, Search, Wand2, X } from 'lucide-react';
+import { Brain, ChevronDown, ChevronRight, DownloadCloud, Info, Loader2, Sparkles, Search, Wand2, X } from 'lucide-react';
 import { PortalTopAppBar } from './ui/portal-top-app-bar';
 
 interface PriceForkCalibrationScreenProps {
@@ -113,6 +121,312 @@ const getMasterCategoryKeyFromBrandName = (
   return 'WEEKDAY';
 };
 
+/**
+ * Temporarily hides the "Calibration actions" card and the "Test items" table
+ * at the bottom of the Calibration tab. Flip to `true` to bring them back.
+ */
+const SHOW_CALIBRATION_ACTIONS_AND_TEST_ITEMS: boolean = false;
+
+type MatrixMaterial = PriceForkTestItem['material'];
+type MatrixTier = PriceForkTestItem['brandTier'];
+
+// Annotation for a cell that received a pasted value (informational only — value already committed).
+type PendingCell = {
+  rowKey: string;
+  material: MatrixMaterial;
+  tier: MatrixTier;
+  raw: number;
+  snapped: number;
+  changed: boolean;
+};
+
+const pkey = (rowKey: string, m: MatrixMaterial, t: MatrixTier) => `${rowKey}|${m}|${t}`;
+
+// Parse clipboard text (Excel = tab-delimited, CSV = comma-delimited) into a 2D
+// grid of numbers. Empty/non-numeric cells become null (skipped, not cleared).
+const parseClipboardGrid = (text: string): Array<Array<number | null>> => {
+  if (!text) return [];
+  const lines = text.replace(/\r/g, '').split('\n');
+  while (lines.length && lines[lines.length - 1]!.trim() === '') lines.pop();
+  return lines.map((line) => {
+    const delim = line.includes('\t') ? '\t' : ',';
+    return line.split(delim).map((cell) => {
+      const cleaned = cell.replace(/[^\d.,-]/g, '').replace(',', '.').trim();
+      if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : null;
+    });
+  });
+};
+
+// Map a pasted grid onto matrix cells, anchored at (anchor.r, anchor.c), snapping
+// each value to the nearest valid ladder price. Out-of-range targets are ignored.
+const buildPendingFromPaste = (
+  grid: Array<Array<number | null>>,
+  anchor: { r: number; c: number },
+  gridRows: Array<{ rowKey: string; material: MatrixMaterial }>,
+  tiers: MatrixTier[],
+  pricePoints: number[]
+): Map<string, PendingCell> => {
+  const out = new Map<string, PendingCell>();
+  grid.forEach((cols, i) => {
+    cols.forEach((raw, j) => {
+      if (raw == null) return;
+      const r = anchor.r + i;
+      const c = anchor.c + j;
+      if (r < 0 || r >= gridRows.length || c < 0 || c >= tiers.length) return;
+      const { rowKey, material } = gridRows[r]!;
+      const tier = tiers[c]!;
+      const snapped = snapToNearestPricePoint(raw, pricePoints);
+      out.set(pkey(rowKey, material, tier), {
+        rowKey,
+        material,
+        tier,
+        raw,
+        snapped,
+        changed: snapped !== raw
+      });
+    });
+  });
+  return out;
+};
+
+// Spreadsheet-style price cell: a paste-capable editable input plus a dropdown
+// that only lists valid ladder prices. Typed/pasted values are snapped on commit,
+// so every stored price stays on the ladder.
+function MatrixPriceCell({
+  value,
+  suggested,
+  isBase,
+  pricePoints,
+  pending,
+  disabled,
+  triggerWidthClass,
+  onPickLadder,
+  onClearToSuggested,
+  onCommitTyped,
+  onPasteCapture
+}: {
+  value: number | null;
+  suggested: number | null;
+  isBase: boolean;
+  pricePoints: number[];
+  pending?: PendingCell;
+  disabled: boolean;
+  triggerWidthClass: string;
+  onPickLadder: (n: number) => void;
+  onClearToSuggested?: () => void;
+  onCommitTyped: (n: number) => void;
+  onPasteCapture: (e: ClipboardEvent) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // `pending` is annotation-only — value is already committed. Always show live `value`.
+  const displayNumber = value;
+  const shown = editing ? draft : displayNumber != null ? String(displayNumber) : '';
+
+  const commit = () => {
+    setEditing(false);
+    if (disabled) return;
+    const trimmed = draft.trim();
+    if (trimmed === '') return;
+    const parsed = Number(trimmed.replace(',', '.'));
+    if (Number.isNaN(parsed)) return;
+    onCommitTyped(snapToNearestPricePoint(parsed, pricePoints));
+  };
+
+  return (
+    // `relative` is required so the absolutely-positioned dropdown is contained here.
+    <div ref={containerRef} className={cn('relative', triggerWidthClass)}>
+      <div
+        className={cn(
+          'flex items-stretch rounded-lg border bg-surface-container-high overflow-hidden min-h-[40px] w-full',
+          pending
+            ? pending.changed
+              ? 'border-tertiary ring-2 ring-tertiary/50 bg-tertiary-container/30'
+              : 'border-primary ring-2 ring-primary/40 bg-primary-container/30'
+            : 'border-outline'
+        )}
+      >
+        <input
+          inputMode="numeric"
+          disabled={disabled}
+          value={shown}
+          placeholder="—"
+          onFocus={(e) => {
+            setEditing(true);
+            setDraft(displayNumber != null ? String(displayNumber) : '');
+            e.currentTarget.select();
+          }}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
+          onPaste={(e) => { e.preventDefault(); onPasteCapture(e.nativeEvent); }}
+          className="flex-1 min-w-0 px-3 bg-transparent text-sm text-on-surface outline-none disabled:opacity-50"
+          aria-label="Price"
+        />
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label="Choose a valid price"
+          onClick={() => setOpen((o) => !o)}
+          className="px-2 flex items-center justify-center text-muted-foreground hover:bg-surface-container disabled:opacity-50 touch-manipulation"
+        >
+          <ChevronDown className="w-4 h-4 opacity-50" />
+        </button>
+      </div>
+
+      {/* Dropdown list — position:absolute so it stays inside the scroll container and
+          is never clipped by a Radix portal fixed-position bug. */}
+      {open && (
+        <div
+          className="absolute left-0 top-full z-[10050] mt-1 w-full min-w-[160px] rounded-md border border-outline bg-popover shadow-md"
+          // Close on outside mousedown
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="overflow-y-auto" style={{ maxHeight: '280px' }}>
+            <div className="py-1">
+              {!isBase && suggested != null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClearToSuggested?.();
+                    setOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 min-h-[44px] body-medium hover:bg-surface-container flex items-center justify-between touch-manipulation"
+                >
+                  <span>Suggested</span>
+                  <span className="text-on-surface-variant">{suggested} SEK</span>
+                </button>
+              )}
+              {pricePoints.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    onPickLadder(p);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    'w-full text-left px-3 py-2 min-h-[44px] body-medium hover:bg-surface-container touch-manipulation',
+                    value === p && 'bg-secondary-container text-on-secondary-container'
+                  )}
+                >
+                  {p} SEK
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Compact editor for a sub-category's material weight (e.g. "×2.0"). Sits under the
+// material name. Typed values are clamped to the x1–x5 range on commit.
+function MaterialWeightInput({
+  weight,
+  disabled,
+  onCommit
+}: {
+  weight: number;
+  disabled: boolean;
+  onCommit: (w: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const rounded = Math.round(weight * 100) / 100;
+  const shown = editing ? draft : String(rounded);
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim().replace(',', '.').replace(/[^\d.]/g, '');
+    if (trimmed === '') return;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) return;
+    onCommit(Math.min(5, Math.max(1, parsed)));
+  };
+
+  return (
+    <div className="mt-1 flex items-center gap-1">
+      <span className="body-small text-on-surface-variant">×</span>
+      <input
+        inputMode="decimal"
+        disabled={disabled}
+        value={shown}
+        onFocus={(e) => {
+          setEditing(true);
+          setDraft(String(rounded));
+          e.currentTarget.select();
+        }}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
+        className="w-16 px-2 py-1 rounded-md border border-outline bg-surface-container-high text-sm text-on-surface outline-none disabled:opacity-50"
+        aria-label="Material weight multiplier"
+      />
+    </div>
+  );
+}
+
+// Full-width selectable list row (label + description + trailing chevron), mirroring the
+// SelectionListItem pattern in StoreSelector.tsx. Used for the Save-time weight-reconcile
+// choices so each option has room for an explanatory line.
+function ReconcileChoice({
+  label,
+  description,
+  onClick,
+  disabled
+}: {
+  label: string;
+  description: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-center justify-between gap-3 p-4 rounded-lg bg-surface-container hover:bg-surface-container-high active:bg-surface-container-highest transition-colors text-left touch-manipulation min-h-[48px] disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
+    >
+      <div className="flex-1">
+        <div className="body-large text-on-surface">{label}</div>
+        <div className="body-small text-on-surface-variant mt-0.5">{description}</div>
+      </div>
+      <ChevronRight className="h-5 w-5 text-on-surface-variant flex-shrink-0" />
+    </button>
+  );
+}
+
+// Stable empty object shared by both brandGroupOverrides and lastSavedBrandGroupOverrides
+// on first render so reference equality correctly reports no unsaved changes initially.
+const EMPTY_BRAND_GROUP_OVERRIDES: Record<string, PriceForkTestItem['brandTier']> = {};
+
 export default function PriceForkCalibrationScreen({
   partnerId,
   onBack,
@@ -127,7 +441,7 @@ export default function PriceForkCalibrationScreen({
   ];
 
   const [selectedBrandId, setSelectedBrandId] = useState<string>(brands[0]?.id || '1');
-  const [activeTab, setActiveTab] = useState<'calibration' | 'brand-groups' | 'price-matrix' | 'fallback-rule'>('calibration');
+  const [activeTab, setActiveTab] = useState<'calibration' | 'brand-groups' | 'price-matrix'>('calibration');
   
   // Store calibration state per brand
   const [calibrationStates, setCalibrationStates] = useState<Record<string, PriceForkCalibrationState>>({
@@ -143,16 +457,27 @@ export default function PriceForkCalibrationScreen({
   const selectedBrandName = brands.find((b) => b.id === selectedBrandId)?.name ?? brands[0]?.name ?? '';
 
   const PRICE_GROUPS: Array<PriceForkTestItem['brandTier']> = [
-    'Haute couture',
     'Premium',
     'High',
     'Mid',
     'Low',
-    'Strategic low',
+  ];
+
+  // Tiers in left-to-right matrix column order (Low is the base price anchor).
+  const MATRIX_TIERS: Array<PriceForkTestItem['brandTier']> = ['Low', 'Mid', 'High', 'Premium'];
+
+  // Material rows rendered under every subcategory. `other` = "Standard" (weight x1).
+  const MATRIX_MATERIALS: Array<{ key: PriceForkTestItem['material']; label: string }> = [
+    { key: 'other', label: 'Standard' },
+    { key: 'leather', label: 'Leather' },
+    { key: 'silk', label: 'Silk' },
+    { key: 'suede', label: 'Suede' },
+    { key: 'cashmere', label: 'Cashmere' },
   ];
 
   // Brand → group (AI mapping) UI state (mocked)
-  const [brandGroupOverrides, setBrandGroupOverrides] = useState<Record<string, PriceForkTestItem['brandTier']>>({});
+  const [brandGroupOverrides, setBrandGroupOverrides] = useState<Record<string, PriceForkTestItem['brandTier']>>(EMPTY_BRAND_GROUP_OVERRIDES);
+  const [lastSavedBrandGroupOverrides, setLastSavedBrandGroupOverrides] = useState<Record<string, PriceForkTestItem['brandTier']>>(EMPTY_BRAND_GROUP_OVERRIDES);
   const [brandGroupFilter, setBrandGroupFilter] = useState<PriceForkTestItem['brandTier'] | 'all'>('all');
   const [brandGroupSearch, setBrandGroupSearch] = useState('');
 
@@ -185,10 +510,24 @@ export default function PriceForkCalibrationScreen({
     category: string;
     subcategory: string;
     isFallback: boolean;
-    /** Base price = Strategic low group price */
+    /** Base price for the subcategory (every cell is derived from this) */
     basePrice: number | null;
-    /** Optional manual overrides for computed tier prices (demo) */
-    tierPriceOverrides?: Partial<Record<PriceForkTestItem['brandTier'], number>>;
+    /**
+     * Optional manual overrides for computed prices, keyed by material then tier.
+     * e.g. priceOverrides['leather']['High'] = 1290 (demo)
+     */
+    priceOverrides?: Partial<
+      Record<
+        PriceForkTestItem['material'],
+        Partial<Record<PriceForkTestItem['brandTier'], number>>
+      >
+    >;
+    /**
+     * Per-subcategory material weight overrides (e.g. materialWeights['leather'] = 2).
+     * Applies across all brand-group tiers for this subcategory. When absent for a
+     * material, the global calibration weight is used.
+     */
+    materialWeights?: Partial<Record<PriceForkTestItem['material'], number>>;
   };
 
   const sekPricePoints = useMemo(() => {
@@ -236,36 +575,18 @@ export default function PriceForkCalibrationScreen({
   }, [selectedBrandName]);
 
   const [priceMatrixRows, setPriceMatrixRows] = useState<PriceMatrixRow[]>(seedMatrixRows);
+  const [lastSavedPriceMatrixRows, setLastSavedPriceMatrixRows] = useState<PriceMatrixRow[]>(seedMatrixRows);
   const [priceMatrixSearch, setPriceMatrixSearch] = useState('');
+  const [pasteAnnotations, setPasteAnnotations] = useState<Map<string, PendingCell> | null>(null);
+  // When the global material weights change AND the matrix has per-sub-category
+  // weight overrides, Save opens this dialog to ask how to reconcile the two.
+  const [showWeightReconcile, setShowWeightReconcile] = useState(false);
 
   useEffect(() => {
     setPriceMatrixRows(seedMatrixRows);
+    setLastSavedPriceMatrixRows(seedMatrixRows);
+    setPasteAnnotations(null);
   }, [seedMatrixRows]);
-
-  // Fallback candidates = low-confidence category mappings (mocked)
-  const fallbackCandidates = useMemo(() => {
-    return mockCategoryMappings
-      .filter((m) => m.confidence < 0.7)
-      .map((m) => ({
-        key: `${m.partnerCategory}::${m.retailerCategory}`,
-        category: m.retailerCategory,
-        sourceLabel: m.partnerCategory,
-        confidence: m.confidence,
-      }));
-  }, []);
-
-  const [fallbackSourceLabelDraft, setFallbackSourceLabelDraft] = useState<Record<string, string>>({});
-
-  const validSubcategoryOptions = useMemo(() => {
-    const values = new Set<string>();
-    seedMatrixRows.forEach((r) => {
-      if (r.subcategory?.trim()) values.add(r.subcategory.trim());
-    });
-    fallbackCandidates.forEach((c) => {
-      if (c.sourceLabel?.trim()) values.add(c.sourceLabel.trim());
-    });
-    return Array.from(values.values()).sort((a, b) => a.localeCompare(b));
-  }, [fallbackCandidates, seedMatrixRows]);
 
   const filteredPriceMatrixRows = useMemo(() => {
     const q = priceMatrixSearch.trim().toLowerCase();
@@ -275,8 +596,114 @@ export default function PriceForkCalibrationScreen({
       );
   }, [priceMatrixRows, priceMatrixSearch]);
 
-  // Fallback rule UI state
-  const [fallbackMultiplier, setFallbackMultiplier] = useState<number>(2.5);
+  // Paste targets the brand-group (Standard) row only — material rows are derived from
+  // it via material weight, so they aren't editable. The paste grid is therefore one row
+  // per visible sub-category (material fixed to 'other'), columns = tiers.
+  const matrixGridRows = useMemo(
+    () =>
+      filteredPriceMatrixRows.map((row) => ({
+        rowKey: row.key,
+        material: 'other' as MatrixMaterial
+      })),
+    [filteredPriceMatrixRows]
+  );
+
+  const writeMatrixOverride = (rowKey: string, m: MatrixMaterial, t: MatrixTier, n: number) => {
+    setPriceMatrixRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== rowKey) return r;
+        const matOv = { ...(r.priceOverrides?.[m] ?? {}) };
+        matOv[t] = n;
+        const next = { ...(r.priceOverrides ?? {}) };
+        next[m] = matOv;
+        return { ...r, priceOverrides: next };
+      })
+    );
+  };
+
+  const clearMatrixOverride = (rowKey: string, m: MatrixMaterial, t: MatrixTier) => {
+    setPriceMatrixRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== rowKey) return r;
+        const matOv = { ...(r.priceOverrides?.[m] ?? {}) };
+        delete matOv[t];
+        const next = { ...(r.priceOverrides ?? {}) };
+        if (Object.keys(matOv).length) next[m] = matOv;
+        else delete next[m];
+        return { ...r, priceOverrides: Object.keys(next).length ? next : undefined };
+      })
+    );
+  };
+
+  const setMatrixBasePrice = (rowKey: string, n: number) => {
+    setPriceMatrixRows((prev) => prev.map((r) => (r.key === rowKey ? { ...r, basePrice: n } : r)));
+  };
+
+  // Set (or clear) the per-subcategory material weight. Clamped to the x1–x5 range used
+  // in the Calibration tab. Passing null removes the override (revert to global weight).
+  const setMatrixMaterialWeight = (rowKey: string, m: MatrixMaterial, weight: number | null) => {
+    setPriceMatrixRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== rowKey) return r;
+        const next = { ...(r.materialWeights ?? {}) };
+        if (weight == null) {
+          delete next[m];
+        } else {
+          next[m] = Math.min(5, Math.max(1, weight));
+        }
+        return { ...r, materialWeights: Object.keys(next).length ? next : undefined };
+      })
+    );
+  };
+
+  // Immediately commit a clipboard paste into priceMatrixRows and store annotations so
+  // cells can show "Pasted" / "Snapped from N" captions. Paste only fires from a
+  // brand-group (Standard) price cell; the block spreads right across tiers and down
+  // across sub-categories (one grid row per sub-category).
+  const handleMatrixPaste =
+    (rowKey: string, tier: MatrixTier) =>
+    (e: ClipboardEvent) => {
+      const grid = parseClipboardGrid(e.clipboardData?.getData('text') ?? '');
+      if (!grid.length) return;
+      const subIdx = filteredPriceMatrixRows.findIndex((x) => x.key === rowKey);
+      if (subIdx < 0) return;
+      const anchor = { r: subIdx, c: MATRIX_TIERS.indexOf(tier) };
+      const next = buildPendingFromPaste(grid, anchor, matrixGridRows, MATRIX_TIERS, sekPricePoints);
+      if (!next.size) return;
+
+      // Immediately write values to priceMatrixRows (no preview/confirm step).
+      const byRow = new Map<string, PendingCell[]>();
+      next.forEach((pc) => {
+        const arr = byRow.get(pc.rowKey) ?? [];
+        arr.push(pc);
+        byRow.set(pc.rowKey, arr);
+      });
+      setPriceMatrixRows((prev) =>
+        prev.map((r) => {
+          const cells = byRow.get(r.key);
+          if (!cells) return r;
+          let basePrice = r.basePrice;
+          const overrides = { ...(r.priceOverrides ?? {}) };
+          cells.forEach((pc) => {
+            if (pc.material === 'other' && pc.tier === 'Low') {
+              basePrice = pc.snapped;
+            } else {
+              const matOv = { ...(overrides[pc.material] ?? {}) };
+              matOv[pc.tier] = pc.snapped;
+              overrides[pc.material] = matOv;
+            }
+          });
+          return { ...r, basePrice, priceOverrides: Object.keys(overrides).length ? overrides : undefined };
+        })
+      );
+
+      // Store annotations so cells can display "Pasted" / "Snapped from N" below the price.
+      setPasteAnnotations((prev) => {
+        const merged = new Map(prev ?? []);
+        next.forEach((pc, k) => merged.set(k, pc));
+        return merged;
+      });
+    };
 
   // Handle brand change
   const handleBrandChange = (brandId: string) => {
@@ -310,8 +737,12 @@ export default function PriceForkCalibrationScreen({
   const [activePrompt, setActivePrompt] = useState<PriceForkInsightPrompt['id'] | null>('brand-groups');
 
   const hasUnsavedChanges = useMemo(() => {
-    return JSON.stringify(calibrationState) !== JSON.stringify(lastSavedState);
-  }, [calibrationState, lastSavedState]);
+    return (
+      JSON.stringify(calibrationState) !== JSON.stringify(lastSavedState) ||
+      priceMatrixRows !== lastSavedPriceMatrixRows ||
+      brandGroupOverrides !== lastSavedBrandGroupOverrides
+    );
+  }, [calibrationState, lastSavedState, priceMatrixRows, lastSavedPriceMatrixRows, brandGroupOverrides, lastSavedBrandGroupOverrides]);
 
   const handleParameterChange = (id: string, value: number | string | boolean) => {
     setCalibrationStates((prev) => ({
@@ -325,7 +756,8 @@ export default function PriceForkCalibrationScreen({
 
   const getMaterialWeightFromState = useCallback(
     (state: PriceForkCalibrationState, material: PriceForkTestItem['material']) => {
-      const clampMultiplier = (n: number) => Math.min(30, Math.max(1, n));
+      // Material weights are capped at x5 (the slider max in the Calibration tab).
+      const clampMultiplier = (n: number) => Math.min(5, Math.max(1, n));
       if (material === 'leather') {
         return clampMultiplier(Number(state.materialLeatherWeight ?? priceForkDefaultState.materialLeatherWeight));
       }
@@ -346,8 +778,6 @@ export default function PriceForkCalibrationScreen({
   const getTierWeightFromState = useCallback((state: PriceForkCalibrationState, tier: PriceForkTestItem['brandTier']) => {
     const clampMultiplier = (n: number) => Math.min(30, Math.max(1, n));
     switch (tier) {
-      case 'Haute couture':
-        return clampMultiplier(Number(state.tierHauteCoutureWeight ?? priceForkDefaultState.tierHauteCoutureWeight));
       case 'Premium':
         return clampMultiplier(Number(state.tierPremiumWeight ?? priceForkDefaultState.tierPremiumWeight));
       case 'High':
@@ -355,9 +785,7 @@ export default function PriceForkCalibrationScreen({
       case 'Mid':
         return clampMultiplier(Number(state.tierMidWeight ?? priceForkDefaultState.tierMidWeight));
       case 'Low':
-        return clampMultiplier(Number(state.tierLowWeight ?? priceForkDefaultState.tierLowWeight));
-      case 'Strategic low':
-        // Strategic low is always the base price in the matrix.
+        // Low is always the base price in the matrix.
         return 1;
       default:
         return 1.0;
@@ -378,31 +806,40 @@ export default function PriceForkCalibrationScreen({
     [partnerId]
   );
 
-  const handleReset = () => {
-    setCalibrationStates((prev) => ({
-      ...prev,
-      [selectedBrandId]: { ...priceForkDefaultState }
-    }));
-    setTestItems((prev) =>
-      prev.map((item) => {
-        const pricePoints = getPricePointsForItem(item);
-        const snapped = snapToNearestPricePoint(item.aiSuggestedPrice, pricePoints);
-        return {
-          ...item,
-          aiSuggestedPrice: snapped,
-          manualOverridePrice: undefined,
-          status: 'pending'
-        };
-      })
+  // True when any of the four global material weights differs from the last save.
+  const materialWeightsChanged = () =>
+    MATRIX_MATERIALS.some(
+      (mat) =>
+        mat.key !== 'other' &&
+        getMaterialWeightFromState(calibrationState, mat.key) !==
+          getMaterialWeightFromState(lastSavedState, mat.key)
     );
-  };
 
-  const handleSave = () => {
+  // Sub-categories that carry their own per-row material-weight override(s).
+  const perRowWeightRows = priceMatrixRows.filter(
+    (r) => r.materialWeights && Object.keys(r.materialWeights).length > 0
+  );
+
+  const commitSave = (rows: PriceMatrixRow[] = priceMatrixRows) => {
     setLastSavedStates((prev) => ({
       ...prev,
       [selectedBrandId]: { ...calibrationState }
     }));
+    setPriceMatrixRows(rows);
+    setLastSavedPriceMatrixRows(rows);
+    setLastSavedBrandGroupOverrides(brandGroupOverrides);
     onSaveCalibration?.(selectedBrandId, calibrationState);
+    setShowWeightReconcile(false);
+  };
+
+  const handleSave = () => {
+    // Only interrupt when a global weight changed AND the matrix has per-row
+    // weights that would otherwise shadow it — there's a real choice to make.
+    if (materialWeightsChanged() && perRowWeightRows.length > 0) {
+      setShowWeightReconcile(true);
+      return;
+    }
+    commitSave();
   };
 
   const handleRunSimulation = () => {
@@ -593,26 +1030,54 @@ export default function PriceForkCalibrationScreen({
 
   return (
     <div className="min-h-screen bg-surface">
+      {/* Save-time reconciliation: global material weights changed while the matrix
+          carries per-sub-category weight overrides. Ask how to apply the change. */}
+      <Dialog open={showWeightReconcile} onOpenChange={setShowWeightReconcile}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>You changed the global material weights</DialogTitle>
+            <DialogDescription>
+              {perRowWeightRows.length === 1
+                ? '1 sub-category has a material weight you set manually in the price matrix.'
+                : `${perRowWeightRows.length} sub-categories have material weights you set manually in the price matrix.`}{' '}
+              Choose how the new global weights should apply to {perRowWeightRows.length === 1 ? 'it' : 'them'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <ReconcileChoice
+              label="Keep my manual matrix weights"
+              description="Sub-categories you customized keep their weight. All others use the new global weights."
+              disabled={perRowWeightRows.length === 0}
+              onClick={() => commitSave(priceMatrixRows)}
+            />
+            <ReconcileChoice
+              label="Use the new global weights everywhere"
+              description="Replaces your manual matrix weights so every sub-category uses the new global weights."
+              onClick={() =>
+                commitSave(priceMatrixRows.map((r) => ({ ...r, materialWeights: undefined })))
+              }
+            />
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-col sm:gap-2">
+            <Button
+              variant="ghost"
+              className="w-full rounded-lg"
+              onClick={() => setShowWeightReconcile(false)}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Top App Bar */}
       <PortalTopAppBar
         title="Price Fork calibration"
-        subtitle="Configure AI pricing parameters per brand. Tune the AI engine, test on real inventory, and surface insights before publishing changes to partners."
         onBack={onBack}
         actions={
           <>
             {hasUnsavedChanges && (
               <span className="w-2 h-2 bg-primary rounded-full inline-block" aria-label="Unsaved changes" />
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleReset}
-              disabled={!hasUnsavedChanges}
-              className="rounded-lg"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Reset
-            </Button>
             <Button
               size="sm"
               onClick={handleSave}
@@ -667,7 +1132,7 @@ export default function PriceForkCalibrationScreen({
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
           {/* Tab styling aligned with other portal tab rows (see side sheets using Tabs) */}
-          <TabsList className="grid w-full grid-cols-4 gap-2 bg-transparent p-0 h-auto border-b border-outline-variant">
+          <TabsList className="grid w-full grid-cols-3 gap-2 bg-transparent p-0 h-auto border-b border-outline-variant">
             <TabsTrigger
               value="calibration"
               className={`relative rounded-lg px-4 py-3 transition-colors ${
@@ -700,17 +1165,6 @@ export default function PriceForkCalibrationScreen({
             >
               <span className="title-small">Price matrix</span>
               {activeTab === 'price-matrix' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-            </TabsTrigger>
-            <TabsTrigger
-              value="fallback-rule"
-              className={`relative rounded-lg px-4 py-3 transition-colors ${
-                activeTab === 'fallback-rule'
-                  ? 'bg-primary-container text-on-primary-container'
-                  : 'text-on-surface-variant hover:bg-surface-container-high'
-              }`}
-            >
-              <span className="title-small">Fallback rule</span>
-              {activeTab === 'fallback-rule' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
             </TabsTrigger>
           </TabsList>
 
@@ -786,55 +1240,6 @@ export default function PriceForkCalibrationScreen({
               <div className="rounded-xl border border-outline-variant/60 bg-surface p-4 md:col-span-2 space-y-4 shadow-xs">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="title-small text-on-surface">Brand tier weights</div>
-                    <p className="body-small text-on-surface-variant mt-1">
-                      Adjust how strongly each brand tier influences the suggested price.
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {brandTierWeights.map((tier) => {
-                    const isStrategicLow = tier.id === 'tierStrategicLowWeight';
-                    const value = isStrategicLow ? 1 : (calibrationState[tier.id] ?? priceForkDefaultState[tier.id as keyof PriceForkCalibrationState]);
-                    const formattedValue = formatWeightLabel(Number(value));
-                    return (
-                      <div key={tier.id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="label-medium text-on-surface">{tier.label}</span>
-                          <Badge variant="outline" className="rounded-lg">
-                            {formattedValue as string}
-                          </Badge>
-                        </div>
-                        {isStrategicLow && (
-                          <p className="body-small text-on-surface-variant -mt-1">
-                            Fixed at <span className="font-medium text-on-surface">x1.00</span> because Strategic low equals the{' '}
-                            <span className="font-medium text-on-surface">Base price</span> in the Price matrix.
-                          </p>
-                        )}
-                        {!isStrategicLow && (
-                          <>
-                            <Slider
-                              value={[Number(value)]}
-                              min={1}
-                              max={30}
-                              step={0.1}
-                              onValueChange={(vals: number[]) => handleParameterChange(tier.id, Number(vals[0]))}
-                            />
-                            <div className="flex justify-between text-label-small text-on-surface-variant">
-                              <span>x1.0</span>
-                              <span>x30.0</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-outline-variant/60 bg-surface p-4 md:col-span-2 space-y-4 shadow-xs">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
                     <div className="title-small text-on-surface">Material weights</div>
                     <p className="body-small text-on-surface-variant mt-1">
                       Adjust how strongly each material scales the suggested sales price.
@@ -858,13 +1263,13 @@ export default function PriceForkCalibrationScreen({
                       <Slider
                         value={[material.value]}
                         min={1}
-                        max={30}
+                        max={5}
                         step={0.1}
                         onValueChange={(vals: number[]) => handleParameterChange(material.id, Number(vals[0]))}
                       />
                       <div className="flex justify-between text-label-small text-on-surface-variant">
                         <span>x1.0</span>
-                        <span>x30.0</span>
+                        <span>x5.0</span>
                       </div>
                     </div>
                   ))}
@@ -873,6 +1278,7 @@ export default function PriceForkCalibrationScreen({
             </CardContent>
           </Card>
 
+          {SHOW_CALIBRATION_ACTIONS_AND_TEST_ITEMS && (
           <Card className="bg-surface-container-high border border-outline-variant">
             <CardHeader>
               <CardTitle className="title-medium text-on-surface">Calibration actions</CardTitle>
@@ -904,8 +1310,10 @@ export default function PriceForkCalibrationScreen({
               </Button>
             </CardContent>
           </Card>
+          )}
             </section>
 
+            {SHOW_CALIBRATION_ACTIONS_AND_TEST_ITEMS && (
             <section className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
@@ -980,6 +1388,7 @@ export default function PriceForkCalibrationScreen({
             </ScrollArea>
           </Card>
             </section>
+            )}
 
           </TabsContent>
 
@@ -1085,9 +1494,9 @@ export default function PriceForkCalibrationScreen({
           <TabsContent value="price-matrix" className="space-y-6">
             <Card className="bg-surface border border-outline-variant">
               <CardHeader>
-                <CardTitle className="title-medium text-on-surface">Prices per category & price group</CardTitle>
+                <CardTitle className="title-medium text-on-surface">Prices per category & brand group</CardTitle>
                 <CardDescription className="body-small text-on-surface-variant">
-                  Define one SEK ladder price per price group for each category/sub-category pair for {selectedBrandName || 'this brand'}.
+                  Define one SEK ladder price per brand group for each category/sub-category pair for {selectedBrandName || 'this brand'}.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1115,311 +1524,213 @@ export default function PriceForkCalibrationScreen({
                   </div>
                 </div>
 
+                <p className="body-small text-on-surface-variant mb-3">
+                  Tip: copy a block of prices from Excel or a CSV, click a cell, and paste. Values snap to the nearest valid price automatically.
+                </p>
+
                 {/* Fixed-layout table to keep columns aligned with other portal tables */}
                 <div className="overflow-x-auto rounded-lg border border-outline-variant bg-surface">
                   <table className="w-full min-w-[1700px] table-fixed border-collapse">
                     <colgroup>
-                      <col style={{ width: '18rem' }} />
-                      <col style={{ width: '18rem' }} />
-                      <col style={{ width: '12rem' }} /> {/* Base */}
-                      <col style={{ width: '10.5rem' }} />
-                      <col style={{ width: '10.5rem' }} />
-                      <col style={{ width: '10.5rem' }} />
-                      <col style={{ width: '10.5rem' }} />
-                      <col style={{ width: '10.5rem' }} />
-                      <col style={{ width: '10rem' }} /> {/* Reset */}
+                      <col style={{ width: '14rem' }} />
+                      <col style={{ width: '14rem' }} />
+                      <col style={{ width: '8rem' }} />
+                      <col style={{ width: '11rem' }} />
+                      <col style={{ width: '11rem' }} />
+                      <col style={{ width: '11rem' }} />
+                      <col style={{ width: '11rem' }} />
+                      <col style={{ width: '9rem' }} />
                     </colgroup>
                     <thead className="bg-surface-container border-b border-outline-variant">
                       <tr>
                         <th className="px-3 py-3 text-left title-small text-on-surface">Category</th>
                         <th className="px-3 py-3 text-left title-small text-on-surface">Sub-category</th>
-                        <th className="px-3 py-3 text-left title-small text-on-surface">Base price</th>
-                        <th className="px-3 py-3 text-left title-small text-on-surface">Low</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Material</th>
+                        <th className="px-3 py-3 text-left title-small text-on-surface">Base price (Low)</th>
                         <th className="px-3 py-3 text-left title-small text-on-surface">Mid</th>
                         <th className="px-3 py-3 text-left title-small text-on-surface">High</th>
                         <th className="px-3 py-3 text-left title-small text-on-surface">Premium</th>
-                        <th className="px-3 py-3 text-left title-small text-on-surface">Haute couture</th>
                         <th className="px-3 py-3 text-right title-small text-on-surface">Reset</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {filteredPriceMatrixRows.map((row) => (
-                        <tr key={row.key} className="border-b border-outline-variant last:border-b-0 hover:bg-surface-container/50 transition-colors">
-                          <td className="px-3 pt-0 pb-0 body-medium text-on-surface align-top">
-                            <div className="flex items-center gap-2">
-                              {row.category}
-                              {row.isFallback && (
-                                <Badge variant="outline" className="rounded-lg text-on-surface-variant">Fallback</Badge>
-                              )}
-                            </div>
-                            {/* Spacer to match tier cell helper stack height */}
-                            <div className="mt-1 h-4" aria-hidden />
-                            <div className="mt-1 h-4" aria-hidden />
-                            <div className="mt-1 h-4" aria-hidden />
-                          </td>
-                          <td className="px-3 pt-0 pb-0 body-medium text-on-surface align-top">
-                            <div>{row.subcategory}</div>
-                            {/* Spacer to match tier cell helper stack height */}
-                            <div className="mt-1 h-4" aria-hidden />
-                            <div className="mt-1 h-4" aria-hidden />
-                            <div className="mt-1 h-4" aria-hidden />
-                          </td>
-                          <td className="px-3 py-3 align-top">
-                            <Select
-                              value={row.basePrice != null ? String(row.basePrice) : ''}
-                              onValueChange={(v) => {
-                                const parsed = Number(v);
-                                setPriceMatrixRows((prev) =>
-                                  prev.map((r) =>
-                                    r.key !== row.key
-                                      ? r
-                                      : { ...r, basePrice: Number.isNaN(parsed) ? null : parsed }
-                                  )
-                                );
-                              }}
-                            >
-                              <SelectTrigger className="w-[200px] min-w-[200px] max-w-[200px] shrink-0 bg-surface-container-high border border-outline rounded-lg h-12 body-large whitespace-nowrap overflow-hidden">
-                                <SelectValue placeholder="—" className="block w-full whitespace-nowrap overflow-hidden text-ellipsis" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {sekPricePoints.map((p) => (
-                                  <SelectItem key={`${row.key}-base-${p}`} value={String(p)} className="min-h-[48px] md:min-h-0 py-3 md:py-1.5 touch-manipulation">
-                                    {p} SEK
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {/* Spacer to align dropdown top with tier cells (which have helper rows) */}
-                            <div className="mt-1 h-4" aria-hidden />
-                            <div className="mt-1 h-4" aria-hidden />
-                            <div className="mt-1 h-4" aria-hidden />
-                          </td>
-                          {(['Low', 'Mid', 'High', 'Premium', 'Haute couture'] as const).map((label) => {
-                            const tier = (label === 'Low'
-                              ? 'Low'
-                              : label === 'Mid'
-                                ? 'Mid'
-                                : label === 'High'
-                                  ? 'High'
-                                  : label === 'Premium'
-                                    ? 'Premium'
-                                    : 'Haute couture') as PriceForkTestItem['brandTier'];
-                            const globalMultiplier = getTierWeightFromState(lastSavedState, tier);
-                            const suggested = row.basePrice == null
-                              ? null
-                              : snapToNearestPricePoint(row.basePrice * globalMultiplier, sekPricePoints.length ? sekPricePoints : [row.basePrice]);
-                            const currentOverridePrice = row.tierPriceOverrides?.[tier];
-                            const effectivePrice = currentOverridePrice ?? suggested;
-                            const impliedMultiplier =
-                              row.basePrice != null && row.basePrice > 0 && effectivePrice != null
-                                ? Math.min(30, Math.max(1, effectivePrice / row.basePrice))
-                                : null;
+                    {filteredPriceMatrixRows.map((row) => {
+                      const hasOverrides =
+                        (!!row.priceOverrides && Object.keys(row.priceOverrides).length > 0) ||
+                        (!!row.materialWeights && Object.keys(row.materialWeights).length > 0);
+                      return (
+                        <tbody
+                          key={row.key}
+                          className="border-b-2 border-outline-variant last:border-b-0"
+                        >
+                          {MATRIX_MATERIALS.map((mat, matIdx) => {
+                            const isStandard = mat.key === 'other';
+                            // Material weight applies across all brand-group tiers for this
+                            // sub-category. Falls back to the global calibration weight.
+                            const effectiveMaterialWeight = isStandard
+                              ? 1
+                              : (row.materialWeights?.[mat.key] ?? getMaterialWeightFromState(lastSavedState, mat.key));
+                            const cellPad = isStandard ? 'py-3' : 'py-1.5';
                             return (
-                              <td key={`${row.key}-${tier}`} className="px-3 py-3 align-top">
-                                <div className="body-small text-on-surface-variant">
-                                  <Select
-                                    value={
-                                      suggested == null
-                                        ? ''
-                                        : (currentOverridePrice == null ? '__suggested__' : String(currentOverridePrice))
-                                    }
-                                    onValueChange={(v) => {
-                                      setPriceMatrixRows((prev) =>
-                                        prev.map((r) => {
-                                          if (r.key !== row.key) return r;
-                                          if (v === '__suggested__') {
-                                            const { [tier]: _, ...rest } = r.tierPriceOverrides ?? {};
-                                            const next = Object.keys(rest).length ? rest : undefined;
-                                            return { ...r, tierPriceOverrides: next };
-                                          }
-                                          const parsed = Number(v);
-                                          return {
-                                            ...r,
-                                            tierPriceOverrides: {
-                                              ...(r.tierPriceOverrides ?? {}),
-                                              [tier]: Number.isNaN(parsed) ? (suggested ?? parsed) : parsed
-                                            }
-                                          };
-                                        })
-                                      );
-                                    }}
+                              <tr
+                                key={`${row.key}-${mat.key}`}
+                                className={cn(
+                                  'hover:bg-surface-container/40 transition-colors',
+                                  matIdx > 0 && 'border-t border-outline-variant/30'
+                                )}
+                              >
+                                {matIdx === 0 && (
+                                  <td
+                                    rowSpan={MATRIX_MATERIALS.length}
+                                    className="px-3 py-3 body-medium text-on-surface align-top border-r border-outline-variant/40"
                                   >
-                                    <SelectTrigger className="w-[120px] bg-surface border-outline rounded-lg h-12">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {suggested != null && (
-                                        <SelectItem value="__suggested__">
-                                          {suggested} SEK
-                                        </SelectItem>
+                                    <div className="flex items-center gap-2">
+                                      {row.category}
+                                      {row.isFallback && (
+                                        <Badge variant="outline" className="rounded-lg text-on-surface-variant">Fallback</Badge>
                                       )}
-                                      {sekPricePoints.map((p) => (
-                                        <SelectItem key={`${row.key}-${tier}-p-${p}`} value={String(p)}>
-                                          {p} SEK
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="body-small text-on-surface-variant mt-1">
-                                  {currentOverridePrice == null ? 'Suggested' : 'Manual'}
-                                </div>
-                                <div className="body-small text-on-surface-variant mt-1">
-                                  Global: {formatWeightLabel(globalMultiplier)}
-                                </div>
-                                <div className="body-small text-on-surface-variant mt-1">
-                                  {currentOverridePrice == null ? '—' : (impliedMultiplier == null ? '—' : formatWeightLabel(impliedMultiplier))}
-                                </div>
-                              </td>
+                                    </div>
+                                  </td>
+                                )}
+                                {matIdx === 0 && (
+                                  <td
+                                    rowSpan={MATRIX_MATERIALS.length}
+                                    className="px-3 py-3 body-medium text-on-surface align-top border-r border-outline-variant/40"
+                                  >
+                                    {row.subcategory}
+                                  </td>
+                                )}
+
+                                {/* Material label + (material rows) editable weight */}
+                                <td className={cn('px-3 align-top', cellPad)}>
+                                  <div className="label-medium text-on-surface">{mat.label}</div>
+                                  {isStandard ? (
+                                    <div className="body-small text-on-surface-variant mt-0.5">Base ×1.00</div>
+                                  ) : (
+                                    <MaterialWeightInput
+                                      weight={effectiveMaterialWeight}
+                                      disabled={false}
+                                      onCommit={(w) => setMatrixMaterialWeight(row.key, mat.key, w)}
+                                    />
+                                  )}
+                                </td>
+
+                                {/* Tier cells: Base price (Low, on Standard) / Mid / High / Premium */}
+                                {MATRIX_TIERS.map((tier) => {
+                                  const isBaseCell = isStandard && tier === 'Low';
+
+                                  if (isBaseCell) {
+                                    const baseAnnotation = pasteAnnotations?.get(pkey(row.key, mat.key, tier));
+                                    return (
+                                      <td key={`${row.key}-${mat.key}-${tier}`} className={cn('px-3 align-top', cellPad)}>
+                                        <MatrixPriceCell
+                                          value={row.basePrice}
+                                          suggested={null}
+                                          isBase
+                                          pricePoints={sekPricePoints}
+                                          pending={baseAnnotation}
+                                          disabled={false}
+                                          triggerWidthClass="w-[150px]"
+                                          onPickLadder={(n) => setMatrixBasePrice(row.key, n)}
+                                          onCommitTyped={(n) => setMatrixBasePrice(row.key, n)}
+                                          onPasteCapture={handleMatrixPaste(row.key, tier)}
+                                        />
+                                        {baseAnnotation && (
+                                          <div className="body-small text-on-surface-variant mt-1">
+                                            {baseAnnotation.changed ? `Snapped from ${baseAnnotation.raw}` : 'Pasted'}
+                                          </div>
+                                        )}
+                                      </td>
+                                    );
+                                  }
+
+                                  const pts = sekPricePoints.length
+                                    ? sekPricePoints
+                                    : (row.basePrice != null ? [row.basePrice] : []);
+                                  // Brand-group price for this tier: Base price for Low, otherwise the
+                                  // directly-entered price (set via dropdown or paste — no tier-weight derivation).
+                                  const currentOverridePrice = row.priceOverrides?.['other']?.[tier];
+                                  const brandGroupPrice = tier === 'Low'
+                                    ? row.basePrice
+                                    : (currentOverridePrice ?? null);
+                                  const cellAnnotation = pasteAnnotations?.get(pkey(row.key, 'other', tier));
+                                  if (isStandard) {
+                                    return (
+                                      <td key={`${row.key}-${mat.key}-${tier}`} className={cn('px-3 align-top', cellPad)}>
+                                        <MatrixPriceCell
+                                          value={currentOverridePrice ?? null}
+                                          suggested={null}
+                                          isBase={false}
+                                          pricePoints={sekPricePoints}
+                                          pending={cellAnnotation}
+                                          disabled={false}
+                                          triggerWidthClass="w-[150px]"
+                                          onPickLadder={(n) => writeMatrixOverride(row.key, 'other', tier, n)}
+                                          onClearToSuggested={() => clearMatrixOverride(row.key, 'other', tier)}
+                                          onCommitTyped={(n) => writeMatrixOverride(row.key, 'other', tier, n)}
+                                          onPasteCapture={handleMatrixPaste(row.key, tier)}
+                                        />
+                                        {cellAnnotation && (
+                                          <div className="body-small text-on-surface-variant mt-1">
+                                            {cellAnnotation.changed ? `Snapped from ${cellAnnotation.raw}` : 'Pasted'}
+                                          </div>
+                                        )}
+                                      </td>
+                                    );
+                                  }
+
+                                  // Material row: read-only derived price = brand-group price × material weight.
+                                  const derivedPrice = brandGroupPrice == null
+                                    ? null
+                                    : snapToNearestPricePoint(brandGroupPrice * effectiveMaterialWeight, pts);
+                                  return (
+                                    <td key={`${row.key}-${mat.key}-${tier}`} className={cn('px-3 align-top', cellPad)}>
+                                      <div className="flex items-center w-[150px] min-h-[40px] px-3 rounded-lg border border-outline-variant bg-surface-container/40 text-sm text-on-surface-variant">
+                                        {derivedPrice != null ? `${derivedPrice} SEK` : '—'}
+                                      </div>
+                                    </td>
+                                  );
+                                })}
+
+                                {matIdx === 0 && (
+                                  <td
+                                    rowSpan={MATRIX_MATERIALS.length}
+                                    className="px-3 py-3 align-top text-right border-l border-outline-variant/40"
+                                  >
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="rounded-lg px-2"
+                                      disabled={!hasOverrides}
+                                      onClick={() => {
+                                        setPriceMatrixRows((prev) =>
+                                          prev.map((r) =>
+                                            r.key === row.key
+                                              ? { ...r, priceOverrides: undefined, materialWeights: undefined }
+                                              : r
+                                          )
+                                        );
+                                      }}
+                                    >
+                                      Reset prices
+                                    </Button>
+                                  </td>
+                                )}
+                              </tr>
                             );
                           })}
-                          <td className="px-3 py-3 align-top text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="rounded-lg px-2"
-                              disabled={!row.tierPriceOverrides || Object.keys(row.tierPriceOverrides).length === 0}
-                              onClick={() => {
-                                setPriceMatrixRows((prev) =>
-                                  prev.map((r) => (r.key === row.key ? { ...r, tierPriceOverrides: undefined } : r))
-                                );
-                              }}
-                            >
-                              Reset prices
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredPriceMatrixRows.length === 0 && (
+                        </tbody>
+                      );
+                    })}
+                    {filteredPriceMatrixRows.length === 0 && (
+                      <tbody>
                         <tr>
-                          <td colSpan={9} className="px-3 py-6 body-medium text-on-surface-variant">
+                          <td colSpan={8} className="px-3 py-6 body-medium text-on-surface-variant">
                             No categories found.
                           </td>
                         </tr>
-                      )}
-                    </tbody>
+                      </tbody>
+                    )}
                   </table>
-                </div>
-
-                <Separator className="bg-outline-variant/60" />
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="title-small text-on-surface">Fallback-mapped categories</div>
-                      <p className="body-small text-on-surface-variant">
-                        Categories currently relying on a fallback rule (mocked via low-confidence mappings). Add them to the table to define group prices.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="overflow-x-auto rounded-lg border border-outline-variant">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-surface-container border-outline-variant/60">
-                          <TableHead className="text-on-surface-variant">Mapped category</TableHead>
-                          <TableHead className="text-on-surface-variant">Source label</TableHead>
-                          <TableHead className="text-on-surface-variant">Confidence</TableHead>
-                          <TableHead className="text-on-surface-variant text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {fallbackCandidates.map((c) => (
-                          <TableRow key={c.key} className="border-outline-variant/40">
-                            <TableCell className="body-medium text-on-surface">{c.category}</TableCell>
-                            <TableCell className="body-medium text-on-surface-variant">
-                              <Select
-                                value={(fallbackSourceLabelDraft[c.key] ?? c.sourceLabel).trim()}
-                                onValueChange={(v) =>
-                                  setFallbackSourceLabelDraft((prev) => ({ ...prev, [c.key]: v }))
-                                }
-                              >
-                                <SelectTrigger className="bg-surface-container-high border-outline rounded-lg h-[44px] w-[260px]">
-                                  <SelectValue placeholder="Select sub-category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {validSubcategoryOptions.map((opt) => (
-                                    <SelectItem key={`${c.key}-${opt}`} value={opt}>
-                                      {opt}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell className="body-medium text-on-surface-variant">
-                              {(c.confidence * 100).toFixed(0)}%
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="rounded-lg"
-                                onClick={() => {
-                                  setPriceMatrixRows((prev) => {
-                                    const source = (fallbackSourceLabelDraft[c.key] ?? c.sourceLabel).trim() || c.sourceLabel;
-                                    const key = `${c.category}::${source}`;
-                                    if (prev.some((r) => r.key === key)) return prev;
-                                    return [
-                                      { key, category: c.category, subcategory: source, isFallback: true, basePrice: null },
-                                      ...prev,
-                                    ];
-                                  });
-                                }}
-                              >
-                                Add
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {fallbackCandidates.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={4} className="body-medium text-on-surface-variant py-6">
-                              No fallback candidates found.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="fallback-rule" className="space-y-6">
-            <Card className="bg-surface border border-outline-variant">
-              <CardHeader>
-                <CardTitle className="title-medium text-on-surface">Fallback pricing rule</CardTitle>
-                <CardDescription className="body-small text-on-surface-variant">
-                  When a category/sub-category price is missing, suggest price as a multiplier of the Sellpy EUR purchase price.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="label-medium text-on-surface">Multiplier</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={10}
-                      step={0.1}
-                      value={fallbackMultiplier}
-                      onChange={(e) => setFallbackMultiplier(Number(e.target.value))}
-                      className="bg-surface-container-high border-outline rounded-lg h-[44px]"
-                    />
-                    <p className="body-small text-on-surface-variant">
-                      Suggested price = purchasePriceEUR × {fallbackMultiplier.toFixed(1)} (then mapped to nearest SEK ladder point in the order UI).
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-outline-variant/60 bg-surface p-4">
-                    <div className="title-small text-on-surface mb-2">Example</div>
-                    <div className="space-y-1 body-medium text-on-surface-variant">
-                      <div>Purchase price: €18.00</div>
-                      <div>Rule: × {fallbackMultiplier.toFixed(1)}</div>
-                      <div className="text-on-surface">
-                        Candidate: €{(18 * fallbackMultiplier).toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>

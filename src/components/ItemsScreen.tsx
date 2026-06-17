@@ -30,7 +30,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { X, FilterIcon, Package as PackageIcon, ArrowUp, ArrowDown, QrCode } from "lucide-react";
+import { X, FilterIcon, Package as PackageIcon, ArrowUp, ArrowDown, QrCode, Flag } from "lucide-react";
 import ItemFilterSheet, { ItemFilters, defaultFilters } from './ItemFilterSheet';
 import StoreFilterBottomSheet, { ViewFilter } from './StoreFilterBottomSheet';
 import { ItemCard, BaseItem, ItemQuickAction, getItemListQuickActions, quickActionIcon } from './ItemCard';
@@ -79,6 +79,19 @@ export interface Item extends BaseItem {
   expiredPostponeWeeks?: number;
   isArchived?: boolean;
   archivedAt?: string;
+}
+
+/**
+ * Maps full partner/seller names to the shorter, customer-facing labels used in
+ * the Partner filter. Names not listed here fall through unchanged.
+ */
+const PARTNER_SHORT_NAME_OVERRIDES: Record<string, string> = {
+  'Sellpy Operations': 'Sellpy',
+  'Shenzhen Fashion Manufacturing': 'Shenzhen Fashion',
+};
+
+function shortenPartnerName(name: string): string {
+  return PARTNER_SHORT_NAME_OVERRIDES[name] ?? name;
 }
 
 function getDaysInStore(item: Item): number | null {
@@ -232,7 +245,7 @@ function QuickFilterChips({
   ];
 
   return (
-    <div className="px-4 py-3 bg-surface border-b border-outline-variant">
+    <div className="pl-0 pr-4 py-3 bg-surface border-b border-outline-variant">
       <div className="flex gap-2 overflow-x-auto scrollbar-hide">
         {filters.map((filter) => (
           <button
@@ -444,6 +457,7 @@ function ActiveFiltersDisplay({
   summarize('status', 'Status', filters.status);
   summarize('colour', 'Colour', filters.colour);
   summarize('size', 'Size', filters.size);
+  summarize('partner', 'Partner', filters.partner);
   if (filters.priceRange[0] !== 0 || filters.priceRange[1] !== 1000) {
     activeFilters.push({ 
       key: 'priceRange', 
@@ -2368,6 +2382,9 @@ export default function ItemsScreen({
       const matchesSize =
         itemFilters.size.length === 0 ||
         (item.size !== undefined && itemFilters.size.includes(item.size));
+      const matchesPartnerFilter =
+        itemFilters.partner.length === 0 ||
+        (item.sellerName !== undefined && itemFilters.partner.includes(shortenPartnerName(item.sellerName)));
       const matchesPrice = item.price >= itemFilters.priceRange[0] && item.price <= itemFilters.priceRange[1];
       
       // ViewFilter filters (for partner portal - filter by brand/store/country)
@@ -2389,7 +2406,7 @@ export default function ItemsScreen({
       }
       
       return matchesPartner && matchesQuickSearch && matchesQuickFilter &&
-             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesSize && matchesPrice && matchesViewFilter;
+             matchesBrand && matchesCategory && matchesStatus && matchesColour && matchesSize && matchesPartnerFilter && matchesPrice && matchesViewFilter;
     }).map(item => {
       // Set location based on status if not already set
       let itemWithLocation = item;
@@ -2585,6 +2602,16 @@ export default function ItemsScreen({
     return Array.from(brandSet).sort((a, b) => a.localeCompare(b));
   }, [brands, items]);
 
+  const availablePartnerOptions = useMemo(() => {
+    const partnerSet = new Set<string>();
+    items.forEach(item => {
+      if (item.sellerName) {
+        partnerSet.add(shortenPartnerName(item.sellerName));
+      }
+    });
+    return Array.from(partnerSet).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
   useEffect(() => {
     const handleDeliveryRegistered = (event: Event) => {
       const customEvent = event as CustomEvent<{ deliveryId?: string; timestamp?: string }>;
@@ -2676,6 +2703,7 @@ export default function ItemsScreen({
       case 'status':
       case 'colour':
       case 'size':
+      case 'partner':
         newFilters[filterKey] = [];
         break;
       case 'priceRange':
@@ -2697,6 +2725,7 @@ export default function ItemsScreen({
            itemFilters.status.length > 0 ||
            itemFilters.colour.length > 0 ||
            itemFilters.size.length > 0 ||
+           itemFilters.partner.length > 0 ||
            itemFilters.priceRange[0] !== 0 ||
            itemFilters.priceRange[1] !== 1000 ||
            itemFilters.sortBy !== 'date-desc';
@@ -3226,6 +3255,7 @@ export default function ItemsScreen({
                         <col style={{ width: '6.5rem' }} /> {/* Days in store */}
                         <col style={{ width: '7.5rem' }} /> {/* Price */}
                         <col style={{ width: '7.5rem' }} /> {/* Status */}
+                        <col style={{ width: '5rem' }} /> {/* Expired flag */}
                       </colgroup>
                       <thead className="bg-surface-container">
                         <tr className="border-b border-outline-variant">
@@ -3250,6 +3280,9 @@ export default function ItemsScreen({
                           <SortableHeader field="daysInStore" label="Days in store" align="right" />
                           <SortableHeader field="price" label="Price" align="right" />
                           <SortableHeader field="status" label="Status" />
+                          <th className="px-3 py-3 text-left title-small text-on-surface">
+                            <span>Expired</span>
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-surface">
@@ -3325,6 +3358,19 @@ export default function ItemsScreen({
                                   );
                                 })()}
                               </td>
+                              <td className="px-3 py-3 align-middle">
+                                {item.isExpired ? (
+                                  <span
+                                    className="inline-flex items-center justify-center"
+                                    title="Expired flag"
+                                    aria-label="Expired flag"
+                                  >
+                                    <Flag className="w-4 h-4 text-on-warning-container" fill="var(--warning-container)" strokeWidth={2} />
+                                  </span>
+                                ) : (
+                                  <span className="text-on-surface-variant">—</span>
+                                )}
+                              </td>
                             </tr>
                           );
                         })}
@@ -3369,6 +3415,7 @@ export default function ItemsScreen({
         onApplyFilters={setItemFilters}
         onResetFilters={handleClearAllFilters}
         brandOptions={availableBrandOptions}
+        partnerOptions={availablePartnerOptions}
       />
       
       {/* Item Details Dialog */}

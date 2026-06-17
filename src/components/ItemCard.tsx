@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Edit3, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw, MapPin } from "lucide-react";
+import { Edit3, XCircle, Package, Store, ShoppingBag, AlertTriangle, Ban, RotateCcw, MapPin, Flag } from "lucide-react";
 import type { StatusHistoryEntry } from './ItemDetailsDialog';
 import { useIsListRowBumped } from './ui/list-row-card';
 import { getStatusTextColor } from '../utils/statusColors';
@@ -631,7 +631,16 @@ export const ItemCard = memo(function ItemCard({
   const availableActions = getAvailableActions();
   
   return (
-    <div className="w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
+    <div className="relative w-full bg-surface-container hover:bg-surface-container-high border-b border-outline-variant last:border-b-0 transition-colors">
+      {item.isExpired && (
+        <span
+          className="absolute top-2 right-2 z-10 flex items-center justify-center pointer-events-none"
+          title="Expired flag"
+          aria-label="Expired flag"
+        >
+          <Flag className="w-4 h-4 text-on-warning-container" fill="var(--warning-container)" strokeWidth={2} />
+        </span>
+      )}
       {/* M3 List Item - Based on Figma Design */}
       <div className="flex items-center px-1 py-3 gap-3">
 
@@ -659,7 +668,7 @@ export const ItemCard = memo(function ItemCard({
         )}
 
         {/* Thumbnail */}
-        <div className={`flex-shrink-0 ${bumped ? 'w-16 h-24' : 'w-12 h-[68px]'} bg-[rgba(0,0,0,0.08)] rounded flex items-center justify-center overflow-hidden ${!showSelection ? 'ml-3' : ''}`}>
+        <div className={`flex-shrink-0 ${bumped ? 'w-16 h-24' : 'w-12 h-[68px]'} bg-[rgba(0,0,0,0.08)] rounded flex items-center justify-center overflow-hidden ${!showSelection ? 'ml-3' : '-ml-2'}`}>
           <ImageWithFallback
             src={thumbnailSrc}
             alt={item.title || item.brand}
@@ -674,7 +683,7 @@ export const ItemCard = memo(function ItemCard({
           onClick={() => handlePrimaryAction?.(item)}
         >
           {/* Line 1: Date • Status • Days (Available only) */}
-          <div className="flex items-center gap-1 mb-0.5 flex-nowrap whitespace-nowrap">
+          <div className={`flex items-center gap-1 mb-0.5 ${item.isExpired ? 'flex-wrap pr-6' : 'flex-nowrap whitespace-nowrap'}`}>
             <div className={`${bumped ? 'label-medium' : 'label-small'} text-on-surface-variant whitespace-nowrap flex-shrink-0`}>
               {item.date || '2022-06-09'}
             </div>
