@@ -1117,7 +1117,7 @@ export default function PriceForkCalibrationScreen({
             Brand:
           </Label>
           <Select value={selectedBrandId} onValueChange={handleBrandChange}>
-            <SelectTrigger id="brand-select" className="w-48 bg-surface-container-high border-outline rounded-lg h-[44px]">
+            <SelectTrigger id="brand-select" className="w-48 bg-surface-container-high border-outline rounded-lg min-h-[48px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1230,7 +1230,7 @@ export default function PriceForkCalibrationScreen({
                         step={parameter.step}
                         value={Number(value)}
                         onChange={(event) => handleParameterChange(parameter.id, Number(event.target.value))}
-                        className="bg-surface-container-high border-outline rounded-lg h-[44px]"
+                        className="bg-surface-container-high border-outline rounded-lg min-h-[48px]"
                       />
                     )}
                   </div>
@@ -1463,7 +1463,7 @@ export default function PriceForkCalibrationScreen({
                               }
                             >
                               <SelectTrigger
-                                className="w-[300px] min-w-[300px] max-w-[300px] shrink-0 bg-surface-container-high border-outline rounded-lg h-[44px] whitespace-nowrap overflow-hidden"
+                                className="w-[300px] min-w-[300px] max-w-[300px] shrink-0 bg-surface-container-high border-outline rounded-lg min-h-[48px] whitespace-nowrap overflow-hidden"
                                 style={{ width: 300, minWidth: 300, maxWidth: 300 }}
                               >
                                 <SelectValue className="block w-full whitespace-nowrap overflow-hidden text-ellipsis" />

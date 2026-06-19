@@ -300,7 +300,7 @@ function BoxesList({
   }
 
   return (
-    <Card className={`mx-4 md:mx-6 mb-4 ${isPartnerPortal ? 'bg-transparent' : 'bg-surface-container'} border border-outline-variant overflow-hidden`}>
+    <Card className="mx-4 md:mx-6 mb-4 bg-surface-container border border-outline-variant overflow-hidden">
       <CardContent className="p-0">
         <div className="divide-y divide-outline-variant">
           {boxes.map((box) => (

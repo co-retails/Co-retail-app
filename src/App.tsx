@@ -1429,11 +1429,22 @@ export default function App() {
               boxes: updatedDeliveryNote.boxes
             }
           });
+        } else if (updatedDeliveryNote && detailsScreenData?.type === 'order' && detailsScreenData.data.id === deliveryNote.orderId) {
+          // When registering a box while creating a delivery note from an order,
+          // refresh the displayed boxes so the box's 'registered' status (and label)
+          // shows immediately instead of staying on the stale 'packing' pill.
+          setDetailsScreenData(prev => {
+            if (!prev || prev.type !== 'order') return prev;
+            return {
+              ...prev,
+              initialBoxes: [...updatedDeliveryNote.boxes]
+            };
+          });
         }
-        
+
         return updatedNotes;
       });
-      
+
       // Update selectedDeliveryNoteBox if it exists and contains this box
       if (selectedDeliveryNoteBox && selectedDeliveryNoteBox.box.id === boxId) {
         setSelectedDeliveryNoteBox(prev => prev ? {
@@ -3566,7 +3577,7 @@ export default function App() {
       })()}
 
       {/* Delivery Note Creation Screen */}
-      {currentScreen === 'delivery-note-creation' && detailsScreenData && (detailsScreenData.type === 'order' || (detailsScreenData.type === 'shipment' && ((detailsScreenData.data as DeliveryNote).status === 'draft' || (detailsScreenData.data as DeliveryNote).status === 'packing'))) && (() => {
+      {(currentScreen === 'delivery-note-creation' || (currentScreen === 'delivery-note-box-details' && selectedDeliveryNoteBox?.previousScreen === 'delivery-note-creation')) && detailsScreenData && (detailsScreenData.type === 'order' || (detailsScreenData.type === 'shipment' && ((detailsScreenData.data as DeliveryNote).status === 'draft' || (detailsScreenData.data as DeliveryNote).status === 'packing'))) && (() => {
         const isShipment = detailsScreenData.type === 'shipment';
         const orderData = isShipment ? null : detailsScreenData.data as PartnerOrder;
         const deliveryNoteData = isShipment ? detailsScreenData.data as DeliveryNote : null;

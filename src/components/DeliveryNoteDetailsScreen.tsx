@@ -557,7 +557,7 @@ export default function DeliveryNoteDetailsScreen({
         </div>
 
         {boxes.length > 0 ? (
-          <Card className="mb-4 bg-transparent border border-outline-variant overflow-hidden">
+          <Card className="mb-4 bg-surface-container border border-outline-variant overflow-hidden">
             <CardContent className="p-0">
               <div className="divide-y divide-outline-variant">
                 {boxes.map((box) => {

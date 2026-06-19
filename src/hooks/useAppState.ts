@@ -38,6 +38,7 @@ export type Screen =
   | 'receive' 
   | 'delivery-details'
   | 'box-details'
+  | 'delivery-note-creation'
   | 'delivery-note-box-details'
   | 'partner-selection' 
   | 'return-management' 

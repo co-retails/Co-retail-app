@@ -1,5 +1,6 @@
 import { OrderItem } from '../components/OrderCreationScreen';
 import { MASTER_VALUES_DEMO } from '../data/masterValuesDemo';
+import { getPriceOptionsForCurrency } from '../data/partnerPricing';
 
 // Valid dropdown values for validation
 export const VALID_VALUES = {
@@ -134,6 +135,41 @@ export interface ThriftedImportOptions {
   existingItems?: OrderItem[];
   chunkSize?: number;
   onProgress?: (progress: ThriftedImportProgress) => void;
+  /**
+   * Partner + currency context for price validation. When provided, imported
+   * prices are validated against the partner's pricing ladder for each row's
+   * brand (mirroring the manual price dropdown) instead of the brand-agnostic
+   * Weekday fallback list.
+   */
+  partnerId?: string;
+  currency?: string;
+}
+
+/** Partner + currency context threaded into per-row Thrifted validation. */
+interface ThriftedPricingContext {
+  partnerId?: string;
+  currency?: string;
+}
+
+/**
+ * Valid prices for a Thrifted row's brand. Mirrors the price dropdown in
+ * ItemDetailsTable: prefer the partner pricing ladder for the brand/currency,
+ * falling back to the master Thrifted SEK list when no ladder applies.
+ */
+function getValidThriftedPrices(
+  brandName: string | undefined,
+  pricing?: ThriftedPricingContext
+): number[] {
+  const partnerId = pricing?.partnerId;
+  const currency = pricing?.currency;
+  let opts =
+    partnerId && currency
+      ? getPriceOptionsForCurrency(partnerId, brandName, currency)
+      : [];
+  if (opts.length === 0 && (currency === 'SEK' || !currency)) {
+    opts = [...THRIFTED_VALID_VALUES.prices];
+  }
+  return opts;
 }
 
 export interface ThriftedTemplateAvailability {
@@ -404,24 +440,35 @@ export function stripCurrentOrderConflictsFromThriftedImport(
 
 function buildBaseThriftedOrderItem(
   row: Record<string, string>,
-  rowNumber: number
+  rowNumber: number,
+  pricing?: ThriftedPricingContext
 ): OrderItem {
-  const validation = validateThriftedItemData(row, rowNumber);
-  const subcategory = row['Subcategory*']?.trim() || row['Subcategory']?.trim() || '';
+  const validation = validateThriftedItemData(row, rowNumber, pricing);
+  const subcategory = row['Sub Category']?.trim() || row['Subcategory*']?.trim() || row['Subcategory']?.trim() || '';
   const category = mapSubcategoryToCategory(subcategory) || '';
+
+  // "Item Id" is the mandatory item identifier; "External ID" is the partner's
+  // own optional reference (kept on both partnerItemId and sku, as in manual entry).
+  const itemIdValue =
+    (row['Item Id']?.trim() || row['Item ID']?.trim() ||
+      row['Retailer ID*']?.trim() || row['Retailer ID']?.trim() || row['SKU']?.trim()) || '';
+  const externalIdValue = (row['External ID']?.trim() || row['External Id']?.trim()) || '';
+  const conditionValue = row['Condition']?.trim() || '';
 
   return {
     id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-    itemId: row['SKU']?.trim() || '',
-    sku: row['SKU']?.trim() || '',
-    retailerItemId: (row['Retailer ID*']?.trim() || row['Retailer ID']?.trim()) || '',
-    brand: (row['Brand*']?.trim() || row['Brand']?.trim() || row['Item brand*']?.trim() || row['Item brand']?.trim()) || '',
+    itemId: itemIdValue,
+    retailerItemId: itemIdValue,
+    sku: externalIdValue || undefined,
+    partnerItemId: externalIdValue || undefined,
+    brand: (row['Brand']?.trim() || row['Brand*']?.trim() || row['Item brand*']?.trim() || row['Item brand']?.trim()) || '',
     category,
     subcategory,
-    size: (row['Size*']?.trim() || row['Size']?.trim()) || '',
-    color: (row['Color*']?.trim() || row['Color']?.trim()) || '',
-    gender: (row['Gender*']?.trim() || row['Gender']?.trim()) || '',
-    price: parseFloat(row['Price (SEK)*'] || row['Price (SEK)'] || '0') || 0,
+    size: (row['Size']?.trim() || row['Size*']?.trim()) || '',
+    color: (row['Color']?.trim() || row['Color*']?.trim()) || '',
+    gender: (row['Gender']?.trim() || row['Gender*']?.trim()) || '',
+    condition: conditionValue || undefined,
+    price: parseFloat(row['Sales Price'] || row['Price (SEK)*'] || row['Price (SEK)'] || '0') || 0,
     status: 'draft',
     errors: validation.errors,
     fieldErrors: validation.fieldErrors,
@@ -477,13 +524,14 @@ function addDuplicateErrorsToThriftedOrderItem(
 
 function buildThriftedImportItems(
   csvRows: Array<Record<string, string>>,
-  existingItems: OrderItem[] = []
+  existingItems: OrderItem[] = [],
+  pricing?: ThriftedPricingContext
 ): OrderItem[] {
   const tracking = createDuplicateTrackingContext(existingItems);
 
   return csvRows.map((row, index) => {
     const rowNumber = index + 2;
-    const baseItem = buildBaseThriftedOrderItem(row, rowNumber);
+    const baseItem = buildBaseThriftedOrderItem(row, rowNumber, pricing);
     return addDuplicateErrorsToThriftedOrderItem(baseItem, rowNumber, tracking);
   });
 }
@@ -661,16 +709,19 @@ export const TEMPLATE_COLUMNS = [
   { key: 'price', label: 'Price (SEK)*', mandatory: true }
 ];
 
-// Thrifted column definitions - partners only fill in subcategory, category is auto-mapped
+// Thrifted column definitions - partners only fill in subcategory, category is auto-mapped.
+// "Item Id" is the mandatory item identifier; "External ID" is the partner's own optional
+// reference. Category is derived from Sub Category, so it is not a template column.
 export const THRIFTED_TEMPLATE_COLUMNS = [
-  { key: 'sku', label: 'SKU*', mandatory: true },
-  { key: 'retailerItemId', label: 'Retailer ID*', mandatory: true },
-  { key: 'brand', label: 'Item brand*', mandatory: true },
-  { key: 'subcategory', label: 'Subcategory*', mandatory: true },
-  { key: 'size', label: 'Size*', mandatory: true },
-  { key: 'color', label: 'Color*', mandatory: true },
-  { key: 'gender', label: 'Gender*', mandatory: true },
-  { key: 'price', label: 'Price (SEK)*', mandatory: true }
+  { key: 'itemId', label: 'Item Id', mandatory: true },
+  { key: 'externalId', label: 'External ID', mandatory: false },
+  { key: 'brand', label: 'Brand', mandatory: true },
+  { key: 'subcategory', label: 'Sub Category', mandatory: true },
+  { key: 'size', label: 'Size', mandatory: true },
+  { key: 'color', label: 'Color', mandatory: true },
+  { key: 'condition', label: 'Condition', mandatory: false },
+  { key: 'gender', label: 'Gender', mandatory: false },
+  { key: 'price', label: 'Sales Price', mandatory: true }
 ];
 
 /**
@@ -698,18 +749,10 @@ export function generateTemplateCSV(): string {
  * Generate CSV template for Thrifted bulk upload
  */
 export function generateThriftedTemplateCSV(): string {
+  // Header-only template: column names with no pre-filled example rows.
   const headers = THRIFTED_TEMPLATE_COLUMNS.map(col => col.label).join(',');
-  const exampleRow = 'THR-001,RET-12345,Levi\'s,Tops,M,Blue,Women,150';
-  const allSubcategories = getAllThriftedSubcategories();
-  const validationRow = `# Thrifted Order Template - Valid values:
-# Subcategory: ${allSubcategories.join(', ')}
-# Gender: ${THRIFTED_VALID_VALUES.genders.join(', ')}
-# Color: ${THRIFTED_VALID_VALUES.colors.join(', ')}
-# Price (SEK): ${THRIFTED_VALID_VALUES.prices.join(', ')}
-# Note: All fields marked with * are required (Retailer ID* and Price (SEK)* are mandatory)
-# Note: Category is automatically mapped from Subcategory`;
-  
-  return `${validationRow}\n\n${headers}\n${exampleRow}`;
+
+  return `${headers}\n`;
 }
 
 /**
@@ -865,68 +908,82 @@ export function convertToOrderItems(csvRows: Array<Record<string, string>>): { i
  * Validate Thrifted item data
  * For Thrifted, partners only fill in subcategory, category is auto-mapped
  */
-export function validateThriftedItemData(item: Record<string, string>, rowNumber: number): { 
-  valid: boolean; 
+export function validateThriftedItemData(
+  item: Record<string, string>,
+  rowNumber: number,
+  pricing?: ThriftedPricingContext
+): {
+  valid: boolean;
   errors: string[];
   fieldErrors: Record<string, string>;
 } {
   const errors: string[] = [];
   const fieldErrors: Record<string, string> = {};
-  
-  // Required field validation - SKU
-  if (!item['SKU']?.trim()) {
-    const error = 'SKU is required';
-    errors.push(`Row ${rowNumber}: ${error}`);
-    fieldErrors.sku = error;
-  }
-  
-  // Required field validation - Retailer ID (mandatory)
-  if (!item['Retailer ID*']?.trim() && !item['Retailer ID']?.trim()) {
-    const error = 'Retailer ID is required';
+
+  // Column reads. New template labels first, with legacy labels as fallback so
+  // older files still import. "Item Id" is the mandatory identifier; "External ID"
+  // is the partner's own optional reference.
+  const itemIdValue =
+    item['Item Id']?.trim() || item['Item ID']?.trim() ||
+    item['Retailer ID*']?.trim() || item['Retailer ID']?.trim() || item['SKU']?.trim();
+  const brandValue =
+    item['Brand']?.trim() || item['Brand*']?.trim() ||
+    item['Item brand*']?.trim() || item['Item brand']?.trim();
+  const subcategory =
+    item['Sub Category']?.trim() || item['Subcategory*']?.trim() || item['Subcategory']?.trim();
+  const sizeValue = item['Size']?.trim() || item['Size*']?.trim();
+  const color = item['Color']?.trim() || item['Color*']?.trim();
+  const condition = item['Condition']?.trim();
+  const gender = item['Gender']?.trim() || item['Gender*']?.trim();
+  const priceStr =
+    item['Sales Price']?.trim() || item['Price (SEK)*']?.trim() || item['Price (SEK)']?.trim();
+
+  // Required - Item Id (mandatory item identifier)
+  if (!itemIdValue) {
+    const error = 'Item Id is required';
     errors.push(`Row ${rowNumber}: ${error}`);
     fieldErrors.retailerItemId = error;
   }
-  
-  // Required field validation - Item brand
-  const brandValue = item['Brand*']?.trim() || item['Brand']?.trim() || item['Item brand*']?.trim() || item['Item brand']?.trim();
+
+  // External ID is the partner's own optional reference - no validation.
+
+  // Required - Brand
   if (!brandValue) {
-    const error = 'Item brand is required';
+    const error = 'Brand is required';
     errors.push(`Row ${rowNumber}: ${error}`);
     fieldErrors.brand = error;
   }
-  
-  // Required field validation - Subcategory (partners fill this, category is auto-mapped)
-  const subcategory = item['Subcategory*']?.trim() || item['Subcategory']?.trim();
+
+  // Required - Sub Category (partners fill this, category is auto-mapped)
   if (!subcategory) {
-    const error = 'Subcategory is required';
+    const error = 'Sub Category is required';
     errors.push(`Row ${rowNumber}: ${error}`);
     fieldErrors.subcategory = error;
   } else {
     const allSubcategories = getAllThriftedSubcategories();
     if (!allSubcategories.includes(subcategory)) {
-      const error = `Invalid subcategory. Must be one of: ${allSubcategories.join(', ')}`;
+      const error = `Invalid sub category. Must be one of: ${allSubcategories.join(', ')}`;
       errors.push(`Row ${rowNumber}: ${error}`);
       fieldErrors.subcategory = error;
     } else {
       // Auto-map subcategory to category
       const mappedCategory = mapSubcategoryToCategory(subcategory);
       if (!mappedCategory) {
-        const error = `Subcategory "${subcategory}" does not map to a valid category`;
+        const error = `Sub category "${subcategory}" does not map to a valid category`;
         errors.push(`Row ${rowNumber}: ${error}`);
         fieldErrors.subcategory = error;
       }
     }
   }
-  
-  // Required field validation - Size
-  if (!item['Size*']?.trim() && !item['Size']?.trim()) {
+
+  // Required - Size
+  if (!sizeValue) {
     const error = 'Size is required';
     errors.push(`Row ${rowNumber}: ${error}`);
     fieldErrors.size = error;
   }
-  
-  // Required field validation - Color
-  const color = item['Color*']?.trim() || item['Color']?.trim();
+
+  // Required - Color
   if (!color) {
     const error = 'Color is required';
     errors.push(`Row ${rowNumber}: ${error}`);
@@ -936,38 +993,41 @@ export function validateThriftedItemData(item: Record<string, string>, rowNumber
     errors.push(`Row ${rowNumber}: ${error}`);
     fieldErrors.color = error;
   }
-  
-  // Required field validation - Gender
-  const gender = item['Gender*']?.trim() || item['Gender']?.trim();
-  if (!gender) {
-    const error = 'Gender is required';
+
+  // Optional - Condition (validated against the master condition list when provided)
+  const validConditions = MASTER_VALUES_DEMO.conditions as readonly string[];
+  if (condition && !validConditions.includes(condition)) {
+    const error = `Invalid condition. Must be one of: ${validConditions.join(', ')}`;
     errors.push(`Row ${rowNumber}: ${error}`);
-    fieldErrors.gender = error;
-  } else if (!THRIFTED_VALID_VALUES.genders.includes(gender)) {
+    fieldErrors.condition = error;
+  }
+
+  // Optional - Gender (validated against valid genders when provided)
+  if (gender && !THRIFTED_VALID_VALUES.genders.includes(gender)) {
     const error = `Invalid gender. Must be one of: ${THRIFTED_VALID_VALUES.genders.join(', ')}`;
     errors.push(`Row ${rowNumber}: ${error}`);
     fieldErrors.gender = error;
   }
-  
-  // Required field validation - Price (mandatory)
-  const priceStr = item['Price (SEK)*']?.trim() || item['Price (SEK)']?.trim();
+
+  // Required - Sales Price (validated against the partner pricing ladder; decimals allowed)
   if (!priceStr) {
-    const error = 'Price is required';
+    const error = 'Sales Price is required';
     errors.push(`Row ${rowNumber}: ${error}`);
     fieldErrors.price = error;
   } else {
     const price = parseFloat(priceStr);
+    const validPrices = getValidThriftedPrices(brandValue, pricing);
     if (isNaN(price) || price <= 0) {
-      const error = 'Price must be a positive number';
+      const error = 'Sales Price must be a positive number';
       errors.push(`Row ${rowNumber}: ${error}`);
       fieldErrors.price = error;
-    } else if (!THRIFTED_VALID_VALUES.prices.includes(price)) {
-      const error = `Invalid price. Must be one of: ${THRIFTED_VALID_VALUES.prices.join(', ')}`;
+    } else if (!validPrices.includes(price)) {
+      const error = `Invalid sales price. Must be one of: ${validPrices.join(', ')}`;
       errors.push(`Row ${rowNumber}: ${error}`);
       fieldErrors.price = error;
     }
   }
-  
+
   return { valid: errors.length === 0, errors, fieldErrors };
 }
 
@@ -977,10 +1037,13 @@ export function validateThriftedItemData(item: Record<string, string>, rowNumber
  */
 export function convertToThriftedOrderItems(
   csvRows: Array<Record<string, string>>,
-  options: Pick<ThriftedImportOptions, 'existingItems' | 'chunkSize'> = {}
+  options: Pick<ThriftedImportOptions, 'existingItems' | 'chunkSize' | 'partnerId' | 'currency'> = {}
 ): Pick<ThriftedImportResult, 'items' | 'errors' | 'summary' | 'duplicates'> {
   const chunkSize = options.chunkSize ?? THRIFTED_IMPORT_CHUNK_SIZE;
-  const items = buildThriftedImportItems(csvRows, options.existingItems ?? []);
+  const items = buildThriftedImportItems(csvRows, options.existingItems ?? [], {
+    partnerId: options.partnerId,
+    currency: options.currency,
+  });
   const snapshot = summarizeThriftedImport(items, csvRows.length, chunkSize);
 
   return {
@@ -1002,6 +1065,10 @@ export async function processMockThriftedImport(
 ): Promise<ThriftedImportResult> {
   const chunkSize = options.chunkSize ?? THRIFTED_IMPORT_CHUNK_SIZE;
   const existingItems = options.existingItems ?? [];
+  const pricing: ThriftedPricingContext = {
+    partnerId: options.partnerId,
+    currency: options.currency,
+  };
   const tracking = createDuplicateTrackingContext(existingItems);
   const items: OrderItem[] = [];
 
@@ -1012,7 +1079,7 @@ export async function processMockThriftedImport(
 
     chunk.forEach((row, index) => {
       const rowNumber = start + index + 2;
-      const baseItem = buildBaseThriftedOrderItem(row, rowNumber);
+      const baseItem = buildBaseThriftedOrderItem(row, rowNumber, pricing);
       items.push(addDuplicateErrorsToThriftedOrderItem(baseItem, rowNumber, tracking));
     });
 
@@ -1068,17 +1135,18 @@ export function exportThriftedItemsToCSV(items: OrderItem[]): string {
   const headers = THRIFTED_TEMPLATE_COLUMNS.map(col => col.label).join(',');
   const rows = items.map(item => {
     return [
-      item.sku || item.itemId || '',
-      item.retailerItemId || '',
+      item.retailerItemId || item.itemId || '', // Item Id
+      item.partnerItemId || item.sku || '', // External ID (partner's own reference)
       item.brand || '',
       item.subcategory || '', // Export subcategory, not category
       item.size || '',
       item.color || '',
+      item.condition || '',
       item.gender || '',
-      item.price.toString()
+      item.price.toString() // Sales Price
     ].join(',');
   });
-  
+
   return `${headers}\n${rows.join('\n')}`;
 }
 

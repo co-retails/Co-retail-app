@@ -21,6 +21,7 @@ export function GoalEditDialog({
 }) {
   const [newGoal, setNewGoal] = useState((currentGoal || '').toString());
   const [isOpen, setIsOpen] = useState(false);
+  const [showError, setShowError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
 
@@ -28,6 +29,7 @@ export function GoalEditDialog({
   useEffect(() => {
     if (isOpen) {
       setNewGoal((currentGoal || '').toString());
+      setShowError(false);
       // Small delay to ensure sheet is fully rendered before focusing
       setTimeout(() => {
         inputRef.current?.focus();
@@ -42,15 +44,21 @@ export function GoalEditDialog({
   }, [isOpen, currentGoal, isMobile]);
 
   const handleSave = () => {
-    const goalValue = parseInt(newGoal);
-    if (goalValue > 0 && !isNaN(goalValue)) {
-      onGoalUpdate(goalValue);
-      setIsOpen(false);
+    const trimmed = newGoal.trim();
+    const goalValue = Number(trimmed);
+    const isValid =
+      trimmed !== '' && Number.isInteger(goalValue) && goalValue >= 1 && goalValue <= 1000;
+    if (!isValid) {
+      setShowError(true);
+      return;
     }
+    onGoalUpdate(goalValue);
+    setIsOpen(false);
   };
 
   const handleCancel = () => {
     setNewGoal((currentGoal || '').toString());
+    setShowError(false);
     setIsOpen(false);
   };
 
@@ -89,12 +97,25 @@ export function GoalEditDialog({
               ref={inputRef}
               type="number"
               value={newGoal}
-              onChange={(e) => setNewGoal(e.target.value)}
+              onChange={(e) => {
+                setNewGoal(e.target.value);
+                setShowError(false);
+              }}
               placeholder="Enter goal"
-              className="bg-surface-container-high border border-outline text-on-surface min-h-[48px] text-base touch-manipulation"
+              aria-invalid={showError}
+              aria-describedby={showError ? 'goal-input-error' : undefined}
+              className={`bg-surface-container-high text-on-surface min-h-[48px] text-base touch-manipulation ${
+                showError ? 'border-2 border-error' : 'border border-outline'
+              }`}
               min="1"
+              max="1000"
               inputMode="numeric"
             />
+            {showError && (
+              <p id="goal-input-error" className="label-medium text-error">
+                Input needs to be a number between 1-1000
+              </p>
+            )}
           </div>
         </div>
 

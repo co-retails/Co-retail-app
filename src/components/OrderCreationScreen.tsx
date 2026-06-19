@@ -35,6 +35,8 @@ export interface OrderItem {
   color: string;
   /** Material / fabric composition; always optional. */
   material?: string;
+  /** Item condition (e.g. New, Very good, Good, Acceptable); optional. */
+  condition?: string;
   price: number;
   purchasePrice?: number;
   status?: 'error' | 'pending' | 'scanned' | 'draft' | 'in-transit';

@@ -64,6 +64,8 @@ export interface ItemDetails {
   /** Multiple product photos (e.g. Sellpy partner items). Shown as a horizontal-scroll gallery, up to 5. */
   images?: string[];
   daysRemaining?: number;
+  /** When true the item has expired; days remaining is shown as 0 and an "Expired" pill is shown on the image. */
+  isExpired?: boolean;
   source?: string;
   orderNumber?: string;
   lastInStoreAt?: string;
@@ -648,10 +650,12 @@ function SellpyImageCarousel({
   images,
   alt,
   onBack,
+  isExpired = false,
 }: {
   images: string[];
   alt: string;
   onBack: () => void;
+  isExpired?: boolean;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -703,11 +707,18 @@ function SellpyImageCarousel({
         ))}
       </div>
 
-      {/* Counter pill (bottom-right) */}
-      <div className="absolute bottom-4 right-4 z-20 rounded-full bg-black/50 px-2 py-1 pointer-events-none">
-        <span className="label-small text-white">
-          {activeIndex + 1} / {images.length}
-        </span>
+      {/* Expired pill + counter pill (bottom-right) */}
+      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 pointer-events-none">
+        {isExpired && (
+          <div className="rounded-full bg-warning-container px-3 py-1">
+            <span className="label-small text-on-warning-container">Expired</span>
+          </div>
+        )}
+        <div className="rounded-full bg-black/50 px-2 py-1">
+          <span className="label-small text-white">
+            {activeIndex + 1} / {images.length}
+          </span>
+        </div>
       </div>
 
       {/* Dot indicators (bottom-center) */}
@@ -979,6 +990,10 @@ export default function ItemDetailsDialog({
   // Show the gallery only for Sellpy items with >1 photo and when the user hasn't just uploaded a replacement.
   const showImageCarousel = isSellpyItem && !uploadedImage && galleryImages.length > 1;
   const hasNoImage = !displayImage;
+
+  // Expired items have no time left: force days remaining to 0 and surface an "Expired" pill on the image.
+  const isItemExpired = Boolean(item.isExpired);
+  const effectiveDaysRemaining = isItemExpired ? 0 : item.daysRemaining;
 
   const formatPriceValue = (amount?: number) => {
     if (amount === undefined || amount === null || Number.isNaN(amount)) {
@@ -1283,6 +1298,7 @@ export default function ItemDetailsDialog({
               images={galleryImages}
               alt={item.title || item.brand}
               onBack={closeWithThriftedFlush}
+              isExpired={isItemExpired}
             />
           ) : displayImage ? (
             <div className="relative w-full aspect-square bg-surface-container-high">
@@ -1301,6 +1317,11 @@ export default function ItemDetailsDialog({
                 alt={item.title || item.brand}
                 className="w-full h-full object-cover"
               />
+              {isItemExpired && (
+                <div className="absolute bottom-4 right-4 z-20 rounded-full bg-warning-container px-3 py-1 pointer-events-none">
+                  <span className="label-small text-on-warning-container">Expired</span>
+                </div>
+              )}
             </div>
           ) : (
             /* No image - back arrow in top left */
@@ -1503,13 +1524,13 @@ export default function ItemDetailsDialog({
                   </div>
 
                   {/* Days Remaining */}
-                  {item.daysRemaining !== undefined && (
+                  {effectiveDaysRemaining !== undefined && (
                     <div className="flex items-center gap-3">
                       <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
                       <div className="flex-1">
                         <p className="label-small text-on-surface-variant">Days remaining</p>
                         <p className="body-large text-on-surface">
-                          {item.daysRemaining} {item.daysRemaining === 1 ? 'day' : 'days'}
+                          {effectiveDaysRemaining} {effectiveDaysRemaining === 1 ? 'day' : 'days'}
                           {expireTimeWeeks !== undefined && (
                             <span className="body-medium text-on-surface-variant ml-2">
                               ({expireTimeWeeks} {expireTimeWeeks === 1 ? 'week' : 'weeks'})
@@ -1581,13 +1602,13 @@ export default function ItemDetailsDialog({
                     </div>
                   </div>
 
-                  {item.daysRemaining !== undefined && (
+                  {effectiveDaysRemaining !== undefined && (
                     <div className="flex items-center gap-3">
                       <Clock className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
                       <div className="flex-1">
                         <p className="label-small text-on-surface-variant">Days remaining</p>
                         <p className="body-large text-on-surface">
-                          {item.daysRemaining} {item.daysRemaining === 1 ? 'day' : 'days'}
+                          {effectiveDaysRemaining} {effectiveDaysRemaining === 1 ? 'day' : 'days'}
                           {expireTimeWeeks !== undefined && (
                             <span className="body-medium text-on-surface-variant ml-2">
                               ({expireTimeWeeks} {expireTimeWeeks === 1 ? 'week' : 'weeks'})

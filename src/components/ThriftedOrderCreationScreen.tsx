@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { Store, Brand, Country, StoreSelection } from './StoreSelector';
 import { Partner, type Warehouse } from './PartnerWarehouseSelector';
-import { getCurrencyFromCountry } from '../data/partnerPricing';
+import { getCurrencyFromCountry, getPriceOptionsForCurrency } from '../data/partnerPricing';
 import { OrderItem } from './OrderCreationScreen';
 import { 
   generateThriftedTemplateCSV, 
@@ -39,6 +39,7 @@ import {
   mapSubcategoryToCategory,
   getAllThriftedSubcategoriesForBrand,
   getThriftedValidValues,
+  THRIFTED_VALID_VALUES,
   THRIFTED_IMPORT_CHUNK_SIZE,
   getThriftedTemplateAvailability,
   hasDuplicateFieldErrors,
@@ -201,6 +202,25 @@ export default function ThriftedOrderCreationScreen({
       })),
     [filteredItems]
   );
+
+  // Mirror the price dropdown's option source so any price the user can pick is
+  // always accepted by validation. The ItemDetailsTable dropdown builds its
+  // options from the partner pricing ladder (getPriceOptionsForCurrency, keyed
+  // off the first item's brand) and falls back to the master Thrifted SEK list.
+  // Validating against this exact same set avoids false "Select valid price"
+  // errors for prices that legitimately appear in the dropdown.
+  const validPriceSet = useMemo(() => {
+    const firstItemBrand = tableItemsForDisplay[0]?.brand;
+    let opts =
+      partnerIdForPricing && selectedCurrency
+        ? getPriceOptionsForCurrency(partnerIdForPricing, firstItemBrand, selectedCurrency)
+        : [];
+    if (opts.length === 0 && (selectedCurrency === 'SEK' || !selectedCurrency)) {
+      opts = [...THRIFTED_VALID_VALUES.prices];
+    }
+    return new Set<number>(opts);
+  }, [partnerIdForPricing, selectedCurrency, tableItemsForDisplay]);
+
   const brandSuggestions = useMemo(() => {
     const suggestionSet = new Set<string>();
     brands.forEach((brand) => suggestionSet.add(brand.name));
@@ -379,6 +399,8 @@ export default function ThriftedOrderCreationScreen({
         existingItems: orderItems,
         chunkSize: THRIFTED_IMPORT_CHUNK_SIZE,
         onProgress: setUploadProgress,
+        partnerId: partnerIdForPricing,
+        currency: selectedCurrency,
       });
       const replacePreview = stripCurrentOrderConflictsFromThriftedImport(appendPreview);
 
@@ -588,7 +610,7 @@ export default function ThriftedOrderCreationScreen({
       // Price is mandatory - mark clearly
       if (actualField === 'price') {
         const numValue = typeof actualValue === 'string' ? parseFloat(actualValue) : actualValue;
-        if (numValue && numValue > 0 && thriftedValidValues.prices.includes(numValue)) {
+        if (numValue && numValue > 0 && validPriceSet.has(numValue)) {
           delete fieldErrors.price;
         } else if (!numValue || numValue <= 0) {
           fieldErrors.price = 'Required (Mandatory)';
