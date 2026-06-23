@@ -1138,6 +1138,7 @@ export default function ThriftedOrderCreationScreen({
                 showPurchasePrice={false}
                 showPrice={true}
                 showStatus={true}
+                showMaterial={false} // Thrifted is not Sellpy; Material is a Sellpy-only attribute
                 isEditable={canEditItems}
                 onUpdateItem={handleUpdateItem}
                 onDeleteItem={canEditItems ? handleDeleteItem : undefined}

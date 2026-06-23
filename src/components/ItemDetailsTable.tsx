@@ -190,6 +190,7 @@ interface ItemDetailsTableProps {
   showPurchasePrice?: boolean;
   showMargin?: boolean; // Show margin % per item row
   showStatus?: boolean;
+  showMaterial?: boolean; // Show Material column (Sellpy-only attribute; hidden for other partners)
   isEditable?: boolean;
   onUpdateItem?: (itemId: string, field: keyof ItemDetailsTableItem, value: any) => void;
   onDeleteItem?: (itemId: string) => void;
@@ -337,6 +338,7 @@ export function ItemDetailsTable({
   showPurchasePrice = false,
   showMargin = false,
   showStatus = false,
+  showMaterial = false,
   isEditable = false,
   onUpdateItem,
   onDeleteItem,
@@ -604,9 +606,9 @@ export function ItemDetailsTable({
       { key: 'color', width: '6.5rem' },
       // Gender is always optional, sourced from per-brand portal config attribute values.
       { key: 'gender', width: '6.5rem' },
-      // Material is always optional, so it gets a column on every order-details table.
-      { key: 'material', width: '8.5rem' },
     );
+    // Material is a Sellpy-only attribute; only show the column for Sellpy orders.
+    if (showMaterial) cols.push({ key: 'material', width: '8.5rem' });
     if (showPurchasePrice) cols.push({ key: 'purchase', width: '6.5rem' });
     if (showPrice) cols.push({ key: 'price', width: '7.5rem' });
     if (showMargin) cols.push({ key: 'margin', width: '4.5rem' });
@@ -620,6 +622,7 @@ export function ItemDetailsTable({
     showPrice,
     showMargin,
     showStatus,
+    showMaterial,
     isEditable,
     onDeleteItem,
   ]);
@@ -771,9 +774,11 @@ export function ItemDetailsTable({
                 <th className="px-3 py-3 text-left">
                   <span className="label-medium text-on-surface">Gender</span>
                 </th>
-                <th className="px-3 py-3 text-left">
-                  <span className="label-medium text-on-surface">Material</span>
-                </th>
+                {showMaterial && (
+                  <th className="px-3 py-3 text-left">
+                    <span className="label-medium text-on-surface">Material</span>
+                  </th>
+                )}
                 {showPurchasePrice && (
                   <th className="px-3 py-3 text-right">
                     <span className="label-medium text-on-surface">Purchase Price</span>
@@ -1194,36 +1199,38 @@ export function ItemDetailsTable({
                 )}
               </td>
 
-              {/* Material — always optional; blank is valid and never blocks registration */}
-              <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
-                {isEditable && onUpdateItem ? (
-                  <DesktopEditFieldWithHint>
-                    <Select
-                      value={item.material || undefined}
-                      onValueChange={(value: string) => onUpdateItem(item.id, 'material', value)}
-                    >
-                      <SelectTrigger
-                        className={`${DESKTOP_SELECT_TRIGGER} h-9 body-medium border-outline-variant focus:border-primary bg-surface-container`}
+              {/* Material — Sellpy-only attribute; column hidden for other partners */}
+              {showMaterial && (
+                <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
+                  {isEditable && onUpdateItem ? (
+                    <DesktopEditFieldWithHint>
+                      <Select
+                        value={item.material || undefined}
+                        onValueChange={(value: string) => onUpdateItem(item.id, 'material', value)}
                       >
-                        <SelectValue placeholder="Optional" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SORTED_AVAILABLE_MATERIALS.map((material) => (
-                          <SelectItem
-                            key={material}
-                            value={material}
-                            className="body-medium min-h-[48px] touch-manipulation py-3 md:min-h-0 md:py-1.5"
-                          >
-                            {material}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </DesktopEditFieldWithHint>
-                ) : (
-                  <span className="body-medium text-on-surface">{item.material || '—'}</span>
-                )}
-              </td>
+                        <SelectTrigger
+                          className={`${DESKTOP_SELECT_TRIGGER} h-9 body-medium border-outline-variant focus:border-primary bg-surface-container`}
+                        >
+                          <SelectValue placeholder="Optional" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SORTED_AVAILABLE_MATERIALS.map((material) => (
+                            <SelectItem
+                              key={material}
+                              value={material}
+                              className="body-medium min-h-[48px] touch-manipulation py-3 md:min-h-0 md:py-1.5"
+                            >
+                              {material}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </DesktopEditFieldWithHint>
+                  ) : (
+                    <span className="body-medium text-on-surface">{item.material || '—'}</span>
+                  )}
+                </td>
+              )}
 
               {/* Purchase Price */}
               {showPurchasePrice && (
@@ -1367,6 +1374,7 @@ export function ItemDetailsTable({
         priceOptions={priceOptions}
         priceCurrency={displayCurrency}
         enableThriftedPartnerItemDialog={thriftedPartnerTable}
+        showMaterial={showMaterial}
         brandAutocompleteOptions={mergedBrandSuggestions}
         partnerMobileActions={partnerMobileActions}
       />

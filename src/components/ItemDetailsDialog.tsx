@@ -96,6 +96,8 @@ interface ItemDetailsDialogProps {
   onRequestRejectReason?: (item: ItemDetails) => void;
   /** Thrifted partner draft items: read-only Draft/In transit, Thrifted value lists, brand typeahead */
   enableThriftedPartnerItemDialog?: boolean;
+  /** Show the Material field. When omitted, defaults to Sellpy items only (material is a Sellpy-only attribute). */
+  showMaterial?: boolean;
   brandAutocompleteOptions?: string[];
   /** Mobile Thrifted item sheet: Done closes; Next opens the following row (parent handles state). */
   partnerMobileActions?: {
@@ -752,6 +754,7 @@ export default function ItemDetailsDialog({
   userRole,
   onRequestRejectReason,
   enableThriftedPartnerItemDialog = false,
+  showMaterial,
   brandAutocompleteOptions = [],
   partnerMobileActions,
 }: ItemDetailsDialogProps) {
@@ -986,6 +989,9 @@ export default function ItemDetailsDialog({
   // Sellpy partner items can carry multiple photos shown in a horizontal-scroll gallery (cap at 5).
   const galleryImages = (Array.isArray(item.images) ? item.images.filter(Boolean) : []).slice(0, 5);
   const isSellpyItem = item.source === 'Sellpy Operations' || item.source === 'Sellpy';
+  // Material is a Sellpy-only attribute. Callers can override via showMaterial; otherwise
+  // it's shown only for Sellpy items so other partners never see the Material field.
+  const shouldShowMaterial = showMaterial ?? isSellpyItem;
   const displayImage = uploadedImage || item.image || item.thumbnail || galleryImages[0];
   // Show the gallery only for Sellpy items with >1 photo and when the user hasn't just uploaded a replacement.
   const showImageCarousel = isSellpyItem && !uploadedImage && galleryImages.length > 1;
@@ -1492,14 +1498,16 @@ export default function ItemDetailsDialog({
                     options={SORTED_AVAILABLE_COLORS}
                   />
 
-                  <EditableField
-                    field="material"
-                    label="Material"
-                    value={item.material}
-                    icon={Shirt}
-                    type="select"
-                    options={SORTED_AVAILABLE_MATERIALS}
-                  />
+                  {shouldShowMaterial && (
+                    <EditableField
+                      field="material"
+                      label="Material"
+                      value={item.material}
+                      icon={Shirt}
+                      type="select"
+                      options={SORTED_AVAILABLE_MATERIALS}
+                    />
+                  )}
 
                   {userRole === 'admin' && (
                     <EditableField

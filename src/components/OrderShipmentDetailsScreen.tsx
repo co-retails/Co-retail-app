@@ -1511,7 +1511,7 @@ export default function OrderShipmentDetailsScreen({
                       size="sm"
                       onClick={() => setValidationFilter('all')}
                     >
-                      <span className="label-medium">All ({allItems.length})</span>
+                      <span className="label-large">All ({allItems.length})</span>
                     </Button>
                     {itemsWithErrors > 0 && (
                       <Button
@@ -1520,7 +1520,7 @@ export default function OrderShipmentDetailsScreen({
                         onClick={() => setValidationFilter('errors')}
                       >
                         <AlertTriangleIcon size={14} className="mr-1" />
-                        <span className="label-medium">Missing/Errors ({itemsWithErrors})</span>
+                        <span className="label-large">Missing/Errors ({itemsWithErrors})</span>
                       </Button>
                     )}
                     <Button
@@ -1529,7 +1529,7 @@ export default function OrderShipmentDetailsScreen({
                       onClick={() => setValidationFilter('valid')}
                     >
                       <CheckIcon size={14} className="mr-1" />
-                      <span className="label-medium">Valid ({validItems})</span>
+                      <span className="label-large">Valid ({validItems})</span>
                     </Button>
                   </div>
                 ) : (
@@ -1683,6 +1683,7 @@ export default function OrderShipmentDetailsScreen({
                     showPurchasePrice={type !== 'return' && (isApprovalOrder || (isSellpyOrder && isAdmin))} // Show purchase price for Approval orders or Sellpy orders for Admins, but NOT for returns
                     showMargin={type !== 'return' && (isApprovalOrder || (isSellpyOrder && isAdmin))} // Show margin % for approval orders or Sellpy orders for Admins
                     showStatus={type === 'return'}
+                    showMaterial={isSellpyOrder} // Material is a Sellpy-only attribute; hidden for other partners
                     isEditable={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin)} // Allow editing for Thrifted pending orders or pending/approval orders (Admins only)
                     onUpdateItem={handleUpdateItemAttribute}
                     onDeleteItem={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin) ? handleDeleteItem : undefined}

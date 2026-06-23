@@ -453,7 +453,6 @@ function buildBaseThriftedOrderItem(
     (row['Item Id']?.trim() || row['Item ID']?.trim() ||
       row['Retailer ID*']?.trim() || row['Retailer ID']?.trim() || row['SKU']?.trim()) || '';
   const externalIdValue = (row['External ID']?.trim() || row['External Id']?.trim()) || '';
-  const conditionValue = row['Condition']?.trim() || '';
 
   return {
     id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
@@ -467,8 +466,7 @@ function buildBaseThriftedOrderItem(
     size: (row['Size']?.trim() || row['Size*']?.trim()) || '',
     color: (row['Color']?.trim() || row['Color*']?.trim()) || '',
     gender: (row['Gender']?.trim() || row['Gender*']?.trim()) || '',
-    condition: conditionValue || undefined,
-    price: parseFloat(row['Sales Price'] || row['Price (SEK)*'] || row['Price (SEK)'] || '0') || 0,
+    price: parseFloat(row['Price'] || row['Sales Price'] || row['Price (SEK)*'] || row['Price (SEK)'] || '0') || 0,
     status: 'draft',
     errors: validation.errors,
     fieldErrors: validation.fieldErrors,
@@ -719,9 +717,9 @@ export const THRIFTED_TEMPLATE_COLUMNS = [
   { key: 'subcategory', label: 'Sub Category', mandatory: true },
   { key: 'size', label: 'Size', mandatory: true },
   { key: 'color', label: 'Color', mandatory: true },
-  { key: 'condition', label: 'Condition', mandatory: false },
   { key: 'gender', label: 'Gender', mandatory: false },
-  { key: 'price', label: 'Sales Price', mandatory: true }
+  { key: 'purchasePrice', label: 'Purchase Price', mandatory: false },
+  { key: 'price', label: 'Price', mandatory: true }
 ];
 
 /**
@@ -933,10 +931,10 @@ export function validateThriftedItemData(
     item['Sub Category']?.trim() || item['Subcategory*']?.trim() || item['Subcategory']?.trim();
   const sizeValue = item['Size']?.trim() || item['Size*']?.trim();
   const color = item['Color']?.trim() || item['Color*']?.trim();
-  const condition = item['Condition']?.trim();
   const gender = item['Gender']?.trim() || item['Gender*']?.trim();
   const priceStr =
-    item['Sales Price']?.trim() || item['Price (SEK)*']?.trim() || item['Price (SEK)']?.trim();
+    item['Price']?.trim() || item['Sales Price']?.trim() ||
+    item['Price (SEK)*']?.trim() || item['Price (SEK)']?.trim();
 
   // Required - Item Id (mandatory item identifier)
   if (!itemIdValue) {
@@ -994,14 +992,6 @@ export function validateThriftedItemData(
     fieldErrors.color = error;
   }
 
-  // Optional - Condition (validated against the master condition list when provided)
-  const validConditions = MASTER_VALUES_DEMO.conditions as readonly string[];
-  if (condition && !validConditions.includes(condition)) {
-    const error = `Invalid condition. Must be one of: ${validConditions.join(', ')}`;
-    errors.push(`Row ${rowNumber}: ${error}`);
-    fieldErrors.condition = error;
-  }
-
   // Optional - Gender (validated against valid genders when provided)
   if (gender && !THRIFTED_VALID_VALUES.genders.includes(gender)) {
     const error = `Invalid gender. Must be one of: ${THRIFTED_VALID_VALUES.genders.join(', ')}`;
@@ -1009,20 +999,20 @@ export function validateThriftedItemData(
     fieldErrors.gender = error;
   }
 
-  // Required - Sales Price (validated against the partner pricing ladder; decimals allowed)
+  // Required - Price (validated against the partner pricing ladder; decimals allowed)
   if (!priceStr) {
-    const error = 'Sales Price is required';
+    const error = 'Price is required';
     errors.push(`Row ${rowNumber}: ${error}`);
     fieldErrors.price = error;
   } else {
     const price = parseFloat(priceStr);
     const validPrices = getValidThriftedPrices(brandValue, pricing);
     if (isNaN(price) || price <= 0) {
-      const error = 'Sales Price must be a positive number';
+      const error = 'Price must be a positive number';
       errors.push(`Row ${rowNumber}: ${error}`);
       fieldErrors.price = error;
     } else if (!validPrices.includes(price)) {
-      const error = `Invalid sales price. Must be one of: ${validPrices.join(', ')}`;
+      const error = `Invalid price. Must be one of: ${validPrices.join(', ')}`;
       errors.push(`Row ${rowNumber}: ${error}`);
       fieldErrors.price = error;
     }
@@ -1141,9 +1131,9 @@ export function exportThriftedItemsToCSV(items: OrderItem[]): string {
       item.subcategory || '', // Export subcategory, not category
       item.size || '',
       item.color || '',
-      item.condition || '',
       item.gender || '',
-      item.price.toString() // Sales Price
+      item.purchasePrice != null ? item.purchasePrice.toString() : '', // Purchase Price (optional)
+      item.price.toString() // Price
     ].join(',');
   });
 
