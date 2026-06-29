@@ -45,6 +45,12 @@ interface ItemFilterSheetProps {
   onResetFilters: () => void;
   brandOptions?: string[];
   partnerOptions?: string[];
+  /**
+   * Status values to omit from the status filter options (case-insensitive).
+   * Used to keep back-office-only statuses (e.g. Draft, In transit) out of the
+   * store app's filter for store users.
+   */
+  hiddenStatuses?: readonly string[];
 }
 
 const DEFAULT_BRAND_OPTIONS = ['Nike', 'Adidas', 'H&M', 'Zara', 'Uniqlo', "Levi's"];
@@ -106,7 +112,8 @@ export default function ItemFilterSheet({
   onApplyFilters,
   onResetFilters,
   brandOptions,
-  partnerOptions
+  partnerOptions,
+  hiddenStatuses
 }: ItemFilterSheetProps) {
   const [localFilters, setLocalFilters] = useState<ItemFilters>(filters);
   const [isMobile, setIsMobile] = React.useState(false);
@@ -178,8 +185,13 @@ export default function ItemFilterSheet({
     []
   );
   const statusPickerOptions: MultiPickerOption[] = useMemo(
-    () => FILTER_STATUS_VALUES.map(s => ({ id: s, label: s })),
-    []
+    () => {
+      const hiddenSet = new Set((hiddenStatuses ?? []).map(s => s.toLowerCase()));
+      return FILTER_STATUS_VALUES
+        .filter(s => !hiddenSet.has(s.toLowerCase()))
+        .map(s => ({ id: s, label: s }));
+    },
+    [hiddenStatuses]
   );
   const colourPickerOptions: MultiPickerOption[] = useMemo(
     () => FILTER_COLOUR_VALUES.map(c => ({ id: c, label: c })),

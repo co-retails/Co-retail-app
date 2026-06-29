@@ -664,7 +664,7 @@ export default function OrderDetailsScreen({
             {(order.status === 'pending' || order.status === 'draft') && canAddRetailerIds && (
               <Button 
                 onClick={handleStartScanning} 
-                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[56px] h-[56px] flex-1 md:flex-none" 
+                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[48px] h-[48px] flex-1 md:flex-none" 
                 size="lg"
               >
                 <QrCodeIcon size={20} className="mr-2 flex-shrink-0" />
@@ -676,7 +676,7 @@ export default function OrderDetailsScreen({
             {canRegister && (
               <Button 
                 onClick={onRegisterOrder} 
-                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[56px] h-[56px] flex-1 md:flex-none" 
+                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[48px] h-[48px] flex-1 md:flex-none" 
                 size="lg"
               >
                 <CheckIcon size={20} className="mr-2 flex-shrink-0" />
@@ -688,7 +688,7 @@ export default function OrderDetailsScreen({
             {order.status === 'registered' && onCreateDeliveryNote && (
               <Button 
                 onClick={() => onCreateDeliveryNote(orderId)} 
-                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[56px] h-[56px] flex-1 md:flex-none" 
+                className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors rounded-lg px-6 py-3 min-h-[48px] h-[48px] flex-1 md:flex-none" 
                 size="lg"
               >
                 <PackageIcon size={20} className="mr-2 flex-shrink-0" />

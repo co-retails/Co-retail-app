@@ -3408,7 +3408,7 @@ export default function ItemsScreen({
       </div>
       
       {/* Item Filter Sheet */}
-      <ItemFilterSheet 
+      <ItemFilterSheet
         open={showFilterSheet}
         onOpenChange={setShowFilterSheet}
         filters={itemFilters}
@@ -3416,6 +3416,7 @@ export default function ItemsScreen({
         onResetFilters={handleClearAllFilters}
         brandOptions={availableBrandOptions}
         partnerOptions={availablePartnerOptions}
+        hiddenStatuses={!isPartnerPortal ? STORE_HIDDEN_STATUSES : undefined}
       />
       
       {/* Item Details Dialog */}
@@ -3429,6 +3430,7 @@ export default function ItemsScreen({
         priceCurrency={partnerPriceOptions.length ? 'SEK' : undefined}
         expireTimeWeeks={expireTimeWeeks}
         userRole={userRole}
+        hiddenStatuses={!isPartnerPortal ? STORE_HIDDEN_STATUSES : undefined}
         onRequestRejectReason={(item) => {
           setItemToReject(items.find(i => i.id === item.id) ?? (item as Item));
           setShowRejectSheet(true);

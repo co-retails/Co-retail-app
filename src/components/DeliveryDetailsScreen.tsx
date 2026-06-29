@@ -202,21 +202,18 @@ function BoxCardRow({
   box,
   onSelect,
   onMarkDelivered,
-  onMarkRejected,
   canScan,
   isAdmin = false,
 }: {
   box: Box;
   onSelect: () => void;
   onMarkDelivered?: () => void;
-  onMarkRejected?: () => void;
   canScan: boolean;
   isAdmin?: boolean;
   isPartnerPortal?: boolean;
 }) {
   const showMarkDelivered = isAdmin && canScan && box.status === 'In transit' && onMarkDelivered;
-  const showMarkRejected = isAdmin && canScan && box.status === 'In transit' && onMarkRejected;
-  const showMenu = showMarkDelivered || showMarkRejected;
+  const showMenu = Boolean(showMarkDelivered);
 
   const menuSlot = showMenu ? (
     <DropdownMenu>
@@ -241,17 +238,6 @@ function BoxCardRow({
             <span className="body-medium text-on-surface">Mark as delivered</span>
           </DropdownMenuItem>
         )}
-        {showMarkRejected && (
-          <DropdownMenuItem
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              onMarkRejected?.();
-            }}
-            className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-          >
-            <span className="body-medium">Mark as Rejected</span>
-          </DropdownMenuItem>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   ) : null;
@@ -272,7 +258,6 @@ function BoxesList({
   boxes,
   onSelectBox,
   onMarkBoxDelivered,
-  onMarkBoxRejected,
   canScan,
   isAdmin = false,
   isPartnerPortal = false
@@ -280,7 +265,6 @@ function BoxesList({
   boxes: Box[];
   onSelectBox: (box: Box) => void;
   onMarkBoxDelivered?: (boxId: string) => void;
-  onMarkBoxRejected?: (boxId: string) => void;
   canScan: boolean;
   isAdmin?: boolean;
   isPartnerPortal?: boolean;
@@ -309,7 +293,6 @@ function BoxesList({
               box={box}
               onSelect={() => onSelectBox(box)}
               onMarkDelivered={onMarkBoxDelivered ? () => onMarkBoxDelivered(box.id) : undefined}
-              onMarkRejected={onMarkBoxRejected ? () => onMarkBoxRejected(box.id) : undefined}
               canScan={canScan}
               isAdmin={isAdmin}
               isPartnerPortal={isPartnerPortal}
@@ -349,12 +332,6 @@ export default function DeliveryDetailsScreen({
     }
   };
 
-  const handleMarkBoxRejected = (boxId: string) => {
-    if (onUpdateBoxStatus) {
-      onUpdateBoxStatus(boxId, 'Rejected');
-    }
-  };
-
   return (
     <div className="bg-surface min-h-screen flex flex-col">
       {/* Top App Bar */}
@@ -387,7 +364,6 @@ export default function DeliveryDetailsScreen({
           boxes={boxes}
           onSelectBox={onSelectBox}
           onMarkBoxDelivered={isAdmin && canScan ? handleMarkBoxDelivered : undefined}
-          onMarkBoxRejected={isAdmin && canScan ? handleMarkBoxRejected : undefined}
           canScan={canScan}
           isAdmin={isAdmin}
           isPartnerPortal={isPartnerPortal}

@@ -507,7 +507,6 @@ function ReturnDeliveryComponent({
   stores,
   brands,
   warehouses,
-  userRole
 }: {
   returnDelivery: ReturnDelivery;
   onUpdateStatus?: (deliveryId: string, status: 'Returned') => void;
@@ -515,19 +514,18 @@ function ReturnDeliveryComponent({
   stores?: StoreRecord[];
   brands?: BrandRecord[];
   warehouses?: Warehouse[];
+  // userRole is still accepted from call sites but no longer used here, since the
+  // inline "Mark as returned" action was moved to the return details screen.
   userRole?: ShippingUserRole;
 }) {
   const fonts = useListRowFonts();
 
   const { sender, receiver } = resolveReturnDeliveryParties(returnDelivery, stores, brands, warehouses);
 
-  const handleMarkAsReturned = () => {
-    if (onUpdateStatus) {
-      onUpdateStatus(returnDelivery.id, 'Returned');
-    }
-  };
-
-  // Use div wrapper when there are action buttons to avoid nested buttons
+  // The "Mark as returned" action now lives only on the return details screen
+  // (fixed bottom bar), so the list row itself has no inline action button.
+  // Keep the div-wrapper/content-click handling for non-returned rows to preserve
+  // the existing tap behavior that opens the details screen.
   const hasActionButton = returnDelivery.status !== 'Returned' && !!onUpdateStatus;
   const ComponentWrapper = onClick && !hasActionButton ? 'button' : 'div';
   
@@ -624,24 +622,6 @@ function ReturnDeliveryComponent({
             size="lg"
             className="hidden lg:inline-flex"
           />
-
-          {/* Mark as Returned button - Only show for partners, not store staff */}
-          {returnDelivery.status !== 'Returned' && returnDelivery.status !== 'Pending' && onUpdateStatus && userRole === 'partner' && (
-            <button 
-              onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
-                e.stopPropagation();
-                e.preventDefault();
-                handleMarkAsReturned();
-              }}
-              onTouchEnd={(e: React.TouchEvent) => {
-                e.stopPropagation();
-                e.preventDefault();
-              }}
-              className="px-4 py-2 bg-primary text-on-primary rounded-lg label-medium hover:bg-primary/90 transition-colors min-h-[44px] touch-manipulation"
-            >
-              Mark as returned
-            </button>
-          )}
 
           {/* Navigation Arrow - Show when clickable (on mobile) */}
           {onClick && (
@@ -2261,7 +2241,6 @@ useEffect(() => {
                               <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
                             </>
                           )}
-                          <th className="px-4 py-3 text-right title-small text-on-surface"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2304,19 +2283,6 @@ useEffect(() => {
                                 onClick={() => onOpenReturnDetails?.(returnDelivery, activeTab, returnStatusFilter)}
                               >
                                 <StatusBadge status={returnDelivery.status} size="lg" />
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                {returnDelivery.status !== 'Returned' && onUpdateReturnDeliveryStatus && role === 'partner' && (
-                                  <button 
-                                    className="px-4 py-2 bg-primary text-on-primary rounded-lg label-medium hover:bg-primary/90 transition-colors min-h-[44px]"
-                                    onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
-                                      e.stopPropagation();
-                                      onUpdateReturnDeliveryStatus(returnDelivery.id, 'Returned');
-                                    }}
-                                  >
-                                    Mark as returned
-                                  </button>
-                                )}
                               </td>
                             </tr>
                           );

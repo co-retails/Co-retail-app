@@ -59,14 +59,6 @@ export function PortalConfigurationLanding({
       icon: Sparkles,
       disabled: false,
       screen: 'price-fork-calibration'
-    },
-    {
-      id: 'purchase-price-converter',
-      title: 'Purchase price currency converter',
-      description: 'Convert purchase prices from EUR to sales price currency',
-      icon: DollarSign,
-      disabled: !isAdmin,
-      screen: 'purchase-price-converter'
     }
   ];
 

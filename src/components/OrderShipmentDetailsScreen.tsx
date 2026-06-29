@@ -1730,7 +1730,7 @@ export default function OrderShipmentDetailsScreen({
                   <Button 
                     onClick={onNavigateToRetailerIdScan}
                     size="lg"
-                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                    className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px] h-[48px]"
                   >
                     <PackageIcon size={20} className="mr-2" />
                     <span className="label-large">Add retailer IDs</span>
@@ -1745,7 +1745,7 @@ export default function OrderShipmentDetailsScreen({
                     onClick={handleSaveAndClose}
                     variant="outline"
                     size="lg"
-                    className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
+                    className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[48px]"
                   >
                     <span className="label-large">Save & Close</span>
                   </Button>
@@ -1758,7 +1758,7 @@ export default function OrderShipmentDetailsScreen({
                         }
                       }}
                       size="lg"
-                      className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg h-[56px]"
+                      className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg h-[48px]"
                     >
                       <CheckIcon size={20} className="mr-2" />
                       <span className="label-large">Approve</span>
@@ -1777,7 +1777,7 @@ export default function OrderShipmentDetailsScreen({
                         onClick={() => onRegisterOrder({ lineItems: allItems })}
                         disabled={!canRegister}
                         size="lg"
-                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px] h-[48px]"
                       >
                         <CheckIcon size={20} className="mr-2" />
                         <span className="label-large">Register order</span>
@@ -1791,7 +1791,7 @@ export default function OrderShipmentDetailsScreen({
                       <Button 
                         onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
                         size="lg"
-                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                        className="w-full md:w-auto bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px] h-[48px]"
                       >
                         <PackageIcon size={20} className="mr-2" />
                         <span className="label-large">Create delivery note</span>
@@ -1816,7 +1816,7 @@ export default function OrderShipmentDetailsScreen({
                       onClick={handleSaveAndClose}
                       variant="outline"
                       size="lg"
-                      className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
+                      className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[48px]"
                     >
                       <span className="label-large">Save & Close</span>
                     </Button>
@@ -1831,7 +1831,7 @@ export default function OrderShipmentDetailsScreen({
                         }}
                         disabled={!canRegister}
                         size="lg"
-                        className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
+                        className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[48px]"
                       >
                         <CheckIcon size={20} className="mr-2" />
                         <span className="label-large">Register order</span>
@@ -1844,7 +1844,7 @@ export default function OrderShipmentDetailsScreen({
                   <Button
                     onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
                     size="lg"
-                    className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                    className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px] h-[48px]"
                   >
                     <PackageIcon size={20} className="mr-2" />
                     <span className="label-large">Create delivery note</span>
@@ -1860,7 +1860,7 @@ export default function OrderShipmentDetailsScreen({
                       onClick={handleSaveAndClose}
                       variant="outline"
                       size="lg"
-                      className="shrink-0 min-w-[160px] border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
+                      className="shrink-0 min-w-[160px] border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[48px]"
                     >
                       <span className="label-large">Save & Close</span>
                     </Button>
@@ -1875,7 +1875,7 @@ export default function OrderShipmentDetailsScreen({
                         }}
                         disabled={!canRegister}
                         size="lg"
-                        className="shrink-0 min-w-[180px] bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[56px]"
+                        className="shrink-0 min-w-[180px] bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg h-[48px]"
                       >
                         <CheckIcon size={20} className="mr-2" />
                         <span className="label-large">Register order</span>
@@ -1888,7 +1888,7 @@ export default function OrderShipmentDetailsScreen({
                   <Button
                     onClick={() => onCreateDeliveryNote((data as PartnerOrder).id)}
                     size="lg"
-                    className="shrink-0 min-w-[220px] bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[56px] h-[56px]"
+                    className="shrink-0 min-w-[220px] bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 transition-colors px-6 py-3 rounded-lg min-h-[48px] h-[48px]"
                   >
                     <PackageIcon size={20} className="mr-2" />
                     <span className="label-large">Create delivery note</span>

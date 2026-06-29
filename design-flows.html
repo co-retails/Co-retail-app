@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Digital Showroom MVP — Design Flows</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+  :root {
+    --surface: #ffffff;
+    --surface-container: #fafaf7;
+    --surface-container-high: #f5f5f1;
+    --surface-variant: #f0f0eb;
+    --primary: #2c2c24;
+    --on-primary: #ffffff;
+    --primary-container: #f0f0eb;
+    --tertiary: #669f2a;
+    --tertiary-container: #e5f1d6;
+    --error: #e50010;
+    --error-container: #ffdad6;
+    --on-surface: #2c2c24;
+    --on-surface-variant: #72726c;
+    --outline: #bebeb6;
+    --outline-variant: #dcdcd7;
+    --accent: #4a6fa5;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--surface);
+    color: var(--on-surface);
+    display: flex;
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  /* Sidebar */
+  nav.sidebar {
+    width: 280px;
+    background: var(--surface-container);
+    border-right: 1px solid var(--outline-variant);
+    padding: 24px 16px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  nav.sidebar h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    color: var(--on-surface);
+  }
+  nav.sidebar .subtitle {
+    font-size: 12px;
+    color: var(--on-surface-variant);
+    margin-bottom: 24px;
+  }
+  nav.sidebar .group {
+    margin-bottom: 20px;
+  }
+  nav.sidebar .group-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--on-surface-variant);
+    padding: 0 12px 8px;
+  }
+  nav.sidebar a {
+    display: block;
+    padding: 8px 12px;
+    text-decoration: none;
+    color: var(--on-surface);
+    border-radius: 8px;
+    font-size: 13px;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+  }
+  nav.sidebar a:hover { background: var(--surface-container-high); }
+  nav.sidebar a.active {
+    background: var(--primary-container);
+    border-left-color: var(--primary);
+    font-weight: 600;
+  }
+  /* Main */
+  main {
+    flex: 1;
+    padding: 40px 56px;
+    max-width: 1100px;
+  }
+  h1.page-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+  p.intro {
+    color: var(--on-surface-variant);
+    font-size: 15px;
+    margin: 0 0 32px;
+  }
+  section.feature {
+    margin-bottom: 64px;
+    scroll-margin-top: 24px;
+  }
+  section.feature > header {
+    border-bottom: 2px solid var(--outline-variant);
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+  section.feature h2 {
+    font-size: 24px;
+    margin: 0 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  section.feature h2 .num {
+    background: var(--primary);
+    color: var(--on-primary);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  section.feature .meta {
+    color: var(--on-surface-variant);
+    font-size: 13px;
+  }
+  section.feature h3 {
+    font-size: 17px;
+    margin: 24px 0 8px;
+    font-weight: 600;
+  }
+  .diagram {
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+  .mermaid { text-align: center; }
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--outline-variant);
+    vertical-align: top;
+  }
+  th {
+    background: var(--surface-container-high);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--on-surface-variant);
+  }
+  tr:last-child td { border-bottom: none; }
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .badge.pending { background: #fff4cc; color: #7a5c00; }
+  .badge.progress { background: #d9e7ff; color: #0d3a7a; }
+  .badge.registered { background: var(--tertiary-container); color: #1d350d; }
+  .badge.transit { background: #e0f0ff; color: #0a4a8a; }
+  .badge.delivered { background: var(--tertiary-container); color: #1d350d; }
+  .badge.error { background: var(--error-container); color: #410002; }
+  .badge.draft { background: var(--surface-variant); color: var(--on-surface-variant); }
+  /* Info boxes */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .info-card {
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .info-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--on-surface-variant);
+    margin-bottom: 4px;
+  }
+  .info-card .value {
+    font-size: 14px;
+    color: var(--on-surface);
+  }
+  .callout {
+    background: var(--primary-container);
+    border-left: 4px solid var(--primary);
+    padding: 12px 16px;
+    border-radius: 4px 8px 8px 4px;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  .callout.warn {
+    background: #fff4cc;
+    border-left-color: #c99b00;
+  }
+  .callout.error {
+    background: var(--error-container);
+    border-left-color: var(--error);
+  }
+  code {
+    background: var(--surface-variant);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  }
+  ul.clean { padding-left: 18px; margin: 8px 0; }
+  ul.clean li { margin: 4px 0; }
+  /* TOC overview table */
+  .overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin: 24px 0 40px;
+  }
+  .overview a {
+    display: block;
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    border-radius: 12px;
+    padding: 16px;
+    text-decoration: none;
+    color: var(--on-surface);
+    transition: all 0.15s;
+  }
+  .overview a:hover {
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .overview a .ico {
+    display: inline-block;
+    width: 32px; height: 32px;
+    background: var(--primary-container);
+    border-radius: 8px;
+    line-height: 32px;
+    text-align: center;
+    margin-right: 8px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .overview a .title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .overview a .desc {
+    color: var(--on-surface-variant);
+    font-size: 12px;
+  }
+  @media (max-width: 900px) {
+    nav.sidebar { display: none; }
+    main { padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <h1>Digital Showroom MVP</h1>
+  <div class="subtitle">Design flows per feature</div>
+
+  <div class="group">
+    <div class="group-title">Entry & Navigation</div>
+    <a href="#overview" class="nav-link">Overview</a>
+    <a href="#f1-login" class="nav-link">1. Login & Role switching</a>
+    <a href="#f2-dashboard" class="nav-link">2. Partner dashboard</a>
+  </div>
+
+  <div class="group">
+    <div class="group-title">Order flows</div>
+    <a href="#f3-sellpy" class="nav-link">3. Sellpy order</a>
+    <a href="#f4-thrifted" class="nav-link">4. Thrifted order</a>
+    <a href="#f5-delivery-note" class="nav-link">5. Delivery note creation</a>
+  </div>
+
+  <div class="group">
+    <div class="group-title">Store operations</div>
+    <a href="#f6-receive" class="nav-link">6. Receive delivery</a>
+    <a href="#f7-scan" class="nav-link">7. Scan &amp; status update</a>
+    <a href="#f8-stock-check" class="nav-link">8. Stock check</a>
+    <a href="#f9-returns" class="nav-link">9. Returns</a>
+  </div>
+
+  <div class="group">
+    <div class="group-title">Catalog & reporting</div>
+    <a href="#f10-items" class="nav-link">10. Items management</a>
+    <a href="#f11-sellers" class="nav-link">11. Sellers</a>
+    <a href="#f12-reports" class="nav-link">12. Reports</a>
+  </div>
+</nav>
+
+<main>
+  <h1 class="page-title">Design Flows</h1>
+  <p class="intro">Detailed UX flows for each main user-facing feature in the Digital Showroom MVP. Each flow shows entry points, screens, decision branches, states, and exit paths — extracted directly from the app's source code and feature documentation.</p>
+
+  <section id="overview">
+    <h2 style="font-size:18px; font-weight:600; margin:0 0 12px;">Feature map</h2>
+    <div class="overview">
+      <a href="#f1-login"><span class="ico">1</span><span class="title">Login & Role switching</span><span class="desc">Partner portal sign-in, switching between Store / Partner / Admin views.</span></a>
+      <a href="#f2-dashboard"><span class="ico">2</span><span class="title">Partner dashboard</span><span class="desc">Partner &amp; warehouse selection, stats, quick actions.</span></a>
+      <a href="#f3-sellpy"><span class="ico">3</span><span class="title">Sellpy order flow</span><span class="desc">API-driven, mandatory retailer ID scanning, strict validation.</span></a>
+      <a href="#f4-thrifted"><span class="ico">4</span><span class="title">Thrifted order flow</span><span class="desc">Manual entry or bulk CSV upload, inline retailer ID editing.</span></a>
+      <a href="#f5-delivery-note"><span class="ico">5</span><span class="title">Delivery note creation</span><span class="desc">Packing items into boxes, registering the shipment.</span></a>
+      <a href="#f6-receive"><span class="ico">6</span><span class="title">Receive delivery</span><span class="desc">Store staff scanning boxes into store inventory.</span></a>
+      <a href="#f7-scan"><span class="ico">7</span><span class="title">Scan &amp; status update</span><span class="desc">Scanning items and changing their status in store.</span></a>
+      <a href="#f8-stock-check"><span class="ico">8</span><span class="title">Stock check</span><span class="desc">Physical inventory count session with report.</span></a>
+      <a href="#f9-returns"><span class="ico">9</span><span class="title">Returns</span><span class="desc">Building return to partner, scanning label, confirmation.</span></a>
+      <a href="#f10-items"><span class="ico">10</span><span class="title">Items management</span><span class="desc">Browse, filter, select, bulk edit and archive items.</span></a>
+      <a href="#f11-sellers"><span class="ico">11</span><span class="title">Sellers</span><span class="desc">Find and view sellers (private / B2B).</span></a>
+      <a href="#f12-reports"><span class="ico">12</span><span class="title">Reports</span><span class="desc">Sales, stock, item status, shipping — with filters &amp; export.</span></a>
+    </div>
+  </section>
+
+  <!-- ============== 1. LOGIN & ROLE ============== -->
+  <section id="f1-login" class="feature">
+    <header>
+      <h2><span class="num">1</span>Login &amp; Role switching</h2>
+      <div class="meta">Entry point for all other flows · role-based navigation · Store / Partner / Admin views</div>
+    </header>
+
+    <h3>Flow diagram</h3>
+    <div class="diagram">
+      <div class="mermaid">
+stateDiagram-v2
+  [*] --> AppLoad
+  AppLoad --> Authenticated: session exists
+  AppLoad --> PartnerLogin: no session (partner URL)
+
+  state PartnerLogin {
+    [*] --> EmptyForm
+    EmptyForm --> ValidatingEmail: submit
+    ValidatingEmail --> InvalidEmail: bad format
+    InvalidEmail --> EmptyForm: edit
+    ValidatingEmail --> Authenticated: valid email
+  }
+
+  Authenticated --> RoleContext
+  state RoleContext {
+    [*] --> Store: role=store
+    [*] --> Partner: role=partner
+    [*] --> Admin: role=admin
+    Store --> RoleSwitcherSheet: tap 'Switch view'
+    Partner --> RoleSwitcherSheet: tap 'Switch view'
+    Admin --> RoleSwitcherSheet: tap 'Switch view'
+    RoleSwitcherSheet --> Store: choose Store
+    RoleSwitcherSheet --> Partner: choose Partner
+    RoleSwitcherSheet --> Admin: choose Admin
+  }
+
+  Store --> DeliveryHome: default
+  Partner --> PartnerDashboard: default
+  Admin --> DeliveryHome: default (full access)
+      </div>
+    </div>
+
+    <h3>Key screens &amp; states</h3>
+    <table>
+      <thead><tr><th>Screen</th><th>Purpose</th><th>States / conditions</th></tr></thead>
+      <tbody>
+        <tr><td><code>PartnerPortalLoginScreen</code></td><td>Email-only sign in for the partner portal</td><td>Empty → Validating → Invalid-format error → Signed in</td></tr>
+        <tr><td><code>RoleSwitcherSheet</code></td><td>Bottom sheet (mobile) / right panel (desktop) with three role options</td><td>Active role highlighted; single-tap switch</td></tr>
+        <tr><td><code>DeliveryHomeScreen</code></td><td>Store-staff home (Shipping / Items / Scan / Sellers tiles)</td><td>Default for Store &amp; Admin</td></tr>
+        <tr><td><code>PartnerDashboard</code></td><td>Partner home with warehouse scope and stats</td><td>Default when role = Partner</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">Role defines the entire navigation shape — <code>ResponsiveNavigation</code> only exposes destinations the current role can see. Switching roles re-renders the nav instantly.</div>
+  </section>
+
+  <!-- ============== 2. PARTNER DASHBOARD ============== -->
+  <section id="f2-dashboard" class="feature">
+    <header>
+      <h2><span class="num">2</span>Partner dashboard &amp; warehouse selection</h2>
+      <div class="meta">Scopes every partner-side list and stat · two-step partner → warehouse picker</div>
+    </header>
+
+    <h3>Flow diagram</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  A([Enter as Partner role]) --> B{Partner &amp; warehouse selected?}
+  B -- No --> C[Open PartnerWarehouseSelector sheet]
+  B -- Yes --> D[PartnerDashboard]
+  C --> C1[Step 1: List partners]
+  C1 --> C2[Step 2: List warehouses for chosen partner]
+  C2 --> C3{Warehouse has data?}
+  C3 -- No --> C4[Empty state in warehouse list]
+  C3 -- Yes --> C5[Confirm selection]
+  C5 --> D
+
+  D --> D1[Header: current partner · warehouse · selector button]
+  D --> D2[Stat cards: pending / draft / registered / in-transit]
+  D --> D3[Recent orders list]
+  D --> D4[Quick action tiles]
+
+  D4 --> E1[Create Order]
+  D4 --> E2[View Orders]
+  D4 --> E3[View Boxes]
+  D4 --> E4[View Deliveries]
+  D4 --> E5[View Returns]
+  D4 --> E6[Reports]
+
+  D1 -. tap selector .-> C
+      </div>
+    </div>
+
+    <h3>States &amp; decisions</h3>
+    <ul class="clean">
+      <li><strong>No selection</strong> — selector sheet auto-opens on first visit; dashboard stats hidden.</li>
+      <li><strong>Selected</strong> — dashboard stats, recent orders and lists are filtered to the chosen partner + warehouse.</li>
+      <li><strong>Re-select</strong> — tap selector → can go back from warehouse step to partner step without losing dashboard state.</li>
+      <li><strong>Partner = Thrifted</strong> — "Create Order" opens the <code>ThriftedOrderCreationScreen</code> (manual/bulk). Other partners see "not available" placeholder.</li>
+      <li><strong>Partner = Sellpy Operations</strong> — orders arrive via API; "Create Order" is hidden in favour of "View Orders".</li>
+    </ul>
+  </section>
+
+  <!-- ============== 3. SELLPY ORDER ============== -->
+  <section id="f3-sellpy" class="feature">
+    <header>
+      <h2><span class="num">3</span>Sellpy order flow</h2>
+      <div class="meta">API-created orders · mandatory 2-step retailer ID scanning · strict validation before registration</div>
+    </header>
+
+    <h3>End-to-end state diagram</h3>
+    <div class="diagram">
+      <div class="mermaid">
+stateDiagram-v2
+  [*] --> Pending: POST /api/orders/sellpy
+  Pending --> Pending: fix validation errors\n(PATCH item)
+  Pending --> InProgress: first retailer ID scanned
+  InProgress --> InProgress: more items scanned
+  InProgress --> Registered: all items have retailer ID\n&amp; no errors\n&amp; 'Register order'
+  Registered --> DeliveryNote: 'Create delivery note'
+  DeliveryNote --> InTransit: ship\n(PATCH /ship)
+  InTransit --> Delivered: all boxes scanned at store
+  Delivered --> [*]
+
+  Pending: 🟡 Pending\nitems may have errors
+  InProgress: 🔵 In progress\nsome retailer IDs added
+  Registered: 🟢 Registered\nready to pack
+  InTransit: 🟣 In transit
+  Delivered: ✅ Delivered
+      </div>
+    </div>
+
+    <h3>Detailed UX flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  S[ShippingScreen · Orders tab] --> S1{Pick order}
+  S1 --> OD[OrderDetailsScreen]
+  OD --> OD1{Any items with errors?}
+  OD1 -- Yes --> FIX[Edit item dialog · fix brand / size / color / price]
+  FIX --> OD
+  OD1 -- No --> R{Any items without retailer ID?}
+  R -- Yes --> SCAN[RetailerIdScanScreen]
+  SCAN --> SCAN1[Step 1: scan partner QR]
+  SCAN1 --> SCAN2[Step 2: scan retailer barcode]
+  SCAN2 --> SCAN3{Retailer ID unique?}
+  SCAN3 -- No --> SCAN_ERR[Error · duplicate ID]
+  SCAN_ERR --> SCAN1
+  SCAN3 -- Yes --> SCAN4[Link item · update counter X of Y]
+  SCAN4 --> SCAN5{All scanned?}
+  SCAN5 -- No --> SCAN1
+  SCAN5 -- Yes --> OD
+  R -- No --> REG{Press 'Register order'}
+  REG --> PRD[PostRegistrationDialog]
+  PRD --> CDN[Create delivery note now?]
+  CDN -- Yes --> DNC[DeliveryNoteCreationScreen]
+  CDN -- No --> S
+      </div>
+    </div>
+
+    <h3>Screen-by-screen states</h3>
+    <table>
+      <thead><tr><th>Screen</th><th>Primary states</th><th>CTAs</th></tr></thead>
+      <tbody>
+        <tr><td><code>ShippingScreen</code> · Orders</td><td>Empty · loading · list (filter by status pill)</td><td>Select order</td></tr>
+        <tr><td><code>OrderDetailsScreen</code></td><td>Items with <span class="badge error">error</span> · <span class="badge pending">pending</span> · <span class="badge progress">in-progress</span> · <span class="badge registered">registered</span></td><td>Edit item · Add retailer IDs · Register order</td></tr>
+        <tr><td><code>RetailerIdScanScreen</code></td><td>Camera active · scan 1 / scan 2 · duplicate error · counter "X of Y"</td><td>Complete · Skip item · Register order</td></tr>
+        <tr><td><code>PostRegistrationDialog</code></td><td>Success state with order ID</td><td>Create delivery note · View order list</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn"><strong>Cannot register if:</strong> any item missing retailer ID · any item has validation errors · zero items. Also blocks delivery-note creation.</div>
+  </section>
+
+  <!-- ============== 4. THRIFTED ORDER ============== -->
+  <section id="f4-thrifted" class="feature">
+    <header>
+      <h2><span class="num">4</span>Thrifted order flow</h2>
+      <div class="meta">Manual form entry or bulk CSV upload · retailer IDs entered inline (no scan screen)</div>
+    </header>
+
+    <h3>Mode selection &amp; creation</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  A[PartnerDashboard] --> B[Tap 'Create new order']
+  B --> C[ThriftedOrderCreationScreen · Select mode]
+  C --> C1[Pick receiving store: Brand → Country → Store]
+  C1 --> C2{Creation method}
+  C2 -- Manual --> M[Manual form]
+  C2 -- Bulk CSV --> U[Bulk upload]
+
+  M --> M1[Fill validated dropdowns per item]
+  M1 --> M2[Add item → list grows]
+  M2 --> M3{Filter chip}
+  M3 --> M3a[All]
+  M3 --> M3b[Valid]
+  M3 --> M3c[Errors]
+  M3 --> M3d[Duplicates]
+  M2 --> M4{All valid?}
+  M4 -- No --> M1
+  M4 -- Yes --> F[Choose: Save as Pending  ·  Register Order]
+
+  U --> U0{Template endpoint live?}
+  U0 -- Yes --> U1[Download CSV template]
+  U0 -- No --> U1x[Button disabled · prepare CSV manually]
+  U1 --> U2[Upload CSV]
+  U1x --> U2
+  U2 --> U3{&gt; 1000 rows?}
+  U3 -- Yes --> U3a[Chunked processing · progress bar]
+  U3 -- No --> U3b[Single pass]
+  U3a --> U4
+  U3b --> U4
+  U4[Summary: imported · rejected · skipped · duplicates]
+  U4 --> U5{Current order already has items?}
+  U5 -- Yes --> U5a{Replace or append?}
+  U5 -- No --> F
+  U5a --> F
+
+  F --> G{Register now?}
+  G -- Yes --> REG[Order registered]
+  G -- No --> DR[Order saved · status = pending]
+  REG --> OS[OrderShipmentDetailsScreen]
+  DR --> OS
+      </div>
+    </div>
+
+    <h3>Validation rules</h3>
+    <table>
+      <thead><tr><th>Field</th><th>Rule</th><th>Mandatory</th></tr></thead>
+      <tbody>
+        <tr><td>Item ID</td><td>Unique within order</td><td>Yes</td></tr>
+        <tr><td>Brand</td><td>H&amp;M · WEEKDAY · COS · Monki · Zara · Arket · Other Stories</td><td>Yes</td></tr>
+        <tr><td>Gender</td><td>Men · Women · Kids · Unisex</td><td>Yes</td></tr>
+        <tr><td>Category / Subcategory</td><td>Subcategory must match category</td><td>Yes</td></tr>
+        <tr><td>Size</td><td>XXS–XXL or 28–46 (validated if provided)</td><td>Optional</td></tr>
+        <tr><td>Color</td><td>From fixed list (Black, White, Navy, …)</td><td>Yes</td></tr>
+        <tr><td>Price</td><td>&gt; 0 and ≤ 99 999 SEK</td><td>Yes</td></tr>
+        <tr><td>Purchase price</td><td>≥ 0</td><td>Optional</td></tr>
+        <tr><td>Retailer item ID</td><td>Free text · inline editable later</td><td>Optional</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout"><strong>Key difference from Sellpy:</strong> no <code>RetailerIdScanScreen</code>. Retailer IDs are typed in the form / CSV and can be edited later from the order details screen. Thrifted orders can be registered immediately on create.</div>
+  </section>
+
+  <!-- ============== 5. DELIVERY NOTE ============== -->
+  <section id="f5-delivery-note" class="feature">
+    <header>
+      <h2><span class="num">5</span>Delivery note creation</h2>
+      <div class="meta">Pack registered order items into boxes · register shipment · used by all partners</div>
+    </header>
+
+    <h3>Flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  E1[PostRegistrationDialog: 'Create delivery note'] --> DNC
+  E2[Registered order · OrderShipmentDetailsScreen 'Create delivery note'] --> DNC
+  DNC[DeliveryNoteCreationScreen]
+  DNC --> INFO[Order info card: total · assigned · unassigned · boxes]
+  DNC --> ADDBOX{Add box}
+  ADDBOX -- Scan label --> SB[ActiveScanner · box mode]
+  SB --> SB1{Unique label?}
+  SB1 -- No --> SBERR[Toast: duplicate]
+  SBERR --> ADDBOX
+  SB1 -- Yes --> BOXADDED[Box card created · status=pending]
+  ADDBOX -- Enter manually --> EM[Dialog · type label]
+  EM --> SB1
+  BOXADDED --> ITEMS{Add items to box}
+  ITEMS -- Scan item --> SI[ActiveScanner · item mode]
+  SI --> SI1{Item in order &amp; unassigned?}
+  SI1 -- No --> SIERR[Toast: not in available items]
+  SIERR --> ITEMS
+  SI1 -- Yes --> ASSIGNED[Item moves into box]
+  ITEMS -- Add manually --> MAN[Dialog · multi-select unassigned items]
+  MAN --> ASSIGNED
+  ASSIGNED --> UNALERT{Any unassigned left?}
+  UNALERT -- Yes --> UNWARN[Red alert card · up to 5 shown]
+  UNALERT -- No --> READY[Ready to register]
+  UNWARN --> ITEMS
+  READY --> REG{Register delivery}
+  REG -- Empty box exists --> ERR1[Error: empty boxes]
+  REG -- Unassigned items --> ERR2[Error: items unassigned]
+  REG -- OK --> SUCCESS[DeliveryNote status=registered · Order status=in-transit · back to PartnerDashboard]
+  ERR1 --> ITEMS
+  ERR2 --> ITEMS
+      </div>
+    </div>
+
+    <h3>Validation rules</h3>
+    <ul class="clean">
+      <li>At least one box exists</li>
+      <li>No empty boxes</li>
+      <li>Every order item is assigned to exactly one box</li>
+      <li>No item can be in multiple boxes</li>
+      <li>All items must have <code>retailerItemId</code> (Sellpy: enforced; Thrifted: entered at creation)</li>
+    </ul>
+  </section>
+
+  <!-- ============== 6. RECEIVE DELIVERY ============== -->
+  <section id="f6-receive" class="feature">
+    <header>
+      <h2><span class="num">6</span>Receive delivery (store inbound)</h2>
+      <div class="meta">Store staff scan incoming boxes and register delivery · triggers status → Delivered</div>
+    </header>
+
+    <h3>Flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  A[ShippingScreen · Inbound tab] --> A1{Pick in-transit delivery}
+  A1 --> R[ReceiveDeliveryScreen]
+  R --> R1[Header · delivery ID · expected box count]
+  R --> R2[Tabs: Not scanned · Scanned]
+  R --> S[Sticky scanner]
+  S --> S1{Scan box label}
+  S1 -- Match --> OK[Move box to Scanned tab · counter +1]
+  S1 -- Not in delivery --> ERR[Toast · unknown box]
+  OK --> CHK{All scanned?}
+  CHK -- No --> S1
+  CHK -- Yes --> REG[CTA 'Register delivery' enabled]
+  REG -->|tap| DONE[Delivery status → Delivered · boxes → Delivered]
+  DONE --> BACK[Back to Shipping]
+
+  R --> ADMIN{Admin only}
+  ADMIN --> CANCEL["More menu → Cancel (missing box)"]
+  CANCEL --> CANCELLED[Delivery status → Cancelled]
+      </div>
+    </div>
+
+    <h3>States</h3>
+    <div class="info-grid">
+      <div class="info-card"><div class="label">Initial</div><div class="value">All boxes in "Not scanned" tab · counter shows 0 / N</div></div>
+      <div class="info-card"><div class="label">Partial</div><div class="value">Register button disabled · warning shown if user tries to leave</div></div>
+      <div class="info-card"><div class="label">Complete</div><div class="value">All boxes in "Scanned" tab · CTA enabled</div></div>
+      <div class="info-card"><div class="label">Error</div><div class="value">Scan of unknown box → toast, counter unchanged</div></div>
+      <div class="info-card"><div class="label">Admin override</div><div class="value">Cancel delivery as "Missing box" from kebab menu</div></div>
+    </div>
+  </section>
+
+  <!-- ============== 7. SCAN & STATUS ============== -->
+  <section id="f7-scan" class="feature">
+    <header>
+      <h2><span class="num">7</span>Scan &amp; status update</h2>
+      <div class="meta">General-purpose store scan · update item status (sold, rejected, missing, broken, …)</div>
+    </header>
+
+    <h3>Flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  HOME[DeliveryHomeScreen] --> SCAN[ScanScreen]
+  SCAN --> SS{Scanner tap}
+  SS -->|camera grants| CAM[CameraScanner]
+  SS -->|scan QR / barcode| LOOKUP
+  LOOKUP{Item in system?}
+  LOOKUP -- No --> ERR[Error · try again]
+  LOOKUP -- Yes --> CARD[Item card appears in list]
+  CARD --> SU[Tap 'Change status']
+  SU --> DLG[StatusUpdateDialog]
+  DLG --> DLG1[Choose new status]
+  DLG1 --> COND{New status = Rejected?}
+  COND -- Yes --> RB[RejectedReasonBottomSheet: Broken · Not accepted brand · Not in season · …]
+  COND -- No --> NOTE[Optional note]
+  RB --> NOTE
+  NOTE --> SAVE{Role allowed to set this status?}
+  SAVE -- No --> BLOCK[Disabled · hint]
+  SAVE -- Yes --> CONFIRM[Save → item status updated · removed from list]
+  CONFIRM --> SCAN
+  ERR --> SCAN
+      </div>
+    </div>
+
+    <h3>Status transitions by role</h3>
+    <table>
+      <thead><tr><th>From → To</th><th>Store user</th><th>Partner user</th><th>Admin</th></tr></thead>
+      <tbody>
+        <tr><td>In store → Sold</td><td>✅</td><td>—</td><td>✅</td></tr>
+        <tr><td>In store → Rejected (reason required)</td><td>✅</td><td>—</td><td>✅</td></tr>
+        <tr><td>In store → Missing</td><td>❌ (admin only)</td><td>—</td><td>✅</td></tr>
+        <tr><td>In store → Broken</td><td>❌ (admin only)</td><td>—</td><td>✅</td></tr>
+        <tr><td>Expired → Returned</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== 8. STOCK CHECK ============== -->
+  <section id="f8-stock-check" class="feature">
+    <header>
+      <h2><span class="num">8</span>Stock check</h2>
+      <div class="meta">Physical inventory count session · review discrepancies · generate report</div>
+    </header>
+
+    <h3>Flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+stateDiagram-v2
+  [*] --> NotStarted
+  NotStarted --> InProgress: Start / resume session
+  state InProgress {
+    [*] --> ScanningTab
+    ScanningTab --> ScanningTab: scan item moves Not scanned → Scanned
+    ScanningTab --> MarkNotFound: item flagged not found
+    MarkNotFound --> ScanningTab
+    ScanningTab --> Review: Complete scanning
+    state Review {
+      [*] --> NotScannedList
+      NotScannedList --> UpdateStatus: set Available / Missing / Broken
+      NotScannedList --> NotFoundList: tab switch
+      NotFoundList --> UpdateStatus
+      UpdateStatus --> NotScannedList
+    }
+    Review --> Report: all items resolved
+  }
+  Report --> [*]: Export CSV / done
+
+  NotStarted: Home tile 'Stock check'
+  InProgress: Active session
+  Report: StockCheckReportScreen
+      </div>
+    </div>
+
+    <h3>Key UI elements</h3>
+    <ul class="clean">
+      <li><strong>StockCheckScreen</strong>: tabs (Not scanned · Scanned) · sticky active scanner · counter chips</li>
+      <li><strong>StockCheckReviewScreen</strong>: tabs (Not scanned · Not found · Scanned · All included) · per-item status selector</li>
+      <li><strong>StockCheckReportScreen</strong>: summary card (Total / Scanned / Not scanned / Not found · completion %), CTA "Export CSV"</li>
+    </ul>
+
+    <div class="callout">Items left unresolved in Review block the "Generate report" CTA — the flow forces the user to make a decision on every missing item.</div>
+  </section>
+
+  <!-- ============== 9. RETURNS ============== -->
+  <section id="f9-returns" class="feature">
+    <header>
+      <h2><span class="num">9</span>Returns</h2>
+      <div class="meta">Build a return to a partner, print/scan shipping label, confirmation screen</div>
+    </header>
+
+    <h3>Flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  ENTRY1[ScanScreen · Returns] --> PS[PartnerSelectionScreen]
+  ENTRY2[ShippingScreen · Returns tab] --> PS
+  PS --> PS1{Any partners with returnable items?}
+  PS1 -- No --> EMPTY[Empty state]
+  PS1 -- Yes --> PS2[Pick partner]
+  PS2 --> RB[ReturnBuilderScreen]
+  RB --> RB1[Tab: Not scanned / Scanned]
+  RB1 --> SC{Action}
+  SC -- Scan item --> SCAN[ActiveScanner · item mode]
+  SCAN --> RB2[Item moves to Scanned]
+  SC -- Tap item --> TOG[Toggle selection]
+  SC -- Mark missing --> MISS[Item marked Missing]
+  SC -- Extend expiry --> EXT[Bottom sheet · new expiry]
+  RB2 --> RC{Continue?}
+  TOG --> RC
+  MISS --> RC
+  EXT --> RC
+  RC -- No items --> RBERR[CTA disabled]
+  RC -- At least 1 --> LABEL[ReturnShippingLabelScreen]
+  LABEL --> LS{Scan/enter label}
+  LS -- Invalid --> LERR[Error · retry]
+  LS -- Valid --> LCONF[Label linked · return preview]
+  LCONF --> REGR[Register return]
+  REGR --> CONF[ReturnConfirmationScreen]
+  CONF --> OPT1[View in Shipping]
+  CONF --> OPT2[Back to home]
+      </div>
+    </div>
+
+    <h3>Status transitions</h3>
+    <div class="info-grid">
+      <div class="info-card"><div class="label">Draft</div><div class="value">Return being built · items being toggled</div></div>
+      <div class="info-card"><div class="label">Pending</div><div class="value">Items selected, label not yet scanned</div></div>
+      <div class="info-card"><div class="label">In transit</div><div class="value">Label scanned + return registered</div></div>
+      <div class="info-card"><div class="label">Returned</div><div class="value">Partner confirms receipt</div></div>
+    </div>
+  </section>
+
+  <!-- ============== 10. ITEMS ============== -->
+  <section id="f10-items" class="feature">
+    <header>
+      <h2><span class="num">10</span>Items management</h2>
+      <div class="meta">Browse all items at the selected scope · filter · multi-select · details · bulk edit</div>
+    </header>
+
+    <h3>Flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  HOME[DeliveryHomeScreen] --> IT[ItemsScreen]
+  IT --> L[List · thumbnails · status chips · days remaining]
+  L --> A{Action}
+  A -- Search --> SRCH[Filter by ID / name]
+  A -- Filter button --> FS[ItemFilterSheet]
+  FS --> FS1[Status · Category · Date · Expiry]
+  FS --> FS2[View: by-partner / by-warehouse]
+  FS1 --> L
+  FS2 --> L
+  A -- Tap card --> DD[ItemDetailsDialog · full info · status history · reject reason]
+  DD --> L
+  A -- Select checkbox --> MS[Multi-select mode]
+  MS --> SA[Select-all checkbox]
+  MS --> BE[Bulk edit sheet]
+  MS --> AR[Archive]
+  BE --> BE1[Edit category · price · status for N items]
+  BE1 --> L
+  AR --> L
+  L --> EMP{No items?}
+  EMP -- Yes --> EMPTY[Empty state]
+  L --> NR{No results after search / filter?}
+  NR -- Yes --> EMPR[Empty filtered state]
+      </div>
+    </div>
+
+    <h3>States</h3>
+    <ul class="clean">
+      <li><strong>Loading</strong> — skeleton rows</li>
+      <li><strong>Empty</strong> — no items at this scope</li>
+      <li><strong>Filtered empty</strong> — "No results" with option to clear filters</li>
+      <li><strong>Browse</strong> — default list with search &amp; filter</li>
+      <li><strong>Multi-select</strong> — checkbox → header shows count, Archive + Bulk edit CTAs appear</li>
+      <li><strong>Details open</strong> — dialog overlays; list remains behind</li>
+    </ul>
+  </section>
+
+  <!-- ============== 11. SELLERS ============== -->
+  <section id="f11-sellers" class="feature">
+    <header>
+      <h2><span class="num">11</span>Sellers</h2>
+      <div class="meta">Directory of people who submitted items · split between Private and B2B</div>
+    </header>
+
+    <h3>Flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  HOME[DeliveryHomeScreen] --> SEL[SellersScreen]
+  SEL --> EMP{Any sellers?}
+  EMP -- No --> E0[Empty state · 'Find sellers' · search instruction]
+  EMP -- Yes --> L[Seller list]
+  L --> F{Filter}
+  F -- B2B toggle on --> LB2B[Only B2B sellers]
+  F -- Search --> LS[Matches by name / email / phone]
+  L --> CARD[Seller card: avatar · name · type · item count · last submitted]
+  CARD --> DETAIL[Seller details view]
+  LB2B --> CARD
+  LS --> NR{Any matches?}
+  NR -- No --> EN[Empty filtered state]
+  NR -- Yes --> CARD
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== 12. REPORTS ============== -->
+  <section id="f12-reports" class="feature">
+    <header>
+      <h2><span class="num">12</span>Reports</h2>
+      <div class="meta">Partner reports (Sales / Stock / Item status) + Shipping report · global filters · export</div>
+    </header>
+
+    <h3>Partner reports flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  ENTRY[PartnerDashboard · Reports] --> PR[PartnerReportsScreen]
+  PR --> GF[Global filter bar]
+  GF --> GF1[Time period: Month · Week · 7/14/30 · custom]
+  GF --> GF2[Partner multi-select]
+  GF2 --> GF3[Brand multi-select · scoped to partners]
+  GF3 --> GF4[Country multi-select · scoped to brands]
+  GF4 --> GF5[Store multi-select · scoped to countries]
+  GF --> GF6[Currency selector]
+  PR --> T{Tab}
+  T -- Sales --> SALES[Revenue chart · items sold · avg price · trend vs prev month]
+  T -- Stock --> STOCK[Stock levels · totals · breakdown by category / brand / gender]
+  T -- Item status --> IST[Item table · status counts · detailed list]
+  SALES --> EXPORT[Export / download]
+  STOCK --> EXPORT
+  IST --> EXPORT
+  PR --> EM{Filter has no data?}
+  EM -- Yes --> EMPTY[Empty report state]
+      </div>
+    </div>
+
+    <h3>Shipping report flow</h3>
+    <div class="diagram">
+      <div class="mermaid">
+flowchart TD
+  ENTRY2[Shipping report menu] --> SR[ShippingReportScreen]
+  SR --> SF[Filters: Brand · Country · Store · Partner · Status · Date · OI21]
+  SR --> METRICS[Metrics: Total · In transit · Delivered · Partly delivered · Cancelled]
+  SR --> ROWS[Delivery note rows]
+  ROWS --> OI21{Days in transit &gt; 21?}
+  OI21 -- Yes --> OFLAG[🏷 Overdue badge · row highlighted]
+  OI21 -- No --> OK[Normal row]
+  ROWS --> EXP[Expand row → box-level details]
+  ROWS --> DQ{Missing critical dates?}
+  DQ -- Yes --> DQB[🟠 DQ badge]
+  SR --> EXP2[Export / download]
+      </div>
+    </div>
+
+    <h3>Key report states</h3>
+    <div class="info-grid">
+      <div class="info-card"><div class="label">Loading</div><div class="value">Skeleton charts + table rows</div></div>
+      <div class="info-card"><div class="label">Empty</div><div class="value">"No data for current filters" · CTA to clear</div></div>
+      <div class="info-card"><div class="label">Overdue (OI-21)</div><div class="value">Deliveries in transit &gt; 21 days get a visible Overdue badge</div></div>
+      <div class="info-card"><div class="label">Data quality</div><div class="value">Rows missing critical dates carry a DQ badge</div></div>
+      <div class="info-card"><div class="label">Role scoping</div><div class="value">Partner users see only their partner; Admins see all</div></div>
+    </div>
+  </section>
+
+  <footer style="margin-top:64px; padding-top:24px; border-top:1px solid var(--outline-variant); color:var(--on-surface-variant); font-size:12px;">
+    Generated from the Digital Showroom MVP source · flows reflect component logic in <code>src/components/</code>, state shape in <code>src/hooks/useAppState.ts</code>, and feature docs.
+  </footer>
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#f0f0eb',
+      primaryTextColor: '#2c2c24',
+      primaryBorderColor: '#bebeb6',
+      lineColor: '#72726c',
+      secondaryColor: '#e5f1d6',
+      tertiaryColor: '#fafaf7',
+      fontSize: '13px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
+    },
+    flowchart: { curve: 'basis', htmlLabels: true, useMaxWidth: true },
+    stateDiagram: { useMaxWidth: true }
+  });
+
+  // Active-section highlight in sidebar
+  const links = document.querySelectorAll('nav.sidebar a.nav-link');
+  const sections = [...links].map(a => document.querySelector(a.getAttribute('href')));
+  function setActive() {
+    const scrollY = window.scrollY + 120;
+    let current = sections[0];
+    for (const s of sections) {
+      if (s && s.offsetTop <= scrollY) current = s;
+    }
+    links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + (current?.id || '')));
+  }
+  window.addEventListener('scroll', setActive, { passive: true });
+  setActive();
+</script>
+</body>
+</html>

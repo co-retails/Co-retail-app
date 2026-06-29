@@ -734,7 +734,7 @@ export default function DeliveryNoteDetailsScreen({
             <Button
               variant="outline"
               onClick={handleSaveDeliveryNoteAndClose}
-              className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[56px]"
+              className="flex-1 border-outline text-on-surface hover:bg-surface-container-high transition-colors px-6 py-3 rounded-lg h-[48px]"
             >
               <span className="label-large">Save & Close</span>
             </Button>
@@ -748,7 +748,7 @@ export default function DeliveryNoteDetailsScreen({
                 handleRegisterDelivery();
               }}
               disabled={boxes.length === 0 || unassignedItems > 0 || boxes.some(box => box.items.length === 0)}
-              className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg h-[56px]"
+              className="flex-1 bg-primary text-on-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 transition-colors px-6 py-3 rounded-lg h-[48px]"
             >
               <CheckIcon size={20} className="mr-2" />
               <span className="label-large">Register Delivery</span>

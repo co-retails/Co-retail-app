@@ -168,7 +168,6 @@ function BoxCard({
   onMarkScanned,
   onMarkUnscanned,
   onMarkCancelled,
-  onMarkRejected,
   onSelect,
   deliveryStatus,
   isAdmin = false
@@ -177,17 +176,15 @@ function BoxCard({
   onMarkScanned: () => void;
   onMarkUnscanned?: () => void;
   onMarkCancelled?: () => void;
-  onMarkRejected?: () => void;
   onSelect?: () => void;
   deliveryStatus: Delivery['status'];
   isAdmin?: boolean;
 }) {
   const canScan = deliveryStatus === 'In transit';
   const canCancelBox = Boolean(isAdmin && deliveryStatus === 'In transit' && box.status !== 'Cancelled' && onMarkCancelled);
-  const canRejectBox = Boolean(isAdmin && deliveryStatus === 'In transit' && box.isScanned && box.status !== 'Rejected' && box.status !== 'Cancelled' && onMarkRejected);
   const showMarkScanned = canScan && !box.isScanned && box.status !== 'Cancelled';
   const showMarkUnscanned = canScan && box.isScanned && box.status !== 'Cancelled';
-  const showMenu = showMarkScanned || showMarkUnscanned || canCancelBox || canRejectBox;
+  const showMenu = showMarkScanned || showMarkUnscanned || canCancelBox;
 
   const menuSlot = showMenu ? (
     <DropdownMenu>
@@ -221,17 +218,6 @@ function BoxCard({
             className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
           >
             <span className="body-medium text-on-surface">Mark as not scanned</span>
-          </DropdownMenuItem>
-        )}
-        {canRejectBox && (
-          <DropdownMenuItem
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              onMarkRejected?.();
-            }}
-            className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-          >
-            <span className="body-medium">Reject box</span>
           </DropdownMenuItem>
         )}
         {canCancelBox && (
@@ -269,7 +255,6 @@ function BoxesList({
   onMarkScanned,
   onMarkUnscanned,
   onMarkCancelled,
-  onMarkRejected,
   onSelectBox,
   isAdmin = false,
   activeTab
@@ -279,7 +264,6 @@ function BoxesList({
   onMarkScanned: (boxId: string) => void;
   onMarkUnscanned?: (boxId: string) => void;
   onMarkCancelled?: (boxId: string) => void;
-  onMarkRejected?: (boxId: string) => void;
   onSelectBox?: (box: Box) => void;
   isAdmin?: boolean;
   activeTab?: 'scanned' | 'not-scanned';
@@ -339,7 +323,6 @@ function BoxesList({
                 onMarkScanned={() => onMarkScanned(box.id)}
                 onMarkUnscanned={onMarkUnscanned ? () => onMarkUnscanned(box.id) : undefined}
                 onMarkCancelled={onMarkCancelled ? () => onMarkCancelled(box.id) : undefined}
-                onMarkRejected={onMarkRejected ? () => onMarkRejected(box.id) : undefined}
                 onSelect={onSelectBox ? () => onSelectBox(box) : undefined}
                 deliveryStatus={deliveryStatus}
                 isAdmin={isAdmin}
@@ -692,23 +675,6 @@ export default function ReceiveDeliveryScreen({
     }
   };
 
-  const handleMarkBoxRejected = (boxId: string) => {
-    if (!isAdmin || delivery.status === 'Cancelled') return;
-    const targetBox = boxes.find(b => b.id === boxId);
-    applyBoxUpdate(prev =>
-      prev.map(box =>
-        box.id === boxId
-          ? { ...box, status: 'Rejected' as const, isScanned: false }
-          : box
-      )
-    );
-    if (targetBox) {
-      toast.info(`Rejected ${targetBox.boxId}`);
-    } else {
-      toast.info('Box rejected');
-    }
-  };
-
   const handleCancelDelivery = () => {
     if (!isAdmin || delivery.status === 'Cancelled') return;
     applyBoxUpdate(prev =>
@@ -805,7 +771,6 @@ export default function ReceiveDeliveryScreen({
             onMarkScanned={handleMarkScanned}
             onMarkUnscanned={handleMarkUnscanned}
             onMarkCancelled={handleMarkBoxCancelled}
-            onMarkRejected={handleMarkBoxRejected}
             onSelectBox={onSelectBox}
             isAdmin={isAdmin}
             activeTab={activeTab}

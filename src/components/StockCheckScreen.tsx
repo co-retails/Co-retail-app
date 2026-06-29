@@ -1,8 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
-import { ArrowLeft, X, QrCode, Package, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { ArrowLeft, X, Package, AlertCircle, AlertTriangle, Info, MoreVertical, FileText, Keyboard, Search, CheckCircle2 } from 'lucide-react';
 import { ItemCard, BaseItem } from './ItemCard';
 import CameraScanner from './CameraScanner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from './ui/sheet';
+import { useMediaQuery } from './ui/use-mobile';
 
 export interface StockItem {
   id: string;
@@ -44,45 +57,100 @@ interface StockCheckScreenProps {
   onNavigateToReport?: () => void;
 }
 
-function TopAppBar({ onBack, title, onClose, onNavigateToReport }: { 
-  onBack: () => void; 
+function TopAppBar({ onBack, title, onClose, onNavigateToReport, onManualEntry }: {
+  onBack: () => void;
   title: string;
   onClose?: () => void;
   onNavigateToReport?: () => void;
+  onManualEntry?: () => void;
 }) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+
+  // Build the overflow menu options from the handlers that are wired up.
+  const menuOptions = [
+    onNavigateToReport && {
+      key: 'view-reports',
+      label: 'View reports',
+      Icon: FileText,
+      onClick: onNavigateToReport,
+    },
+    onManualEntry && {
+      key: 'manual-entry',
+      label: 'Enter Item ID manually',
+      Icon: Keyboard,
+      onClick: onManualEntry,
+    },
+  ].filter(Boolean) as Array<{ key: string; label: string; Icon: typeof FileText; onClick: () => void }>;
+
+  const showMenu = menuOptions.length > 0;
+  // Per design system: dropdown on desktop when ≤5 options, bottom sheet on mobile.
+  const useDropdown = isLargeScreen && menuOptions.length <= 5;
+
   return (
     <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
       <div className="flex items-center h-16 px-4 md:px-6">
         {/* Leading icon - Back button */}
-        <button 
+        <button
           className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
           onClick={onBack}
           aria-label="Go back"
         >
           <ArrowLeft className="w-6 h-6 text-on-surface" />
         </button>
-        
+
         {/* Title */}
         <h1 className="title-large text-on-surface flex-1">
           {title}
         </h1>
-        
+
         {/* Trailing actions */}
         <div className="flex items-center gap-2">
-          {/* Report link */}
-          {onNavigateToReport && (
-            <button
-              onClick={onNavigateToReport}
-              className="px-4 py-2 rounded-lg hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors label-medium text-primary"
-              aria-label="View stock check reports"
-            >
-              View reports
-            </button>
+          {/* More menu - far right */}
+          {showMenu && (
+            useDropdown ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                    aria-label="More actions"
+                  >
+                    <MoreVertical className="w-6 h-6 text-on-surface" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={4}
+                  className="bg-surface-container border border-outline-variant rounded-[12px] p-2 w-56 z-[10001]"
+                >
+                  {menuOptions.map(({ key, label, Icon, onClick }) => (
+                    <DropdownMenuItem
+                      key={key}
+                      onClick={onClick}
+                      className="gap-3 px-3 py-2.5 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
+                    >
+                      <Icon className="w-5 h-5 text-on-surface-variant" />
+                      <span className="body-medium text-on-surface">{label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors touch-manipulation"
+                aria-label="More actions"
+              >
+                <MoreVertical className="w-6 h-6 text-on-surface" />
+              </button>
+            )
           )}
-          
+
           {/* Close button (optional) */}
           {onClose && (
-            <button 
+            <button
               className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
               onClick={onClose}
               aria-label="Close"
@@ -92,6 +160,43 @@ function TopAppBar({ onBack, title, onClose, onNavigateToReport }: {
           )}
         </div>
       </div>
+
+      {/* Mobile bottom sheet for the more menu */}
+      {showMenu && !useDropdown && (
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetContent
+            side="bottom"
+            className="max-h-[85vh] rounded-t-3xl bg-surface-container-high border-outline-variant p-0 gap-0 overflow-hidden flex flex-col"
+          >
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-8 h-1 bg-outline-variant rounded-full" />
+            </div>
+            <SheetHeader className="px-6 pb-4 flex-shrink-0">
+              <SheetTitle className="title-large text-on-surface text-left">
+                Stock check actions
+              </SheetTitle>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto px-2 pb-6">
+              <div className="flex flex-col">
+                {menuOptions.map(({ key, label, Icon, onClick }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      onClick();
+                      setSheetOpen(false);
+                    }}
+                    className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg min-h-[48px] touch-manipulation hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors"
+                  >
+                    <Icon className="w-5 h-5 text-on-surface-variant" />
+                    <span className="body-large text-on-surface">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }
@@ -214,6 +319,156 @@ function ItemsList({
   );
 }
 
+// Manual Item ID entry screen — lets staff find an item by its known Item ID (GTIN)
+// when there is no scannable barcode, and add the matching item to the Scanned tab.
+function ManualItemEntryView({
+  items,
+  onBack,
+  onAddItem,
+}: {
+  items: StockItem[];
+  onBack: () => void;
+  onAddItem: (item: StockItem) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const trimmed = query.trim();
+
+  // Match against the Item ID (GTIN). Cap results so a broad query stays scannable.
+  const matches = trimmed.length === 0
+    ? []
+    : items
+        .filter((item) => item.itemId.toLowerCase().includes(trimmed.toLowerCase()))
+        .slice(0, 50);
+
+  return (
+    <div className="bg-surface min-h-screen flex flex-col">
+      {/* Spacer for top nav on desktop */}
+      <div className="hidden md:block h-16"></div>
+
+      {/* Top App Bar */}
+      <div className="sticky top-0 md:top-16 bg-surface z-[90] border-b border-outline-variant md:shadow-sm">
+        <div className="flex items-center h-16 px-4 md:px-6">
+          <button
+            className="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest transition-colors mr-2"
+            onClick={onBack}
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-6 h-6 text-on-surface" />
+          </button>
+          <h1 className="title-large text-on-surface flex-1">
+            Enter Item ID
+          </h1>
+        </div>
+      </div>
+
+      {/* Search field */}
+      <div className="px-4 md:px-6 pt-4 pb-2 max-w-2xl w-full mx-auto">
+        <label htmlFor="manual-item-id" className="body-medium text-on-surface-variant mb-2 block">
+          Search for an item by its Item ID (GTIN)
+        </label>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant pointer-events-none" />
+          <input
+            id="manual-item-id"
+            type="text"
+            inputMode="numeric"
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g. 34780001"
+            className="w-full h-[56px] pl-11 pr-12 rounded-[12px] bg-surface-container border border-outline-variant text-on-surface body-large placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary transition-colors"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high focus:bg-surface-container-high transition-colors touch-manipulation"
+            >
+              <X className="w-5 h-5 text-on-surface-variant" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Results */}
+      <div className="flex-1 px-4 md:px-6 pb-6 max-w-2xl w-full mx-auto">
+        {trimmed.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <Search className="w-16 h-16 text-on-surface-variant mb-4" />
+            <h3 className="title-medium text-on-surface mb-2">
+              Search by Item ID
+            </h3>
+            <p className="body-medium text-on-surface-variant max-w-sm">
+              Type a known Item ID (GTIN) to find the matching item and add it to the Scanned tab.
+            </p>
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <Package className="w-16 h-16 text-on-surface-variant mb-4" />
+            <h3 className="title-medium text-on-surface mb-2">
+              No matching item
+            </h3>
+            <p className="body-medium text-on-surface-variant max-w-sm">
+              No item in this stock check matches “{trimmed}”. Check the Item ID and try again.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 pt-2">
+            {matches.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={item.isScanned}
+                onClick={() => onAddItem(item)}
+                aria-label={item.isScanned ? `${item.itemId} already scanned` : `Add ${item.itemId} to scanned`}
+                className="w-full text-left disabled:cursor-not-allowed touch-manipulation"
+              >
+                <div className={`bg-surface-container border border-outline-variant rounded-lg overflow-hidden transition-colors ${
+                  item.isScanned ? 'opacity-60' : 'hover:bg-surface-container-high active:bg-surface-container-highest'
+                }`}>
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <ItemCard
+                        item={{
+                          id: item.id,
+                          itemId: item.itemId,
+                          title: item.title,
+                          brand: item.brand,
+                          category: 'General',
+                          size: item.size,
+                          color: item.color,
+                          price: item.price,
+                          status: item.status,
+                          date: item.date,
+                          thumbnail: item.thumbnail,
+                          deliveryId: item.deliveryId,
+                          boxLabel: item.boxLabel,
+                          lastInStoreAt: item.lastInStoreAt
+                        } as BaseItem}
+                        variant="items-list"
+                        showActions={false}
+                        showSelection={false}
+                      />
+                    </div>
+                    {item.isScanned ? (
+                      <span className="label-small px-2 py-0.5 rounded-full bg-success-container text-on-success-container shrink-0 mr-1 whitespace-nowrap">
+                        Scanned
+                      </span>
+                    ) : (
+                      <CheckCircle2 className="w-6 h-6 text-primary shrink-0 mr-1" />
+                    )}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const STOCK_CHECK_STORAGE_KEY = 'stockCheckSession';
 
 // Get today's date string
@@ -268,6 +523,8 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
   const [activeTab, setActiveTab] = useState<'scanned' | 'not-scanned'>('not-scanned');
   const [isScanning] = useState(true); // Always start scanning
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  // Toggles the manual Item ID entry screen (for items without a scannable barcode).
+  const [showManualEntry, setShowManualEntry] = useState(false);
   // Counts every scan in this session so we can simulate a "not found" result
   // on every other scan (see handleScan).
   const scanCountRef = useRef(0);
@@ -469,6 +726,29 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
   };
 
 
+  // Manually add an item (found via Item ID search) to the Scanned tab.
+  const handleManualAdd = (item: StockItem) => {
+    if (item.isScanned) {
+      setShowManualEntry(false);
+      return;
+    }
+    setStockItems((prev) => {
+      const updated = prev.map((it) =>
+        it.id === item.id ? { ...it, isScanned: true } : it
+      );
+      // Auto-save, mirroring the scan flow.
+      saveSessionToStorage(updated);
+      return updated;
+    });
+    setSelectedItems((prev) => new Set([...prev, item.id]));
+    setActiveTab('scanned');
+    setScanNotice({
+      tone: 'info',
+      text: `Item ID "${item.itemId}" added to Scanned`,
+    });
+    setShowManualEntry(false);
+  };
+
   const handleComplete = () => {
     if (canComplete) {
       // Load accumulated items for the report
@@ -503,12 +783,28 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
     }
   };
 
+  // Manual Item ID entry is a focused sub-screen with its own top app bar.
+  if (showManualEntry) {
+    return (
+      <ManualItemEntryView
+        items={stockItems}
+        onBack={() => setShowManualEntry(false)}
+        onAddItem={handleManualAdd}
+      />
+    );
+  }
+
   return (
     <div className="bg-surface min-h-screen flex flex-col">
       {/* Spacer for top nav on desktop */}
       <div className="hidden md:block h-16"></div>
       {/* Top App Bar */}
-      <TopAppBar onBack={onBack} title="Stock Check" onNavigateToReport={onNavigateToReport} />
+      <TopAppBar
+        onBack={onBack}
+        title="Stock Check"
+        onNavigateToReport={onNavigateToReport}
+        onManualEntry={() => setShowManualEntry(true)}
+      />
       
       {/* Sticky Scan View Container - Always Active */}
       <div className="sticky top-16 mx-4 mb-4 z-20">

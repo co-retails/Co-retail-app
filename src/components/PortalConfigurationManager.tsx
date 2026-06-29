@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { PortalConfigurationLanding } from './PortalConfigurationLanding';
 import { DropdownValuesScreen } from './DropdownValuesScreen';
 import { PartnerPricingScreen } from './PartnerPricingScreen';
-import { PurchasePriceCurrencyConverterScreen } from './PurchasePriceCurrencyConverterScreen';
 import { PublishingVersionsScreen } from './PublishingVersionsScreen';
 import { ValidationRulesScreen } from './ValidationRulesScreen';
 import { AuditLogScreen } from './AuditLogScreen';
@@ -72,9 +71,6 @@ export function PortalConfigurationManager({
 
     case 'partner-pricing':
       return <PartnerPricingScreen onBack={handleBackToLanding} />;
-
-    case 'purchase-price-converter':
-      return <PurchasePriceCurrencyConverterScreen onBack={handleBackToLanding} />;
 
     case 'price-fork-calibration':
       return (

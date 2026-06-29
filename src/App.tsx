@@ -1238,6 +1238,12 @@ export default function App() {
           boxes: [],
           status: 'draft',
           createdDate: new Date().toISOString(),
+          // Stamp the active partner/warehouse so the note matches the partner-portal
+          // Shipments filter (note.partnerId === currentPartnerId &&
+          // note.warehouseId === currentWarehouseId) once it's registered to in-transit.
+          partnerId: currentPartnerWarehouseSelection.partnerId,
+          warehouseId: currentPartnerWarehouseSelection.warehouseId,
+          warehouseName: orderData.warehouseName,
         };
         setDeliveryNotes(prev => [...prev, newDeliveryNote]);
         deliveryNote = newDeliveryNote;
@@ -1481,6 +1487,12 @@ export default function App() {
             boxes: [],
             status: 'draft',
             createdDate: new Date().toISOString(),
+            // Stamp the active partner/warehouse so the note matches the partner-portal
+            // Shipments filter (note.partnerId === currentPartnerId &&
+            // note.warehouseId === currentWarehouseId) once it's registered to in-transit.
+            partnerId: currentPartnerWarehouseSelection.partnerId,
+            warehouseId: currentPartnerWarehouseSelection.warehouseId,
+            warehouseName: orderData.warehouseName,
           };
           setDeliveryNotes(prev => [...prev, newDeliveryNote]);
           deliveryNote = newDeliveryNote;
@@ -2324,12 +2336,6 @@ export default function App() {
                   setCurrentScreenSafe(boxDetailsPreviousScreen);
                   toast.success('Box marked as delivered');
                 }}
-                onMarkRejected={() => {
-                  setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b));
-                  setSelectedBox(null);
-                  setCurrentScreenSafe(boxDetailsPreviousScreen);
-                  toast.success('Box marked as rejected');
-                }}
                 userRole={currentUserRole}
                 deliveryStatus={selectedDelivery?.status}
               />
@@ -2350,12 +2356,6 @@ export default function App() {
                   setSelectedBox(null);
                   setCurrentScreenSafe(boxDetailsPreviousScreen);
                   toast.success('Box marked as delivered');
-                }}
-                onMarkRejected={() => {
-                  setDeliveryBoxes(prev => prev.map(b => b.id === selectedBox.id ? { ...b, status: 'Rejected' } : b));
-                  setSelectedBox(null);
-                  setCurrentScreenSafe(boxDetailsPreviousScreen);
-                  toast.success('Box marked as rejected');
                 }}
                 userRole={currentUserRole}
                 deliveryStatus={selectedDelivery?.status}
@@ -3049,7 +3049,11 @@ export default function App() {
           stores={mockStores}
           brands={mockBrands}
           isAdmin={currentUserRole === 'admin'}
-          currentUserRole={currentUserRole === 'partner' ? 'partner' : currentUserRole === 'admin' ? 'admin' : 'store-staff'}
+          // Use the view-aware role (appViewRole) so the partner-portal details screen
+          // matches the list (ShippingScreen also receives appViewRole). This ensures the
+          // fixed-bottom "Mark as returned" action shows whenever the portal returns list
+          // would have, including admins previewing the Partner portal via Switch View.
+          currentUserRole={appViewRole as typeof currentUserRole}
           onUpdateReturnDeliveryStatus={detailsScreenData.type === 'return' ? handleUpdateReturnDeliveryStatus : undefined}
           onCancelReturn={detailsScreenData.type === 'return' ? handleCancelReturn : undefined}
           onNavigateToRetailerIdScan={() => {

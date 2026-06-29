@@ -30,22 +30,19 @@ interface BoxDetailsScreenProps {
   items: BoxItem[];
   onBack: () => void;
   onMarkDelivered?: () => void;
-  onMarkRejected?: () => void;
   userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner';
   deliveryStatus?: 'In transit' | 'Delivered' | 'Cancelled' | 'Rejected' | 'Draft' | 'Packing';
 }
 
-function TopAppBar({ 
-  onBack, 
+function TopAppBar({
+  onBack,
   box,
   onMarkDelivered,
-  onMarkRejected,
   userRole
-}: { 
+}: {
   onBack: () => void;
   box: Box;
   onMarkDelivered?: () => void;
-  onMarkRejected?: () => void;
   userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner';
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -54,9 +51,8 @@ function TopAppBar({
   // Show menu for any box with status "In transit", regardless of delivery status
   const isInTransit = box.status === 'In transit';
   const showMarkDelivered = canManageBox && isInTransit && onMarkDelivered;
-  const showMarkRejected = canManageBox && isInTransit && onMarkRejected;
-  const showMenu = showMarkDelivered || showMarkRejected;
-  
+  const showMenu = Boolean(showMarkDelivered);
+
   // Debug logging
   console.log('BoxDetailsScreen - Debug:', {
     userRole,
@@ -64,7 +60,6 @@ function TopAppBar({
     boxStatus: box.status,
     isInTransit,
     hasOnMarkDelivered: !!onMarkDelivered,
-    hasOnMarkRejected: !!onMarkRejected,
     showMenu,
     dropdownOpen
   });
@@ -116,17 +111,6 @@ function TopAppBar({
                   className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer"
                 >
                   <span className="body-medium text-on-surface">Mark as Delivered</span>
-                </DropdownMenuItem>
-              )}
-              {showMarkRejected && (
-                <DropdownMenuItem
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    onMarkRejected?.();
-                  }}
-                  className="px-3 py-2 rounded-[8px] hover:bg-surface-container-high focus:bg-surface-container-high cursor-pointer text-error"
-                >
-                  <span className="body-medium">Reject box</span>
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -249,11 +233,10 @@ function ItemsList({ items }: { items: BoxItem[] }) {
 }
 
 export default function BoxDetailsScreen({ 
-  box, 
+  box,
   items,
   onBack,
   onMarkDelivered,
-  onMarkRejected,
   userRole
 }: BoxDetailsScreenProps) {
   // Update item statuses if box is delivered - items should not be "In transit" anymore
@@ -267,11 +250,10 @@ export default function BoxDetailsScreen({
   return (
     <div className="bg-surface min-h-screen flex flex-col">
       {/* Top App Bar */}
-      <TopAppBar 
+      <TopAppBar
         onBack={onBack}
         box={box}
         onMarkDelivered={onMarkDelivered}
-        onMarkRejected={onMarkRejected}
         userRole={userRole}
       />
       

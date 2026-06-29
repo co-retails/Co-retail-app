@@ -92,6 +92,12 @@ interface ItemDetailsDialogProps {
   priceCurrency?: string;
   expireTimeWeeks?: number; // Expire time setting for the store (in weeks)
   userRole?: 'admin' | 'store-staff' | 'store-manager' | 'partner'; // User role to determine if location can be edited
+  /**
+   * Status values to hide from display (case-insensitive), e.g. back-office-only
+   * statuses such as Draft / In transit that store users should not see in the
+   * status history. Does not affect the underlying data, only what is rendered.
+   */
+  hiddenStatuses?: readonly string[];
   /** Called when user changes status from Available to Rejected (within 24h). Parent should show reject reason sheet and then call onSave with reason. */
   onRequestRejectReason?: (item: ItemDetails) => void;
   /** Thrifted partner draft items: read-only Draft/In transit, Thrifted value lists, brand typeahead */
@@ -752,6 +758,7 @@ export default function ItemDetailsDialog({
   priceCurrency,
   expireTimeWeeks,
   userRole,
+  hiddenStatuses,
   onRequestRejectReason,
   enableThriftedPartnerItemDialog = false,
   showMaterial,
@@ -769,6 +776,14 @@ export default function ItemDetailsDialog({
   // Migrated (legacy) 6-digit items show a Data Matrix code; new 12-digit GTIN
   // items show a regular barcode.
   const itemCodeType = useMemo(() => getItemCodeType(item ?? undefined), [item?.idFormat, item?.itemId]);
+  // Status history with back-office-only statuses (e.g. Draft, In transit) hidden
+  // from store users. Filtering is display-only; the raw history still drives
+  // logic such as reject eligibility.
+  const visibleStatusHistory = useMemo(() => {
+    if (!hiddenStatuses || hiddenStatuses.length === 0) return statusHistory;
+    const hiddenSet = new Set(hiddenStatuses.map(s => s.toLowerCase()));
+    return statusHistory.filter(entry => !hiddenSet.has((entry.status ?? '').toLowerCase()));
+  }, [statusHistory, hiddenStatuses]);
   const dataMatrixValue = useMemo(() => getDataMatrixValue(item ?? undefined), [item?.dataMatrix, item?.itemId]);
   const barcodeRefCallback = useCallback((node: SVGSVGElement | null) => {
     if (!node || !item?.itemId) return;
@@ -1674,11 +1689,11 @@ export default function ItemDetailsDialog({
           </div>
 
           {/* Status History Section at Bottom */}
-          {showHistory && statusHistory.length > 0 && (
+          {showHistory && visibleStatusHistory.length > 0 && (
             <div className="p-4 bg-surface-container-low border-t border-outline-variant">
               <h3 className="title-medium text-on-surface mb-3">Status history</h3>
               <div className="space-y-3">
-                {statusHistory.map((entry, index) => (
+                {visibleStatusHistory.map((entry, index) => (
                   <div key={index} className="flex gap-3">
                     <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-primary"></div>
                     <div className="flex-1">
@@ -1702,7 +1717,7 @@ export default function ItemDetailsDialog({
           )}
 
           {/* History Button at Bottom */}
-          {statusHistory.length > 0 && (
+          {visibleStatusHistory.length > 0 && (
             <div className="p-4 bg-surface-container border-t border-outline-variant flex-shrink-0">
               <Button
                 variant="outline"
