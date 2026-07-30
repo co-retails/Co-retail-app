@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import BrandPicker from './BrandPicker';
 import { VisuallyHidden } from './ui/visually-hidden';
-import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Ban, Barcode, Shirt } from 'lucide-react';
+import { ArrowLeft, Edit3, Check, X, QrCode, Package, Calendar, Tag, Euro, Clock, MapPin, History, RefreshCw, Ban, Barcode, Shirt, AlertCircle } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import DataMatrixCode from './DataMatrixCode';
 import { getItemCodeType, getDataMatrixValue, getBarcodeValue, getQrItemId, generateDataMatrixValue } from '../utils/itemCodes';
@@ -111,6 +111,8 @@ interface ItemDetailsDialogProps {
     onNext: () => void;
     onDone: () => void;
   };
+  /** Per-field validation errors for the Thrifted item dialog (same keys as the desktop table). */
+  fieldErrors?: Record<string, string> | null;
 }
 
 type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'material' | 'price' | 'status' | 'location' | null;
@@ -403,6 +405,40 @@ const SORTED_THRIFTED_CATEGORIES = sortOptionsAlpha([...THRIFTED_VALID_VALUES.ca
 const SORTED_THRIFTED_COLORS = sortOptionsAlpha([...THRIFTED_VALID_VALUES.colors]);
 const SORTED_ALL_THRIFTED_SUBCATEGORIES = sortOptionsAlpha(getAllThriftedSubcategories());
 
+/** Field row for the Thrifted item dialog. Defined at module scope so its identity is
+ * stable across renders — otherwise every keystroke remounts the inputs and drops focus. */
+function ThriftedFieldRow({
+  icon: Icon,
+  label,
+  error,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  error?: string | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 pb-2">
+      <Icon className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-2.5" />
+      <div className="flex-1 min-w-0">
+        <p className="label-small text-on-surface-variant mb-1">{label}</p>
+        <div className="mt-0">{children}</div>
+        {error ? (
+          <p className="mt-1 flex items-center gap-1 body-small text-error">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Error vs normal border/background for the Thrifted dialog fields (matches desktop table). */
+const THRIFTED_FIELD_ERROR_CLASS = 'border border-error bg-error-container/10 focus:border-error';
+const THRIFTED_FIELD_NORMAL_CLASS = 'bg-surface-container-high border border-outline';
+
 function ThriftedPartnerInlineSection({
   item,
   onPatch,
@@ -416,6 +452,7 @@ function ThriftedPartnerInlineSection({
   onRetailerDraftChange,
   onExternalDraftChange,
   onBrandDraftChange,
+  fieldErrors,
 }: {
   item: ItemDetails;
   onPatch: (updates: Partial<ItemDetails>) => void;
@@ -429,6 +466,7 @@ function ThriftedPartnerInlineSection({
   onRetailerDraftChange: (v: string) => void;
   onExternalDraftChange: (v: string) => void;
   onBrandDraftChange: (v: string) => void;
+  fieldErrors?: Record<string, string> | null;
 }) {
   const subcategoryBase = useMemo(() => {
     const c = item.category?.trim();
@@ -489,38 +527,34 @@ function ThriftedPartnerInlineSection({
     return base;
   }, [item.color]);
 
-  const FieldRow = ({
-    icon: Icon,
-    label,
-    children,
-  }: {
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    children: React.ReactNode;
-  }) => (
-    <div className="flex items-start gap-3 pb-2">
-      <Icon className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-2.5" />
-      <div className="flex-1 min-w-0">
-        <p className="label-small text-on-surface-variant mb-1">{label}</p>
-        <div className="mt-0">{children}</div>
-      </div>
-    </div>
-  );
+  // Validation errors mirror the desktop table (item.fieldErrors). Item ID and Brand are
+  // backed by local drafts that flush on close, so derive their error from the draft value
+  // to clear/show live as the user types; selects patch immediately, so read fieldErrors.
+  const fe = fieldErrors || {};
+  const retailerError = fe.retailerItemId && !retailerDraft.trim() ? fe.retailerItemId : undefined;
+  const brandError = fe.brand && !brandDraft.trim() ? fe.brand : undefined;
+  const categoryError = fe.category;
+  const subcategoryError = fe.subcategory;
+  const sizeError = fe.size;
+  const colorError = fe.color;
+  const priceError = fe.price;
 
   return (
     <div className="space-y-8">
-      <FieldRow icon={RefreshCw} label="Status">
+      <ThriftedFieldRow icon={RefreshCw} label="Status">
         <span className={`body-medium ${getStatusTextColor(item.status)}`}>
           {getStatusLabel(item.status)}
         </span>
-      </FieldRow>
+      </ThriftedFieldRow>
 
-      <FieldRow icon={Tag} label="Item ID*">
+      <ThriftedFieldRow icon={Tag} label="Item ID*" error={retailerError}>
         <div className="flex gap-2">
           <Input
             value={retailerDraft}
             onChange={(e) => onRetailerDraftChange(e.target.value)}
-            className="relative z-[1] bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base flex-1 touch-manipulation"
+            className={`relative z-[1] rounded-lg min-h-[48px] h-12 text-base flex-1 touch-manipulation ${
+              retailerError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+            }`}
             placeholder="Required"
             autoComplete="off"
             inputMode="text"
@@ -536,9 +570,9 @@ function ThriftedPartnerInlineSection({
             <QrCode size={18} />
           </Button>
         </div>
-      </FieldRow>
+      </ThriftedFieldRow>
 
-      <FieldRow icon={Tag} label="External ID (optional)">
+      <ThriftedFieldRow icon={Tag} label="External ID (optional)">
         <Input
           value={externalDraft}
           onChange={(e) => onExternalDraftChange(e.target.value)}
@@ -547,25 +581,32 @@ function ThriftedPartnerInlineSection({
           autoComplete="off"
           inputMode="text"
         />
-      </FieldRow>
+      </ThriftedFieldRow>
 
-      <FieldRow icon={Tag} label="Brand">
+      <ThriftedFieldRow icon={Tag} label="Brand" error={brandError}>
         <ThriftedBrandAutocompleteEdit
           value={brandDraft}
           onChange={(v) => onBrandDraftChange(v)}
           suggestions={brandAutocompleteOptions}
           minCharsForPanel={2}
-          className="relative z-[1] bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base touch-manipulation w-full"
+          className={`relative z-[1] rounded-lg min-h-[48px] h-12 text-base touch-manipulation w-full ${
+            brandError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+          }`}
         />
-      </FieldRow>
+      </ThriftedFieldRow>
 
-      <FieldRow icon={Tag} label="Category">
+      <ThriftedFieldRow icon={Tag} label="Category" error={categoryError}>
         <Select
           modal={false}
           value={item.category || ''}
           onValueChange={(v) => onPatch({ category: v })}
         >
-          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+          <SelectTrigger
+            aria-invalid={Boolean(categoryError)}
+            className={`rounded-lg min-h-[48px] h-12 touch-manipulation w-full ${
+              categoryError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+            }`}
+          >
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
@@ -576,15 +617,20 @@ function ThriftedPartnerInlineSection({
             ))}
           </SelectContent>
         </Select>
-      </FieldRow>
+      </ThriftedFieldRow>
 
-      <FieldRow icon={Tag} label="Subcategory">
+      <ThriftedFieldRow icon={Tag} label="Subcategory" error={subcategoryError}>
         <Select
           modal={false}
           value={item.subcategory || ''}
           onValueChange={(v) => onPatch({ subcategory: v })}
         >
-          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+          <SelectTrigger
+            aria-invalid={Boolean(subcategoryError)}
+            className={`rounded-lg min-h-[48px] h-12 touch-manipulation w-full ${
+              subcategoryError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+            }`}
+          >
             <SelectValue placeholder="Select subcategory" />
           </SelectTrigger>
           <SelectContent>
@@ -595,11 +641,16 @@ function ThriftedPartnerInlineSection({
             ))}
           </SelectContent>
         </Select>
-      </FieldRow>
+      </ThriftedFieldRow>
 
-      <FieldRow icon={Package} label="Size">
+      <ThriftedFieldRow icon={Package} label="Size" error={sizeError}>
         <Select modal={false} value={item.size || ''} onValueChange={(v) => onPatch({ size: v })}>
-          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+          <SelectTrigger
+            aria-invalid={Boolean(sizeError)}
+            className={`rounded-lg min-h-[48px] h-12 touch-manipulation w-full ${
+              sizeError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+            }`}
+          >
             <SelectValue placeholder="Select size" />
           </SelectTrigger>
           <SelectContent>
@@ -610,11 +661,16 @@ function ThriftedPartnerInlineSection({
             ))}
           </SelectContent>
         </Select>
-      </FieldRow>
+      </ThriftedFieldRow>
 
-      <FieldRow icon={Package} label="Color">
+      <ThriftedFieldRow icon={Package} label="Color" error={colorError}>
         <Select modal={false} value={item.color || ''} onValueChange={(v) => onPatch({ color: v })}>
-          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+          <SelectTrigger
+            aria-invalid={Boolean(colorError)}
+            className={`rounded-lg min-h-[48px] h-12 touch-manipulation w-full ${
+              colorError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+            }`}
+          >
             <SelectValue placeholder="Select color" />
           </SelectTrigger>
           <SelectContent>
@@ -625,15 +681,24 @@ function ThriftedPartnerInlineSection({
             ))}
           </SelectContent>
         </Select>
-      </FieldRow>
+      </ThriftedFieldRow>
 
-      <FieldRow icon={Euro} label={`Price${priceCurrency ? ` (${priceCurrency})` : ''}`}>
+      <ThriftedFieldRow
+        icon={Euro}
+        label={`Price${priceCurrency ? ` (${priceCurrency})` : ''}`}
+        error={priceError}
+      >
         <Select
           modal={false}
           value={priceValue}
           onValueChange={(v) => onPatch({ price: parseFloat(v) })}
         >
-          <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation w-full">
+          <SelectTrigger
+            aria-invalid={Boolean(priceError)}
+            className={`rounded-lg min-h-[48px] h-12 touch-manipulation w-full ${
+              priceError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+            }`}
+          >
             <SelectValue placeholder="Select price" />
           </SelectTrigger>
           <SelectContent>
@@ -644,7 +709,7 @@ function ThriftedPartnerInlineSection({
             ))}
           </SelectContent>
         </Select>
-      </FieldRow>
+      </ThriftedFieldRow>
     </div>
   );
 }
@@ -764,6 +829,7 @@ export default function ItemDetailsDialog({
   showMaterial,
   brandAutocompleteOptions = [],
   partnerMobileActions,
+  fieldErrors,
 }: ItemDetailsDialogProps) {
   const [editingField, setEditingField] = useState<EditField>(null);
   const [editValues, setEditValues] = useState<Partial<ItemDetails>>({});
@@ -1395,6 +1461,7 @@ export default function ItemDetailsDialog({
                   onRetailerDraftChange={setThriftedRetailerDraft}
                   onExternalDraftChange={setThriftedExternalDraft}
                   onBrandDraftChange={setThriftedBrandDraft}
+                  fieldErrors={fieldErrors}
                 />
               </>
             ) : (

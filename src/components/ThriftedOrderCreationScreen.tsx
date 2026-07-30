@@ -57,7 +57,12 @@ type ValidationFilter = 'all' | 'errors' | 'valid' | 'duplicates';
 
 interface ThriftedOrderCreationScreenProps {
   onBack: () => void;
-  onCreateOrder: (items: OrderItem[], storeSelection: StoreSelection, shouldRegister?: boolean) => void;
+  onCreateOrder: (
+    items: OrderItem[],
+    storeSelection: StoreSelection,
+    shouldRegister?: boolean,
+    meta?: { emptyUploadNotice?: boolean }
+  ) => void;
   currentPartner?: Partner;
   brands?: Brand[];
   countries?: Country[];
@@ -267,7 +272,10 @@ export default function ThriftedOrderCreationScreen({
       setUploadError('');
       clearPendingImports();
       setShowReplaceDialog(false);
-      onCreateOrder(nextItems, storeSelection, false);
+      // Flag an empty-upload so the details screen can show an inline notice.
+      onCreateOrder(nextItems, storeSelection, false, {
+        emptyUploadNotice: nextItems.length === 0,
+      });
       return;
     }
 
@@ -405,6 +413,12 @@ export default function ThriftedOrderCreationScreen({
       const replacePreview = stripCurrentOrderConflictsFromThriftedImport(appendPreview);
 
       if (appendPreview.summary.totalRows === 0) {
+        // Prototype: accept any CSV. An empty/unparseable file still proceeds to the
+        // draft Order Details screen (where rows can be added/edited manually).
+        if (!isEditing && storeSelection) {
+          applyImportResult(replacePreview, 'replace');
+          return;
+        }
         setUploadError('No rows were found in the file.');
         return;
       }
@@ -417,6 +431,14 @@ export default function ThriftedOrderCreationScreen({
         applyImportResult(replacePreview, 'replace');
       }
     } catch (error) {
+      // Prototype: accept any CSV. If parsing fails in the create flow, still proceed to
+      // the draft Order Details screen with an empty item list instead of blocking.
+      if (!isEditing && storeSelection) {
+        setUploadError('');
+        setUploadProgress(null);
+        onCreateOrder([], storeSelection, false, { emptyUploadNotice: true });
+        return;
+      }
       setUploadError(
         error instanceof Error
           ? error.message
@@ -826,20 +848,30 @@ export default function ThriftedOrderCreationScreen({
             Select your preferred method for adding items to this order.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="flex flex-col gap-3" role="radiogroup" aria-label="How to add items">
+            {/* Add Manually option */}
             <button
               onClick={() => setCreationMethod('manual')}
               disabled={!canEditItems}
-              className={`p-4 border rounded-xl transition-colors text-left ${
+              role="radio"
+              aria-checked={creationMethod === 'manual'}
+              className={`w-full p-4 border rounded-xl transition-colors text-left touch-manipulation ${
                 creationMethod === 'manual'
                   ? 'border-primary bg-primary-container'
                   : 'border-outline hover:bg-surface-container-high'
               } ${!canEditItems ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-start gap-3">
+                <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                  creationMethod === 'manual' ? 'border-primary' : 'border-outline'
+                }`}>
+                  {creationMethod === 'manual' && (
+                    <span className="block rounded-full bg-primary" style={{ width: '10px', height: '10px' }} />
+                  )}
+                </span>
                 <div className={`p-2 rounded-lg ${
-                  creationMethod === 'manual' 
-                    ? 'bg-primary text-on-primary' 
+                  creationMethod === 'manual'
+                    ? 'bg-primary text-on-primary'
                     : 'bg-primary-container text-on-primary-container'
                 }`}>
                   <PlusIcon className="w-5 h-5" />
@@ -853,91 +885,100 @@ export default function ThriftedOrderCreationScreen({
               </div>
             </button>
 
-            <button
-              onClick={() => setCreationMethod('bulk')}
-              disabled={!canEditItems}
-              className={`p-4 border rounded-xl transition-colors text-left ${
-                creationMethod === 'bulk'
-                  ? 'border-primary bg-primary-container'
-                  : 'border-outline hover:bg-surface-container-high'
-              } ${!canEditItems ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${
+            {/* Bulk Upload option — grouped together with its upload controls */}
+            <div className={`border rounded-xl overflow-hidden transition-colors ${
+              creationMethod === 'bulk' ? 'border-primary' : 'border-outline'
+            } ${!canEditItems ? 'opacity-50' : ''}`}>
+              <button
+                onClick={() => setCreationMethod('bulk')}
+                disabled={!canEditItems}
+                role="radio"
+                aria-checked={creationMethod === 'bulk'}
+                className={`w-full p-4 text-left touch-manipulation transition-colors ${
                   creationMethod === 'bulk'
-                    ? 'bg-primary text-on-primary'
-                    : 'bg-primary-container text-on-primary-container'
-                }`}>
-                  <FileSpreadsheetIcon className="w-5 h-5" />
+                    ? 'bg-primary-container'
+                    : 'hover:bg-surface-container-high'
+                } ${!canEditItems ? 'cursor-not-allowed' : ''}`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                    creationMethod === 'bulk' ? 'border-primary' : 'border-outline'
+                  }`}>
+                    {creationMethod === 'bulk' && (
+                      <span className="block rounded-full bg-primary" style={{ width: '10px', height: '10px' }} />
+                    )}
+                  </span>
+                  <div className={`p-2 rounded-lg ${
+                    creationMethod === 'bulk'
+                      ? 'bg-primary text-on-primary'
+                      : 'bg-primary-container text-on-primary-container'
+                  }`}>
+                    <FileSpreadsheetIcon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="title-medium text-on-surface mb-1">Bulk Upload</p>
+                    <p className="body-medium text-on-surface-variant">
+                      Upload multiple items via spreadsheet
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="title-medium text-on-surface mb-1">Bulk Upload</p>
+              </button>
+
+              {/* Upload controls, nested within the Bulk Upload option when selected */}
+              {creationMethod === 'bulk' && (
+                <div className="px-4 pb-4 pt-4 space-y-4 border-t border-outline-variant bg-surface-container-low">
                   <p className="body-medium text-on-surface-variant">
-                    Upload multiple items via spreadsheet
+                    Download the template, fill it with your items, and upload it back.
                   </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Button
+                      onClick={handleDownloadTemplate}
+                      variant="outline"
+                      size="lg"
+                      disabled={!templateAvailability.endpointLive || isProcessingUpload}
+                    >
+                      <DownloadIcon size={20} className="mr-2" />
+                      <span className="label-large">{templateAvailability.buttonLabel}</span>
+                    </Button>
+
+                    <div className="relative">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileSelect}
+                        disabled={isProcessingUpload}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <Button
+                        variant="default"
+                        className="w-full bg-primary text-on-primary"
+                        size="lg"
+                        disabled={isProcessingUpload}
+                      >
+                        <UploadIcon size={20} className="mr-2" />
+                        <span className="label-large">
+                          {isProcessingUpload ? 'Processing CSV...' : 'Upload CSV File'}
+                        </span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {uploadError && (
+                    <Alert variant="destructive">
+                      <AlertTriangleIcon className="h-4 w-4" />
+                      <AlertDescription className="body-small">{uploadError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {renderUploadStatus()}
                 </div>
-              </div>
-            </button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* Bulk Upload Options (shown inline when bulk is selected) */}
-      {creationMethod === 'bulk' && (
-        <Card className="bg-surface-container-low border-outline">
-          <CardHeader>
-            <CardTitle className="title-large">Upload Spreadsheet</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="body-medium text-on-surface-variant">
-              Download the template, fill it with your items, and upload it back.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Button
-                onClick={handleDownloadTemplate}
-                variant="outline"
-                size="lg"
-                disabled={!templateAvailability.endpointLive || isProcessingUpload}
-              >
-                <DownloadIcon size={20} className="mr-2" />
-                <span className="label-large">{templateAvailability.buttonLabel}</span>
-              </Button>
-
-              <div className="relative">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileSelect}
-                  disabled={isProcessingUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <Button
-                  variant="default"
-                  className="w-full bg-primary text-on-primary"
-                  size="lg"
-                  disabled={isProcessingUpload}
-                >
-                  <UploadIcon size={20} className="mr-2" />
-                  <span className="label-large">
-                    {isProcessingUpload ? 'Processing CSV...' : 'Upload CSV File'}
-                  </span>
-                </Button>
-              </div>
-            </div>
-
-            {uploadError && (
-              <Alert variant="destructive">
-                <AlertTriangleIcon className="h-4 w-4" />
-                <AlertDescription className="body-small">{uploadError}</AlertDescription>
-              </Alert>
-            )}
-
-            {renderUploadStatus()}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Navigation Buttons */}
       <div className="flex justify-end">

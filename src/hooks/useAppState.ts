@@ -192,6 +192,7 @@ export function useAppState() {
     warehouseName?: string;
     receiverLabel?: string;
     orderItems?: OrderItem[]; // Store order items for newly created orders
+    emptyUploadNotice?: boolean; // True when a bulk CSV upload found no rows, so the details screen shows an inline notice
     previousScreen?: Screen; // Track where we came from for back navigation
     previousTab?: 'shipments' | 'returns' | 'all' | 'pending' | 'in-transit' | 'delivered' | 'registered' | 'orders' | 'pending-registered'; // Track which tab was active
     previousFilter?: 'packing' | 'in-transit' | 'delivered' | 'all' | 'returned' | 'approval' | 'pending' | 'registered'; // Track which filter chip was active

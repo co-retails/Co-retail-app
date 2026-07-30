@@ -2749,7 +2749,7 @@ export default function App() {
           return (
             <ThriftedOrderCreationScreen
               onBack={() => setCurrentScreenSafe(orderCreationReturnScreen)}
-              onCreateOrder={(items, storeSelection, shouldRegister = false) => {
+              onCreateOrder={(items, storeSelection, shouldRegister = false, meta) => {
                 const sendingWarehouseId =
                   storeSelection.warehouseId || currentPartnerWarehouseSelection?.warehouseId;
                 const sendingWarehouseName =
@@ -2794,6 +2794,9 @@ export default function App() {
                     partnerName: currentPartner?.name,
                     warehouseName: sendingWarehouseName,
                     orderItems: items, // Pass items to the details screen
+                    // Show an inline notice on the details screen when a CSV upload
+                    // produced no rows (prototype accepts any CSV and proceeds empty).
+                    emptyUploadNotice: meta?.emptyUploadNotice === true && items.length === 0,
                     previousScreen: 'order-creation',
                     previousTab: 'pending',
                     previousFilter: 'draft',
@@ -2993,6 +2996,15 @@ export default function App() {
               return;
             }
             console.log('Closing order-shipment-details, previousScreen:', detailsScreenData.previousScreen, 'previousTab:', detailsScreenData.previousTab);
+            // Registered partner orders: return to the Orders list, not the create-order screen.
+            if (
+              detailsScreenData.type === 'order' &&
+              appViewRole === 'partner' &&
+              (detailsScreenData.data as PartnerOrder).status === 'registered'
+            ) {
+              navigateToPartnerOrdersListAll();
+              return;
+            }
             // Restore the tab if we came from shipping screen
             if (detailsScreenData.previousScreen === 'shipping' && detailsScreenData.previousTab) {
               console.log('Restoring shipping tab to:', detailsScreenData.previousTab);
@@ -3015,10 +3027,12 @@ export default function App() {
           data={detailsScreenData.data}
           onBack={() => {
             console.log('OrderShipmentDetailsScreen onBack called, previousScreen:', detailsScreenData.previousScreen, 'previousTab:', detailsScreenData.previousTab, 'previousFilter:', detailsScreenData.previousFilter);
-            // Registered partner orders: always return to Orders list with All filter (same as post-register Done)
+            // Registered partner orders: always return to Orders list with All filter (same as post-register Done).
+            // Use appViewRole so this also applies to admins previewing the Partner portal, whose
+            // previousScreen would otherwise send them back to the create-order screen.
             if (
               detailsScreenData.type === 'order' &&
-              currentUserRole === 'partner' &&
+              appViewRole === 'partner' &&
               (detailsScreenData.data as PartnerOrder).status === 'registered'
             ) {
               navigateToPartnerOrdersListAll();
@@ -3320,6 +3334,7 @@ export default function App() {
             }
             return [];
           })()}
+          emptyUploadNotice={detailsScreenData?.emptyUploadNotice === true}
           onSaveThriftedOrderDraft={(orderId: string, items: OrderItem[]) => {
             suppressOrderDetailsDialogCloseNavigationRef.current = true;
             const metaOrder =

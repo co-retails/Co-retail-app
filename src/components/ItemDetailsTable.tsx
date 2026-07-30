@@ -1377,6 +1377,14 @@ export function ItemDetailsTable({
         showMaterial={showMaterial}
         brandAutocompleteOptions={mergedBrandSuggestions}
         partnerMobileActions={partnerMobileActions}
+        // Live fieldErrors (looked up from `items`) so highlighting updates as selects are fixed,
+        // rather than the frozen mobileDetailsItem snapshot.
+        fieldErrors={
+          mobileDetailsItem
+            ? items.find((i) => i.id === mobileDetailsItem.id)?.fieldErrors ??
+              mobileDetailsItem.fieldErrors
+            : undefined
+        }
       />
 
       {/* Image picker sheet (Thrifted partner draft/pending only) */}

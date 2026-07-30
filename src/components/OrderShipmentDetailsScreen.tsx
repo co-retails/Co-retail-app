@@ -44,7 +44,8 @@ import {
   XIcon,
   Box as BoxIcon,
   Package,
-  XCircle
+  XCircle,
+  Info as InfoIcon
 } from 'lucide-react';
 import { OrderItem } from './OrderCreationScreen';
 import { PartnerOrder } from './PartnerDashboard';
@@ -96,6 +97,8 @@ interface OrderShipmentDetailsScreenProps {
   onAddBox?: (deliveryNoteId: string, boxLabel: string) => void;
   onOpenBoxDetails?: (box: Box) => void;
   orderItems?: OrderItem[];
+  /** Show an inline notice when the order was created from a CSV upload that contained no rows. */
+  emptyUploadNotice?: boolean;
   onUnregisterBox?: (boxId: string) => void;
   onDeleteBox?: (boxId: string) => void;
   relatedOrders?: Array<{
@@ -257,6 +260,7 @@ export default function OrderShipmentDetailsScreen({
   onAddBox,
   onOpenBoxDetails,
   orderItems = [],
+  emptyUploadNotice = false,
   onUpdateReceiver,
   onUnregisterBox,
   onDeleteBox,
@@ -1501,6 +1505,15 @@ export default function OrderShipmentDetailsScreen({
         {/* Items List - Only show for orders and returns, not for shipments (delivery notes) */}
         {type !== 'shipment' && (
           <Section title="Items">
+            {/* Inline notice: shown when a CSV upload produced no rows and none have been added yet. */}
+            {emptyUploadNotice && allItems.length === 0 && (
+              <Alert className="mb-4 border-outline bg-surface-container-high">
+                <InfoIcon className="h-4 w-4 text-on-surface-variant" />
+                <AlertDescription className="body-small text-on-surface-variant">
+                  No rows were found in the uploaded file. Add items manually with “Add Row”, or re-import a CSV that includes data rows below the header.
+                </AlertDescription>
+              </Alert>
+            )}
             {/* Validation Filter and Add Row Button - Show for pending and approval orders */}
             {type === 'order' && ((data as PartnerOrder).status === 'pending' || (data as PartnerOrder).status === 'draft' || isApprovalOrder) && (
               <div className="mb-4 flex flex-wrap gap-2 items-center justify-between">
