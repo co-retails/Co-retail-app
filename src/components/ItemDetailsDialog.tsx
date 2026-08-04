@@ -113,6 +113,8 @@ interface ItemDetailsDialogProps {
   };
   /** Per-field validation errors for the Thrifted item dialog (same keys as the desktop table). */
   fieldErrors?: Record<string, string> | null;
+  /** Per-field non-blocking warnings (amber, not red) for optional Thrifted fields. */
+  fieldWarnings?: Record<string, string> | null;
 }
 
 type EditField = 'itemId' | 'title' | 'brand' | 'category' | 'subcategory' | 'size' | 'color' | 'material' | 'price' | 'status' | 'location' | null;
@@ -411,23 +413,33 @@ function ThriftedFieldRow({
   icon: Icon,
   label,
   error,
+  warning,
   children,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   error?: string | null;
+  warning?: string | null;
   children: React.ReactNode;
 }) {
+  // An error (red) takes precedence over a warning (amber, non-blocking).
+  const showError = Boolean(error && String(error).trim());
+  const showWarning = !showError && Boolean(warning && String(warning).trim());
   return (
     <div className="flex items-start gap-3 pb-2">
       <Icon className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-2.5" />
       <div className="flex-1 min-w-0">
         <p className="label-small text-on-surface-variant mb-1">{label}</p>
         <div className="mt-0">{children}</div>
-        {error ? (
+        {showError ? (
           <p className="mt-1 flex items-center gap-1 body-small text-error">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {error}
+          </p>
+        ) : showWarning ? (
+          <p className="mt-1 flex items-center gap-1 body-small text-on-warning-container">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {warning}
           </p>
         ) : null}
       </div>
@@ -435,8 +447,9 @@ function ThriftedFieldRow({
   );
 }
 
-/** Error vs normal border/background for the Thrifted dialog fields (matches desktop table). */
+/** Error vs warning vs normal border/background for the Thrifted dialog fields (matches desktop table). */
 const THRIFTED_FIELD_ERROR_CLASS = 'border border-error bg-error-container/10 focus:border-error';
+const THRIFTED_FIELD_WARNING_CLASS = 'border border-outline bg-warning-container/20';
 const THRIFTED_FIELD_NORMAL_CLASS = 'bg-surface-container-high border border-outline';
 
 function ThriftedPartnerInlineSection({
@@ -453,6 +466,7 @@ function ThriftedPartnerInlineSection({
   onExternalDraftChange,
   onBrandDraftChange,
   fieldErrors,
+  fieldWarnings,
 }: {
   item: ItemDetails;
   onPatch: (updates: Partial<ItemDetails>) => void;
@@ -467,6 +481,7 @@ function ThriftedPartnerInlineSection({
   onExternalDraftChange: (v: string) => void;
   onBrandDraftChange: (v: string) => void;
   fieldErrors?: Record<string, string> | null;
+  fieldWarnings?: Record<string, string> | null;
 }) {
   const subcategoryBase = useMemo(() => {
     const c = item.category?.trim();
@@ -531,12 +546,14 @@ function ThriftedPartnerInlineSection({
   // backed by local drafts that flush on close, so derive their error from the draft value
   // to clear/show live as the user types; selects patch immediately, so read fieldErrors.
   const fe = fieldErrors || {};
+  // Size/Color/Gender are optional: surfaced as non-blocking warnings (amber, not red).
+  const fw = fieldWarnings || {};
   const retailerError = fe.retailerItemId && !retailerDraft.trim() ? fe.retailerItemId : undefined;
-  const brandError = fe.brand && !brandDraft.trim() ? fe.brand : undefined;
+  const brandWarning = fw.brand && !brandDraft.trim() ? fw.brand : undefined;
   const categoryError = fe.category;
   const subcategoryError = fe.subcategory;
-  const sizeError = fe.size;
-  const colorError = fe.color;
+  const sizeWarning = fw.size;
+  const colorWarning = fw.color;
   const priceError = fe.price;
 
   return (
@@ -583,19 +600,19 @@ function ThriftedPartnerInlineSection({
         />
       </ThriftedFieldRow>
 
-      <ThriftedFieldRow icon={Tag} label="Brand" error={brandError}>
+      <ThriftedFieldRow icon={Tag} label="Brand" warning={brandWarning}>
         <ThriftedBrandAutocompleteEdit
           value={brandDraft}
           onChange={(v) => onBrandDraftChange(v)}
           suggestions={brandAutocompleteOptions}
           minCharsForPanel={2}
           className={`relative z-[1] rounded-lg min-h-[48px] h-12 text-base touch-manipulation w-full ${
-            brandError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+            brandWarning ? THRIFTED_FIELD_WARNING_CLASS : THRIFTED_FIELD_NORMAL_CLASS
           }`}
         />
       </ThriftedFieldRow>
 
-      <ThriftedFieldRow icon={Tag} label="Category" error={categoryError}>
+      <ThriftedFieldRow icon={Tag} label="Category*" error={categoryError}>
         <Select
           modal={false}
           value={item.category || ''}
@@ -619,7 +636,7 @@ function ThriftedPartnerInlineSection({
         </Select>
       </ThriftedFieldRow>
 
-      <ThriftedFieldRow icon={Tag} label="Subcategory" error={subcategoryError}>
+      <ThriftedFieldRow icon={Tag} label="Subcategory*" error={subcategoryError}>
         <Select
           modal={false}
           value={item.subcategory || ''}
@@ -643,12 +660,11 @@ function ThriftedPartnerInlineSection({
         </Select>
       </ThriftedFieldRow>
 
-      <ThriftedFieldRow icon={Package} label="Size" error={sizeError}>
+      <ThriftedFieldRow icon={Package} label="Size" warning={sizeWarning}>
         <Select modal={false} value={item.size || ''} onValueChange={(v) => onPatch({ size: v })}>
           <SelectTrigger
-            aria-invalid={Boolean(sizeError)}
             className={`rounded-lg min-h-[48px] h-12 touch-manipulation w-full ${
-              sizeError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+              sizeWarning ? THRIFTED_FIELD_WARNING_CLASS : THRIFTED_FIELD_NORMAL_CLASS
             }`}
           >
             <SelectValue placeholder="Select size" />
@@ -663,12 +679,11 @@ function ThriftedPartnerInlineSection({
         </Select>
       </ThriftedFieldRow>
 
-      <ThriftedFieldRow icon={Package} label="Color" error={colorError}>
+      <ThriftedFieldRow icon={Package} label="Color" warning={colorWarning}>
         <Select modal={false} value={item.color || ''} onValueChange={(v) => onPatch({ color: v })}>
           <SelectTrigger
-            aria-invalid={Boolean(colorError)}
             className={`rounded-lg min-h-[48px] h-12 touch-manipulation w-full ${
-              colorError ? THRIFTED_FIELD_ERROR_CLASS : THRIFTED_FIELD_NORMAL_CLASS
+              colorWarning ? THRIFTED_FIELD_WARNING_CLASS : THRIFTED_FIELD_NORMAL_CLASS
             }`}
           >
             <SelectValue placeholder="Select color" />
@@ -685,7 +700,7 @@ function ThriftedPartnerInlineSection({
 
       <ThriftedFieldRow
         icon={Euro}
-        label={`Price${priceCurrency ? ` (${priceCurrency})` : ''}`}
+        label={`Price${priceCurrency ? ` (${priceCurrency})` : ''}*`}
         error={priceError}
       >
         <Select
@@ -830,6 +845,7 @@ export default function ItemDetailsDialog({
   brandAutocompleteOptions = [],
   partnerMobileActions,
   fieldErrors,
+  fieldWarnings,
 }: ItemDetailsDialogProps) {
   const [editingField, setEditingField] = useState<EditField>(null);
   const [editValues, setEditValues] = useState<Partial<ItemDetails>>({});
@@ -1128,6 +1144,8 @@ export default function ItemDetailsDialog({
     options,
     formatValue,
     brandSuggestions = [],
+    warning,
+    error,
   }: {
     field: EditField;
     label: string;
@@ -1137,9 +1155,26 @@ export default function ItemDetailsDialog({
     options?: Array<string | { value: string; label: string }>;
     formatValue?: (value: any) => React.ReactNode;
     brandSuggestions?: string[];
+    /** Amber, non-blocking hint shown under the label when the field is empty (Sellpy recommended fields). */
+    warning?: string;
+    /** Red, blocking hint shown under the label when the field is empty (Sellpy mandatory fields). */
+    error?: string;
   }) => {
     const isEditing = editingField === field;
     const currentValue = isEditing ? (editValues[field] ?? value) : value;
+    // Derive empty-state so warnings/errors mirror the desktop table + Thrifted dialog: a hint
+    // shows only while the field is actually empty and clears live as the user fills it in.
+    const isFieldEmpty =
+      currentValue === undefined ||
+      currentValue === null ||
+      currentValue.toString().trim() === '';
+    const showError = !!error && isFieldEmpty;
+    const showWarning = !showError && !!warning && isFieldEmpty;
+    const controlTintClass = showError
+      ? 'bg-error-container/10 border border-error'
+      : showWarning
+        ? 'bg-warning-container/20 border border-outline'
+        : 'bg-surface-container-high border border-outline';
     const normalizedOptions =
       options?.map((option) =>
         typeof option === 'string'
@@ -1180,6 +1215,11 @@ export default function ItemDetailsDialog({
           <Icon className="w-5 h-5 text-on-surface-variant flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="label-small text-on-surface-variant mb-1">{label}</p>
+            {(showError || showWarning) && (
+              <p className={`label-small mb-1 ${showError ? 'text-error' : 'text-on-warning-container'}`}>
+                {showError ? error : warning}
+              </p>
+            )}
             {isEditing ? (
               <div className="flex items-center gap-2">
                 {type === 'brand-autocomplete' && field === 'brand' ? (
@@ -1187,7 +1227,7 @@ export default function ItemDetailsDialog({
                     value={currentValue?.toString() || ''}
                     onChange={(v) => setEditValues({ ...editValues, brand: v })}
                     suggestions={brandSuggestions}
-                    className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base touch-manipulation"
+                    className={`${controlTintClass} rounded-lg min-h-[48px] h-12 text-base touch-manipulation`}
                   />
                 ) : type === 'select' && field === 'brand' ? (
                   <BrandPicker
@@ -1195,7 +1235,7 @@ export default function ItemDetailsDialog({
                     onChange={(v) => setEditValues({ ...editValues, [field]: v })}
                     brands={selectOptions.map((o) => o.value)}
                     placeholder="Select brand"
-                    triggerClassName="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation flex-1"
+                    triggerClassName={`${controlTintClass} rounded-lg min-h-[48px] h-12 touch-manipulation flex-1`}
                   />
                 ) : type === 'select' ? (
                   <Select
@@ -1217,7 +1257,7 @@ export default function ItemDetailsDialog({
                       })
                     }
                   >
-                    <SelectTrigger className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 touch-manipulation">
+                    <SelectTrigger className={`${controlTintClass} rounded-lg min-h-[48px] h-12 touch-manipulation`}>
                       <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1239,7 +1279,7 @@ export default function ItemDetailsDialog({
                     type={type}
                     value={currentValue?.toString() || ''}
                     onChange={(e) => setEditValues({ ...editValues, [field]: type === 'number' ? parseFloat(e.target.value) : e.target.value })}
-                    className="bg-surface-container-high border border-outline rounded-lg min-h-[48px] h-12 text-base touch-manipulation"
+                    className={`${controlTintClass} rounded-lg min-h-[48px] h-12 text-base touch-manipulation`}
                     autoFocus
                   />
                 )}
@@ -1462,6 +1502,7 @@ export default function ItemDetailsDialog({
                   onExternalDraftChange={setThriftedExternalDraft}
                   onBrandDraftChange={setThriftedBrandDraft}
                   fieldErrors={fieldErrors}
+                  fieldWarnings={fieldWarnings}
                 />
               </>
             ) : (
@@ -1525,6 +1566,7 @@ export default function ItemDetailsDialog({
                     icon={Euro}
                     type={priceSelectOptions.length > 0 ? 'select' : 'number'}
                     options={priceSelectOptions}
+                    error={fieldErrors?.price}
                     formatValue={(val) =>
                       val !== undefined && val !== null
                         ? formatPriceValue(
@@ -1541,6 +1583,7 @@ export default function ItemDetailsDialog({
                     icon={Tag}
                     type="select"
                     options={SORTED_AVAILABLE_BRANDS}
+                    warning={fieldWarnings?.brand}
                   />
 
                   <EditableField
@@ -1550,15 +1593,17 @@ export default function ItemDetailsDialog({
                     icon={Tag}
                     type="select"
                     options={SORTED_AVAILABLE_CATEGORIES}
+                    error={fieldErrors?.category}
                   />
 
-                  {(item.subcategory || editingField === 'subcategory') && (
+                  {(item.subcategory || editingField === 'subcategory' || fieldErrors?.subcategory) && (
                     <EditableField
                       field="subcategory"
                       label="Subcategory"
                       value={item.subcategory}
                       icon={Tag}
                       type="text"
+                      error={fieldErrors?.subcategory}
                     />
                   )}
 
@@ -1569,6 +1614,7 @@ export default function ItemDetailsDialog({
                     icon={Package}
                     type="select"
                     options={SORTED_AVAILABLE_SIZES}
+                    warning={fieldWarnings?.size}
                   />
 
                   <EditableField
@@ -1578,6 +1624,7 @@ export default function ItemDetailsDialog({
                     icon={Package}
                     type="select"
                     options={SORTED_AVAILABLE_COLORS}
+                    warning={fieldWarnings?.color}
                   />
 
                   {shouldShowMaterial && (

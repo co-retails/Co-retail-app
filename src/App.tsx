@@ -1686,18 +1686,15 @@ export default function App() {
       );
     }
     
-    // Update detailsScreenData if we're viewing this return
-    if (detailsScreenData?.type === 'return' && detailsScreenData.data.id === deliveryId) {
-      setDetailsScreenData({
-        ...detailsScreenData,
-        data: {
-          ...detailsScreenData.data,
-          status
-        }
-      });
-    }
-    
     toast.success('Return marked as returned');
+
+    // If we're viewing this return in the details screen, auto-navigate back to the
+    // returns tab in Orders & Shipments (the return now lives under "Returned").
+    // When triggered from the list itself, detailsScreenData won't match, so we stay put.
+    if (detailsScreenData?.type === 'return' && detailsScreenData.data.id === deliveryId) {
+      setShippingInitialTab('returns-returned');
+      setCurrentScreenSafe('shipping');
+    }
   };
 
   const handleCancelReturn = (deliveryId: string, reason?: string) => {
@@ -3084,11 +3081,11 @@ export default function App() {
               setPartnerOrders((prev) =>
                 prev.map((o) => (o.id === order.id ? { ...o, status: 'pending' } : o))
               );
-              setDetailsScreenData({
-                ...detailsScreenData,
-                data: { ...order, status: 'pending' },
-              });
               toast.success('Order approved and moved to pending');
+              // Auto-navigate back to Orders & Shipments, Approval tab so the admin can
+              // continue processing the remaining approval orders.
+              setShippingInitialTab('approval');
+              setCurrentScreenSafe('shipping');
               return;
             }
 

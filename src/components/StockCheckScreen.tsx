@@ -65,7 +65,11 @@ function TopAppBar({ onBack, title, onClose, onNavigateToReport, onManualEntry }
   onManualEntry?: () => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+  // Desktop begins at the md breakpoint (768px) in this app — the left nav rail is
+  // `hidden md:flex` and the mobile bottom nav is `md:hidden`. Match that boundary so
+  // desktop-width windows (incl. 768–1023px) consistently get the dropdown per the
+  // design system, rather than falling through to the mobile bottom-sheet path.
+  const isLargeScreen = useMediaQuery('(min-width: 768px)');
 
   // Build the overflow menu options from the handlers that are wired up.
   const menuOptions = [
@@ -213,8 +217,8 @@ function TabBar({
   notScannedCount: number;
 }) {
   const tabs = [
-    { id: 'not-scanned' as const, label: 'Not scanned', count: notScannedCount },
-    { id: 'scanned' as const, label: 'Scanned', count: scannedCount }
+    { id: 'scanned' as const, label: 'Scanned', count: scannedCount },
+    { id: 'not-scanned' as const, label: 'Not scanned', count: notScannedCount }
   ];
   
   return (
@@ -807,7 +811,13 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       />
       
       {/* Sticky Scan View Container - Always Active */}
-      <div className="sticky top-16 mx-4 mb-4 z-20">
+      {/* `isolate` forces an own stacking context so the CameraScanner's internal
+          high z-index overlays (zIndex 999/1000) stay capped inside this container and
+          can't escape. Intentionally NO positive z-index here: `sticky` already paints
+          this above the (non-positioned) list below it, and giving it a positive z-index
+          made it cover the more-menu — Radix portals the menu to <body> inside a wrapper
+          whose z-index is `auto`, so any positive z-index on this box wins over it. */}
+      <div className="sticky top-16 mx-4 mb-4 isolate">
         <CameraScanner
           onScan={handleScan}
           scanMessage="Click to scan"
@@ -864,7 +874,7 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       
       {/* Fixed Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 md:py-6 z-20">
-        <div className="w-full max-w-6xl mx-auto flex flex-row flex-wrap gap-3 md:gap-4 justify-end">
+        <div className="w-full flex flex-row flex-wrap gap-3 md:gap-4 justify-end">
           {/* Add to todays count Button - full width on mobile, positioned far right on desktop */}
           <Button 
             onClick={handleComplete}

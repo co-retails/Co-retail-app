@@ -731,6 +731,23 @@ function PartnerOrderItem({
             {order.itemCount} items • {order.boxCount} boxes
           </div>
 
+          {/* Order Value & Sales Margin (admins only; populated for Sellpy orders) */}
+          {isAdmin && (order.orderValue !== undefined || order.salesMargin !== undefined) && (
+            <div className={`${fonts.body} text-on-surface-variant mb-0.5 flex flex-wrap gap-x-3`}>
+              {order.orderValue !== undefined && (
+                <span>
+                  Order value:{' '}
+                  <span className="text-on-surface font-medium">${order.orderValue.toFixed(2)}</span>
+                </span>
+              )}
+              {order.salesMargin !== undefined && (
+                <span>
+                  Margin: <span className="text-primary font-medium">{order.salesMargin.toFixed(1)}%</span>
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Sender/Receiver Line - Only show if requested */}
           {showSenderReceiver && (warehouseDisplay || order.partnerName || receiverDisplay) && (
             <div className={`${fonts.label} text-on-surface-variant opacity-90 space-y-0.5`}>
@@ -1778,7 +1795,10 @@ useEffect(() => {
   const canPartnerDeleteDraftOrders = role === 'partner' && currentPartnerId === '2'; // Thrifted partner
   const canPartnerDeleteDraftOrPackingDeliveryNotes =
     role === 'partner' && (currentPartnerId === '1' || currentPartnerId === '2'); // Sellpy + Thrifted partners
-  const canShowSalesMarginColumn = !isThriftedPartner && role !== 'partner';
+  // Gate on isAdmin (real account) rather than the view-role so admins see the sales-margin
+  // column even while viewing the Sellpy partner portal (where role is 'partner'). Real
+  // partner accounts have isAdmin=false and never see margin.
+  const canShowSalesMarginColumn = !isThriftedPartner && !!isAdmin;
   const showCreateOrderButton = role === 'partner' && isThriftedPartner && !!onCreateOrder;
   const showDeliveryNotes = role === 'partner' && !isChinesePartner && activeTab === 'in-transit';
   const showOrders = role === 'partner' && !isChinesePartner && activeTab === 'pending';

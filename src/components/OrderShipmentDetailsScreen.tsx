@@ -165,8 +165,17 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
     // For Sellpy pending orders: some items should have validation errors
     let itemStatus: 'error' | undefined = undefined;
     let fieldErrors: Record<string, string> | undefined = undefined;
+    let fieldWarnings: Record<string, string> | undefined = undefined;
     let errors: string[] | undefined = undefined;
     let retailerItemId: string | undefined = undefined;
+
+    // Sellpy demo blanks: leave some optional fields empty to show non-blocking amber
+    // warnings, independent of any real (red) error. Computed here, applied below.
+    const sellpyDemo = isSellpy && isPending;
+    const sellpyBrandBlank = sellpyDemo && index % 3 === 0;
+    const sellpySizeBlank = sellpyDemo && index % 4 === 1;
+    const sellpyColorBlank = sellpyDemo && index % 5 === 2;
+    const sellpyPriceMissing = sellpyDemo && index % 6 === 0;
 
     if (type === 'order' && isPending) {
       if (isThrifted) {
@@ -174,25 +183,10 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
         retailerItemId = generateGtin();
         itemStatus = undefined;
       } else if (isSellpy) {
-        // Sellpy pending orders: ~30% of items have validation errors
-        // Note: Category and subcategory are ALWAYS filled in for Sellpy (AI price fork suggests them)
-        const hasError = index % 3 === 0; // Every 3rd item has an error
-        if (hasError) {
-          itemStatus = 'error';
-          // Create realistic validation errors (category/subcategory are never errors for Sellpy)
-          const errorTypes = [
-            { field: 'brand', message: 'Item brand is required' },
-            { field: 'size', message: 'Size is required' },
-            { field: 'color', message: 'Color is required' },
-            { field: 'price', message: 'Select valid price' }
-          ];
-          const errorType = errorTypes[Math.floor(Math.random() * errorTypes.length)];
-          fieldErrors = { [errorType.field]: errorType.message };
-          errors = [errorType.message];
-        } else {
-          // Some valid items may not have retailer IDs yet
-          retailerItemId = Math.random() > 0.4 ? generateGtin() : undefined;
-        }
+        // Sellpy pending orders: real (red) errors come only from missing retailer ID or
+        // price; brand/size/color are optional (amber warnings). fieldErrors/fieldWarnings
+        // and status are computed below once the final field values are known.
+        retailerItemId = index % 4 === 0 ? undefined : generateGtin();
       } else {
         // Other partners: default behavior
         retailerItemId = Math.random() > 0.3 ? generateGtin() : undefined;
@@ -205,40 +199,64 @@ const generateMockItems = (count: number, type: DetailType, partnerName?: string
     
     // For Sellpy orders, ALWAYS generate partnerItemId (External ID)
     // For other partners, also generate it but it's optional
-    const selectedBrand = itemStatus === 'error' && fieldErrors?.brand ? brands[0] : brands[Math.floor(Math.random() * brands.length)];
-    const partnerItemId = isSellpy 
+    const selectedBrand = brands[Math.floor(Math.random() * brands.length)];
+    const partnerItemId = isSellpy
       ? `${selectedBrand.substring(0, 2).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${index + 1}`
       : `${selectedBrand.substring(0, 2).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-    
+
     // For Sellpy orders, category and subcategory are ALWAYS filled in (AI price fork suggests them)
     // For other partners, category/subcategory may be empty if there's an error
     const selectedCategory = categories[Math.floor(Math.random() * categories.length)];
     const selectedSubcategory = subcategories[Math.floor(Math.random() * subcategories.length)];
-    const category = isSellpy 
+    const category = isSellpy
       ? selectedCategory  // Always filled for Sellpy
       : (itemStatus === 'error' && fieldErrors?.category ? '' : selectedCategory);
-    const subcategory = isSellpy 
+    const subcategory = isSellpy
       ? selectedSubcategory  // Always filled for Sellpy
       : subcategories[Math.floor(Math.random() * subcategories.length)];
-    
+
+    // Final field values (Sellpy demo may blank optional fields to show amber warnings)
+    const brandValue = sellpyBrandBlank ? '' : selectedBrand;
+    const sizeValue = sellpySizeBlank ? undefined : (Math.random() > 0.7 ? undefined : sizes[Math.floor(Math.random() * sizes.length)]);
+    const colorValue = sellpyColorBlank ? '' : colors[Math.floor(Math.random() * colors.length)];
+    const priceValue = sellpyPriceMissing ? 0 : price;
+
+    // For Sellpy pending items, build the field-level model from the final values so the
+    // initial render matches the live validators: red errors for missing retailerId/price,
+    // amber warnings for missing brand/size/color. Category/subcategory always filled.
+    if (sellpyDemo) {
+      const fe: Record<string, string> = {};
+      const fw: Record<string, string> = {};
+      if (!retailerItemId) fe.retailerItemId = 'Required (Mandatory)';
+      if (!priceValue || priceValue <= 0) fe.price = 'Required (Mandatory)';
+      if (!brandValue) fw.brand = 'Recommended';
+      if (!sizeValue) fw.size = 'Recommended';
+      if (!colorValue) fw.color = 'Recommended';
+      fieldErrors = Object.keys(fe).length > 0 ? fe : undefined;
+      fieldWarnings = Object.keys(fw).length > 0 ? fw : undefined;
+      errors = fieldErrors ? Object.values(fieldErrors) : undefined;
+      itemStatus = fieldErrors ? 'error' : undefined;
+    }
+
     return {
       id: `item-${type}-${index + 1}`,
       itemId: type === 'return' ? `RET-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : '',
-      brand: itemStatus === 'error' && fieldErrors?.brand ? '' : selectedBrand,
+      brand: brandValue,
       gender: Math.random() > 0.5 ? 'Women' : 'Men',
       category: category,
       subcategory: subcategory,
-      size: itemStatus === 'error' && fieldErrors?.size ? undefined : (Math.random() > 0.7 ? undefined : sizes[Math.floor(Math.random() * sizes.length)]),
-      color: itemStatus === 'error' && fieldErrors?.color ? '' : colors[Math.floor(Math.random() * colors.length)],
+      size: sizeValue,
+      color: colorValue,
       // Optional: ~1 in 4 items left blank to show material is never required.
       material: index % 4 === 0 ? undefined : materials[Math.floor(Math.random() * materials.length)],
-      price: itemStatus === 'error' && fieldErrors?.price ? 0 : price,
+      price: priceValue,
       purchasePrice: purchasePrice,
       status: itemStatus,
       partnerItemId: partnerItemId,
       retailerItemId: retailerItemId,
       source: 'detail-mock' as const,
       fieldErrors: fieldErrors,
+      fieldWarnings: fieldWarnings,
       errors: errors
     };
   });
@@ -556,10 +574,9 @@ export default function OrderShipmentDetailsScreen({
 
     // Mandatory: Retailer ID
     if (!item.retailerItemId || !item.retailerItemId.trim()) return false;
-    
-    // Mandatory: Brand
-    if (!item.brand || !item.brand.trim()) return false;
-    
+
+    // Optional: Brand is recommended but never blocks validity (see fieldWarnings).
+
           // Mandatory: Category (must be selected first)
           if (!item.category || !item.category.trim()) return false;
           if (!THRIFTED_VALID_VALUES.categories.includes(item.category.trim())) return false;
@@ -569,13 +586,10 @@ export default function OrderShipmentDetailsScreen({
           const validSubcategories = THRIFTED_VALID_VALUES.subcategories[item.category.trim()] || [];
           if (!validSubcategories.includes(item.subcategory.trim())) return false;
     
-    // Mandatory: Size
-    if (!item.size || !item.size.trim()) return false;
-    
-    // Mandatory: Color
-    if (!item.color || !item.color.trim()) return false;
-    if (!THRIFTED_VALID_VALUES.colors.includes(item.color.trim())) return false;
-    
+    // Optional: Size, Color and Gender are recommended but never block validity.
+    // They surface a non-blocking warning (see fieldWarnings) instead of an error,
+    // so they are excluded from the errors/invalid filter and never block registering.
+
     // Mandatory: Price
     if (!item.price || item.price <= 0) return false;
     if (!THRIFTED_VALID_VALUES.prices.includes(item.price)) return false;
@@ -591,7 +605,6 @@ export default function OrderShipmentDetailsScreen({
     if (!item.retailerItemId || !item.retailerItemId.trim()) {
       fieldErrors.retailerItemId = 'Required (Mandatory)';
     }
-    if (!item.brand || !item.brand.trim()) fieldErrors.brand = 'Required';
     if (!item.category || !item.category.trim()) {
       fieldErrors.category = 'Required';
     } else if (!THRIFTED_VALID_VALUES.categories.includes(item.category.trim())) {
@@ -605,21 +618,77 @@ export default function OrderShipmentDetailsScreen({
         fieldErrors.subcategory = 'Invalid subcategory for selected category';
       }
     }
-    if (!item.size || !item.size.trim()) fieldErrors.size = 'Required';
-    if (!item.color || !item.color.trim()) fieldErrors.color = 'Required';
-    else if (!THRIFTED_VALID_VALUES.colors.includes(item.color.trim())) {
-      fieldErrors.color = 'Invalid color';
-    }
     if (!item.price || item.price <= 0) {
       fieldErrors.price = 'Required (Mandatory)';
     } else if (!THRIFTED_VALID_VALUES.prices.includes(item.price)) {
       fieldErrors.price = 'Invalid price';
     }
-    
+
+    // Optional fields: surface a non-blocking warning (amber, not red) when empty.
+    // These never contribute to fieldErrors / status, so they are excluded from the
+    // errors filter and never block registering the order.
+    const fieldWarnings: Record<string, string> = {};
+    if (!item.brand || !item.brand.trim()) fieldWarnings.brand = 'Recommended';
+    if (!item.size || !item.size.trim()) fieldWarnings.size = 'Recommended';
+    if (!item.color || !item.color.trim()) {
+      fieldWarnings.color = 'Recommended';
+    } else if (!THRIFTED_VALID_VALUES.colors.includes(item.color.trim())) {
+      fieldWarnings.color = 'Unrecognized color';
+    }
+    if (!item.gender || !item.gender.trim()) fieldWarnings.gender = 'Recommended';
+
     return {
       ...item,
       status: isValid ? undefined : 'error',
       fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+      fieldWarnings: Object.keys(fieldWarnings).length > 0 ? fieldWarnings : undefined,
+      errors: Object.keys(fieldErrors).length > 0 ? Object.values(fieldErrors) : undefined
+    };
+  };
+
+  // Validation for Sellpy items (pending & approval). Mirrors the Thrifted field-level
+  // model but with presence-only checks (Sellpy has no controlled value lists) and an
+  // approval-aware Retailer ID rule (retailer IDs are added after approval).
+  // Mandatory (red, blocking): category, subcategory, price, and retailerItemId when required.
+  // Optional (amber warning, non-blocking): brand, size, color, gender.
+  const validateSellpyItem = (
+    item: DetailItem,
+    opts: { requireRetailerId: boolean }
+  ): boolean => {
+    if (opts.requireRetailerId && (!item.retailerItemId || !item.retailerItemId.trim())) return false;
+    if (!item.category || !item.category.trim()) return false;
+    if (!item.subcategory || !item.subcategory.trim()) return false;
+    if (!item.price || item.price <= 0) return false;
+    return true;
+  };
+
+  const validateAndSetSellpyFieldErrors = (
+    item: DetailItem,
+    opts: { requireRetailerId: boolean }
+  ): DetailItem => {
+    const isValid = validateSellpyItem(item, opts);
+    const fieldErrors: Record<string, string> = {};
+
+    if (opts.requireRetailerId && (!item.retailerItemId || !item.retailerItemId.trim())) {
+      fieldErrors.retailerItemId = 'Required (Mandatory)';
+    }
+    if (!item.category || !item.category.trim()) fieldErrors.category = 'Required';
+    if (!item.subcategory || !item.subcategory.trim()) fieldErrors.subcategory = 'Required';
+    if (!item.price || item.price <= 0) fieldErrors.price = 'Required (Mandatory)';
+
+    // Optional fields: non-blocking amber warning when empty. Never set status/fieldErrors,
+    // so they stay out of the errors filter and never block registering the order.
+    const fieldWarnings: Record<string, string> = {};
+    if (!item.brand || !item.brand.trim()) fieldWarnings.brand = 'Recommended';
+    if (!item.size || !item.size.trim()) fieldWarnings.size = 'Recommended';
+    if (!item.color || !item.color.trim()) fieldWarnings.color = 'Recommended';
+    if (!item.gender || !item.gender.trim()) fieldWarnings.gender = 'Recommended';
+
+    return {
+      ...item,
+      status: isValid ? undefined : 'error',
+      fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+      fieldWarnings: Object.keys(fieldWarnings).length > 0 ? fieldWarnings : undefined,
       errors: Object.keys(fieldErrors).length > 0 ? Object.values(fieldErrors) : undefined
     };
   };
@@ -646,14 +715,23 @@ export default function OrderShipmentDetailsScreen({
       }))
     : (itemCount > 0 ? baseItems : []); // Use baseItems for existing orders with items, empty array for new orders
   
+  // Retailer ID is mandatory for Sellpy pending orders but added after approval, so it is
+  // excluded from the Sellpy validity check for approval orders.
+  const sellpyRequireRid = isPendingOrder && !isApprovalOrder;
+
   // Filter items based on validation status
   // For Thrifted orders: validate all mandatory fields
+  // For Sellpy orders (pending & approval): field-level validity; optional fields don't count
   // For approval orders, don't validate on Retailer ID (it will be added after approval)
   const items = allItems.filter(item => {
     if (isThriftedOrder && isPendingOrder) {
       // For Thrifted pending orders: validate all mandatory fields
       if (validationFilter === 'errors') return !validateThriftedItem(item);
       if (validationFilter === 'valid') return validateThriftedItem(item);
+    } else if (isSellpyOrder && (isPendingOrder || isApprovalOrder)) {
+      // For Sellpy: brand/size/color/gender are optional and never mark an item invalid.
+      if (validationFilter === 'errors') return !validateSellpyItem(item, { requireRetailerId: sellpyRequireRid });
+      if (validationFilter === 'valid') return validateSellpyItem(item, { requireRetailerId: sellpyRequireRid });
     } else if (isApprovalOrder) {
       // For approval orders: validate everything except Retailer ID
       if (validationFilter === 'errors') return item.status === 'error' || !item.price || item.price <= 0;
@@ -665,30 +743,38 @@ export default function OrderShipmentDetailsScreen({
     }
     return true;
   });
-  
+
   // Count items by validation status
   // For Thrifted orders: validate all mandatory fields
+  // For Sellpy orders (pending & approval): field-level validity
   // For approval orders, don't validate on Retailer ID
   const itemsWithErrors = isThriftedOrder && isPendingOrder
     ? allItems.filter(item => !validateThriftedItem(item)).length
+    : isSellpyOrder && (isPendingOrder || isApprovalOrder)
+    ? allItems.filter(item => !validateSellpyItem(item, { requireRetailerId: sellpyRequireRid })).length
     : isApprovalOrder
     ? allItems.filter(item => item.status === 'error' || !item.price || item.price <= 0).length
     : allItems.filter(item => item.status === 'error' || !item.retailerItemId || !item.price || item.price <= 0).length;
-    
+
   const validItems = isThriftedOrder && isPendingOrder
     ? allItems.filter(item => validateThriftedItem(item)).length
+    : isSellpyOrder && (isPendingOrder || isApprovalOrder)
+    ? allItems.filter(item => validateSellpyItem(item, { requireRetailerId: sellpyRequireRid })).length
     : isApprovalOrder
     ? allItems.filter(item => item.status !== 'error' && item.price && item.price > 0).length
     : allItems.filter(item => item.status !== 'error' && item.retailerItemId && item.price && item.price > 0).length;
-  
+
   // Check if all items are valid for registration
   // For Thrifted orders: validate all mandatory fields
+  // For Sellpy orders (pending & approval): field-level validity (optional fields never block)
   // For approval orders: don't require retailer ID (will be added after approval)
   // For other orders: require retailer ID and price
   const canRegister =
     type === 'order' &&
     allItems.length >= 1 &&
-    (isApprovalOrder
+    (isSellpyOrder && (isPendingOrder || isApprovalOrder)
+      ? allItems.every((item) => validateSellpyItem(item, { requireRetailerId: sellpyRequireRid }))
+      : isApprovalOrder
       ? allItems.every((item) => item.price && item.price > 0 && item.status !== 'error')
       : isThriftedOrder
         ? allItems.every((item) => validateThriftedItem(item))
@@ -1023,8 +1109,6 @@ export default function OrderShipmentDetailsScreen({
             fieldErrors.retailerItemId = 'Required (Mandatory)';
           }
           
-          if (!updatedItem.brand || !updatedItem.brand.trim()) fieldErrors.brand = 'Required';
-          
           // Category is required first
           if (!updatedItem.category || !updatedItem.category.trim()) {
             fieldErrors.category = 'Required';
@@ -1042,26 +1126,44 @@ export default function OrderShipmentDetailsScreen({
             }
           }
           
-          if (!updatedItem.size || !updatedItem.size.trim()) fieldErrors.size = 'Required';
-          if (!updatedItem.color || !updatedItem.color.trim()) fieldErrors.color = 'Required';
-          else if (!THRIFTED_VALID_VALUES.colors.includes(updatedItem.color.trim())) {
-            fieldErrors.color = 'Invalid color';
-          }
-          
           // Price is mandatory - mark clearly
           if (!updatedItem.price || updatedItem.price <= 0) {
             fieldErrors.price = 'Required (Mandatory)';
           } else if (!THRIFTED_VALID_VALUES.prices.includes(updatedItem.price)) {
             fieldErrors.price = 'Invalid price';
           }
-          
+
+          // Brand, Size, Color and Gender are optional: non-blocking warning (amber, not red).
+          const fieldWarnings: Record<string, string> = {};
+          if (!updatedItem.brand || !updatedItem.brand.trim()) fieldWarnings.brand = 'Recommended';
+          if (!updatedItem.size || !updatedItem.size.trim()) fieldWarnings.size = 'Recommended';
+          if (!updatedItem.color || !updatedItem.color.trim()) {
+            fieldWarnings.color = 'Recommended';
+          } else if (!THRIFTED_VALID_VALUES.colors.includes(updatedItem.color.trim())) {
+            fieldWarnings.color = 'Unrecognized color';
+          }
+          if (!updatedItem.gender || !updatedItem.gender.trim()) fieldWarnings.gender = 'Recommended';
+
           updatedItem.fieldErrors = Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined;
+          updatedItem.fieldWarnings = Object.keys(fieldWarnings).length > 0 ? fieldWarnings : undefined;
           updatedItem.errors = Object.keys(fieldErrors).length > 0 ? Object.values(fieldErrors) : undefined;
+        } else if (isSellpyOrder && (isPendingOrder || isApprovalOrder)) {
+          // For Sellpy pending & approval orders: rebuild the full field-level model on every
+          // edit (like Thrifted). brand/size/color/gender surface as amber warnings; only
+          // category/subcategory/price (and retailerId when required) block. This also fixes
+          // Sellpy approval edits, which the generic isPendingOrder branch never re-validated.
+          const validated = validateAndSetSellpyFieldErrors(updatedItem, {
+            requireRetailerId: isPendingOrder && !isApprovalOrder,
+          });
+          updatedItem.status = validated.status;
+          updatedItem.fieldErrors = validated.fieldErrors;
+          updatedItem.fieldWarnings = validated.fieldWarnings;
+          updatedItem.errors = validated.errors;
         } else if (isPendingOrder) {
-          // For non-Thrifted pending orders (e.g. Sellpy): clear the edited field's
+          // For other non-Thrifted, non-Sellpy pending partners: clear the edited field's
           // validation error as soon as a valid value is chosen. We only clear the
           // field that was just edited (instead of rebuilding all errors) because
-          // valid Sellpy items can legitimately have empty optional fields like size.
+          // valid items can legitimately have empty optional fields like size.
           const existingErrors: Record<string, string> = { ...(updatedItem.fieldErrors || {}) };
           const isValueFilled =
             field === 'price'
@@ -1479,8 +1581,12 @@ export default function OrderShipmentDetailsScreen({
               </>
             )}
 
-            {/* Order Summary - Pricing Info (for Sellpy orders) */}
-            {isSellpyOrder && type === 'order' && currentUserRole !== 'partner' && (
+            {/* Order Summary - Pricing Info (for Sellpy orders).
+                Gated on isAdmin (real account) — matching the per-item showMargin gate
+                (isSellpyOrder && isAdmin) — so admins see it even while viewing the Sellpy
+                partner portal (where the view-role currentUserRole is 'partner'). Real
+                partner accounts have isAdmin=false and never see margin. */}
+            {isSellpyOrder && type === 'order' && isAdmin && (
               <div className="mt-4">
                 <div className="flex justify-end gap-3 md:gap-6 flex-wrap">
                   <div>
@@ -1606,12 +1712,10 @@ export default function OrderShipmentDetailsScreen({
                 {type === 'return' ? (
                   // For returns: use ItemCard layout like ItemsScreen
                   <>
-                    {/* Export button for In transit returns (partner role only) */}
+                    {/* Export button for returns (partner role) — always shown regardless of return status */}
                     {(() => {
-                      const returnDelivery = data as ReturnDelivery;
-                      const isInTransit = returnDelivery?.status === 'In transit';
                       const isPartner = currentUserRole === 'partner';
-                      return isInTransit && isPartner && items.length > 0 ? (
+                      return isPartner && items.length > 0 ? (
                         <div className="mb-4 flex justify-end">
                           <Button
                             variant="outline"
@@ -1702,7 +1806,7 @@ export default function OrderShipmentDetailsScreen({
                     onDeleteItem={isThriftedEditable || ((isPendingOrder || isApprovalOrder) && isAdmin) ? handleDeleteItem : undefined}
                     subcategoryOptions={isThriftedOrder ? getAllThriftedSubcategoriesForBrand(receivingStore?.brandId) : undefined}
                     subcategoryLabel={isThriftedOrder ? "Subcategory" : undefined}
-                    brandAsInput={isThriftedOrder}
+                    brandAsInput={isThriftedOrder || isSellpyOrder}
                     categoryOptions={isThriftedOrder ? thriftedValidValues.categories : undefined} // Show category dropdown for Thrifted (auto-mapped)
                     hideCategoryForThrifted={false} // Show category column for cascading dropdown
                     subcategoriesByCategory={isThriftedOrder ? thriftedValidValues.subcategories : undefined} // Provide category-to-subcategory mapping

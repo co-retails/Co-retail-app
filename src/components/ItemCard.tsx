@@ -524,7 +524,9 @@ export const ItemCard = memo(function ItemCard({
                   {isAdmin && showMargin && derivedMargin !== undefined && (
                     <div className="label-small">
                       <span className="text-on-surface-variant/70">Margin:</span>
-                      <span className="text-primary ml-1">
+                      {/* On Sellpy approval orders (approval status is Sellpy-only), a low
+                          margin (< 20%) is flagged in red to match the desktop table. */}
+                      <span className={`ml-1 ${orderStatus === 'approval' && derivedMargin < 20 ? 'text-error' : 'text-primary'}`}>
                         {derivedMargin.toFixed(1)}%
                       </span>
                     </div>

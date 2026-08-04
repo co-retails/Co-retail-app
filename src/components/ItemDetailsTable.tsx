@@ -43,12 +43,18 @@ import {
  */
 function DesktopEditFieldWithHint({
   errorMessage,
+  warningMessage,
   children,
 }: {
   errorMessage?: string | null | undefined;
+  warningMessage?: string | null | undefined;
   children: ReactNode;
 }) {
-  const hasHint = Boolean(errorMessage && String(errorMessage).trim());
+  const hasError = Boolean(errorMessage && String(errorMessage).trim());
+  // An error (red) takes precedence over a warning (amber, non-blocking).
+  const isWarning = !hasError && Boolean(warningMessage && String(warningMessage).trim());
+  const hintMessage = hasError ? errorMessage : warningMessage;
+  const hasHint = hasError || isWarning;
   // The error message shows on hover/focus AND on click/tap. These are two
   // separate Radix primitives on purpose: a Tooltip handles hover, a Popover
   // handles click. Radix tooltips intentionally dismiss on press, which makes
@@ -76,11 +82,11 @@ function DesktopEditFieldWithHint({
                 <PopoverTrigger asChild>
                   <TooltipTrigger asChild>
                     <span
-                      className="inline-flex shrink-0 cursor-pointer text-error"
+                      className={`inline-flex shrink-0 cursor-pointer ${isWarning ? 'text-on-warning-container' : 'text-error'}`}
                       tabIndex={0}
                       role="button"
                       aria-pressed={pinned}
-                      aria-label={errorMessage ?? 'Validation error'}
+                      aria-label={hintMessage ?? (isWarning ? 'Recommended field' : 'Validation error')}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
@@ -101,7 +107,7 @@ function DesktopEditFieldWithHint({
                   onOpenAutoFocus={(e: Event) => e.preventDefault()}
                   className="w-auto max-w-[18rem] border-outline-variant bg-popover px-3 py-2 text-popover-foreground shadow-md"
                 >
-                  <p className="body-small">{errorMessage}</p>
+                  <p className="body-small">{hintMessage}</p>
                 </PopoverContent>
               </Popover>
               <TooltipContent
@@ -177,7 +183,8 @@ export interface ItemDetailsTableItem extends OrderItem {
   purchasePrice?: number;
   imageUrl?: string;
   errors?: string[];
-  fieldErrors?: Record<string, string>; // Field-specific error messages
+  fieldErrors?: Record<string, string>; // Field-specific error messages (red, blocking)
+  fieldWarnings?: Record<string, string>; // Field-specific warnings (amber, non-blocking)
   date?: string; // Date for display in item cards
   sku?: string; // SKU/partner item ID
   statusHistory?: StatusHistoryEntry[];
@@ -588,11 +595,11 @@ export function ItemDetailsTable({
     items.forEach((it) => {
       if (it.brand?.trim()) set.add(it.brand.trim());
     });
-    if (thriftedPartnerTable) {
+    if (thriftedPartnerTable || brandAsInput) {
       BRAND_OPTIONS.forEach((b) => set.add(b));
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [brandAutocompleteOptions, items, thriftedPartnerTable]);
+  }, [brandAutocompleteOptions, items, thriftedPartnerTable, brandAsInput]);
 
   /** Explicit column widths for table-fixed (same every row; avoids max-w-0 td hacks). */
   const desktopColWidths = useMemo(() => {
@@ -759,11 +766,11 @@ export function ItemDetailsTable({
                 </th>
                 {!hideCategoryForThrifted && (
                   <th className="px-3 py-3 text-left">
-                    <span className="label-medium text-on-surface">Category</span>
+                    <span className="label-medium text-on-surface">Category*</span>
                   </th>
                 )}
                 <th className="px-3 py-3 text-left">
-                  <span className="label-medium text-on-surface">{subcategoryLabel}</span>
+                  <span className="label-medium text-on-surface">{subcategoryLabel}*</span>
                 </th>
                 <th className="px-3 py-3 text-left">
                   <span className="label-medium text-on-surface">Size</span>
@@ -914,7 +921,7 @@ export function ItemDetailsTable({
               {/* Brand */}
               <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
                 {isEditable && onUpdateItem ? (
-                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.brand}>
+                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.brand} warningMessage={item.fieldWarnings?.brand}>
                     {brandAsInput ? (
                       <BrandAutocompleteInput
                         value={item.brand || ''}
@@ -923,10 +930,10 @@ export function ItemDetailsTable({
                         placeholder="Type item brand"
                         className={`${DESKTOP_TABLE_INPUT} h-9 body-medium ${
                           item.fieldErrors?.brand
-                            ? thriftedPartnerTable
-                              ? 'border-warning/80 bg-surface-container focus:border-warning'
-                              : 'border-error focus:border-error bg-error-container/10'
-                            : 'border-outline-variant focus:border-primary bg-surface-container'
+                            ? 'border-error focus:border-error bg-error-container/10'
+                            : item.fieldWarnings?.brand
+                              ? 'border-outline-variant focus:border-primary bg-warning-container/20'
+                              : 'border-outline-variant focus:border-primary bg-surface-container'
                         }`}
                       />
                     ) : (
@@ -941,7 +948,9 @@ export function ItemDetailsTable({
                             className={`h-9 w-full min-w-0 justify-between body-medium ${
                               item.fieldErrors?.brand
                                 ? 'border-error focus:border-error bg-error-container/10'
-                                : 'border-outline-variant focus:border-primary bg-surface-container'
+                                : item.fieldWarnings?.brand
+                                  ? 'border-outline-variant focus:border-primary bg-warning-container/20'
+                                  : 'border-outline-variant focus:border-primary bg-surface-container'
                             }`}
                           >
                             <span className="truncate">
@@ -1092,7 +1101,7 @@ export function ItemDetailsTable({
               {/* Size */}
               <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
                 {isEditable && onUpdateItem ? (
-                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.size}>
+                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.size} warningMessage={item.fieldWarnings?.size}>
                     <Select
                       value={item.size || undefined}
                       onValueChange={(value) => onUpdateItem(item.id, 'size', value)}
@@ -1102,7 +1111,9 @@ export function ItemDetailsTable({
                         className={`${DESKTOP_SELECT_TRIGGER} h-9 body-medium ${
                           item.fieldErrors?.size
                             ? 'border-error focus:border-error bg-error-container/10'
-                            : 'border-outline-variant focus:border-primary bg-surface-container'
+                            : item.fieldWarnings?.size
+                              ? 'border-outline-variant focus:border-primary bg-warning-container/20'
+                              : 'border-outline-variant focus:border-primary bg-surface-container'
                         }`}
                       >
                         <SelectValue placeholder="Select size" />
@@ -1128,7 +1139,7 @@ export function ItemDetailsTable({
               {/* Color */}
               <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
                 {isEditable && onUpdateItem ? (
-                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.color}>
+                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.color} warningMessage={item.fieldWarnings?.color}>
                     <Select
                       value={item.color || undefined}
                       onValueChange={(value) => onUpdateItem(item.id, 'color', value)}
@@ -1138,7 +1149,9 @@ export function ItemDetailsTable({
                         className={`${DESKTOP_SELECT_TRIGGER} h-9 body-medium ${
                           item.fieldErrors?.color
                             ? 'border-error focus:border-error bg-error-container/10'
-                            : 'border-outline-variant focus:border-primary bg-surface-container'
+                            : item.fieldWarnings?.color
+                              ? 'border-outline-variant focus:border-primary bg-warning-container/20'
+                              : 'border-outline-variant focus:border-primary bg-surface-container'
                         }`}
                       >
                         <SelectValue placeholder="Select color" />
@@ -1162,11 +1175,11 @@ export function ItemDetailsTable({
               </td>
 
               {/* Gender — values sourced from per-brand portal config attribute values.
-                  Optional in the partner portal; thrifted validation marks it required and
-                  surfaces fieldErrors.gender, so the cell shows the hint when it's set. */}
+                  Optional in the partner portal: a missing value surfaces a non-blocking
+                  amber warning (fieldWarnings.gender), never a red error. */}
               <td className="px-3 py-3 min-w-0 align-top overflow-hidden">
                 {isEditable && onUpdateItem ? (
-                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.gender}>
+                  <DesktopEditFieldWithHint errorMessage={item.fieldErrors?.gender} warningMessage={item.fieldWarnings?.gender}>
                     <Select
                       value={item.gender || undefined}
                       onValueChange={(value: string) => onUpdateItem(item.id, 'gender', value)}
@@ -1176,7 +1189,9 @@ export function ItemDetailsTable({
                         className={`${DESKTOP_SELECT_TRIGGER} h-9 body-medium ${
                           item.fieldErrors?.gender
                             ? 'border-error focus:border-error bg-error-container/10'
-                            : 'border-outline-variant focus:border-primary bg-surface-container'
+                            : item.fieldWarnings?.gender
+                              ? 'border-outline-variant focus:border-primary bg-warning-container/20'
+                              : 'border-outline-variant focus:border-primary bg-surface-container'
                         }`}
                       >
                         <SelectValue placeholder={thriftedPartnerTable ? 'Select gender' : 'Optional'} />
@@ -1298,15 +1313,21 @@ export function ItemDetailsTable({
               )}
 
               {/* Margin % */}
-              {showMargin && (
-                <td className="px-3 py-3 text-right min-w-0 align-top overflow-hidden">
-                  <span className="body-medium text-primary truncate block">
-                    {item.price && item.purchasePrice && item.price > 0
-                      ? `${(((item.price - item.purchasePrice) / item.price) * 100).toFixed(1)}%`
-                      : '—'}
-                  </span>
-                </td>
-              )}
+              {showMargin && (() => {
+                const marginPct = item.price && item.purchasePrice && item.price > 0
+                  ? ((item.price - item.purchasePrice) / item.price) * 100
+                  : undefined;
+                // On Sellpy approval orders (approval status is Sellpy-only), flag a low
+                // margin (< 20%) in red so admins can spot underpriced items at a glance.
+                const isLowMargin = orderStatus === 'approval' && marginPct !== undefined && marginPct < 20;
+                return (
+                  <td className="px-3 py-3 text-right min-w-0 align-top overflow-hidden">
+                    <span className={`body-medium truncate block ${isLowMargin ? 'text-error' : 'text-primary'}`}>
+                      {marginPct !== undefined ? `${marginPct.toFixed(1)}%` : '—'}
+                    </span>
+                  </td>
+                );
+              })()}
 
               {/* Status */}
               {showStatus && (
@@ -1383,6 +1404,12 @@ export function ItemDetailsTable({
           mobileDetailsItem
             ? items.find((i) => i.id === mobileDetailsItem.id)?.fieldErrors ??
               mobileDetailsItem.fieldErrors
+            : undefined
+        }
+        fieldWarnings={
+          mobileDetailsItem
+            ? items.find((i) => i.id === mobileDetailsItem.id)?.fieldWarnings ??
+              mobileDetailsItem.fieldWarnings
             : undefined
         }
       />
