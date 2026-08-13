@@ -4,6 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { cn } from './ui/utils';
 import { MarkResellLogo } from './MarkResellLogo';
+import { StoreLensLogo } from './StoreLensLogo';
 
 export interface PartnerPortalLoginScreenProps {
   onSignIn: (email: string) => void;
@@ -47,22 +48,12 @@ export default function PartnerPortalLoginScreen({ onSignIn, className }: Partne
     >
       <div className="flex flex-col items-center gap-3 text-center">
         <MarkResellLogo size={40} />
-        {/* Text wordmark rather than the StoreLens SVG: the original is vector
-            art, so the letters can't be re-typed. Sizing/tracking/colour are
-            copied from it; the family resolves via --font-wordmark (Gotham HTF,
-            see the licence note in styles/globals.css). */}
-        <div
-          style={{
-            fontFamily: 'var(--font-wordmark)',
-            fontWeight: 700,
-            fontSize: 28,
-            lineHeight: 1,
-            letterSpacing: '0.16em',
-            textIndent: '0.16em',
-            color: '#1A1A1A',
-          }}
-        >
-          CO-RETAIL
+        {/* Same wordmark + label lockup as the partner dashboard header. */}
+        <div className="flex flex-col items-center">
+          <StoreLensLogo className="mb-1" />
+          <div className="label-large text-on-surface tracking-wider uppercase">
+            Co-retail
+          </div>
         </div>
         <p
           id="partner-portal-login-desc"

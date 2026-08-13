@@ -254,7 +254,7 @@ export default function PartnerDashboard({
             <div className="flex flex-col items-center">
               <StoreLensLogo className="mb-1" />
               <div className="label-large text-on-surface tracking-wider uppercase">
-                {currentUserRole === 'partner' ? 'Partner portal' : 'Resell'}
+                {currentUserRole === 'partner' ? 'Partner portal' : 'Co-retail'}
               </div>
             </div>
             
@@ -287,7 +287,7 @@ export default function PartnerDashboard({
         <div className="flex flex-col items-center mb-3">
           <StoreLensLogo className="mb-1" />
           <div className="label-large text-on-surface tracking-wider uppercase">
-            {currentUserRole === 'partner' ? 'Partner portal' : 'Resell'}
+            {currentUserRole === 'partner' ? 'Partner portal' : 'Co-retail'}
           </div>
         </div>
         

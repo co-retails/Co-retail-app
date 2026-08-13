@@ -1,36 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Montserrat:wght@700&display=swap');
-
-/* ---------------------------------------------------------------------------
-   Wordmark typeface — Gotham HTF Bold (Hoefler & Co, commercial licence)
-   ---------------------------------------------------------------------------
-   Gotham is NOT a free/webfont-CDN family, so the files are not in this repo.
-   To render the real wordmark, do ONE of the following:
-
-   a) Self-host: drop the licensed files in `public/fonts/` and uncomment the
-      @font-face block below (adjust the filenames to what you receive).
-   b) Cloud.typography: add your project's stylesheet <link> to index.html;
-      it registers the family and this block can stay commented out.
-
-   Until then the chain falls back to Montserrat 700 — a free geometric sans
-   with proportions close to Gotham. Remove it once Gotham is in place.
-*/
-/*
-@font-face {
-  font-family: 'Gotham HTF';
-  src: url('/fonts/Gotham-Bold.woff2') format('woff2'),
-       url('/fonts/Gotham-Bold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-*/
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
   --font-size: 16px;
-  /* Wordmark family. 'Montserrat' is a stand-in — drop it once Gotham is licensed. */
-  --font-wordmark: 'Gotham HTF', 'Gotham', 'Montserrat', sans-serif;
   /* Typography scale variables */
   --text-h1: 32px;
   --text-h2: 28px;
