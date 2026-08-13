@@ -4,7 +4,6 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { cn } from './ui/utils';
 import { MarkResellLogo } from './MarkResellLogo';
-import { StoreLensLogo } from './StoreLensLogo';
 
 export interface PartnerPortalLoginScreenProps {
   onSignIn: (email: string) => void;
@@ -43,21 +42,33 @@ export default function PartnerPortalLoginScreen({ onSignIn, className }: Partne
       }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="partner-portal-login-title"
+      aria-label="Sign in"
       aria-describedby="partner-portal-login-desc"
     >
       <div className="flex flex-col items-center gap-3 text-center">
         <MarkResellLogo size={40} />
-        <StoreLensLogo />
-        <h2 id="partner-portal-login-title" className="title-medium uppercase tracking-wide text-on-surface-variant">
-          Partner Portal
-        </h2>
+        {/* Text wordmark rather than the StoreLens SVG: the original is vector
+            art, so the letters can't be re-typed. Sizing/tracking/colour are
+            copied from it; the family resolves via --font-wordmark (Gotham HTF,
+            see the licence note in styles/globals.css). */}
+        <div
+          style={{
+            fontFamily: 'var(--font-wordmark)',
+            fontWeight: 700,
+            fontSize: 28,
+            lineHeight: 1,
+            letterSpacing: '0.16em',
+            textIndent: '0.16em',
+            color: '#1A1A1A',
+          }}
+        >
+          CO-RETAIL
+        </div>
         <p
           id="partner-portal-login-desc"
           className="text-pretty text-xs leading-relaxed text-on-surface-variant sm:text-sm"
         >
-          Sign in with your partner account. Admins use Switch view. Demo:{' '}
-          <span className="font-medium text-on-surface">admin@storelens.com</span>
+          Sign in with your work account.
         </p>
       </div>
 
@@ -82,7 +93,7 @@ export default function PartnerPortalLoginScreen({ onSignIn, className }: Partne
             type="email"
             autoComplete="email"
             inputMode="email"
-            placeholder="admin@storelens.com"
+            placeholder="name@company.com"
             value={email}
             onChange={(ev) => {
               setEmail(ev.target.value);

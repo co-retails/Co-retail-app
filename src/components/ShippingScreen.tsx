@@ -34,6 +34,13 @@ type ShipmentStatusFilter = 'packing' | 'in-transit' | 'delivered' | 'all';
 type ReturnStatusFilter = 'in-transit' | 'returned' | 'all';
 type ShippingUserRole = UserRole | 'admin' | 'store-manager';
 
+// The shipments Status column reserves a fixed-width slot to the right of the
+// badge for the "more than 10 days" warning. Without it, flagged rows shove
+// their badge left and the column stops lining up row to row.
+const OVERDUE_SLOT_WIDTH = 112;
+const OVERDUE_SLOT_GAP = 6; // matches gap-1.5
+const STATUS_HEADER_PADDING_RIGHT = 16 + OVERDUE_SLOT_GAP + OVERDUE_SLOT_WIDTH; // px-4 + slot
+
 export interface SellpyOrder {
   id: string;
   createdDate: string;
@@ -1670,21 +1677,24 @@ useEffect(() => {
     field, 
     label, 
     currentSort, 
-    onSort, 
-    align = 'left' 
-  }: { 
-    field: OrderSortField | ShipmentSortField | ReturnSortField; 
-    label: string; 
-    currentSort: { field: string; direction: SortDirection }; 
+    onSort,
+    align = 'left',
+    style
+  }: {
+    field: OrderSortField | ShipmentSortField | ReturnSortField;
+    label: string;
+    currentSort: { field: string; direction: SortDirection };
     onSort: (field: string) => void;
     align?: 'left' | 'right';
+    style?: React.CSSProperties;
   }) => {
     const isActive = currentSort.field === field;
     const direction = isActive ? currentSort.direction : null;
-    
+
     return (
-      <th 
+      <th
         className={`px-4 py-3 ${align === 'right' ? 'text-right' : 'text-left'} title-small text-on-surface cursor-pointer hover:bg-surface-container transition-colors`}
+        style={style}
         onClick={() => onSort(field)}
       >
         <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
@@ -2552,7 +2562,7 @@ useEffect(() => {
                             <SortableHeader field="senderReceiver" label="Sender / Receiver" currentSort={shipmentSort} onSort={handleShipmentSort} />
                             <SortableHeader field="items" label="Items" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
                             <SortableHeader field="boxes" label="Boxes" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
-                            <SortableHeader field="status" label="Status" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" />
+                            <SortableHeader field="status" label="Status" currentSort={shipmentSort} onSort={handleShipmentSort} align="right" style={{ paddingRight: STATUS_HEADER_PADDING_RIGHT }} />
                           </>
                         ) : (
                           <>
@@ -2561,7 +2571,7 @@ useEffect(() => {
                             <th className="px-4 py-3 text-left title-small text-on-surface">Sender / Receiver</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Items</th>
                             <th className="px-4 py-3 text-right title-small text-on-surface">Boxes</th>
-                            <th className="px-4 py-3 text-right title-small text-on-surface">Status</th>
+                            <th className="px-4 py-3 text-right title-small text-on-surface" style={{ paddingRight: STATUS_HEADER_PADDING_RIGHT }}>Status</th>
                           </>
                         )}
                         <th className="px-4 py-3 text-right title-small text-on-surface"></th>
@@ -2619,11 +2629,14 @@ useEffect(() => {
                               className="px-4 py-3 text-right cursor-pointer"
                               onClick={() => onOpenShipmentDetails?.(deliveryNote, activeTab, shipmentStatusFilter)}
                             >
-                              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5">
                                 <StatusBadge status={noteStatus} size="lg" />
-                                {inTransitOver10 && (
-                                  <span className="label-medium text-error whitespace-nowrap">more than 10 days</span>
-                                )}
+                                <span
+                                  className="label-medium text-error whitespace-nowrap text-left"
+                                  style={{ width: OVERDUE_SLOT_WIDTH, flexShrink: 0 }}
+                                >
+                                  {inTransitOver10 ? 'more than 10 days' : ''}
+                                </span>
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
