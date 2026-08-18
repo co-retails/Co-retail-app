@@ -47,22 +47,16 @@ function TopAppBar({
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   
-  const canManageBox = userRole === 'admin' || userRole === 'store-staff' || userRole === 'store-manager';
+  // Store users receive a box by scanning it, which is what actually confirms it
+  // arrived. Marking it delivered from a menu would let them close out a box they
+  // never physically checked, so the action stays with admins.
+  const canManageBox = userRole === 'admin';
   // Show menu for any box with status "In transit", regardless of delivery status
   const isInTransit = box.status === 'In transit';
   const showMarkDelivered = canManageBox && isInTransit && onMarkDelivered;
+  // "Mark as Delivered" is currently the only entry, so the trigger disappears
+  // with it rather than opening an empty menu.
   const showMenu = Boolean(showMarkDelivered);
-
-  // Debug logging
-  console.log('BoxDetailsScreen - Debug:', {
-    userRole,
-    canManageBox,
-    boxStatus: box.status,
-    isInTransit,
-    hasOnMarkDelivered: !!onMarkDelivered,
-    showMenu,
-    dropdownOpen
-  });
 
   return (
     <div className="sticky top-0 bg-surface z-10 border-b border-outline-variant">
@@ -83,10 +77,7 @@ function TopAppBar({
 
         {/* More menu */}
         {showMenu && (
-          <DropdownMenu open={dropdownOpen} onOpenChange={(open) => {
-            console.log('DropdownMenu onOpenChange:', open);
-            setDropdownOpen(open);
-          }}>
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"

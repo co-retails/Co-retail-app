@@ -3951,6 +3951,7 @@ export default function App() {
           onSaveWarehouse={handleSaveWarehouse}
           onDeleteWarehouse={handleDeleteWarehouse}
           currentPartnerId={currentPartnerWarehouseSelection.partnerId}
+          onNavigateToPartnerSettings={() => setCurrentScreenSafe('partner-settings')}
         />
         </Suspense>
       )}
@@ -3961,7 +3962,7 @@ export default function App() {
           <PartnerSettingsScreen
             onBack={() => {
               setIsAdminSettingsSheetOpen(false);
-              setCurrentScreenSafe(appViewRole === 'partner' ? 'partner-dashboard' : 'home');
+              setCurrentScreenSafe('portal-configuration');
             }}
             brands={mockBrands}
             partners={visibleWarehousePartners}
@@ -4072,10 +4073,6 @@ export default function App() {
         onNavigateToPortalConfiguration={() => {
           setIsAdminSettingsSheetOpen(false);
           setCurrentScreenSafe('portal-configuration');
-        }}
-        onNavigateToPartnerSettings={() => {
-          setIsAdminSettingsSheetOpen(false);
-          setCurrentScreenSafe('partner-settings');
         }}
         onNavigateToStoreUserAccess={() => {
           setIsAdminSettingsSheetOpen(false);

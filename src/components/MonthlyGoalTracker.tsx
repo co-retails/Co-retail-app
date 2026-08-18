@@ -12,12 +12,15 @@ interface MonthlyGoalTrackerProps {
   monthlyGoal: number | null;
 }
 
-export function GoalEditDialog({ 
-  currentGoal, 
-  onGoalUpdate 
-}: { 
-  currentGoal: number | null; 
-  onGoalUpdate: (newGoal: number) => void; 
+export function GoalEditDialog({
+  currentGoal,
+  onGoalUpdate,
+  disabled = false
+}: {
+  currentGoal: number | null;
+  onGoalUpdate: (newGoal: number) => void;
+  /** Disable editing when the current goal couldn't be loaded — saving would overwrite an unknown value. */
+  disabled?: boolean;
 }) {
   const [newGoal, setNewGoal] = useState((currentGoal || '').toString());
   const [isOpen, setIsOpen] = useState(false);
@@ -65,9 +68,11 @@ export function GoalEditDialog({
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="sm"
+          disabled={disabled}
+          aria-label="Edit monthly goal"
           className="h-8 w-8 p-0 text-on-surface-variant hover:bg-surface-container-high focus:bg-surface-container-high active:bg-surface-container-highest"
         >
           <Edit3 className="h-4 w-4" />

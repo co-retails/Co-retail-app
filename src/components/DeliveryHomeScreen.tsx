@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card } from './ui/card';
 import { Section } from './ui/section';
 import StoreSelector, { Store, Country, Brand, StoreSelection } from './StoreSelector';
@@ -7,6 +7,7 @@ import SalesDataDashboard from './SalesDataDashboard';
 import MonthlyGoalTracker, { GoalEditDialog } from './MonthlyGoalTracker';
 import { ChevronDown, Settings, Target, UserIcon, RotateCcw, ClipboardCheck, QrCode } from 'lucide-react';
 import { QuickActionButton } from './ui/quick-action-button';
+import { DataErrorBanner, DataErrorState } from './ui/data-error-state';
 import weekdayLogo from '../assets/weekday-logo.svg';
 import hmLogo from '../assets/hm-logo.svg';
 import cosLogo from '../assets/cos-logo.svg';
@@ -48,6 +49,22 @@ interface DeliveryHomeScreenProps {
 }
 
 
+
+/**
+ * The dashboard is assembled from five independently-sourced blocks. Each one
+ * can fail on its own, so failures are tracked per block rather than as a single
+ * screen-level flag.
+ */
+type DashboardBlock = 'receive' | 'returns' | 'stockCheck' | 'goal' | 'sales';
+
+/**
+ * PROTOTYPE ONLY — there is no data-fetching layer on this screen yet, so the
+ * demo outage is pinned to one store (H&M Australia). Once the blocks are wired
+ * to real queries, delete this and derive `failedBlocks` from each query's
+ * error status instead.
+ */
+const DEMO_OUTAGE_BRAND = 'H&M';
+const DEMO_OUTAGE_COUNTRY = 'Australia';
 
 interface HeaderProps {
   currentStore: string;
@@ -303,6 +320,50 @@ export default function DeliveryHomeScreen({
   const handleStoreSelectionConfirm = (selection: StoreSelection) => {
     onStoreSelectionChange(selection);
   };
+
+  // --- Per-block failure handling -------------------------------------------
+  // Resolve brand/country from the selected store where possible; a store user's
+  // selection may only carry a storeId.
+  const selectedStore = stores.find(store => store.id === currentStoreSelection.storeId);
+  const selectedBrandId = selectedStore?.brandId ?? currentStoreSelection.brandId;
+  const selectedCountryId = selectedStore?.countryId ?? currentStoreSelection.countryId;
+  const selectedBrandName = brands.find(b => b.id === selectedBrandId)?.name ?? '';
+  const selectedCountryName = countries.find(c => c.id === selectedCountryId)?.name ?? '';
+
+  const isDemoOutageStore =
+    selectedBrandName.toUpperCase() === DEMO_OUTAGE_BRAND.toUpperCase() &&
+    selectedCountryName.toUpperCase() === DEMO_OUTAGE_COUNTRY.toUpperCase();
+
+  // Whether a block *has* data and whether a retry is *in flight* are separate:
+  // a retrying block still has no data, so it must keep its error styling rather
+  // than falling back to the real (here: zeroed) counts mid-retry.
+  const failedBlocks: DashboardBlock[] = isDemoOutageStore
+    ? ['receive', 'returns', 'stockCheck', 'goal', 'sales']
+    : [];
+  const hasBlockError = (block: DashboardBlock) => failedBlocks.includes(block);
+
+  // These blocks share one backend, so they fail together and recover together.
+  // Recovery is therefore offered once, in a banner at the top of the screen,
+  // instead of a retry control on every affected block.
+  const [isRetrying, setIsRetrying] = useState(false);
+  const retryTimer = useRef<number | null>(null);
+
+  // Switching stores starts a fresh load, so drop any in-flight retry UI.
+  useEffect(() => {
+    setIsRetrying(false);
+  }, [currentStoreSelection.storeId]);
+
+  useEffect(() => () => {
+    if (retryTimer.current) window.clearTimeout(retryTimer.current);
+  }, []);
+
+  const handleRetryAll = useCallback(() => {
+    setIsRetrying(true);
+    // The demo outage is persistent: the screen shows a spinner, then fails
+    // again, so a stray tap doesn't end the demo.
+    retryTimer.current = window.setTimeout(() => setIsRetrying(false), 1200);
+  }, []);
+
   return (
     <div className="bg-surface min-h-screen w-full">
       {/* Manual store-selection notice (device detection failed) */}
@@ -333,7 +394,17 @@ export default function DeliveryHomeScreen({
       <div className="w-full">
         {/* Main Content */}
         <div className="px-4 md:px-6 pt-6 pb-8 space-y-8 max-w-5xl mx-auto w-full">
-          
+
+          {/* One banner owns recovery for every block that failed. */}
+          {failedBlocks.length > 0 && (
+            <DataErrorBanner
+              title="Some dashboard data didn't load"
+              description="Counts and sales figures are missing below. Nothing has been lost — your actions still work."
+              retrying={isRetrying}
+              onRetry={handleRetryAll}
+            />
+          )}
+
           {/* Actions */}
           <div>
             <h2 className="title-medium text-on-surface mb-4">Actions</h2>
@@ -348,6 +419,9 @@ export default function DeliveryHomeScreen({
                     {inTransitDeliveriesCount} {inTransitDeliveriesCount === 1 ? 'In transit delivery' : 'In transit deliveries'}, {inTransitBoxesCount} {inTransitBoxesCount === 1 ? 'box' : 'boxes'}
                   </>
                 }
+                error={hasBlockError('receive')}
+                retrying={isRetrying}
+                errorDescription="Delivery counts unavailable"
               />
 
               <QuickActionButton
@@ -361,6 +435,9 @@ export default function DeliveryHomeScreen({
                     {inTransitReturnsCount > 0 && ` • ${inTransitReturnsCount} ${inTransitReturnsCount === 1 ? 'return' : 'returns'} in transit`}
                   </>
                 }
+                error={hasBlockError('returns')}
+                retrying={isRetrying}
+                errorDescription="Expiry counts unavailable"
               />
 
               <QuickActionButton
@@ -377,6 +454,9 @@ export default function DeliveryHomeScreen({
                     )}
                   </>
                 }
+                error={hasBlockError('stockCheck')}
+                retrying={isRetrying}
+                errorDescription="Stock counts unavailable"
               />
             </div>
           </div>
@@ -387,18 +467,44 @@ export default function DeliveryHomeScreen({
               <h2 className="title-medium text-on-surface">
                 {new Date().toLocaleDateString('en-US', { month: 'long' })} progress
               </h2>
-              <GoalEditDialog currentGoal={monthlyGoal} onGoalUpdate={onGoalUpdate} />
+              {/* Editing is blocked while the goal is unknown — saving would overwrite a value we never read. */}
+              <GoalEditDialog
+                currentGoal={monthlyGoal}
+                onGoalUpdate={onGoalUpdate}
+                disabled={hasBlockError('goal')}
+              />
             </div>
-            
-            <MonthlyGoalTracker 
-              currentSales={currentMonthlySales}
-              monthlyGoal={monthlyGoal}
-            />
+
+            {hasBlockError('goal') ? (
+              <DataErrorState
+                title="Progress unavailable"
+                description="We couldn't load this month's sales or goal."
+                retrying={isRetrying}
+              />
+            ) : (
+              <MonthlyGoalTracker
+                currentSales={currentMonthlySales}
+                monthlyGoal={monthlyGoal}
+              />
+            )}
           </Section>
-          
+
           {/* Sales Data Dashboard */}
           <Section>
-            <SalesDataDashboard />
+            {hasBlockError('sales') ? (
+              <div className="space-y-4">
+                {/* The heading normally lives inside SalesDataDashboard — keep it
+                    so the failed block still says what it is. */}
+                <h2 className="title-medium text-on-surface">Sales data</h2>
+                <DataErrorState
+                  title="Sales data unavailable"
+                  description="We couldn't load your top categories. Sales already recorded are unaffected."
+                  retrying={isRetrying}
+                />
+              </div>
+            ) : (
+              <SalesDataDashboard />
+            )}
           </Section>
         </div>
       </div>

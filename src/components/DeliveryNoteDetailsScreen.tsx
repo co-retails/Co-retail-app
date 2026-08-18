@@ -106,6 +106,16 @@ export default function DeliveryNoteDetailsScreen({
   existingCreatedDate,
   onRegisterDelivery
 }: DeliveryNoteDetailsScreenProps) {
+  // Receiver reads "<Brand> <Store name>". `receivingStore.name` can already
+  // arrive brand-prefixed from upstream, so guard against printing it twice.
+  const receiverPrimaryLabel = (() => {
+    const storeName = receivingStore?.name;
+    if (!storeName) return receiverBrand || '—';
+    if (!receiverBrand) return storeName;
+    if (storeName.toLowerCase().startsWith(receiverBrand.toLowerCase())) return storeName;
+    return `${receiverBrand} ${storeName}`;
+  })();
+
   const [boxes, setBoxes] = useState<Box[]>(initialBoxes || []);
 
   // Update boxes when initialBoxes changes (e.g., when navigating back from box details)
@@ -520,14 +530,12 @@ export default function DeliveryNoteDetailsScreen({
                             </span>
                             <span className="body-small">Receiver</span>
                           </div>
+                          {/* Reads "<Brand> <Store name>" — partners ship to several
+                              brands, and a store name on its own doesn't say which.
+                              The store code stays on its own line below. */}
                           <div className="body-medium text-on-surface">
-                            {receivingStore?.name || receiverBrand || '—'}
+                            {receiverPrimaryLabel}
                           </div>
-                          {receiverBrand && receivingStore?.name && (
-                            <div className="body-small text-on-surface-variant">
-                              {receiverBrand}
-                            </div>
-                          )}
                           {receivingStore?.code && (
                             <div className="body-small text-on-surface-variant">
                               {receivingStore.code}

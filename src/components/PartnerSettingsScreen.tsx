@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Label } from './ui/label';
@@ -70,7 +70,13 @@ export default function PartnerSettingsScreen({
   currentUserRole = 'Admin'
 }: PartnerSettingsScreenProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');
-  
+
+  // Reached from the Portal configuration landing, which may be scrolled down;
+  // start this screen at the top rather than inheriting that offset.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Only disable for specific roles - Admin and Brand Admin should have full access
   // Explicitly check for Admin and Brand Admin to ensure they have full access
   const isReadOnly = !(currentUserRole === 'Admin' || currentUserRole === 'Brand Admin');

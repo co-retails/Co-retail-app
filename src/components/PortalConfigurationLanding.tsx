@@ -12,7 +12,8 @@ import {
   Globe,
   Building2,
   Sparkles,
-  Barcode
+  Barcode,
+  Store
 } from 'lucide-react';
 import { UserRole } from './PortalConfigTypes';
 import { PortalTopAppBar } from './ui/portal-top-app-bar';
@@ -89,6 +90,14 @@ export function PortalConfigurationLanding({
       icon: Building2,
       disabled: !isAdmin,
       screen: 'partner-warehouse-management'
+    },
+    {
+      id: 'partner-settings',
+      title: 'Partner settings',
+      description: 'Manage partner access',
+      icon: Store,
+      disabled: !isAdmin,
+      screen: 'partner-settings'
     }
   ];
 

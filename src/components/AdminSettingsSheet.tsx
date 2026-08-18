@@ -59,7 +59,6 @@ interface AdminSettingsSheetProps {
   onNavigateToShippingReport?: () => void;
   onNavigateToPartnerReports?: () => void;
   onNavigateToPortalConfiguration?: () => void;
-  onNavigateToPartnerSettings?: () => void;
   onNavigateToStoreUserAccess?: () => void;
   onNavigateToPartnerUserAccess?: () => void;
   onNavigateToSapExportJobs?: () => void;
@@ -88,7 +87,6 @@ export default function AdminSettingsSheet({
   onNavigateToShippingReport,
   onNavigateToPartnerReports,
   onNavigateToPortalConfiguration,
-  onNavigateToPartnerSettings,
   onNavigateToStoreUserAccess,
   onNavigateToPartnerUserAccess,
   onNavigateToSapExportJobs
@@ -126,13 +124,6 @@ export default function AdminSettingsSheet({
   const handlePortalConfiguration = () => {
     if (onNavigateToPortalConfiguration) {
       onNavigateToPortalConfiguration();
-      onClose();
-    }
-  };
-
-  const handlePartnerSettings = () => {
-    if (onNavigateToPartnerSettings) {
-      onNavigateToPartnerSettings();
       onClose();
     }
   };
@@ -230,14 +221,6 @@ export default function AdminSettingsSheet({
           description: 'Manage attributes, pricing, and validation rules',
           icon: <Cog className="w-6 h-6" />,
           onClick: handlePortalConfiguration,
-          visibleFor: ['admin']
-        },
-        {
-          id: 'partner-settings',
-          title: 'Partner settings',
-          description: 'Manage partner access',
-          icon: <Store className="w-6 h-6" />,
-          onClick: handlePartnerSettings,
           visibleFor: ['admin']
         }
       ]

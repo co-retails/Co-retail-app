@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { useMediaQuery } from './use-mobile';
 
 interface QuickActionButtonProps {
@@ -11,6 +11,17 @@ interface QuickActionButtonProps {
   iconWrapperStyle?: React.CSSProperties;
   disabled?: boolean;
   className?: string;
+  /**
+   * The counts behind `description` failed to load. The description is replaced
+   * rather than shown as 0 — a stale "0 in transit deliveries" would read as a
+   * fact and send staff to the wrong place. The action itself stays available:
+   * only the summary is missing, and recovery is offered once at screen level.
+   */
+  error?: boolean;
+  /** Overrides the default error line. Keep it to one short sentence. */
+  errorDescription?: React.ReactNode;
+  /** True while a screen-level retry is in flight. */
+  retrying?: boolean;
 }
 
 export function QuickActionButton({
@@ -22,6 +33,9 @@ export function QuickActionButton({
   iconWrapperStyle,
   disabled,
   className = '',
+  error = false,
+  errorDescription = "Couldn't load",
+  retrying = false,
 }: QuickActionButtonProps) {
   const isMobileOrTablet = useMediaQuery('(max-width: 1023px)');
   const titleClass = isMobileOrTablet ? 'title-medium' : 'title-small';
@@ -36,14 +50,26 @@ export function QuickActionButton({
     >
       <div className="flex items-center gap-3">
         <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center ${iconWrapperClassName}`}
-          style={iconWrapperStyle}
+          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            error ? 'bg-error-container' : iconWrapperClassName
+          }`}
+          style={error ? undefined : iconWrapperStyle}
         >
-          {icon}
+          {error ? (
+            <TriangleAlert className="w-5 h-5 text-on-error-container" aria-hidden="true" />
+          ) : (
+            icon
+          )}
         </div>
         <div>
           <p className={`${titleClass} text-on-surface`}>{title}</p>
-          <p className={`${descriptionClass} text-on-surface-variant`}>{description}</p>
+          {/* Kept in the normal description colour: the card still works, only
+              its summary is missing. The alert icon carries the degraded state,
+              and the screen-level banner carries the alarm — repeating red here
+              would read as three more errors instead of one outage. */}
+          <p className={`${descriptionClass} text-on-surface-variant`}>
+            {error ? (retrying ? 'Retrying…' : errorDescription) : description}
+          </p>
         </div>
       </div>
       <ChevronRight className="w-5 h-5 text-on-surface-variant" />

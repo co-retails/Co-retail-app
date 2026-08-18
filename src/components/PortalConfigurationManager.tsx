@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PortalConfigurationLanding } from './PortalConfigurationLanding';
 import { DropdownValuesScreen } from './DropdownValuesScreen';
 import { PartnerPricingScreen } from './PartnerPricingScreen';
@@ -29,6 +29,8 @@ interface PortalConfigurationManagerProps {
   onSaveWarehouse?: (warehouse: Warehouse) => void;
   onDeleteWarehouse?: (warehouseId: string) => void;
   currentPartnerId?: string;
+  /** Partner settings lives as a top-level screen, so navigation is handled by the app shell. */
+  onNavigateToPartnerSettings?: () => void;
 }
 
 export function PortalConfigurationManager({
@@ -42,11 +44,23 @@ export function PortalConfigurationManager({
   onDeletePartner = () => {},
   onSaveWarehouse = () => {},
   onDeleteWarehouse = () => {},
-  currentPartnerId = '2'
+  currentPartnerId = '2',
+  onNavigateToPartnerSettings
 }: PortalConfigurationManagerProps) {
   const [currentScreen, setCurrentScreen] = useState<string>('landing');
 
+  // Sub-screens swap in place without unmounting the scroll container, so the
+  // previous screen's scroll offset would otherwise carry over and open the
+  // next one part-way down the page.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentScreen]);
+
   const handleNavigate = (screen: string) => {
+    if (screen === 'partner-settings') {
+      onNavigateToPartnerSettings?.();
+      return;
+    }
     setCurrentScreen(screen);
   };
 

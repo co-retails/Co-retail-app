@@ -523,10 +523,25 @@ export default function OrderShipmentDetailsScreen({
   const [isSenderWarehouseOpen, setIsSenderWarehouseOpen] = useState(false);
 
   // Get brand name from store
-  const receiverBrand = receivingStore 
+  const receiverBrand = receivingStore
     ? brands.find(b => b.id === receivingStore.brandId)?.name
     : (receiverLabel || undefined);
-  
+
+  // Receiver reads "<Brand> <Store name>" — partners ship to several brands, and
+  // a store name on its own doesn't say which. The store code stays on its own
+  // line below.
+  const receiverStoreName = receivingStore?.name || storeName;
+  const receiverPrimaryLabel = (() => {
+    if (!receiverStoreName) return receiverLabel || storeCode || '—';
+    if (!receiverBrand) return receiverStoreName;
+    // `storeName` can already fall back to a brand-prefixed label upstream —
+    // don't print the brand twice.
+    if (receiverStoreName.toLowerCase().startsWith(receiverBrand.toLowerCase())) {
+      return receiverStoreName;
+    }
+    return `${receiverBrand} ${receiverStoreName}`;
+  })();
+
   // Get country name from store
   const countryName = receivingStore 
     ? countries.find(c => c.id === receivingStore.countryId)?.name
@@ -803,11 +818,7 @@ export default function OrderShipmentDetailsScreen({
     if (type === 'shipment') {
       const shipment = data as DeliveryNote;
       const senderName = warehouseName || partnerName || '—';
-      const receiverName = receivingStore?.name || storeName || receiverLabel || '—';
       const receiverCode = receivingStore?.code || storeCode;
-      const receiverBrandLabel = receiverBrand && (receivingStore?.name || storeName)
-        ? ` (${receiverBrand})`
-        : '';
 
       // Calculate accurate item counts (excluding removed items)
       const availableOrderItems = orderItems.filter(item => item.status !== 'removed');
@@ -887,10 +898,7 @@ export default function OrderShipmentDetailsScreen({
                     </Button>
                   )}
                 </div>
-                <p className="body-medium text-on-surface">
-                  {receiverName}
-                  {receiverBrandLabel}
-                </p>
+                <p className="body-medium text-on-surface">{receiverPrimaryLabel}</p>
                 {receiverCode && (
                   <p className="body-small text-on-surface-variant">
                     {receiverCode}
@@ -984,10 +992,7 @@ export default function OrderShipmentDetailsScreen({
                   </Button>
                 )}
               </div>
-              <p className="body-medium text-on-surface">{receiverLabel || storeName}</p>
-              {storeName && receiverLabel && receiverLabel !== storeName && (
-                <p className="body-small text-on-surface-variant">{storeName}</p>
-              )}
+              <p className="body-medium text-on-surface">{receiverPrimaryLabel}</p>
               {storeCode && (
                 <p className="body-small text-on-surface-variant">{storeCode}</p>
               )}
