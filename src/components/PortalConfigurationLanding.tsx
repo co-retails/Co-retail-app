@@ -18,6 +18,9 @@ import {
 import { UserRole } from './PortalConfigTypes';
 import { PortalTopAppBar } from './ui/portal-top-app-bar';
 
+// Admin tools are out of scope for v1. Flip to true to bring the section back.
+const SHOW_ADMIN_TOOLS = false;
+
 interface PortalConfigurationLandingProps {
   userRole: UserRole;
   isAdminExperienceMode?: boolean;
@@ -313,7 +316,7 @@ export function PortalConfigurationLanding({
         )}
 
         {/* Admin Tools Section */}
-        {isAdmin && (
+        {SHOW_ADMIN_TOOLS && isAdmin && (
           <div>
             <div className="mb-4">
               <h2 className="title-large text-on-surface mb-1">Admin tools</h2>
