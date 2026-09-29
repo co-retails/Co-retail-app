@@ -337,6 +337,34 @@ function BulkActionsBar({
   );
 }
 
+// Codes scanned in store that match no record in the app. Product data is
+// unknown, so the raw code is the only thing we can show. Mix of 13-digit EAN
+// barcodes and 7-digit QR codes.
+export const UNMATCHED_SCAN_CODES = [
+  '7350062350012',
+  '7318260049817',
+  '5712345678909',
+  '4062185721909',
+  '2048817',
+  '9273154',
+  '3810462'
+];
+
+function createUnmatchedScans(date: string): StockItem[] {
+  return UNMATCHED_SCAN_CODES.map((code, index) => ({
+    id: `unexpected-item-${index + 1}`,
+    itemId: code,
+    title: '',
+    brand: '',
+    price: 0,
+    status: 'Available' as const,
+    orderNumber: '',
+    date,
+    isScanned: true,
+    isSelected: false
+  }));
+}
+
 function NotFoundItemCard({ itemId }: { itemId: string }) {
   return (
     <div className="w-full bg-surface-container border border-outline-variant rounded-lg px-4 py-3">
@@ -830,10 +858,12 @@ export default function StockCheckReviewScreen({
 
   // Use items from session if available, otherwise generate mock data
   const [reviewItems, setReviewItems] = useState<StockItem[]>(() => {
+    const unmatchedScans = createUnmatchedScans(session.date);
+
     if (session.items && session.items.length > 0) {
-      return session.items;
+      return [...session.items, ...unmatchedScans];
     }
-    
+
     // Fallback to mock items for demonstration
     const mockItems: StockItem[] = [];
     const brands = ['H&M', 'Weekday', 'COS', 'Monki'];
@@ -860,7 +890,7 @@ export default function StockCheckReviewScreen({
         lastInStoreAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 86400000).toISOString()
       });
     }
-    return mockItems;
+    return [...mockItems, ...unmatchedScans];
   });
 
   // Filter items by tab
@@ -876,7 +906,8 @@ export default function StockCheckReviewScreen({
         filtered = reviewItems.filter(item => item.isScanned && item.id.startsWith('unexpected-item-'));
         break;
       case 'all-included':
-        filtered = reviewItems; // All items
+        // Unmatched scans have no item record, so they can't render as item cards
+        filtered = reviewItems.filter(item => !item.id.startsWith('unexpected-item-'));
         break;
       case 'scanned':
         // Show all scanned items, regardless of status
@@ -906,7 +937,7 @@ export default function StockCheckReviewScreen({
     return {
       'not-scanned': reviewItems.filter(item => !item.isScanned).length,
       'not-found': reviewItems.filter(item => item.isScanned && item.id.startsWith('unexpected-item-')).length,
-      'all-included': reviewItems.length,
+      'all-included': reviewItems.filter(item => !item.id.startsWith('unexpected-item-')).length,
       'scanned': scannedCount
     };
   };

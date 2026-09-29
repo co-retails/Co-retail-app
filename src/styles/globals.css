@@ -511,3 +511,10 @@ html {
     display: none !important;
   }
 }
+/* Radix portals popper content (dropdown menus, popovers) into a body-level
+   wrapper with an inline `z-index: auto`, so the wrapper loses to any positioned
+   element with a positive z-index — e.g. the stock check screen's sticky scanner.
+   Lift the wrapper itself; the content's own z-index only applies inside it. */
+[data-radix-popper-content-wrapper] {
+  z-index: 10000 !important;
+}

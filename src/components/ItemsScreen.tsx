@@ -1888,6 +1888,86 @@ const rawInitialItems: Item[] = [
       { status: 'Sold', timestamp: '2024-11-08 14:00', user: 'System' },
       { status: 'Returned', timestamp: '2024-11-10 16:00', user: 'System', note: 'Customer return' }
     ]
+  },
+  // H&M Sweden Sergels Torg - expired flagged items (long time in store, no sale)
+  {
+    id: 'itm-1063',
+    itemId: '684699',
+    title: 'Wool Blend Coat',
+    brand: 'H&M',
+    category: 'Jackets',
+    size: 'M',
+    color: 'Camel',
+    price: 48,
+    status: 'Available',
+    date: '2024-07-15',
+    deliveryId: 'DEL-0850',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZW5pbSUyMGphY2tldHxlbnwxfHx8fDE3NjEyODk0NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Shopfloor',
+    daysRemaining: 3,
+    isExpired: true,
+    lastInStoreAt: '2024-07-15T10:00:00.000Z',
+    expiredFlaggedAt: '2024-11-25T10:00:00.000Z',
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-07-15 10:00', user: 'Anna S.' },
+      { status: 'Available', timestamp: '2024-11-25 10:00', user: 'System', note: 'Expired flag applied' }
+    ]
+  },
+  {
+    id: 'itm-1064',
+    itemId: '684698',
+    title: 'Pleated Summer Dress',
+    brand: 'H&M',
+    category: 'Dresses',
+    size: 'S',
+    color: 'Floral',
+    price: 18,
+    status: 'Available',
+    date: '2024-06-10',
+    deliveryId: 'DEL-0810',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1602303894456-398ce544d90b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdW1tZXIlMjBkcmVzcyUyMGZhc2hpb258ZW58MXx8fHwxNzYxMDc0NzI2fDA&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Back of House',
+    daysRemaining: 1,
+    isExpired: true,
+    lastInStoreAt: '2024-06-10T09:00:00.000Z',
+    expiredFlaggedAt: '2024-11-18T10:00:00.000Z',
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-06-10 09:00', user: 'Anna S.' },
+      { status: 'Available', timestamp: '2024-11-18 10:00', user: 'System', note: 'Expired flag applied' }
+    ]
+  },
+  {
+    id: 'itm-1065',
+    itemId: '684697',
+    title: 'Ribbed Turtleneck',
+    brand: 'H&M',
+    category: 'Knitwear',
+    size: 'L',
+    color: 'Black',
+    price: 15,
+    status: 'Available',
+    date: '2024-08-01',
+    deliveryId: 'DEL-0870',
+    sellerName: 'Sellpy Operations',
+    source: 'Sellpy Operations',
+    thumbnail: 'https://images.unsplash.com/photo-1731404617461-e0eeeeefcf7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29sJTIwc3dlYXRlciUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MTEzNDA3MHww&ixlib=rb-4.1.0&q=80&w=1080',
+    selected: false,
+    location: 'Shopfloor',
+    daysRemaining: 7,
+    isExpired: true,
+    lastInStoreAt: '2024-08-01T11:00:00.000Z',
+    expiredFlaggedAt: '2024-12-02T10:00:00.000Z',
+    expiredPostponeWeeks: 4,
+    statusHistory: [
+      { status: 'Available', timestamp: '2024-08-01 11:00', user: 'Anna S.' },
+      { status: 'Available', timestamp: '2024-12-02 10:00', user: 'System', note: 'Expired flag applied' }
+    ]
   }
 ];
 

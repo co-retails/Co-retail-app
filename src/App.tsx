@@ -12,7 +12,7 @@ import ScanScreen from './components/ScanScreen';
 import SellersScreen from './components/SellersScreen';
 import StockCheckScreen, { StockCheckSession } from './components/StockCheckScreen';
 import StockCheckReportScreen from './components/StockCheckReportScreen';
-import StockCheckReviewScreen from './components/StockCheckReviewScreen';
+import StockCheckReviewScreen, { UNMATCHED_SCAN_CODES } from './components/StockCheckReviewScreen';
 import StatusUpdateScreen from './components/StatusUpdateScreen';
 import DeliveryDetailsScreen from './components/DeliveryDetailsScreen';
 import BoxDetailsScreen from './components/BoxDetailsScreen';
@@ -770,7 +770,7 @@ export default function App() {
         date: date.toISOString().split('T')[0],
         totalItems,
         scannedItems,
-        notFoundItems: Math.floor(Math.random() * 10),
+        notFoundItems: UNMATCHED_SCAN_CODES.length,
         status: 'Completed',
         reportGenerated: true,
         items: [] // Items would be loaded when report is selected
@@ -2794,7 +2794,9 @@ export default function App() {
                     // Show an inline notice on the details screen when a CSV upload
                     // produced no rows (prototype accepts any CSV and proceeds empty).
                     emptyUploadNotice: meta?.emptyUploadNotice === true && items.length === 0,
-                    previousScreen: 'order-creation',
+                    // Back from a fresh draft goes to Orders & Shipments (Draft filter),
+                    // not back into the create-order flow.
+                    previousScreen: 'shipping',
                     previousTab: 'pending',
                     previousFilter: 'draft',
                   });
@@ -2808,6 +2810,10 @@ export default function App() {
               countries={mockCountries}
               stores={mockStores}
               warehouses={mockWarehouses}
+              // Default the sender to the session's selected warehouse instead of
+              // the partner's first warehouse, so the draft stays visible in the
+              // (warehouse-scoped) Orders & Shipments list.
+              existingWarehouseId={currentPartnerWarehouseSelection?.warehouseId}
             />
           );
         }

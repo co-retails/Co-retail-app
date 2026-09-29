@@ -70,6 +70,9 @@ export default function PartnerUserAccessScreen({
 }: PartnerUserAccessScreenProps) {
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const canManage = currentUserRole === 'Admin';
+  // A partner user only ever sees their own partner, so the partner filter is
+  // locked to it rather than offering a choice they can't act on.
+  const isPartnerScoped = !canManage && Boolean(currentUserPartnerId);
   const [users, setUsers] = useState<PartnerAccessUser[]>(mockPartnerAccessUsers);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBrandId, setFilterBrandId] = useState('all');
@@ -106,6 +109,14 @@ export default function PartnerUserAccessScreen({
     return users.filter((user) => user.partnerId === currentUserPartnerId);
   }, [users, canManage, currentUserPartnerId]);
 
+  // Partner options and the active filter value are both pinned when scoped.
+  const partnerFilterOptions = useMemo(
+    () => (isPartnerScoped ? partners.filter((partner) => partner.id === currentUserPartnerId) : partners),
+    [isPartnerScoped, partners, currentUserPartnerId]
+  );
+
+  const activePartnerFilterId = isPartnerScoped ? currentUserPartnerId! : filterPartnerId;
+
   const filteredUsers = useMemo(() => {
     return scopedUsers.filter((user) => {
       const matchesSearch =
@@ -115,11 +126,14 @@ export default function PartnerUserAccessScreen({
         user.partnerName.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesBrand = filterBrandId === 'all' || user.scope.allBrands || user.scope.brandIds.includes(filterBrandId);
       const matchesPartner =
-        filterPartnerId === 'all' || user.partnerId === filterPartnerId || user.scope.allPartners || user.scope.partnerIds.includes(filterPartnerId);
+        activePartnerFilterId === 'all' ||
+        user.partnerId === activePartnerFilterId ||
+        user.scope.allPartners ||
+        user.scope.partnerIds.includes(activePartnerFilterId);
       const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
       return matchesSearch && matchesBrand && matchesPartner && matchesStatus;
     });
-  }, [scopedUsers, searchQuery, filterBrandId, filterPartnerId, filterStatus]);
+  }, [scopedUsers, searchQuery, filterBrandId, activePartnerFilterId, filterStatus]);
 
   const filteredCountryGroups = useMemo(() => {
     if (formState.scope.allBrands) return countryGroups;
@@ -622,13 +636,17 @@ export default function PartnerUserAccessScreen({
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterPartnerId} onValueChange={setFilterPartnerId}>
+            <Select
+              value={activePartnerFilterId}
+              onValueChange={setFilterPartnerId}
+              disabled={isPartnerScoped}
+            >
               <SelectTrigger className="h-12 bg-surface-container border border-outline-variant rounded-lg w-[220px]">
                 <SelectValue placeholder="All partners" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All partners</SelectItem>
-                {partners.map((partner) => (
+                {!isPartnerScoped && <SelectItem value="all">All partners</SelectItem>}
+                {partnerFilterOptions.map((partner) => (
                   <SelectItem key={partner.id} value={partner.id}>{partner.name}</SelectItem>
                 ))}
               </SelectContent>

@@ -5,14 +5,12 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
-import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { ArrowLeft, HelpCircle, Save, Send, AlertCircle, Lock } from 'lucide-react';
 import { Brand, Country } from './StoreSelector';
 import { Partner } from './PartnerWarehouseSelector';
 import { useMediaQuery } from './ui/use-mobile';
 import { toast } from 'sonner';
-import { PORTAL_CONFIG_ATTRIBUTE_DEFS } from '../data/portalConfigAttributeDefs';
 
 export interface PartnerPolicy {
   // Store app rules
@@ -34,7 +32,6 @@ export interface PartnerPolicy {
   };
   rejectWindow: {
     allowedPeriodHours: number; // Default 24
-    reasonCodes: string[]; // Broken, Not accepted brand, Not in season, Inherited from box/delivery
   };
   returnOrdersSLA: {
     partnerMustReceiveWithinWeeks?: number;
@@ -44,9 +41,7 @@ export interface PartnerPolicy {
   notReceivedReturnOrders: {
     autoCloseAfterWeeks?: number;
   };
-  /** Attribute keys required during item intake (from Dropdown values config). */
-  mandatoryFields: string[];
-  
+
   // Metadata
   scope: 'brand-partner' | 'brand-partner-country';
   countryInherit?: boolean;
@@ -97,15 +92,12 @@ export default function PartnerSettingsScreen({
       displayMaskingToPartner: true
     },
     rejectWindow: {
-      allowedPeriodHours: 24,
-      reasonCodes: []
+      allowedPeriodHours: 24
     },
     returnOrdersSLA: {},
     notReceivedReturnOrders: {
       autoCloseAfterWeeks: 4
     },
-    // Item ID and Price are always mandatory (not editable)
-    mandatoryFields: ['itemId', 'price'],
     scope: 'brand-partner',
     status: 'draft'
   });
@@ -115,13 +107,7 @@ export default function PartnerSettingsScreen({
   
   // Update policy helper
   const updatePolicy = (updates: Partial<PartnerPolicy>) => {
-    setPolicy(prev => {
-      const next = { ...prev, ...updates };
-      // Enforce always-mandatory fields
-      const required = new Set(['itemId', 'price']);
-      next.mandatoryFields = Array.from(new Set([...(next.mandatoryFields ?? []), ...required]));
-      return next;
-    });
+    setPolicy(prev => ({ ...prev, ...updates }));
     setIsDirty(true);
     setHasUnsavedChanges(true);
   };
@@ -364,79 +350,6 @@ export default function PartnerSettingsScreen({
                   />
                   <span className="body-medium text-on-surface-variant">hours</span>
                 </div>
-                
-                <div className="space-y-3 p-3 bg-surface-container-high rounded-md border border-outline-variant">
-                  <Label className="body-medium text-on-surface">Reason codes available:</Label>
-                  <div className="space-y-2">
-                    {['Broken', 'Not accepted brand', 'Not in season', 'Inherited from box/delivery'].map(reason => (
-                      <div key={reason} className="flex items-center gap-3 p-2 hover:bg-surface-container-high rounded-md">
-                        <Checkbox
-                          checked={policy.rejectWindow.reasonCodes.includes(reason)}
-                          onCheckedChange={(checked) => {
-                            const newCodes = checked
-                              ? [...policy.rejectWindow.reasonCodes, reason]
-                              : policy.rejectWindow.reasonCodes.filter(r => r !== reason);
-                            updatePolicy({
-                              rejectWindow: {
-                                ...policy.rejectWindow,
-                                reasonCodes: newCodes
-                              }
-                            });
-                          }}
-                          disabled={isReadOnly}
-                        />
-                        <Label className="body-medium text-on-surface cursor-pointer">{reason}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </CardContent>
-        </Card>
-
-        {/* Partner Portal Section */}
-        <Card className="border border-outline">
-          <CardHeader>
-            <CardTitle className="title-medium text-on-surface">Partner portal</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-6">
-            {/* Mandatory fields */}
-            <div className="space-y-4 p-4 bg-surface-container rounded-lg border border-outline-variant">
-              <Label className="body-large font-medium text-on-surface">Mandatory fields (item intake)</Label>
-              <p className="body-small text-on-surface-variant pl-1">
-                Fields the partner must complete when adding items
-              </p>
-              
-              <div className="space-y-2 pl-2 p-3 bg-surface-container-high rounded-md border border-outline-variant">
-                {[
-                  { key: 'itemId', label: 'Item ID' },
-                  { key: 'price', label: 'Price' }
-                ].map((field) => (
-                  <div key={field.key} className="flex items-center gap-3 p-2 rounded-md opacity-80">
-                    <Checkbox checked disabled />
-                    <div className="flex items-center gap-2">
-                      <Label className="body-medium text-on-surface cursor-default">{field.label}</Label>
-                      <Lock className="w-4 h-4 text-on-surface-variant" />
-                    </div>
-                  </div>
-                ))}
-                {PORTAL_CONFIG_ATTRIBUTE_DEFS.map((field) => (
-                  <div key={field.key} className="flex items-center gap-3 p-2 hover:bg-surface-container-high rounded-md">
-                    <Checkbox
-                      checked={policy.mandatoryFields.includes(field.key)}
-                      onCheckedChange={(checked) => {
-                        const newFields = checked
-                          ? [...policy.mandatoryFields, field.key]
-                          : policy.mandatoryFields.filter((f) => f !== field.key);
-                        updatePolicy({ mandatoryFields: newFields });
-                      }}
-                      disabled={isReadOnly}
-                    />
-                    <Label className="body-medium text-on-surface cursor-pointer">{field.label}</Label>
-                  </div>
-                ))}
               </div>
             </div>
 

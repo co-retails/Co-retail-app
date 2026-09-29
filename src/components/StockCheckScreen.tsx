@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
-import { ArrowLeft, X, Package, AlertCircle, AlertTriangle, Info, MoreVertical, FileText, Keyboard, Search, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, X, Package, AlertCircle, AlertTriangle, Info, MoreVertical, FileText, Keyboard, Search, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
 import { ItemCard, BaseItem } from './ItemCard';
 import CameraScanner from './CameraScanner';
 import {
@@ -38,6 +38,8 @@ export interface StockItem {
   boxLabel?: string;
   deliveryId?: string;
   lastInStoreAt?: string;
+  /** Scanned while offline: only the barcode is known until the item is synced. */
+  pendingSync?: boolean;
 }
 
 export interface StockCheckSession {
@@ -57,12 +59,14 @@ interface StockCheckScreenProps {
   onNavigateToReport?: () => void;
 }
 
-function TopAppBar({ onBack, title, onClose, onNavigateToReport, onManualEntry }: {
+function TopAppBar({ onBack, title, onClose, onNavigateToReport, onManualEntry, isOnline, onToggleConnectivity }: {
   onBack: () => void;
   title: string;
   onClose?: () => void;
   onNavigateToReport?: () => void;
   onManualEntry?: () => void;
+  isOnline?: boolean;
+  onToggleConnectivity?: () => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   // Desktop begins at the md breakpoint (768px) in this app — the left nav rail is
@@ -84,6 +88,12 @@ function TopAppBar({ onBack, title, onClose, onNavigateToReport, onManualEntry }
       label: 'Enter Item ID manually',
       Icon: Keyboard,
       onClick: onManualEntry,
+    },
+    onToggleConnectivity && {
+      key: 'toggle-connectivity',
+      label: isOnline ? 'Simulate offline mode' : 'Simulate online mode',
+      Icon: isOnline ? WifiOff : Wifi,
+      onClick: onToggleConnectivity,
     },
   ].filter(Boolean) as Array<{ key: string; label: string; Icon: typeof FileText; onClick: () => void }>;
 
@@ -287,8 +297,19 @@ function StockItemCard({
   );
 }
 
-function ItemsList({ 
-  items, 
+// Item scanned while offline: the code hasn't been looked up yet, so the
+// barcode number is the only thing we can show until it syncs.
+function PendingScanCard({ code }: { code: string }) {
+  return (
+    <div className="bg-surface-container border border-outline-variant rounded-lg px-4 py-3 flex items-center gap-3">
+      <span className="body-large text-on-surface flex-1">{code}</span>
+      <WifiOff className="w-4 h-4 text-on-surface-variant shrink-0" aria-label="Saved on this device, not yet added" />
+    </div>
+  );
+}
+
+function ItemsList({
+  items,
   selectedItems
 }: {
   items: StockItem[];
@@ -312,11 +333,15 @@ function ItemsList({
     <div className="mx-4 mb-4">
       <div className="flex flex-col gap-2">
         {items.map((item) => (
-          <StockItemCard 
-            key={item.id}
-            item={item} 
-            isSelected={selectedItems.has(item.id)}
-          />
+          item.pendingSync ? (
+            <PendingScanCard key={item.id} code={item.itemId} />
+          ) : (
+            <StockItemCard
+              key={item.id}
+              item={item}
+              isSelected={selectedItems.has(item.id)}
+            />
+          )
         ))}
       </div>
     </div>
@@ -539,6 +564,35 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
   //   info    → item added with a non-Available status (e.g. Missing)
   const [scanNotice, setScanNotice] = useState<{ tone: 'error' | 'warning' | 'info'; text: string } | null>(null);
 
+  // Simulated connectivity (toggled from the more menu). While offline, scans are
+  // kept on the device as barcode-only entries; they sync via "Add to todays count".
+  const [isOnline, setIsOnline] = useState(true);
+  // "You're back online" banner, auto-dismissed after 10 seconds.
+  const [showBackOnlineBanner, setShowBackOnlineBanner] = useState(false);
+  const backOnlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Inline notice shown when tapping the (disabled) bottom button while offline.
+  const [showOfflineTapNotice, setShowOfflineTapNotice] = useState(false);
+
+  const handleToggleConnectivity = () => {
+    if (isOnline) {
+      // Going offline
+      setIsOnline(false);
+      setShowBackOnlineBanner(false);
+      if (backOnlineTimerRef.current) clearTimeout(backOnlineTimerRef.current);
+    } else {
+      // Connectivity restored
+      setIsOnline(true);
+      setShowOfflineTapNotice(false);
+      setShowBackOnlineBanner(true);
+      if (backOnlineTimerRef.current) clearTimeout(backOnlineTimerRef.current);
+      backOnlineTimerRef.current = setTimeout(() => setShowBackOnlineBanner(false), 10000);
+    }
+  };
+
+  useEffect(() => () => {
+    if (backOnlineTimerRef.current) clearTimeout(backOnlineTimerRef.current);
+  }, []);
+
   // Load accumulated items from today's session
   const accumulatedItems = loadAccumulatedItems();
   const accumulatedScannedIds = new Set(accumulatedItems.filter(item => item.isScanned).map(item => item.itemId));
@@ -601,11 +655,24 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
     return mergedItems;
   });
 
-  const scannedItems = stockItems.filter(item => item.isScanned);
+  // Offline-pending scans always render above the items already saved online
+  // (each new pending scan is prepended, so they are also newest-first).
+  const scannedItemsRaw = stockItems.filter(item => item.isScanned);
+  const scannedItems = [
+    ...scannedItemsRaw.filter(item => item.pendingSync),
+    ...scannedItemsRaw.filter(item => !item.pendingSync)
+  ];
   const notScannedItems = stockItems.filter(item => !item.isScanned);
   
   const currentItems = activeTab === 'scanned' ? scannedItems : notScannedItems;
   const canComplete = scannedItems.length > 0;
+
+  // Items scanned while offline that still need to be synced to today's count.
+  const pendingSyncItems = stockItems.filter(item => item.pendingSync);
+  // Online scans save as they happen, so the button is just "Done" (navigate to
+  // report). After an offline stretch it becomes "Add to todays count" until the
+  // pending scans are synced. Offline it is disabled.
+  const bottomButtonMode: 'done' | 'add' = isOnline && pendingSyncItems.length > 0 ? 'add' : 'done';
 
   // Auto-scan effect - simulates continuous scanning readiness
   useEffect(() => {
@@ -627,9 +694,36 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         clearTimeout(scanTimeout);
       }
     };
-  }, [isScanning, notScannedItems.length]);
+    // isOnline must re-arm the timer: otherwise the pending timeout keeps a stale
+    // handleScan closure and an "online" scan can fire after going offline.
+  }, [isScanning, notScannedItems.length, isOnline]);
 
   const handleScan = (scannedCode?: string) => {
+    // Offline: the code can't be looked up, so keep it on the device as a
+    // barcode-only entry. It syncs when the user taps "Add to todays count"
+    // after connectivity returns. Intentionally NOT written to today's count
+    // storage yet — that's what "Add to todays count" does.
+    if (!isOnline) {
+      const code = scannedCode ?? `${34780000 + Math.floor(Math.random() * 100000)}`;
+      const pendingItem: StockItem = {
+        id: `offline-scan-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        itemId: code,
+        title: '',
+        brand: '',
+        price: 0,
+        status: 'Available',
+        orderNumber: '',
+        date: getToday(),
+        isScanned: true,
+        isSelected: false,
+        pendingSync: true
+      };
+      // Prepend so the latest offline scan shows at the top of the Scanned list.
+      setStockItems(prev => [pendingItem, ...prev]);
+      setActiveTab('scanned');
+      return;
+    }
+
     // Prototype simulation of the different outcomes a scan can produce. The
     // running count lets us trigger each scenario predictably in the demo.
     scanCountRef.current += 1;
@@ -753,6 +847,44 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
     setShowManualEntry(false);
   };
 
+  // Sync scans made while offline: the codes are identified against the catalogue
+  // and become full item cards, then everything is saved to today's count.
+  const handleSyncPendingScans = () => {
+    const titles = ['Knit Sweater', 'Denim Jacket', 'Cotton T-Shirt', 'Midi Skirt', 'Chino Pants', 'Wool Cardigan'];
+    const brands = ['H&M', 'Weekday', 'COS', 'Monki', 'ARKET'];
+    const colors = ['Black', 'White', 'Blue', 'Red', 'Gray', 'Green'];
+    const sizes = ['XS', 'S', 'M', 'L', 'XL'];
+    const boxLabels = ['BOX-123456', 'BOX-789012', 'BOX-987654', 'BOX-456789', 'BOX-234567'];
+    const deliveryIds = ['DEL-0931', 'DEL-1130', 'DEL-0950', 'DEL-1001', 'DEL-1045'];
+
+    const syncedCount = pendingSyncItems.length;
+    setStockItems(prev => {
+      const updated = prev.map(item => {
+        if (!item.pendingSync) return item;
+        return {
+          ...item,
+          pendingSync: undefined,
+          title: titles[Math.floor(Math.random() * titles.length)]!,
+          brand: brands[Math.floor(Math.random() * brands.length)]!,
+          size: sizes[Math.floor(Math.random() * sizes.length)]!,
+          color: colors[Math.floor(Math.random() * colors.length)]!,
+          price: Math.floor(Math.random() * 50) + 10,
+          orderNumber: `ORD-${Math.floor(1000000 + Math.random() * 9000000)}`,
+          boxLabel: boxLabels[Math.floor(Math.random() * boxLabels.length)],
+          deliveryId: deliveryIds[Math.floor(Math.random() * deliveryIds.length)],
+          lastInStoreAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 86400000).toISOString()
+        };
+      });
+      saveSessionToStorage(updated);
+      return updated;
+    });
+    setShowBackOnlineBanner(false);
+    setScanNotice({
+      tone: 'info',
+      text: `${syncedCount} ${syncedCount === 1 ? 'item' : 'items'} added to today's count`
+    });
+  };
+
   const handleComplete = () => {
     if (canComplete) {
       // Load accumulated items for the report
@@ -808,16 +940,57 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
         title="Stock Check"
         onNavigateToReport={onNavigateToReport}
         onManualEntry={() => setShowManualEntry(true)}
+        isOnline={isOnline}
+        onToggleConnectivity={handleToggleConnectivity}
       />
       
       {/* Sticky Scan View Container - Always Active */}
       {/* `isolate` forces an own stacking context so the CameraScanner's internal
           high z-index overlays (zIndex 999/1000) stay capped inside this container and
-          can't escape. Intentionally NO positive z-index here: `sticky` already paints
-          this above the (non-positioned) list below it, and giving it a positive z-index
-          made it cover the more-menu — Radix portals the menu to <body> inside a wrapper
-          whose z-index is `auto`, so any positive z-index on this box wins over it. */}
-      <div className="sticky top-16 mx-4 mb-4 isolate">
+          can't escape. `z-10` keeps the list from painting over the scanner/banners
+          while scrolling — the item cards contain `relative` wrappers that otherwise
+          win by tree order. The more-menu still paints above this because
+          globals.css lifts Radix's body-level popper wrapper (z-index 10000),
+          which used to sit at z-index auto and lose to any positive z-index here.
+          Full-width `bg-surface` with padding (not margins) so scrolling cards
+          can't peek through the gaps around the banner and scanner. */}
+      <div className="sticky top-16 px-4 pb-4 bg-surface isolate z-10">
+        {/* Persistent offline banner — stays visible for the whole offline stretch */}
+        {!isOnline && (
+          <div role="status" className="mb-3 flex items-start gap-3 rounded-[12px] px-4 py-3 bg-warning-container">
+            <WifiOff className="w-5 h-5 mt-0.5 shrink-0 text-on-warning-container" />
+            <div className="flex-1">
+              <p className="title-small text-on-warning-container">You’re offline</p>
+              <p className="body-medium text-on-warning-container mt-0.5">
+                Keep scanning—your items are saved locally on this device. Reconnect to add them to today’s count. Don’t sign out from the device, or unsaved scans may be lost.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Back-online banner — auto-dismissed after 10 seconds */}
+        {isOnline && showBackOnlineBanner && (
+          <div role="status" className="mb-3 flex items-start gap-3 rounded-[12px] px-4 py-3 bg-success-container">
+            <Wifi className="w-5 h-5 mt-0.5 shrink-0 text-on-success-container" />
+            <div className="flex-1">
+              <p className="title-small text-on-success-container">You’re back online</p>
+              {pendingSyncItems.length > 0 && (
+                <p className="body-medium text-on-success-container mt-0.5">
+                  Your scanned items are ready to add to today’s count.
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setShowBackOnlineBanner(false)}
+              className="w-12 h-12 -my-2 -mr-2 flex items-center justify-center rounded-full shrink-0 hover:opacity-70 transition-opacity touch-manipulation text-on-success-container"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
         <CameraScanner
           onScan={handleScan}
           scanMessage="Click to scan"
@@ -853,17 +1026,17 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       
       {/* Content */}
       <div className="flex-1">
-        
+
         {/* Tab Bar */}
-        <TabBar 
-          activeTab={activeTab} 
+        <TabBar
+          activeTab={activeTab}
           onTabChange={setActiveTab}
           scannedCount={scannedItems.length}
           notScannedCount={notScannedItems.length}
         />
-        
-        {/* Content Area */}
-        <div className="pt-4 md:pt-6 pb-4">
+
+        {/* Content Area — bottom padding keeps the last cards clear of the fixed action bar */}
+        <div className="pt-4 md:pt-6 pb-28 md:pb-32">
           {/* Items List */}
           <ItemsList
             items={currentItems}
@@ -874,15 +1047,43 @@ export default function StockCheckScreen({ onBack, onGenerateReport, onNavigateT
       
       {/* Fixed Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4 md:py-6 z-20">
+        {/* Shown when tapping the disabled button while offline */}
+        {showOfflineTapNotice && !isOnline && (
+          <div role="alert" className="mb-3 flex items-start gap-3 rounded-[12px] px-4 py-3 bg-error-container">
+            <AlertCircle className="w-5 h-5 mt-0.5 shrink-0 text-on-error-container" />
+            <div className="flex-1">
+              <p className="title-small text-on-error-container">Can’t add items while offline</p>
+              <p className="body-medium text-on-error-container mt-0.5">
+                Your scanned items are still saved on this device. Restore the connection, then try again.
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setShowOfflineTapNotice(false)}
+              className="w-12 h-12 -my-2 -mr-2 flex items-center justify-center rounded-full shrink-0 hover:opacity-70 transition-opacity touch-manipulation text-on-error-container"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
         <div className="w-full flex flex-row flex-wrap gap-3 md:gap-4 justify-end">
-          {/* Add to todays count Button - full width on mobile, positioned far right on desktop */}
-          <Button 
-            onClick={handleComplete}
-            disabled={!canComplete}
-            className="flex-1 md:flex-none min-w-[220px] h-[56px] bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-8 py-3 rounded-lg flex items-center justify-center label-large"
+          {/* Online with nothing pending: "Done" navigates to the report (scans are
+              already saved as they happen). After an offline stretch: "Add to todays
+              count" syncs the offline scans. Offline: disabled, but a tap on the
+              wrapper still explains why. */}
+          <div
+            className="flex-1 md:flex-none"
+            onClick={!isOnline ? () => setShowOfflineTapNotice(true) : undefined}
           >
-            Add to todays count
-          </Button>
+            <Button
+              onClick={bottomButtonMode === 'add' ? handleSyncPendingScans : handleComplete}
+              disabled={!isOnline || (bottomButtonMode === 'done' && !canComplete)}
+              className="w-full md:w-auto min-w-[220px] h-[56px] bg-primary hover:bg-primary/90 focus:bg-primary/90 active:bg-primary/80 disabled:bg-on-surface/12 disabled:text-on-surface/38 text-on-primary transition-colors px-8 py-3 rounded-lg flex items-center justify-center label-large"
+            >
+              {bottomButtonMode === 'add' ? 'Add to todays count' : 'Done'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
